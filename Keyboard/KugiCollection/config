@@ -1,0 +1,10 @@
+target_component="maliit-keyboard"
+package_description="This package includes all experiments and fun by Kugi.\n
+List of changes and features:\n
+- One-handed mode: Swipe to the left/right at the bottom empty bar\n
+- Floating mode: In one-handed mode, drag the handle located at the top left\n
+- Word select: In cursor mover mode, double-tap while the cursor is in the middle of a word without selecting any text\n
+- Commit words when using buttons like go to start/end of line\n
+- Increased word ribbon height\n
+- Custom height in portrait and landscape (For 16:9 devices)\n
+- Other minor changes that I can't remember XD"

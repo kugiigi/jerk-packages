@@ -1,0 +1,20 @@
+target_component="lomiri"
+package_description="This package includes all experiments and fun by Kugi for Lomiri.\n
+Specific for S10 only\n
+List of changes and features:\n
+- Put a marker for the in display fingerprint scanner (S10 specific)\n
+- Adjust UI for the punch hole (S10 specific)\n
+- App drawer's search field moved to the bottom when in Staged mode\n
+- Enables greeter's bottom bar even on tablets\n
+- Some side-stage changes/fixes\n
+- Always hide the Launcher in lockscreen\n
+- Add keyboard shortcuts for the side-stage. Hold Super key to see shortcuts\n
+- Immersive mode indicator will actually disable the edge gestures and multi-finger gestures\n
+- Floating mode for the side-stage instead of always splitting the screen\n
+- New logic for width of the Side-stage instead of being fixed to units.gu(40)\n
+- Lomiri logo for the launcher\n
+- Scaling fix for the indicator logos when connecting to an external display\n
+- New logic for switching between windowed  and staged mode when connecting/disconnecting external display\n
+- Open app menu and indicator via a swipe from the bottom left and right corners\n
+- Interactive blur in Drawer and Top panel\n
+- Some minor fixes"

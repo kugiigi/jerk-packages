@@ -1,0 +1,2 @@
+target_component="bluetooth_conf"
+package_description="Changes controller mode from 'auto' to 'bredr' and enables 'FastConnectable'.\nThis may fix some issues with some BT devices"

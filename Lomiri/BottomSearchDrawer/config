@@ -1,0 +1,2 @@
+target_component="lomiri"
+package_description="Puts app drawer's search field to the bottom in Staged mode.\nAlso inverts the scroll view."
