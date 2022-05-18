@@ -13,8 +13,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.4
+// ENH037 - Manual screen rotation button
+// import QtQuick 2.4
+import QtQuick 2.12
+// ENH037 - End
 import QtQuick.Window 2.2
 import Unity.InputInfo 0.1
 import Unity.Session 0.1
@@ -168,6 +170,14 @@ Item {
     onPhysicalOrientationChanged: {
         if (!orientationLocked) {
             orientation = physicalOrientation;
+        // ENH037 - Manual screen rotation button
+        } else {
+            if (orientation !== physicalOrientation && !shell.showingGreeter) {
+                rotateButton.show()
+            } else {
+                rotateButton.hide()
+            }
+        // ENH037 - End
         }
     }
     onOrientationLockedChanged: {
@@ -273,6 +283,160 @@ Item {
         shellCover: shellCover
         shellSnapshot: shellSnapshot
     }
+    
+    // ENH037 - Manual screen rotation button
+    Rectangle {
+        id: rotateButton
+
+        readonly property real visibleOpacity: 0.8
+        readonly property bool rotateAvailable: root.orientationLocked && root.physicalOrientation !== root.orientation
+        
+        z: shell.z + 1
+        anchors.margins: units.gu(3)
+        states: [
+            State {
+                when: !rotateButton.rotateAvailable
+                AnchorChanges {
+                    target: rotateButton
+                    anchors.right: parent.left
+                    anchors.top: parent.bottom
+                }
+            }
+            , State {
+                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.InvertedLandscapeOrientation
+                AnchorChanges {
+                    target: rotateButton
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                }
+            }
+            , State {
+                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.LandscapeOrientation
+                AnchorChanges {
+                    target: rotateButton
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                }
+            }
+            , State {
+                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.PortraitOrientation
+                AnchorChanges {
+                    target: rotateButton
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                }
+            }
+            , State {
+                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.InvertedPortraitOrientation
+                AnchorChanges {
+                    target: rotateButton
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                }
+            }
+        ]
+        height: units.gu(4)
+        width: height
+        radius: width / 2
+        visible: opacity > 0
+        opacity: 0 //visibleOpacity
+        color: theme.palette.normal.background
+        
+        function show() {
+            if (!visible) {
+                showDelay.restart()
+            }
+        }
+        
+        function hide() {
+            hideAnimation.restart()
+            showDelay.stop()
+        }
+
+        Icon {
+            id: icon
+
+            implicitWidth: units.gu(3)
+            implicitHeight: implicitWidth
+            anchors.centerIn: parent
+            name: "view-rotate"
+            color: theme.palette.normal.backgroundText
+         }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                rotateButton.hide()
+                orientationLock.savedOrientation = root.orientation
+                root.orientation = root.physicalOrientation
+            }
+        }
+        
+        UbuntuNumberAnimation {
+            id: showAnimation
+
+            running: false
+            property: "opacity"
+            target: rotateButton
+            alwaysRunToEnd: true
+            to: rotateButton.visibleOpacity
+            duration: UbuntuAnimation.SlowDuration
+        }
+
+        UbuntuNumberAnimation {
+            id: hideAnimation
+
+            running: false
+            property: "opacity"
+            target: rotateButton
+            alwaysRunToEnd: true
+            to: 0
+            duration: UbuntuAnimation.FastDuration
+        }
+        
+        SequentialAnimation {
+            running: rotateButton.visible
+            loops: 3
+            RotationAnimation {
+                target: rotateButton
+                duration: UbuntuAnimation.SnapDuration
+                to: 0
+                direction: RotationAnimation.Shortest
+            }
+            NumberAnimation { target: icon; duration: UbuntuAnimation.SnapDuration; property: "opacity"; to: 1 }
+            PauseAnimation { duration: UbuntuAnimation.SlowDuration }
+            RotationAnimation {
+                target: rotateButton
+                duration: UbuntuAnimation.SlowDuration
+                to: root.orientationLocked ? Screen.angleBetween(root.orientation, root.physicalOrientation) : 0
+                direction: RotationAnimation.Shortest
+            }
+            PauseAnimation { duration: UbuntuAnimation.SlowDuration }
+            NumberAnimation { target: icon; duration: UbuntuAnimation.SnapDuration; property: "opacity"; to: 0 }
+
+            onFinished: rotateButton.hide()
+        }
+
+        Timer {
+            id: showDelay
+
+            running: false
+            interval: 500
+            onTriggered: {
+                showAnimation.restart()
+            }
+        }
+
+        Timer {
+            id: hideDelay
+
+            running: false
+            interval: 3000
+            onTriggered: rotateButton.hide()
+        }
+    }
+    
+    // ENH037 - End
 
     Shell {
         id: shell
@@ -324,6 +488,13 @@ Item {
             origin.x: shell.transformOriginX; origin.y: shell.transformOriginY; axis { x: 0; y: 0; z: 1 }
             angle: shell.transformRotationAngle
         }
+        // ENH037 - Manual screen rotation button
+        onIsFullScreenChanged: {
+            if (!isFullScreen && root.orientationLocked) {
+                //root.orientation = orientationLock.savedOrientation
+            }
+        }
+        // ENH037 - End
     }
 
     Rectangle {

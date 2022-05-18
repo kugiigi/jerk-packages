@@ -17,4 +17,8 @@ List of changes and features:\n
 - New logic for switching between windowed  and staged mode when connecting/disconnecting external display\n
 - Open app menu and indicator via a swipe from the bottom left and right corners\n
 - Interactive blur in Drawer and Top panel\n
+- Separate lockscreen wallpaper Filename: /home/phablet/Pictures/lomiri_wallpapers/lockscreen\n
+- Outer Wilds theme\n
+- Punchhole battery indicator\n
+- Manual screen rotation button\n
 - Some minor fixes"
