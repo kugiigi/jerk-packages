@@ -75,6 +75,11 @@ Showable {
     signal tease()
     signal sessionStarted()
     signal emergencyCall()
+    
+    // ENH032 - Infographics Outer Wilds
+    property bool enableOW
+    property bool fastModeOW: false
+    // ENH032 - End
 
     function forceShow() {
         if (!active) {
@@ -386,8 +391,24 @@ Showable {
                     root.hide();
                 }
             }
+            
+            // ENH032 - Infographics Outer Wilds
+            onOwToggle: root.enableOW = !root.enableOW
+            onFastModeToggle: root.fastModeOW = !root.fastModeOW
+            // ENH032 - End
         }
-
+        // ENH032 - Infographics Outer Wilds
+        Binding {
+            target: loader.item
+            property: "enableOW"
+            value: root.enableOW
+        }
+        Binding {
+            target: loader.item
+            property: "fastModeOW"
+            value: root.fastModeOW
+        }
+        // ENH032 - End
         Binding {
             target: loader.item
             property: "panelHeight"
@@ -497,13 +518,72 @@ Showable {
         }
     }
     
+    // ENH032 - Infographics Outer Wilds
+    Icon {
+        id: eyeMarker
+
+        readonly property color normalColor: "#c2cffc"
+        readonly property color successColor: "#3d60e3"
+        
+        readonly property real normalSize: units.gu(5)
+        readonly property real successSize: units.gu(60)
+
+        property bool enableMarker: true
+        property bool show: false
+
+        visible: biometryd.idEnabled && enableMarker && root.fullyShown && shell.isBuiltInScreen
+        source: "../OuterWilds/graphics/eye.svg"
+        color: !show ? normalColor : successColor
+        keyColor: "#000000"
+        width: !show ? normalSize : successSize
+        height: width
+        anchors.centerIn: fpMarker
+        
+        Behavior on width {
+            UbuntuNumberAnimation {
+                duration: UbuntuAnimation.SnapDuration
+            }
+        }
+        
+        Behavior on opacity {
+            UbuntuNumberAnimation {
+                duration: UbuntuAnimation.SnapDuration
+            }
+        }
+
+        Behavior on color {
+            ColorAnimation {
+                duration: UbuntuAnimation.SnapDuration
+            }
+        }
+        
+        Connections {
+			target: biometryd
+			onSucceeded: {
+                eyeMarker.show = true
+                resetDelay.restart()
+            }
+		}
+        
+        Timer {
+            id: resetDelay
+            interval: 500
+            onTriggered: {
+                eyeMarker.show = false
+            }
+        }
+    }
+    // ENH032 - End
+    
     // ENH001 - Fingerprint marker
     Rectangle {
 		id: fpMarker
 
 		readonly property real sideMargin: 250 //units.gu(10)
 
-		visible: biometryd.idEnabled && root.fullyShown && shell.isBuiltInScreen
+        property bool enableMarker: false
+
+		visible: biometryd.idEnabled && enableMarker && root.fullyShown && shell.isBuiltInScreen
 		height: 210//180 // units.gu(7)
 		width: 180//150 // units.gu(6)
 		color: theme.palette.normal.activity
@@ -699,7 +779,10 @@ Showable {
                 loader.item.showFakePassword();
             }
             if (root.active)
-                root.forcedUnlock = true;
+                // ENH032 - Infographics Outer Wilds
+                // root.forcedUnlock = true;
+                delayUnlock.restart()
+                // ENH032 - End
         }
         onFailed: {
             if (!d.secureFingerprint) {
@@ -710,4 +793,11 @@ Showable {
             }
         }
     }
+    // ENH032 - Infographics Outer Wilds
+    Timer {
+        id: delayUnlock
+        interval: 200
+        onTriggered: root.forcedUnlock = true;
+    }
+    // ENH032 - End
 }

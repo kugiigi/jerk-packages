@@ -28,6 +28,9 @@ import GSettings 1.0
 import "Spread"
 import "Spread/MathUtils.js" as MathUtils
 import WindowManager 1.0
+// ENH032 - Infographics Outer Wilds
+import "../OuterWilds"
+// ENH032 - End
 
 FocusScope {
     id: root
@@ -689,11 +692,90 @@ FocusScope {
             id: wallpaper
             objectName: "stageBackground"
             anchors.fill: parent
-            source: root.background
+            // ENH034 - Separate wallpaper lockscreen and desktop
+            // source: root.background
+            source: "file:///home/phablet/Pictures/lomiri_wallpapers/desktop"
+//~             source: "file:///home/phablet/Pictures/lomiri_wallpapers/lockscreen"
+            // ENH034 - End
             // Make sure it's the lowest item. Due to the left edge drag we sometimes need
             // to put the dash at -1 and we don't want it behind the Wallpaper
             z: -2
         }
+        
+        // ENH032 - Infographics Outer Wilds
+        property bool enableOW: false
+//~         property bool enableOW: true
+        Loader {
+            id: solarSystemLoader
+            property bool fastMode: true
+
+            active: appContainer.enableOW
+            asynchronous: true
+            anchors.fill: parent
+            sourceComponent: solarSystemComp
+        }
+        Component {
+            id: solarSystemComp
+            SolarSystem {
+                id: solarSystem
+                fastMode: solarSystemLoader.fastMode
+            }
+        }
+
+        Image {
+            id: scout
+            
+            readonly property real startWidth: units.gu(1)
+            readonly property real endWidth: units.gu(3)
+            visible: topLevelSurfaceList.count == 0
+            
+            asynchronous: true
+            source: "../OuterWilds/graphics/scout.png"
+            width: startWidth
+            height: width
+            fillMode: Image.PreserveAspectFit
+        }
+        
+        PathAnimation {
+            id: flyByAnim
+            running: scout.visible
+            target: scout
+            duration: 6000
+            loops: Animation.Infinite
+            anchorPoint: Qt.point(scout.width / 2, scout.height / 2)
+            path: Path {
+                startX: (wallpaper.width * 0.7) + units.gu(15)
+                startY: -scout.height - units.gu(10)
+
+                PathLine {
+                   x: -scout.width
+                   y: wallpaper.height / 2
+                }
+            }
+        }
+        
+        NumberAnimation {
+            id: sizeAnim
+            running: scout.visible
+            loops: Animation.Infinite
+            target: scout
+            property: "width"
+            from: scout.startWidth
+            to: scout.endWidth
+            duration: flyByAnim.duration
+        }
+        
+        RotationAnimation {
+            id: rotateAnim
+            running: scout.visible
+            loops: Animation.Infinite
+            target: scout
+            property: "rotation"
+            from: 0
+            to: 360
+            duration: 2000
+        }
+        // ENH032 - End
 
         BlurLayer {
             id: blurLayer

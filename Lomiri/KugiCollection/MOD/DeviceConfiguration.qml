@@ -42,7 +42,12 @@ QtObject {
     readonly property alias notchPosition: priv.notchPosition
     readonly property alias notchHeightMargin: priv.notchHeightMargin
     readonly property alias fullyHideNotchInPortrait: priv.fullyHideNotchInPortrait
+    readonly property alias notchWidthMargin: priv.notchWidthMargin
+    // ENH036 - Use punchole as battery indicator
     readonly property alias punchHoleWidth: priv.punchHoleWidth
+    readonly property alias punchHoleHeightFromTop: priv.punchHoleHeightFromTop
+    readonly property alias batteryCircle: priv.batteryCircle
+    // ENH036 - End
     readonly property alias withRoundedCorners: priv.withRoundedCorners
     readonly property alias roundedCornerRadius: priv.roundedCornerRadius
     readonly property alias roundedCornerMargin: priv.roundedCornerMargin
@@ -74,12 +79,17 @@ QtObject {
         // Notch/Punchhole/Rounded corner Configuration values
         readonly property bool withNotch: notchHeightMargin > 0
         property string notchPosition: "none" // Values: "left", "middle", "right", "none"
-        property int notchHeightMargin: 0 // (fullyHideNotchInPortrait = true) Height reserved for the notch/punchhole. (fullyHideNotchInPortrait = false) height of indicator panel
+        property real notchHeightMargin: 0 // (fullyHideNotchInPortrait = true) Height reserved for the notch/punchhole. (fullyHideNotchInPortrait = false) height of indicator panel
         property bool fullyHideNotchInPortrait: false // (True) Full bar where the notch is will be blank space. (False) Indicator bar height is equal to notchHeightMargin
-        property int punchHoleWidth: 0 // Width reserved for punchholes located on the right. Affects indicator bar
+        property real notchWidthMargin: 0 // Width reserved for punchholes located on the right. Affects indicator bar
+        // ENH036 - Use punchole as battery indicator
+        property real punchHoleWidth: 0 // Width of the actual punch hole
+        property real punchHoleHeightFromTop: 0 // Exact distance from top of the screen to bottom of the punch hole
+        property bool batteryCircle: false // Enable battery circle
+        // ENH036 - End
         readonly property bool withRoundedCorners: roundedCornerRadius > 0
-        property int roundedCornerRadius: 0 // Radius of the rounded corners
-        property int roundedCornerMargin: 0 // Margin when there are rounded corners. Affects the indicator panel's icons and labels
+        property real roundedCornerRadius: 0 // Radius of the rounded corners
+        property real roundedCornerMargin: 0 // Margin when there are rounded corners. Affects the indicator panel's icons and labels
         // ENH002 - End
         // ENH031 - Blur behavior in Drawer
         property bool interactiveBlur: false
@@ -106,7 +116,12 @@ QtObject {
                     notchPosition: "right"
                     notchHeightMargin: 155
                     fullyHideNotchInPortrait: false
-                    punchHoleWidth: 200
+                    notchWidthMargin: 204
+                    // ENH036 - Use punchole as battery indicator
+                    punchHoleWidth: 117
+                    punchHoleHeightFromTop: 150
+                    batteryCircle: false
+                    // ENH036 - End
                     roundedCornerRadius: 270
                     roundedCornerMargin: 50
                     
@@ -249,6 +264,11 @@ QtObject {
                     portraitOrientation: Qt.PortraitOrientation
                     invertedPortraitOrientation: Qt.InvertedPortraitOrientation
                     category: "desktop"
+                    
+                    // ENH031 - Blur behavior in Drawer
+                    // Interactive Blur
+                    interactiveBlur: true
+                    // ENH031 - End
                 }
             },
             State {

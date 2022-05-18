@@ -64,6 +64,13 @@ FocusScope {
     signal responded(string response)
     signal tease()
     signal emergencyCall() // unused
+    
+    // ENH032 - Infographics Outer Wilds
+    property bool enableOW: false
+    property bool fastModeOW: false
+    signal fastModeToggle
+    signal owToggle
+    // ENH032 - End
 
     function notifyAuthenticationFailed() {
         loginList.showError();
@@ -132,8 +139,13 @@ FocusScope {
         draggable: false
         state: "LoginList"
 
-        background: root.background
+        // ENH034 - Separate wallpaper lockscreen and desktop
+        // background: root.background
         backgroundSourceSize: root.backgroundSourceSize
+        //background: "file:///home/phablet/Pictures/lomiri_wallpapers/lockscreen"
+        //backgroundSourceSize: 1440
+        fallbackBackground: root.background
+        // ENH034 - End
         panelHeight: root.panelHeight
         hasCustomBackground: root.hasCustomBackground
         backgroundShadeOpacity: 0.6
@@ -158,6 +170,13 @@ FocusScope {
                 root.responded("");
             }
         }
+        
+        // ENH032 - Infographics Outer Wilds
+        enableOW: root.enableOW
+        fastModeOW: root.fastModeOW
+        onOwToggle: root.owToggle()
+        onFastModeToggle: root.fastModeToggle()
+        // ENH032 - End
 
         LoginList {
             id: loginList
@@ -345,14 +364,21 @@ FocusScope {
         objectName: "coverPage"
         height: parent.height
         width: parent.width
-        background: root.background
+        // ENH034 - Separate wallpaper lockscreen and desktop
+        // background: root.background
+        //background: "file:///home/phablet/Pictures/lomiri_wallpapers/lockscreen"
+        fallbackBackground: root.background
+        // ENH034 - End
         hasCustomBackground: root.hasCustomBackground
         backgroundShadeOpacity: 0.4
         panelHeight: root.panelHeight
         draggable: !root.waiting
         onTease: root.tease()
         onClicked: hide()
+        // ENH034 - Separate wallpaper lockscreen and desktop
         backgroundSourceSize: root.backgroundSourceSize
+        //backgroundSourceSize: 1440
+        // ENH034 - End
         infographicModel: root.infographicModel
 
         showInfographic: !root.multiUser && root.usageMode != "desktop"
@@ -366,6 +392,13 @@ FocusScope {
                 }
             }
         }
+        
+        // ENH032 - Infographics Outer Wilds
+        enableOW: root.enableOW
+        fastModeOW: root.fastModeOW
+        onOwToggle: root.owToggle()
+        onFastModeToggle: root.fastModeToggle()
+        // ENH032 - End
 
         Clock {
             id: clock
