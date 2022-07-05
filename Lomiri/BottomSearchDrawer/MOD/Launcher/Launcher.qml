@@ -430,7 +430,7 @@ FocusScope {
         Connections {
             target: panel.dismissTimer
             onTriggered: {
-                if (root.autohideEnabled && !root.lockedVisible) {
+                if (root.state !== "drawer" && root.autohideEnabled && !root.lockedVisible) {
                     if (!edgeBarrier.containsMouse && !panel.preventHiding) {
                         root.state = ""
                     } else {
@@ -611,6 +611,11 @@ FocusScope {
                 restoreEntryValues: false
                 anchors.rightMargin: 0
                 focus: false
+            }
+            PropertyChanges {
+                target: root
+                restoreEntryValues: false
+                autohideEnabled: false
             }
         },
         State {
