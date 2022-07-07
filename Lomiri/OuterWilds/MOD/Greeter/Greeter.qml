@@ -450,7 +450,10 @@ Showable {
         Binding {
             target: loader.item
             property: "hasCustomBackground"
-            value: root.hasCustomBackground
+            // ENH032 - Infographics Outer Wilds
+            // value: root.hasCustomBackground
+            value: root.enableOW ? false : root.hasCustomBackground
+            // ENH032 - End
         }
 
         Binding {
@@ -531,10 +534,11 @@ Showable {
         readonly property real successSize: units.gu(60)
 
         property bool enableMarker: true
+        property bool show: false
 
         visible: biometryd.idEnabled && enableMarker && root.fullyShown && shell.isBuiltInScreen
         source: "../OuterWilds/graphics/eye.svg"
-        color: !show ? normalColor : successColor
+        color: successColor
         keyColor: "#000000"
         width: !show ? normalSize : successSize
         height: width
@@ -558,13 +562,17 @@ Showable {
             }
         }
         
-        Connections {
-			target: biometryd
-			onSucceeded: {
+        MouseArea {
+            anchors.centerIn: parent
+            width: fpMarker.width
+            height: fpMarker.height
+            onPressed: {
+                eyeMarker.show = true
                 eyeMarker.show = true
                 resetDelay.restart()
+                resetDelay.restart()
             }
-		}
+        }
         
         Timer {
             id: resetDelay
@@ -795,7 +803,7 @@ Showable {
     // ENH032 - Infographics Outer Wilds
     Timer {
         id: delayUnlock
-        interval: 200
+        interval: 1
         onTriggered: root.forcedUnlock = true;
     }
     // ENH032 - End

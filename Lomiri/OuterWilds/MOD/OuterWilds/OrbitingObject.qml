@@ -200,33 +200,33 @@ Item {
         height: width
         fillMode: Image.PreserveAspectFit
         
-//~         Rectangle {
-//~             id: quantumMoon
-//~             property real orbitMargin: units.gu(1.5)
+        Rectangle {
+            id: quantumMoon
+            property real orbitMargin: units.gu(1.5)
 
-//~             visible: orbit.hasQuantumMoon
-//~             color: "#5b5e6a"
-//~             radius: width / 2
-//~             width: units.gu(0.8)
-//~             height: width
-//~             states: [
-//~                 State {
-//~                     when: orbit.quantumMoonLoc == 1
-//~                     AnchorChanges { target: quantumMoon; anchors.left: object.right; }
-//~                     PropertyChanges { target: quantumMoon; anchors.leftMargin: quantumMoon.orbitMargin }
-//~                 }
-//~                 , State {
-//~                     when: orbit.quantumMoonLoc == 2
-//~                     AnchorChanges { target: quantumMoon; anchors.right: object.left; }
-//~                     PropertyChanges { target: quantumMoon; anchors.rightMargin: quantumMoon.orbitMargin }
-//~                 }
-//~                 , State {
-//~                     when: orbit.quantumMoonLoc == 3
-//~                     AnchorChanges { target: quantumMoon; anchors.top: object.bottom; }
-//~                     PropertyChanges { target: quantumMoon; anchors.topMargin: quantumMoon.orbitMargin }
-//~                 }
-//~             ]
-//~         }
+            visible: orbit.hasQuantumMoon
+            color: "#5b5e6a"
+            radius: width / 2
+            width: units.gu(0.8)
+            height: width
+            states: [
+                State {
+                    when: orbit.quantumMoonLoc == 1
+                    AnchorChanges { target: quantumMoon; anchors.left: object.right; }
+                    PropertyChanges { target: quantumMoon; anchors.leftMargin: quantumMoon.orbitMargin }
+                }
+                , State {
+                    when: orbit.quantumMoonLoc == 2
+                    AnchorChanges { target: quantumMoon; anchors.right: object.left; }
+                    PropertyChanges { target: quantumMoon; anchors.rightMargin: quantumMoon.orbitMargin }
+                }
+                , State {
+                    when: orbit.quantumMoonLoc == 3
+                    AnchorChanges { target: quantumMoon; anchors.top: object.bottom; }
+                    PropertyChanges { target: quantumMoon; anchors.topMargin: quantumMoon.orbitMargin }
+                }
+            ]
+        }
     }
     
     RotationAnimation {

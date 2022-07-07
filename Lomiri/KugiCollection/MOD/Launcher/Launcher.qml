@@ -447,10 +447,7 @@ FocusScope {
         Connections {
             target: panel.dismissTimer
             onTriggered: {
-                // ENH017 - Fix auto close of launcher/drawer
-                // if (root.autohideEnabled && !root.lockedVisible) {
                 if (root.state !== "drawer" && root.autohideEnabled && !root.lockedVisible) {
-                // ENH017 - End
                     if (!edgeBarrier.containsMouse && !panel.preventHiding) {
                         root.state = ""
                     } else {
@@ -638,13 +635,11 @@ FocusScope {
                 anchors.rightMargin: 0
                 focus: false
             }
-            // ENH017 - Fix auto close of launcher/drawer
             PropertyChanges {
                 target: root
                 restoreEntryValues: false
                 autohideEnabled: false
             }
-            // ENH017 - End
         },
         State {
             name: "drawer"
