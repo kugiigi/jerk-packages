@@ -5,10 +5,10 @@ import Ubuntu.Components 1.3
 OrbitingObject {
 	id: quantumLocObj
 	
-	QuantumMoon {
-		visible: quantumLocObj.hasQuantumMoon
-		startingPosition: quantumLocObj.quantumMoonLoc
-	}
+//~ 	QuantumMoon {
+//~ 		visible: quantumLocObj.hasQuantumMoon
+//~ 		startingPosition: quantumLocObj.quantumMoonLoc
+//~ 	}
 }
 
 // ENH032 - End
