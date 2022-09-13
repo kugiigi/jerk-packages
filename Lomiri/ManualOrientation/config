@@ -1,2 +1,0 @@
-target_component="lomiri"
-package_description="Rotation lock controls the shell orientation (Locked: Portrait, Unlocked: Landscape). Useful for devices with broken orientation sensor."
