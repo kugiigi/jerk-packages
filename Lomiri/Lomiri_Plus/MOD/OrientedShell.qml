@@ -184,14 +184,15 @@ Item {
     // ENH042 - End
     // ENH044 - Manual rotate screen with button
     GlobalShortcut { // rotate screen
-        enabled: shell.settings.pro1_orientationToggleKey
         shortcut: Qt.Key_WebCam
         onTriggered: {
-            if (orientationLocked && Powerd.status === Powerd.On) {
-                if (orientation == Qt.InvertedLandscapeOrientation) {
-                    orientation = Qt.PortraitOrientation
-                } else {
-                    orientation = Qt.InvertedLandscapeOrientation
+            if (shell.settings.pro1_orientationToggleKey) {
+                if (orientationLocked && Powerd.status === Powerd.On) {
+                    if (orientation == Qt.InvertedLandscapeOrientation) {
+                        orientation = Qt.PortraitOrientation
+                    } else {
+                        orientation = Qt.InvertedLandscapeOrientation
+                    }
                 }
             }
         }

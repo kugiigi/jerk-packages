@@ -67,6 +67,7 @@ FocusScope {
     
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
+    property bool alternateOW: false
     property bool fastModeOW: false
     signal fastModeToggle
     signal owToggle
@@ -127,16 +128,29 @@ FocusScope {
     // Keys.onEnterPressed: coverPage.hide();
 
     Keys.onPressed: {
-        if (event.key == Qt.Key_Escape
-                || event.key == Qt.Key_Return || event.key == Qt.Key_Enter
-                || event.key == Qt.Key_Space) {
-            coverPage.hide();
+        // ENH032 - Infographics Outer Wilds
+        if ((event.key == Qt.Key_Enter || event.key == Qt.Key_Return
+                    || event.key == Qt.Key_Space) && owMenuLoader.item && !owMenuLoader.item.listIsFocused && coverPage.shown) {
+            owMenuLoader.item.selectCurrentItem()
+        } else if ((event.key == Qt.Key_Up || event.key == Qt.Key_Down) && owMenuLoader.item
+                                                                && !owMenuLoader.item.listIsFocused) {
+            owMenuLoader.item.setFocus()
+            if (event.key == Qt.Key_Down) {
+                owMenuLoader.item.incrementCurrentIndex()
+            } else {
+                owMenuLoader.item.decrementCurrentIndex()
+            }
+        } else if ((event.key == Qt.Key_Escape
+                    || event.key == Qt.Key_Return || event.key == Qt.Key_Enter
+                    || event.key == Qt.Key_Space) && !owMenuLoader.item) {
+                coverPage.hide();
         } else if (event.text.trim() !== "") {
             if (loginList.setInitText(event.text)) { // Check if initial text is accepted based on prompt type
                 coverPage.hide();
             }
         }
         event.accepted = true;
+        // ENH032 - End
     }
 
     // ENH038 - End
@@ -178,6 +192,56 @@ FocusScope {
         infographicsTopMargin: parent.height * 0.125
         infographicsBottomMargin: parent.height * 0.125
         infographicsLeftMargin: loginList.x + loginList.width
+        // ENH032 - Infographics Outer Wilds
+        owWallpaper: root.enableOW
+        owAlternateWallpaper: root.alternateOW
+        Loader {
+            active: lockscreen.owWallpaper && lockscreen.owAlternateWallpaper && lockscreen.shown && !coverPage.shown
+            asynchronous: true
+            anchors {
+                right: parent.right
+                bottom: parent.bottom
+                rightMargin: units.gu(5)
+                bottomMargin: inputMethodRect.height + units.gu(5)
+            }
+            height: units.gu(10)
+            width: height
+            sourceComponent: Component {
+                Item {
+                    Icon {
+                        source: "../OuterWilds/graphics/loading_circle.svg"
+                        width: units.gu(5)
+                        height: width
+                        anchors.centerIn: parent
+                    }
+                    Rectangle {
+                        id: rotatingCircle
+                        color: "transparent"
+                        anchors.fill: parent
+                        Rectangle {
+                            color: "#fe7c25"
+                            radius: width / 2
+                            height: units.gu(1)
+                            width: height
+                            anchors {
+                                top: parent.top
+                                horizontalCenter: parent.horizontalCenter
+                            }
+                        }
+                        RotationAnimation {
+                            target: rotatingCircle
+                            running: true
+                            loops: Animation.Infinite
+                            duration: 5000
+                            from: 0
+                            to: 360
+                            direction: RotationAnimation.Clockwise
+                        }
+                    }
+                }
+            }
+        }
+        // ENH032 - End
 
         onTease: root.tease()
 
@@ -186,13 +250,6 @@ FocusScope {
                 root.responded("");
             }
         }
-        
-        // ENH032 - Infographics Outer Wilds
-        enableOW: root.enableOW
-        fastModeOW: root.fastModeOW
-        onOwToggle: root.owToggle()
-        onFastModeToggle: root.fastModeToggle()
-        // ENH032 - End
 
         LoginList {
             id: loginList
@@ -411,29 +468,278 @@ FocusScope {
         
         // ENH032 - Infographics Outer Wilds
         enableOW: root.enableOW
+        alternateOW: root.alternateOW
         fastModeOW: root.fastModeOW
         onOwToggle: root.owToggle()
         onFastModeToggle: root.fastModeToggle()
+        readonly property bool isLargeScreen: isLandscape ? root.height >= units.gu(70)
+                                                          : root.width >= units.gu(70)
         // ENH032 - End
 
         Clock {
             id: clock
             anchors.centerIn: parent
+            // ENH032 - Infographics Outer Wilds
+            owThemed: root.enableOW || shell.settings.ow_ColoredClock
+            largeMode: coverPage.isLargeScreen
+            gradientTimeText: shell.settings.ow_GradientColoredTime
+            // ENH032 - End
         }
 
+        // ENH032 - Infographics Outer Wilds
+        Loader {
+            id: owMenuLoader
+            active: shell.settings.ow_mainMenu
+            asynchronous: true
+            anchors {
+                top: clock.bottom
+                left: clock.left
+                right: clock.right
+            }
+            states: [
+                State {
+                    name: "landscape"
+                    when: isLandscape
+                    PropertyChanges {
+                        target: owMenuLoader;
+                        anchors.topMargin: coverPage.isLargeScreen ? units.gu(10) : units.gu(4)
+                    }
+                }
+                , State {
+                    name: "portrait"
+                    when: !isLandscape
+                    PropertyChanges {
+                        target: owMenuLoader
+                        anchors.topMargin: coverPage.isLargeScreen ? units.gu(15) : units.gu(10)
+                    }
+                }
+            ]
+            sourceComponent: Component {
+                Item {
+                    id: owMainMenu
+                    
+                    readonly property bool listIsFocused: owMainMenuList.activeFocus
+
+                    function setFocus() {
+                        owMainMenuList.forceActiveFocus()
+                    }
+
+                    function selectCurrentItem() {
+                        owMainMenuList.currentItem.trigger()
+                    }
+
+                    function incrementCurrentIndex() {
+                        owMainMenuList.incrementCurrentIndex()
+                    }
+
+                    function decrementCurrentIndex() {
+                        owMainMenuList.decrementCurrentIndex()
+                    }
+
+                    Column {
+                        spacing: coverPage.isLargeScreen ? units.gu(5) : units.gu(3)
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                        }
+                        Rectangle {
+                            color: "#3b3a3b"
+                            opacity: 0.6
+                            height: units.dp(1)
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                            }    
+                        }
+
+                        ListView {
+                            id: owMainMenuList
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                            }
+                            model: owMenuModel
+                            height: contentHeight
+                            keyNavigationWraps: true
+                            delegate: MouseArea {
+                                readonly property alias contentWidth: menuLabel.contentWidth
+                                readonly property alias contentHeight: menuLabel.contentHeight
+                                readonly property bool isCurrentItem: ListView.isCurrentItem
+                                height: coverPage.isLargeScreen ? units.gu(8) : units.gu(4)
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                }
+
+                                function trigger() {
+                                    switch (index) {
+                                        case 0: // Unlock
+                                            coverPage.hide()
+                                            break
+                                        case 1: // Emergency
+                                            root.emergencyCall()
+                                            break
+                                        case 2: // Options
+                                            shell.showSettings()
+                                            break
+                                    }
+                                }
+
+                                Label {
+                                    id: menuLabel
+                                    text: model.title
+                                    color: isCurrentItem ? "#f9e0ce" : "#ec813f"
+                                    font.family: "DejaVu Sans"
+                                    fontSize: coverPage.isLargeScreen ? "x-large" : "medium"
+                                    font.weight: Font.DemiBold
+                                    anchors.centerIn: parent
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                Keys.onEnterPressed: trigger()
+                                Keys.onReturnPressed: trigger()
+                                Keys.onSpacePressed: trigger()
+
+                                onClicked: {
+                                    owMainMenuList.currentIndex = index
+                                    trigger()
+                                }
+                            }
+                            highlightFollowsCurrentItem: false
+                            highlight: Component {
+                                Item {
+                                    height: owMainMenuList.currentItem.height
+                                    width: owMainMenuList.currentItem.contentWidth
+                                    x: (owMainMenuList.currentItem.width / 2) - (width / 2)
+                                    y: owMainMenuList.currentItem.y
+                                    Behavior on y {
+                                        SpringAnimation {
+                                            spring: 3
+                                            damping: 0.2
+                                        }
+                                    }
+                                    Behavior on width {
+                                        SpringAnimation {
+                                            spring: 3
+                                            damping: 0.2
+                                        }
+                                    }
+                                    Icon {
+                                        id: left
+                                        asynchronous: true
+                                        anchors {
+                                            right: parent.left
+                                            rightMargin: units.gu(1)
+                                            verticalCenter: parent.verticalCenter
+                                        }
+                                        source: "../OuterWilds/graphics/menu_arrow.svg"
+                                        color: "#f9e0ce"
+                                        width: owMainMenuList.currentItem.contentHeight
+                                        height: width
+                                        keyColor: "#ffffff"
+                                        transform: Rotation { origin.x: left.width / 2; origin.y: 0; axis { x: 0; y: 1; z: 0 } angle: 180 }
+                                    }
+                                    Icon {
+                                        id: right
+                                        asynchronous: true
+                                        anchors {
+                                            left: parent.right
+                                            leftMargin: units.gu(1)
+                                            verticalCenter: parent.verticalCenter
+                                        }
+                                        source: "../OuterWilds/graphics/menu_arrow.svg"
+                                        color: "#f9e0ce"
+                                        width: left.width
+                                        height: width
+                                        keyColor: "#ffffff"
+                                    }
+                                }
+                            }
+                            Connections {
+                                target: shell.lpsettingsLoader
+                                onActiveChanged: {
+                                    if (!target.active) {
+                                        owMainMenuList.forceActiveFocus()
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            color: "#3b3a3b"
+                            opacity: 0.6
+                            height: units.dp(1)
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                            }    
+                        }
+                    }
+
+                    ListModel {
+                        id: owMenuModel
+
+                        Component.onCompleted: {
+                            append({
+                                "title": "UNLOCK"
+                            })
+                            append({
+                                "title": "EMERGENCY"
+                            })
+                            append({
+                                "title": "OPTIONS"
+                            })
+                        }
+                    }
+                }
+            }
+        }
+        // ENH032 - End
+
         states: [
+            // ENH032 - Infographics Outer Wilds
+            State {
+                name: "landscape-with-infographics-ow"
+                when: isLandscape && clock.owThemed
+                AnchorChanges {
+                    target: clock
+                    anchors.top: coverPage.top
+                    anchors.left: coverPage.left
+                    anchors.horizontalCenter: undefined
+                    anchors.verticalCenter: undefined
+                }
+                PropertyChanges {
+                    target: clock;
+                    anchors.topMargin: coverPage.isLargeScreen ? units.gu(10) + panelHeight : units.gu(4) + panelHeight
+                    anchors.leftMargin: coverPage.isLargeScreen ? units.gu(15): units.gu(5)
+                    anchors.centerIn: undefined
+                    anchors.horizontalCenterOffset: 0 //- coverPage.width / 2 + clock.width / 2 + units.gu(8)
+                }
+                PropertyChanges {
+                    target: coverPage
+                    infographicsLeftMargin: clock.width + units.gu(8)
+                }
+            },
+            // ENH032 - End
             State {
                 name: "landscape-with-infographics"
                 when: isLandscape && coverPage.showInfographic
                 AnchorChanges {
                     target: clock
                     anchors.top: undefined
+                    // ENH032 - Infographics Outer Wilds
+                    anchors.left: undefined
+                    // ENH032 - End
                     anchors.horizontalCenter: undefined
                     anchors.verticalCenter: undefined
                 }
                 PropertyChanges {
                     target: clock;
                     anchors.topMargin: undefined
+                    // ENH032 - Infographics Outer Wilds
+                    anchors.leftMargin: undefined
+                    // ENH032 - End
                     anchors.centerIn: coverPage
                     anchors.horizontalCenterOffset: - coverPage.width / 2 + clock.width / 2 + units.gu(8)
                 }

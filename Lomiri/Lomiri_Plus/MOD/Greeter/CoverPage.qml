@@ -20,6 +20,9 @@ import QtGraphicalEffects 1.12
 import Ubuntu.Components 1.3
 import Ubuntu.Gestures 0.1
 import "../Components"
+// ENH032 - Infographics Outer Wilds
+import "../OuterWilds"
+// ENH032 - End
 
 Showable {
     id: root
@@ -50,6 +53,9 @@ Showable {
     
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
+    property bool alternateOW: false
+    property bool owWallpaper: false
+    property bool owAlternateWallpaper: false
     property bool fastModeOW: false
     signal fastModeToggle
     signal owToggle
@@ -104,15 +110,112 @@ Showable {
     Wallpaper {
         id: greeterBackground
         objectName: "greeterBackground"
-        anchors {
-            fill: parent
+        // ENH032 - Infographics Outer Wilds
+        // anchors {
+        //     fill: parent
+        // }
+
+        states: [
+            State {
+                name: "normal"
+                when: !alternateOWLoader.active
+
+                AnchorChanges {
+                    target: greeterBackground
+                    anchors.top: root.top
+                    anchors.bottom: root.bottom
+                    anchors.left: root.left
+                    anchors.right: root.right
+                }
+            }
+            , State {
+                name: "alternateOW"
+                when: alternateOWLoader.active
+                AnchorChanges {
+                    target: greeterBackground
+                    anchors.top: undefined
+                    anchors.bottom: undefined
+                    anchors.left: undefined
+                    anchors.right: undefined
+                }
+                PropertyChanges {
+                    target: greeterBackground
+                    x: 0
+                    y: root.height - greeterBackground.height
+                    height: root.height * 1.2
+                    width: root.width * 1.2
+                }
+            }
+        ]
+        SequentialAnimation {
+            id: bgMoveAnimation
+
+            running: alternateOWLoader.item && alternateOWLoader.item.playing
+            paused: alternateOWLoader.item && alternateOWLoader.item.paused
+            loops: Animation.Infinite
+            PropertyAction {
+                target: greeterBackground
+                property: "x"
+                value: 0
+            }
+            PropertyAction {
+                target: greeterBackground
+                property: "y"
+                value: -(root.height * 0.2)
+            }
+            ParallelAnimation {
+                UbuntuNumberAnimation {
+                    target: greeterBackground
+                    property: "opacity"
+                    duration: 1000
+                    from: 0
+                    to: 1
+                }
+                NumberAnimation {
+                    target: greeterBackground
+                    property: "x"
+                    duration: 30000
+                    easing.type: Easing.Linear
+                    from: 0
+                    to: -(root.width * 0.2)
+                }
+                NumberAnimation {
+                    target: greeterBackground
+                    property: "y"
+                    duration: 30000
+                    easing.type: Easing.Linear
+                    from: -(root.height * 0.2)
+                    to: 0
+                }
+                SequentialAnimation {
+                    PauseAnimation { duration: 29000 }
+                    UbuntuNumberAnimation {
+                        target: greeterBackground
+                        property: "opacity"
+                        duration: 1000
+                        from: 1
+                        to: 0
+                    }
+                }
+            }
         }
+        // ENH032 - End
         // ENH034 - Separate wallpaper lockscreen and desktop
         //source: "file:///home/phablet/Pictures/lomiri_wallpapers/lockscreen"
         // ENH032 - Infographics Outer Wilds
-        source: root.enableOW ? "../OuterWilds/graphics/lockscreen.png"
-                              : shell.settings.useCustomLockscreen ? "file:///home/phablet/Pictures/lomiriplus/lockscreen"
-                                                                   : fallbackSource
+        source: {
+            if (root.owWallpaper && root.owAlternateWallpaper) {
+                return "../OuterWilds/graphics/loading_screen.png"
+            }
+            if (root.enableOW || root.owWallpaper) {
+                return "../OuterWilds/graphics/lockscreen.png"
+            }
+            if (shell.settings.useCustomLockscreen) {
+                return "file:///home/phablet/Pictures/lomiriplus/lockscreen"
+            }
+
+            return fallbackSource
+       }
         // ENH032 - End
         // ENH034 - End
     }
@@ -125,6 +228,56 @@ Showable {
         color: "black"
         visible: false
     }
+
+    // ENH032 - Infographics Outer Wilds
+    Loader {
+        id: solarSystemLoader
+        property bool fastMode: false
+
+        active: root.enableOW && !root.alternateOW
+        asynchronous: true
+        anchors.fill: infographicsArea
+        sourceComponent: solarSystemComp
+    }
+    Component {
+        id: solarSystemComp
+        SolarSystem {
+            id: solarSystem
+            fastMode: root.fastModeOW
+        }
+    }
+    MouseArea {
+        anchors.fill: infographicsArea
+        enabled: solarSystemLoader.item ? true : false
+
+        //onDoubleClicked: {
+        onPressAndHold: {
+            root.fastModeToggle()
+            solarSystemLoader.active = false
+            solarSystemLoader.active = Qt.binding( function() { return root.enableOW } )
+        }
+    }
+    Loader {
+        id: alternateOWLoader
+
+        active: root.enableOW && root.alternateOW
+        asynchronous: true
+        anchors {
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: parent.height > parent.width ? Math.min(parent.height / 2, parent.width) : Math.min(parent.width / 2, parent.height - root.panelHeight)
+        width: height
+        sourceComponent: mainMenuComponent
+    }
+    Component {
+        id: mainMenuComponent
+        OWMainMenu {
+            id: mainMenu
+        }
+    }
+
+    // ENH032 - End
 
     Item {
         id: infographicsArea
@@ -153,10 +306,7 @@ Showable {
             model: root.infographicModel
             // ENH032 - Infographics Outer Wilds
             // clip: true // clip large data bubbles
-            enableOW: root.enableOW
-            fastModeOW: root.fastModeOW
-            onOwToggle: root.owToggle()
-            onFastModeToggle: root.fastModeToggle()
+            enableOW: false
             // ENH032 - End
         }
         
@@ -165,11 +315,6 @@ Showable {
             target: infographicsLoader.item
             property: "enableOW"
             value: root.enableOW
-        }
-        Binding {
-            target: infographicsLoader.item
-            property: "fastModeOW"
-            value: root.fastModeOW
         }
         // ENH032 - End
     }

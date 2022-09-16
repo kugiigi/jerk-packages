@@ -77,6 +77,7 @@ StyledItem {
     
     // ENH046 - Lomiri Plus Settings
     property alias settings: lp_settings
+    property alias lpsettingsLoader: settingsLoader
     // ENH046 - End
 
     // to be set from outside
@@ -218,11 +219,13 @@ StyledItem {
         property alias indicatorGesture: settingsObj.indicatorGesture
         property alias orientationPrompt: settingsObj.orientationPrompt
         property alias useLomiriLogo: settingsObj.useLomiriLogo
+        property alias useNewLogo: settingsObj.useNewLogo
         property alias useCustomLogo: settingsObj.useCustomLogo
         property alias useCustomBFBColor: settingsObj.useCustomBFBColor
         property alias customLogoScale: settingsObj.customLogoScale
         property alias customLogoColor: settingsObj.customLogoColor
         property alias customBFBColor: settingsObj.customBFBColor
+        property alias roundedBFB: settingsObj.roundedBFB
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
         property alias notchHeightMargin: settingsObj.notchHeightMargin
         property alias notchPosition: settingsObj.notchPosition
@@ -241,12 +244,21 @@ StyledItem {
         property alias pro1_OSKToggleKey: settingsObj.pro1_OSKToggleKey
         property alias pro1_orientationToggleKey: settingsObj.pro1_orientationToggleKey
 
+        // Outer Wilds
+        property alias ow_ColoredClock: settingsObj.ow_ColoredClock
+        property alias ow_GradientColoredTime: settingsObj.ow_GradientColoredTime
+        property alias ow_bfbLogo: settingsObj.ow_bfbLogo
+        property alias enableAlternateOW: settingsObj.ow_enableAlternateOW
+        property alias ow_mainMenu: settingsObj.ow_mainMenu
+        property alias ow_qmChance: settingsObj.ow_qmChance
+
         // Non-persistent settings
         property bool enableOW: false
 
         Settings {
             id: settingsObj
 
+            category: "lomiriplus"
             property bool lp_enableEyeFP: false
             property bool useCustomLockscreen: false
             property bool indicatorBlur: false
@@ -257,8 +269,10 @@ StyledItem {
             property bool indicatorGesture: true
             property bool orientationPrompt: true
             property bool useLomiriLogo: true
+            property bool useNewLogo: false
             property bool useCustomLogo: false
             property bool useCustomBFBColor: false
+            property bool roundedBFB: false
             property int customLogoScale: 60 //percentage
             property string customLogoColor: "#ffffff" // HTML format
             property string customBFBColor: "#006ba6" // HTML format
@@ -285,6 +299,26 @@ StyledItem {
             property bool pro1_OSKOrientation: false
             property bool pro1_OSKToggleKey: false
             property bool pro1_orientationToggleKey: false
+            
+            // Outer Wilds Persistent Settings
+            property bool ow_ColoredClock: false
+            property bool ow_GradientColoredTime: false
+            property int ow_bfbLogo: 0
+            /*
+             0 - Disabled
+             1 - Brittle Hollow
+             2 - Dark Bramble
+             3 - Hourglass Twins
+             4 - Interloper
+             5 - Nomai Eye
+             6 - Quantum Moon
+             7 - Stranger Eye
+             8 - Sun
+             9 - Timberhearth
+            */
+            property bool ow_enableAlternateOW: false
+            property bool ow_mainMenu: false
+            property int ow_qmChance: 10
         }
     }
     
@@ -319,14 +353,17 @@ StyledItem {
                             anchors.fill: parent
                             QQC2.ToolButton {
                                 Layout.fillHeight: true
-                                icon.name:  stack.depth > 1 ? "back" : "close"
                                 icon.width: units.gu(2)
                                 icon.height: units.gu(2)
-                                onClicked: {
-                                    if (stack.depth > 1) {
-                                        stack.pop()
-                                    } else {
-                                        settingsLoader.active = false
+                                action: QQC2.Action {
+                                    icon.name:  stack.depth > 1 ? "back" : "close"
+                                    shortcut: StandardKey.Cancel
+                                     onTriggered: {
+                                        if (stack.depth > 1) {
+                                            stack.pop()
+                                        } else {
+                                            settingsLoader.active = false
+                                        }
                                     }
                                 }
                             }
@@ -400,7 +437,14 @@ StyledItem {
         
         LPSettingsPage {
             settingsItems: [
-                QQC2.CheckDelegate {
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    Layout.margins: units.gu(2)
+                    text: "May crash Lomiri in some devices especially the default version"
+                    wrapMode: Text.WordWrap
+                    Suru.textLevel: Suru.Caption
+                }
+                ,QQC2.CheckDelegate {
                     id: owTheme
                     Layout.fillWidth: true
                     text: "Outer Wilds Theme"
@@ -409,6 +453,48 @@ StyledItem {
                         target: owTheme
                         property: "checked"
                         value: shell.settings.enableOW
+                    }
+                }
+                ,QQC2.CheckDelegate {
+                    id: enableAlternateOW
+                    Layout.fillWidth: true
+                    text: "Alternate Outer Wilds Theme"
+                    onCheckedChanged: shell.settings.enableAlternateOW = checked
+                    Binding {
+                        target: enableAlternateOW
+                        property: "checked"
+                        value: shell.settings.enableAlternateOW
+                    }
+                }
+                ,QQC2.Label {
+                    Layout.fillWidth: true
+                    Layout.margins: units.gu(2)
+                    visible: shell.settings.enableAlternateOW
+                    text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
+                    wrapMode: Text.WordWrap
+                    Suru.textLevel: Suru.Caption
+                }
+                ,QQC2.ItemDelegate {
+                    Layout.fillWidth: true
+                    visible: shell.settings.enableAlternateOW
+                    text: "Quantum Luck"
+                    indicator: QQC2.SpinBox {
+                        id: ow_qmChance
+                        anchors {
+                            right: parent.right
+                            rightMargin: units.gu(2)
+                            verticalCenter: parent.verticalCenter
+                        }
+                        from: 1
+                        to: 500
+                        stepSize: 1
+                        editable: true
+                        onValueChanged: shell.settings.ow_qmChance = value
+                        Binding {
+                            target: ow_qmChance
+                            property: "value"
+                            value: shell.settings.ow_qmChance
+                        }
                     }
                 }
                 , QQC2.CheckDelegate {
@@ -420,6 +506,119 @@ StyledItem {
                         target: eyeFPMarker
                         property: "checked"
                         value: shell.settings.enableEyeFP
+                    }
+                }
+                , QQC2.CheckDelegate {
+                    id: ow_ColoredClock
+                    Layout.fillWidth: true
+                    text: "Themed Lockscreen Clock"
+                    onCheckedChanged: shell.settings.ow_ColoredClock = checked
+                    Binding {
+                        target: ow_ColoredClock
+                        property: "checked"
+                        value: shell.settings.ow_ColoredClock
+                    }
+                }
+                , QQC2.CheckDelegate {
+                    id: ow_GradientColoredTime
+                    Layout.fillWidth: true
+                    visible: shell.settings.ow_ColoredClock
+                    text: "Gradient Time Text"
+                    onCheckedChanged: shell.settings.ow_GradientColoredTime = checked
+                    Binding {
+                        target: ow_GradientColoredTime
+                        property: "checked"
+                        value: shell.settings.ow_GradientColoredTime
+                    }
+                }
+                , QQC2.CheckDelegate {
+                    id: ow_mainMenu
+                    Layout.fillWidth: true
+                    text: "Outer Wilds Menu"
+                    onCheckedChanged: shell.settings.ow_mainMenu = checked
+                    Binding {
+                        target: ow_mainMenu
+                        property: "checked"
+                        value: shell.settings.ow_mainMenu
+                    }
+                }
+                ,QQC2.ItemDelegate {
+                    id: ow_bfbLogo
+
+                    Layout.fillWidth: true
+                    text: "Logo"
+                    indicator: QQC2.SpinBox {
+                        id: owLogo
+                        anchors {
+                            right: parent.right
+                            rightMargin: units.gu(2)
+                            verticalCenter: parent.verticalCenter
+                        }
+                        from: 0
+                        to: 9
+                        stepSize: 1
+                        textFromValue: function(value, locale) {
+                                            switch (value) {
+                                                case 0:
+                                                    return "Disabled"
+                                                case 1:
+                                                    return "Brittle Hollow"
+                                                case 2:
+                                                    return "Dark Bramble"
+                                                case 3:
+                                                    return "Hourglass Twins"
+                                                case 4:
+                                                    return "Interloper"
+                                                case 5:
+                                                    return "Nomai Eye"
+                                                case 6:
+                                                    return "Quantum Moon"
+                                                case 7:
+                                                    return "Stranger Eye"
+                                                case 8:
+                                                    return "Sun"
+                                                case 9:
+                                                    return "Timber Hearth"
+                                            }
+                                       }
+                        valueFromText: function(text, locale) {
+                                            switch (text) {
+                                                case "None":
+                                                    return 0
+                                                case "Middle":
+                                                    return 1
+                                                case "Left":
+                                                    return 2
+                                                case "Right":
+                                                    return 3
+                                                case "Disabled":
+                                                    return 0
+                                                case "Brittle Hollow":
+                                                    return 1
+                                                case "Dark Bramble":
+                                                    return 2
+                                                case "Hourglass Twins":
+                                                    return 3
+                                                case "Interloper":
+                                                    return 4
+                                                case "Nomai Eye":
+                                                    return 5
+                                                case "Quantum Moon":
+                                                    return 6
+                                                case "Stranger Eye":
+                                                    return 7
+                                                case "Sun":
+                                                    return 8
+                                                case "Timber Hearth":
+                                                    return 9
+                                            }
+                                       }
+                        onValueChanged: shell.settings.ow_bfbLogo = value
+                        Binding {
+                            target: owLogo
+                            property: "value"
+                            value: shell.settings.ow_bfbLogo
+                        }
                     }
                 }
             ]
@@ -684,6 +883,17 @@ StyledItem {
                 LPSettingsPage {
                     settingsItems: [
                         QQC2.CheckDelegate {
+                            id: roundedBFB
+                            Layout.fillWidth: true
+                            text: "Rounded Launcher Button"
+                            onCheckedChanged: shell.settings.roundedBFB = checked
+                            Binding {
+                                target: roundedBFB
+                                property: "checked"
+                                value: shell.settings.roundedBFB
+                            }
+                        }
+                        ,QQC2.CheckDelegate {
                             id: useCustomBFBColor
                             Layout.fillWidth: true
                             text: "Custom BFB Color"
@@ -704,6 +914,17 @@ StyledItem {
                                 target: customBFBColor
                                 property: "text"
                                 value: shell.settings.customBFBColor
+                            }
+                        }
+                        , QQC2.CheckDelegate {
+                            id: useNewLogo
+                            Layout.fillWidth: true
+                            text: "Use New Ubuntu Logo"
+                            onCheckedChanged: shell.settings.useNewLogo = checked
+                            Binding {
+                                target: useNewLogo
+                                property: "checked"
+                                value: shell.settings.useNewLogo
                             }
                         }
                         , QQC2.CheckDelegate {
@@ -1145,6 +1366,103 @@ StyledItem {
         name: applicationArguments.deviceName
     }
 
+    // ENH032 - Infographics Outer Wilds
+    Loader {
+        id: eyeBlinkLoader
+        active: false
+        asynchronous: true
+        z: 1000 
+        anchors {
+            fill: parent
+        }
+        Connections {
+            target: greeter
+            onShownChanged: {
+                if (!target.shown && stage.topLevelSurfaceList.count == 0) {
+                    eyeBlinkLoader.active = lp_settings.enableOW && lp_settings.enableAlternateOW
+                }
+            }
+        }
+        sourceComponent: Component {
+            Rectangle {
+                id: blinkRec
+
+                property bool eyeOpened: false
+                property bool blinkComplete: false
+
+                color: "black"
+                Component.onCompleted: blinkAnimation.restart()
+                SequentialAnimation {
+                    running: false
+                    id: blinkAnimation
+                    
+                    onStopped: eyeBlinkLoader.active = false
+
+                    PauseAnimation { duration: 800 }
+                    PropertyAction {
+                        target: blinkRec
+                        property: "eyeOpened"
+                        value: true
+                    }
+                    UbuntuNumberAnimation {
+                        target: blinkRec
+                        property: "opacity"
+                        to: 0
+                        duration: 300
+                    }
+                    PauseAnimation { duration: 100 }
+                    PropertyAction {
+                        target: blinkRec
+                        property: "eyeOpened"
+                        value: false
+                    }
+                    UbuntuNumberAnimation {
+                        target: blinkRec
+                        property: "opacity"
+                        to: 1
+                        duration: 50
+                    }
+                    PropertyAction {
+                        target: blinkRec
+                        property: "eyeOpened"
+                        value: true
+                    }
+                    UbuntuNumberAnimation {
+                        target: blinkRec
+                        property: "opacity"
+                        to: 0
+                        duration: 50
+                    }
+                    PauseAnimation { duration: 100 }
+                    PropertyAction {
+                        target: blinkRec
+                        property: "eyeOpened"
+                        value: false
+                    }
+                    UbuntuNumberAnimation {
+                        target: blinkRec
+                        property: "opacity"
+                        to: 1
+                        duration: 100
+                    }
+                    PauseAnimation { duration: 300 }
+                    PropertyAction {
+                        target: blinkRec
+                        properties: "eyeOpened,blinkComplete"
+                        value: true
+                    }
+                    UbuntuNumberAnimation {
+                        target: blinkRec
+                        property: "opacity"
+                        to: 0
+                        duration: 500
+                    }
+                }
+            }
+        }
+    }
+    // ENH032 - End
+
     Loader {
         id: shellBorderLoader
         active: shell.isBuiltInScreen && deviceConfiguration.withNotch
@@ -1449,6 +1767,9 @@ StyledItem {
 			// ENH002 - End
             // ENH032 - Infographics Outer Wilds
             enableOW: lp_settings.enableOW
+            alternateOW: lp_settings.enableAlternateOW
+            eyeOpened: eyeBlinkLoader.item ? eyeBlinkLoader.item.eyeOpened : false
+            blinkComplete: eyeBlinkLoader.item ? eyeBlinkLoader.item.blinkComplete : false
             // ENH032 - End
             focus: true
 
@@ -1937,9 +2258,12 @@ StyledItem {
             }
             // ENH043 - Button to toggle OSK
             GlobalShortcut { // toggle OSK
-                enabled: shell.settings.pro1_OSKToggleKey
                 shortcut: 0//Qt.Key_WebCam
-                onTriggered: unity8Settings.alwaysShowOsk = !unity8Settings.alwaysShowOsk
+                onTriggered: {
+                    if (shell.settings.pro1_OSKToggleKey) {
+                        unity8Settings.alwaysShowOsk = !unity8Settings.alwaysShowOsk
+                    }
+                }
             }
             // ENH043 - End
 
