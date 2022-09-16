@@ -96,11 +96,23 @@ Rectangle {
             // ENH021 - BFB Design Changes
             // ENH046 - Lomiri Plus Settings
             // color: UbuntuColors.orange
-            color: shell.settings.useCustomBFBColor ? shell.settings.customBFBColor : UbuntuColors.orange
+            // ENH032 - Infographics Outer Wilds
+            color: shell.settings.useCustomBFBColor ? shell.settings.customBFBColor
+                                                    : shell.settings.ow_bfbLogo > 0 ? "#4d4e46"
+                                                                                    : UbuntuColors.orange
+
+            border {
+                color: shell.settings.ow_bfbLogo > 0 ? "#6c5776" : "transparent"
+                width: units.gu(0.5)
+            }
+            // ENH032 - End
             // ENH046 - End
             //color: UbuntuColors.blue
             //radius: units.gu(2)
             // ENH021 - End
+            // ENH050 - Rounded BFB
+            radius: shell.settings.roundedBFB ? units.gu(1) : 0
+            // ENH050 - End
             readonly property bool highlighted: root.highlightIndex == -1;
 
             Icon {
@@ -111,9 +123,28 @@ Rectangle {
                 //width: parent.width * .9
                 // ENH046 - Lomiri Plus Settings
                 //width: parent.width * .8
-                width: shell.settings.useCustomLogo ? parent.width * (shell.settings.customLogoScale / 100)
-                                                    : shell.settings.useLomiriLogo ? parent.width * .8
-                                                                                   : parent.width * .6
+                // ENH032 - Infographics Outer Wilds
+                //width: shell.settings.useCustomLogo ? parent.width * (shell.settings.customLogoScale / 100)
+                //                                    : shell.settings.useLomiriLogo ? parent.width * .8
+                //                                                                   : parent.width * .6
+                width: {
+                    if (shell.settings.useCustomLogo) {
+                        return parent.width * (shell.settings.customLogoScale / 100)
+                    }
+                    if (shell.settings.ow_bfbLogo > 0) {
+                        if (shell.settings.ow_bfbLogo == 5 || shell.settings.ow_bfbLogo == 7) {
+                            return parent.width * .8
+                        } else {
+                            return parent.width * .6
+                        }
+                    }
+                    if (shell.settings.useLomiriLogo) {
+                        return parent.width * .8
+                    }
+
+                    return parent.width * .6
+               }
+               // ENH032 - End
                // ENH046 - End
                 // ENH023 - End
                 height: width
@@ -127,15 +158,58 @@ Rectangle {
                 //source: "graphics/kugi.svg"
                 // ENH046 - Lomiri Plus Settings
                 //source: "graphics/lomiri.svg"
-                source: shell.settings.useCustomLogo ? "file:///home/phablet/Pictures/lomiriplus/bfb.svg"
-                                                     : shell.settings.useLomiriLogo ? "graphics/lomiri.svg"
-                                                                                    : "graphics/home.svg"
+                // ENH032 - Infographics Outer Wilds
+                //source: shell.settings.useCustomLogo ? "file:///home/phablet/Pictures/lomiriplus/bfb.svg"
+                //                                     : shell.settings.useLomiriLogo ? "graphics/lomiri.svg"
+                //                                                                    : shell.settings.useNewLogo ? "graphics/home_new.svg"
+                //                                                                                               : "graphics/home.svg"
+                source: {
+                    if (shell.settings.useCustomLogo) {
+                        return "file:///home/phablet/Pictures/lomiriplus/bfb.svg"
+                    }
+                    if (shell.settings.ow_bfbLogo > 0) {
+                        switch (shell.settings.ow_bfbLogo) {
+                            case 1:
+                                return "../OuterWilds/graphics/launcher/brittle_hollow.svg"
+                            case 2:
+                                return "../OuterWilds/graphics/launcher/dark_bramble.svg"
+                            case 3:
+                                return "../OuterWilds/graphics/launcher/hourglass_twins.svg"
+                            case 4:
+                                return "../OuterWilds/graphics/launcher/interloper.svg"
+                            case 5:
+                                return "../OuterWilds/graphics/launcher/nomai_Eye.svg"
+                            case 6:
+                                return "../OuterWilds/graphics/launcher/quantum_moon.svg"
+                            case 7:
+                                return "../OuterWilds/graphics/launcher/stranger_eye.svg"
+                            case 8:
+                                return "../OuterWilds/graphics/launcher/sun.svg"
+                            case 9:
+                                return "../OuterWilds/graphics/launcher/timberhearth_white.svg"
+                        }
+                    }
+                    if (shell.settings.useLomiriLogo) {
+                        return "graphics/lomiri.svg"
+                    }
+                    if (shell.settings.useNewLogo) {
+                        return "graphics/home_new.svg"
+                    }
+
+                    return "graphics/home.svg"
+                }
+                // ENH032 - End
                  // ENH046 - End
                 // ENH023 - End
                 // ENH022 - End
                 // ENH046 - Lomiri Plus Settings
                 // color: "white"
-                color: shell.settings.useCustomLogo ? shell.settings.customLogoColor : "white"
+                // ENH032 - Infographics Outer Wilds
+                //color: shell.settings.useCustomLogo ? shell.settings.customLogoColor : "white"
+                color: shell.settings.useCustomLogo ? shell.settings.customLogoColor
+                                                    : shell.settings.ow_bfbLogo > 0 ? "#6d75e4" // "#879ffc"
+                                                                                    : "white"
+                // ENH032 - End
                 keyColor: "#ffffff"
                 // ENH046 - End
                 rotation: root.rotation

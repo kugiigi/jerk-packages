@@ -22,9 +22,11 @@ Features:\n
   - Notch/punchhole and rounded corners configuration for margins and UI adjustments\n
 Device Specific Hack:\n
   Pro1-X:\n
+    - Directly type passcode even with the cover page still displayed (initial page that you swipe left/right)
     - Automatically toggle OSK based on orientation\n
 	- Use Fn/Yellow Arrow key to manually toggle the OSK\n
 	- Use Camera key to toggle orientation\n
 Outer Wilds Fun Stuffs\n
   - Theme that includes wallpaper and the whole solar system!\n
+  - Alternate theme that mimics the Main Menu\n
   - In-display fingerprint marker"

@@ -1,4 +1,4 @@
-// ENH032 - Infographics Outer Wilds
+ // ENH032 - Infographics Outer Wilds
 import QtQuick 2.12
 import QtQuick.Particles 2.0
 import QtGraphicalEffects 1.12
@@ -14,6 +14,10 @@ Item {
     
     function randomize(start, end) {
         return Math.floor((Math.random() * end) + start)
+    }
+    
+    function randomInRange(min, max) { //for floating
+        return Math.random() < 0.5 ? ((1-Math.random()) * (max-min) + min) : (Math.random() * (max-min) + min);
     }
     
     Timer {
@@ -37,6 +41,7 @@ Item {
                                 : 0
 
         function reset() {
+            brittlePiecesModel.clear()
             currentTimer = 0
             restart()
         }
@@ -406,17 +411,49 @@ Item {
             verticalCenter: interloper.verticalCenter
         }
     }
-    
+
     RectangularGlow {
         id: whiteHoleGlow
 
         anchors.fill: whiteHole
-        glowRadius: units.gu(0.2)
+        glowRadius: units.gu(0.3)
         spread: 0.7
         color: whiteHole.color
         cornerRadius: whiteHole.radius + glowRadius
     }
-    
+
+    Repeater {
+        id: brittlePieces
+        model: brittlePiecesModel
+        delegate: Rectangle {
+            color: model.color == 1 ? "#17263d" : "#994737"
+            width: model.width
+            height: width
+            anchors {
+                centerIn: whiteHole
+                horizontalCenterOffset: model.horizontalCenterOffset
+                verticalCenterOffset: model.verticalCenterOffset
+            }
+            
+        }
+    }
+
+    ListModel {
+        id: brittlePiecesModel
+    }
+
+    Timer {
+        running: true
+        repeat: true
+        interval: solarSystem.fastMode ? 2000 : 120000
+        onTriggered: brittlePiecesModel.append({
+                            "width": solarSystem.randomInRange(units.gu(0.1), units.gu(0.4))
+                            , "horizontalCenterOffset": solarSystem.randomInRange(units.gu(-2), units.gu(2))
+                            , "verticalCenterOffset": solarSystem.randomInRange(units.gu(-2), units.gu(2))
+                            , "color": solarSystem.randomize(1, 2)
+                        })
+    }
+
     QuantumLocObj {
         id: brittleHollow
         

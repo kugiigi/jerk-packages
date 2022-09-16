@@ -17,9 +17,6 @@
 import "Gradient.js" as Gradient
 import QtQuick 2.4
 import Ubuntu.Components 1.3
-// ENH032 - Infographics Outer Wilds
-import "../OuterWilds"
-// ENH032 - End
 
 Item {
     id: infographic
@@ -31,26 +28,6 @@ Item {
     property int currentWeekDay
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
-    property bool fastModeOW: false
-    signal fastModeToggle
-    signal owToggle
-
-    Loader {
-        id: solarSystemLoader
-        property bool fastMode: false
-
-        active: infographic.enableOW
-        asynchronous: true
-        anchors.fill: parent
-        sourceComponent: solarSystemComp
-    }
-    Component {
-        id: solarSystemComp
-        SolarSystem {
-            id: solarSystem
-            fastMode: infographic.fastModeOW
-        }
-    }
     // ENH032 - End
 
     QtObject {
@@ -459,18 +436,6 @@ Item {
             if (!d.animating) {
                 reloadUserData()
             }
-            // ENH032 - Infographics Outer Wilds
-            if (infographic.enableOW && solarSystemLoader.item) {
-                infographic.fastModeToggle()
-                solarSystemLoader.active = false
-                solarSystemLoader.active = Qt.binding( function() { return infographic.enableOW } )
-            }
-            // ENH032 - End
         }
-        // ENH032 - Infographics Outer Wilds
-//~         onPressAndHold: {
-//~             infographic.owToggle()
-//~         }
-        // ENH032 - End
     }
 }

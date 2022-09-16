@@ -55,6 +55,9 @@ FocusScope {
     property Item availableDesktopArea
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
+    property bool alternateOW: false
+    property bool eyeOpened: false
+    property bool blinkComplete: false
     // ENH032 - End
 
     // Whether outside forces say that the Stage may have focus
@@ -711,98 +714,263 @@ FocusScope {
         anchors.fill: parent
         focus: true
 
-        Wallpaper {
-            id: wallpaper
-            objectName: "stageBackground"
-            anchors.fill: parent
-            // ENH034 - Separate wallpaper lockscreen and desktop
-            // source: root.background
-            fallbackSource: root.background
-            source: root.enableOW ? "../OuterWilds/graphics/home.png" : fallbackSource
-            // ENH034 - End
-            // Make sure it's the lowest item. Due to the left edge drag we sometimes need
-            // to put the dash at -1 and we don't want it behind the Wallpaper
-            z: -2
-        }
-        
         // ENH032 - Infographics Outer Wilds
-        property bool enableDesktopSolarSystem: false
-        Loader {
-            id: solarSystemLoader
-            property bool fastMode: true
-
-            active: appContainer.enableDesktopSolarSystem
-            asynchronous: true
+        Item {
+            id: wallpaperItem
             anchors.fill: parent
-            sourceComponent: solarSystemComp
-        }
-        Component {
-            id: solarSystemComp
-            SolarSystem {
-                id: solarSystem
-                fastMode: solarSystemLoader.fastMode
-            }
-        }
+            Wallpaper {
+                id: wallpaper
+                objectName: "stageBackground"
+                // ENH032 - Infographics Outer Wilds
+                // anchors.fill: parent
+                // ENH034 - Separate wallpaper lockscreen and desktop
+                // source: root.background
+                fallbackSource: root.background
+                states: [
+                    State {
+                        name: "normal"
+                        when: !root.enableOW || !root.alternateOW
 
-        Loader {
-            active: root.enableOW
-            sourceComponent: scoutComponent
-            asynchronous: true
-        }
+                        AnchorChanges {
+                            target: wallpaper
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                        }
+                    }
+                    , State {
+                        name: "alternateOW"
+                        when: root.enableOW && root.alternateOW
+                        AnchorChanges {
+                            target: wallpaper
+                            anchors.top: undefined
+                            anchors.bottom: undefined
+                            anchors.left: undefined
+                            anchors.right: undefined
+                        }
+                        PropertyChanges {
+                            target: wallpaper
+                            x: 0
+                            y: 0
+                            height: parent.height * 2
+                            width: parent.width
+                        }
+                    }
+                ]
 
-        Component {
-            id: scoutComponent
-            Image {
-                id: scout
-                
-                readonly property real startWidth: units.gu(1)
-                readonly property real endWidth: units.gu(3)
-                visible: topLevelSurfaceList.count == 0
-                
-                asynchronous: true
-                source: "../OuterWilds/graphics/scout.png"
-                width: startWidth
-                height: width
-                fillMode: Image.PreserveAspectFit
-                
-                PathAnimation {
-                    id: flyByAnim
-                    running: scout.visible
-                    target: scout
-                    duration: 6000
-                    loops: Animation.Infinite
-                    anchorPoint: Qt.point(scout.width / 2, scout.height / 2)
-                    path: Path {
-                        startX: (wallpaper.width * 0.7) + units.gu(15)
-                        startY: -scout.height - units.gu(10)
+                SequentialAnimation {
+                    id: bgMoveAnimation
 
-                        PathLine {
-                           x: -scout.width
-                           y: wallpaper.height / 2
+                    readonly property bool shouldRun: root.enableOW && !root.suspended
+
+                    running: shouldRun
+                    paused: (priv.focusedAppDelegate == priv.mainStageDelegate) || (priv.focusedAppDelegate == priv.sideStageDelegate && sideStage.shown)
+                    onStopped: if (shouldRun) restart()
+                    onStarted: if (movingItems.item) movingItems.item.probe.resetAnimation()
+                    PropertyAction {
+                        target: wallpaper
+                        property: "y"
+                        value: 0
+                    }
+                    ParallelAnimation {
+                        NumberAnimation {
+                            target: wallpaper
+                            property: "y"
+                            duration: 50000
+                            easing.type: Easing.Linear
+                            from: 0
+                            to: -(height / 2)
+                        }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 49800 }
+                            UbuntuNumberAnimation {
+                                target: wallpaper
+                                property: "opacity"
+                                duration: 100
+                                from: 1
+                                to: 0
+                            }
+                            UbuntuNumberAnimation {
+                                target: wallpaper
+                                property: "opacity"
+                                duration: 100
+                                from: 0
+                                to: 1
+                            }
+                        }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 30000 }
+                            PropertyAction {
+                                target: movingItems.item.attlerock
+                                property: "visible"
+                                value: true
+                            }
+                            PathAnimation {
+                                id: flyByAnim
+
+                                duration: 10000
+                                target: movingItems.item ? movingItems.item.attlerock : null
+                                anchorPoint: Qt.point(0, 0)
+                                path: Path {
+                                    startX: movingItems.item.attlerock.startPos.x
+                                    startY: movingItems.item.attlerock.startPos.y
+
+                                    PathLine {
+                                       x: movingItems.item.attlerock.endPos.x
+                                       y: movingItems.item.attlerock.endPos.y
+                                    }
+                                }
+                            }
+                            PropertyAction {
+                                target: movingItems.item.attlerock
+                                property: "visible"
+                                value: false
+                            }
                         }
                     }
                 }
-                
-                NumberAnimation {
-                    id: sizeAnim
-                    running: scout.visible
-                    loops: Animation.Infinite
-                    target: scout
-                    property: "width"
-                    from: scout.startWidth
-                    to: scout.endWidth
-                    duration: flyByAnim.duration
+                //source: root.enableOW ? "../OuterWilds/graphics/home.png" : fallbackSource
+                source: {
+                    if (root.enableOW && !root.alternateOW) {
+                        return "../OuterWilds/graphics/home.png"
+                    }
+                    if (root.enableOW && root.alternateOW) {
+                        return "../OuterWilds/graphics/desktop_timberhearth_tall.png"
+                    }
+
+                    return fallbackSource
                 }
-                
-                RotationAnimation {
-                    id: rotateAnim
-                    running: scout.visible
-                    loops: Animation.Infinite
-                    target: scout
-                    property: "rotation"
-                    from: 0
-                    to: 360
-                    duration: 2000
+                // ENH032 - End
+                // ENH034 - End
+                // Make sure it's the lowest item. Due to the left edge drag we sometimes need
+                // to put the dash at -1 and we don't want it behind the Wallpaper
+                z: -2
+            }
+
+            Loader {
+                id: movingItems
+                active: root.enableOW && root.alternateOW
+                anchors.fill: parent
+                asynchronous: true
+                z: wallpaper.z + 1
+                sourceComponent: Component {
+                    Item {
+                        readonly property alias probe: probe
+                        readonly property alias attlerock: attlerockImg
+
+                        Probe {
+                            id: probe
+                            wallpaperWidth: wallpaperItem.width
+                            wallpaperHeight: wallpaperItem.height
+                        }
+                        
+                        Image {
+                            id: attlerockImg
+                            readonly property point startPos: Qt.point(-width, parent.height * 0.5)
+                            property point endPos: Qt.point(parent.width, parent.height * 0.3)
+
+                            height: units.gu(20)
+                            width: height
+                            asynchronous: true
+                            source: "../OuterWilds/graphics/attlerock_solo.png"
+                        }
+
+                        Image {
+                            id: quantumMoon
+                            
+                            readonly property real defaultHOffset: units.gu(10)
+                            readonly property real defaultVOffset: -units.gu(5)
+
+                            height: units.gu(15)
+                            width: height
+                            asynchronous: true
+                            anchors {
+                                horizontalCenter: parent.horizontalCenter
+                                verticalCenter: parent.verticalCenter
+                                horizontalCenterOffset: defaultHOffset
+                                verticalCenterOffset: defaultVOffset
+                            }
+                            source: "../OuterWilds/graphics/quantum_moon_solo.png"
+                            visible: false
+                            function reset() {
+                                anchors.horizontalCenterOffset = defaultHOffset
+                                anchors.verticalCenterOffset = defaultVOffset
+                                visible = false
+                            }
+
+                            Connections {
+                                target: root
+                                onEyeOpenedChanged: {
+                                    if (!target.blinkComplete) {
+                                        quantumMoon.visible = false
+                                    }
+                                    if (target.eyeOpened) {
+                                        let chance = probe.randomize(1, shell.settings.ow_qmChance)
+
+                                        if (chance == 1) {
+                                            quantumMoon.visible = true
+                                        }
+                                    }
+                                }
+                            }
+                            ParallelAnimation {
+                                id: qmMoveAnimation
+                                running: bgMoveAnimation.running
+                                paused: bgMoveAnimation.paused
+                                onRunningChanged: {
+                                    if (!running) {
+                                        quantumMoon.reset()
+                                        restart()
+                                    }
+                                }
+                                onStopped: if (bgMoveAnimation.shouldRun) quantumMoon.reset()
+                                NumberAnimation {
+                                    target: quantumMoon
+                                    property: "anchors.horizontalCenterOffset"
+                                    duration: 40000
+                                    easing.type: Easing.Linear
+                                    to: - ((parent.width / 2) + width / 2)
+                                }
+                                NumberAnimation {
+                                    target: quantumMoon
+                                    property: "anchors.verticalCenterOffset"
+                                    duration: 40000
+                                    easing.type: Easing.Linear
+                                    to: units.gu(10)
+                                }
+                            }
+                            
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                active: root.enableOW && !root.alternateOW && !root.suspended && (priv.focusedAppDelegate == priv.sideStageDelegate && !sideStage.shown)
+                sourceComponent: scoutComponent
+                asynchronous: true
+                z: wallpaper.z + 1
+            }
+
+            Component {
+                id: scoutComponent
+                Scout {
+                    wallpaperWidth: wallpaperItem.width
+                    wallpaperHeight: wallpaperItem.height
+                }
+            }
+            
+            Loader {
+                id: ow_overlayLoader
+                active: root.enableOW && root.alternateOW
+                asynchronous: true
+                anchors.fill: parent
+                z: wallpaper.z + 2
+                sourceComponent: Component {
+                    Wallpaper {
+                        source: "../OuterWilds/graphics/overlay_timberhearth.png"
+                    }
                 }
             }
         }
@@ -811,7 +979,10 @@ FocusScope {
         BlurLayer {
             id: blurLayer
             anchors.fill: parent
-            source: wallpaper
+            // ENH032 - Infographics Outer Wilds
+            // source: wallpaper
+            source: wallpaperItem
+            // ENH032 - End
             visible: false
         }
 
