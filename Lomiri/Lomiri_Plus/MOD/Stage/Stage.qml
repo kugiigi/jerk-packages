@@ -610,7 +610,10 @@ FocusScope {
             PropertyChanges { target: cancelSpreadMouseArea; enabled: true }
             PropertyChanges { target: noAppsRunningHint; visible: (root.topLevelSurfaceList.count < 1) }
             PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
-            PropertyChanges { target: wallpaper; visible: false }
+            // ENH032 - Infographics Outer Wilds
+            // PropertyChanges { target: wallpaper; visible: false }
+            PropertyChanges { target: wallpaperItem; visible: false }
+            // ENH032 - End
         },
         State {
             name: "stagedRightEdge"; when: root.spreadEnabled && (rightEdgeDragArea.dragging || rightEdgePushProgress > 0) && root.mode == "staged"
@@ -765,7 +768,7 @@ FocusScope {
                     readonly property bool shouldRun: root.enableOW && !root.suspended
 
                     running: shouldRun
-                    paused: (priv.focusedAppDelegate == priv.mainStageDelegate) || (priv.focusedAppDelegate == priv.sideStageDelegate && sideStage.shown)
+                    paused: (priv.focusedAppDelegate && priv.focusedAppDelegate == priv.mainStageDelegate) || (priv.focusedAppDelegate == priv.sideStageDelegate && sideStage.shown)
                     onStopped: if (shouldRun) restart()
                     onStarted: if (movingItems.item) movingItems.item.probe.resetAnimation()
                     PropertyAction {
@@ -809,7 +812,7 @@ FocusScope {
                             PathAnimation {
                                 id: flyByAnim
 
-                                duration: 10000
+                                duration: 20000
                                 target: movingItems.item ? movingItems.item.attlerock : null
                                 anchorPoint: Qt.point(0, 0)
                                 path: Path {
@@ -867,8 +870,9 @@ FocusScope {
                         
                         Image {
                             id: attlerockImg
-                            readonly property point startPos: Qt.point(-width, parent.height * 0.5)
-                            property point endPos: Qt.point(parent.width, parent.height * 0.3)
+
+                            readonly property point startPos: Qt.point((parent.width / 2) - width - units.gu(20), -height)
+                            readonly property point endPos: Qt.point((parent.width / 2) - (width / 2), parent.height)
 
                             height: units.gu(20)
                             width: height
