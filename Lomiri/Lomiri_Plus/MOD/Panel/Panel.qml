@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import Ubuntu.Components 1.3
 import Ubuntu.Layouts 1.0
 import Unity.Application 0.1
@@ -156,20 +156,23 @@ Item {
         active: root.interactiveBlur
         asynchronous: true
         sourceComponent: BackgroundBlur {
-            id: backgroundBlur
-            property real fullBlurAmount: units.gu(6)//units.gu(6)
-
-            anchors.fill: parent
-            anchors.leftMargin: -root.leftMarginBlur
-            anchors.topMargin: -root.topMarginBlur
-            visible: root.interactiveBlur && root.blurSource && (__applicationMenus.unitProgress > 0 || __indicators.unitProgress > 0)
-            blurAmount: __applicationMenus.unitProgress ? (__applicationMenus.unitProgress / 1) * fullBlurAmount
-                                        : __indicators.unitProgress ? (__indicators.unitProgress / 1) * fullBlurAmount
-                                                        : fullBlurAmount
-            sourceItem: root.blurSource
-            blurRect: Qt.rect(0, 0, sourceItem.width, sourceItem.height)
-            cached: __applicationMenus.partiallyOpened || __indicators.partiallyOpened
-        }
+                id: backgroundBlur
+                property real fullBlurAmount: units.gu(6)
+                x: 0 - root.leftMarginBlur
+                y: 0 - root.topMarginBlur
+                width: blurRect.width
+                height: blurRect.height
+                visible: root.interactiveBlur && root.blurSource && (__applicationMenus.unitProgress > 0 || __indicators.unitProgress > 0)
+                blurAmount: __applicationMenus.unitProgress ? (__applicationMenus.unitProgress / 1) * fullBlurAmount
+                                    : __indicators.unitProgress ? (__indicators.unitProgress / 1) * fullBlurAmount
+                                                    : fullBlurAmount
+                sourceItem: root.blurSource
+                blurRect: Qt.rect(0,
+                                  0,
+                                  sourceItem.width,
+                                  sourceItem.height)
+                occluding: false
+            }
     }
     // ENH030 - End
 

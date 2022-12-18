@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import "../Components"
 import Ubuntu.Components 1.3
 import Ubuntu.Gestures 0.1
@@ -366,18 +366,26 @@ FocusScope {
         }
     }
 
-    BackgroundBlur {
-        id: backgroundBlur
-        anchors.fill: parent
-        anchors.topMargin: root.inverted ? 0 : -root.topPanelHeight
-        visible: root.interactiveBlur && root.blurSource && drawer.x > -drawer.width
-        blurAmount: units.gu(6)
-        sourceItem: root.blurSource
-        blurRect: Qt.rect(panel.width,
-                          root.topPanelHeight,
-                          drawer.width + drawer.x - panel.width,
-                          height - root.topPanelHeight)
-        cached: drawer.moving
+    Item {
+        clip: true
+        x: 0
+        y: drawer.y
+        width: drawer.width + drawer.x
+        height: drawer.height
+        BackgroundBlur {
+            id: backgroundBlur
+            x: 0
+            y: 0
+            width: drawer.width
+            height: drawer.height
+            visible: root.interactiveBlur && root.blurSource && drawer.x > -drawer.width
+            sourceItem: root.blurSource
+            blurRect: Qt.rect(0,
+                              root.topPanelHeight,
+                              drawer.width,
+                              drawer.height)
+            occluding: (drawer.width == root.width) && drawer.fullyOpen
+        }
     }
 
     Drawer {
@@ -407,6 +415,14 @@ FocusScope {
 
         onOpenRequested: {
             root.toggleDrawer(false, true);
+        }
+
+        onFullyClosedChanged: {
+            if (!fullyClosed)
+                return
+
+            drawer.unFocusInput()
+            root.focus = false
         }
     }
 

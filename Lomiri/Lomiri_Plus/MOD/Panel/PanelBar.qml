@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import Ubuntu.Components 1.3
 import "../Components"
 
@@ -176,6 +176,8 @@ Item {
         }
     }
 
+    // ENH055 - Remove panel white line
+    /*
     Rectangle {
         id: grayLine
         height: units.dp(2)
@@ -206,6 +208,8 @@ Item {
         opacity: expanded ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: UbuntuAnimation.SnapDuration } }
     }
+    */
+    // ENH055 - End
 
     Item {
         id: rowContainer

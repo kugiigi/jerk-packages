@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import AccountsService 0.1
 import Biometryd 0.0
 import GSettings 1.0
@@ -63,7 +63,8 @@ Showable {
 
     property int failedLoginsDelayAttempts: 7 // number of failed logins
     property real failedLoginsDelayMinutes: 5 // minutes of forced waiting
-    property int failedFingerprintLoginsDisableAttempts: 3 // number of failed fingerprint logins
+    property int failedFingerprintLoginsDisableAttempts: 5 // number of failed fingerprint logins
+    property int failedFingerprintReaderRetryDelay: 250 // time to wait before retrying a failed fingerprint read [ms]
 
     readonly property bool animating: loader.item ? loader.item.animating : false
 
@@ -752,6 +753,14 @@ Showable {
         onLanguageChanged: LightDMService.infographic.readyForDataChange()
     }
 
+    Timer {
+        id: fpRetryTimer
+        running: false
+        repeat: false
+        onTriggered: biometryd.startOperation()
+        interval: failedFingerprintReaderRetryDelay
+    }
+
     Observer {
         id: biometryd
         objectName: "biometryd"
@@ -763,6 +772,14 @@ Showable {
                                           Biometryd.available &&
                                           AccountsService.enableFingerprintIdentification
 
+        function startOperation() {
+            if (idEnabled) {
+                var identifier = Biometryd.defaultDevice.identifier;
+                operation = identifier.identifyUser();
+                operation.start(biometryd);
+            }
+        }
+
         function cancelOperation() {
             if (operation) {
                 operation.cancel();
@@ -772,27 +789,23 @@ Showable {
 
         function restartOperation() {
             cancelOperation();
-
-            if (idEnabled) {
-                var identifier = Biometryd.defaultDevice.identifier;
-                operation = identifier.identifyUser();
-                operation.start(biometryd);
+            if (failedFingerprintReaderRetryDelay > 0) {
+                fpRetryTimer.running = true;
+            } else {
+                startOperation();
             }
         }
 
         function failOperation(reason) {
             console.log("Failed to identify user by fingerprint:", reason);
             restartOperation();
-            if (!d.secureFingerprint) {
-                d.startUnlock(false /* toTheRight */); // use normal login instead
-            }
             var msg = d.secureFingerprint ? i18n.tr("Try again") :
                       d.alphanumeric ? i18n.tr("Enter passphrase to unlock") :
                                        i18n.tr("Enter passcode to unlock");
             d.showFingerprintMessage(msg);
         }
 
-        Component.onCompleted: restartOperation()
+        Component.onCompleted: startOperation()
         Component.onDestruction: cancelOperation()
         onIdEnabledChanged: restartOperation()
 
@@ -819,7 +832,7 @@ Showable {
         onFailed: {
             if (!d.secureFingerprint) {
                 failOperation("fingerprint reader is locked");
-            } else {
+            } else if (reason !== "ERROR_CANCELED") {
                 AccountsService.failedFingerprintLogins++;
                 failOperation(reason);
             }
