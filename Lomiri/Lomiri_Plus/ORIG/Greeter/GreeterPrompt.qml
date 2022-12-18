@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import Ubuntu.Components 1.3
 import GSettings 1.0
 import "../Components"
@@ -25,7 +25,7 @@ FocusScope {
     focus: true
 
     property bool isPrompt
-    property bool isAlphanumeric
+    property bool isPinPrompt
     property string text
     property bool isSecret
     property bool interactive: true
@@ -115,12 +115,12 @@ FocusScope {
         },
         State {
             name: "PinPrompt"
-            when: root.isPrompt && !root.isAlphanumeric && root.isSecret
+            when: root.isPinPrompt
             PropertyChanges { target: loader; source: "PinPrompt.qml" }
         },
         State {
             name: "TextPrompt"
-            when: root.isPrompt
+            when: !root.isPinPrompt
             PropertyChanges { target: loader; source: "TextPrompt.qml" }
         }
     ]

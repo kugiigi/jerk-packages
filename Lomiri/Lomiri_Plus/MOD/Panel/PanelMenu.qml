@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import Ubuntu.Components 1.3
 import Ubuntu.Gestures 0.1
 import "../Components"
@@ -172,6 +172,15 @@ Showable {
         }
     }
 
+    // ENH054 - Transparent drag handle
+    Rectangle {
+        color: root.panelColor
+        opacity: root.panelOpacity
+        anchors.fill: handle
+        visible: root.inverted || root.fullyOpened
+    }
+    // ENH054 - End
+
     Handle {
         id: handle
         objectName: "handle"
@@ -183,7 +192,10 @@ Showable {
         height: units.gu(2)
         active: d.activeDragHandle ? true : false
         visible: !root.fullyClosed
+        // ENH054 - Transparent drag handle
+        transparentBackground: true
 
+        /*
         //small shadow gradient at bottom of menu
         Rectangle {
             anchors {
@@ -198,6 +210,8 @@ Showable {
             }
             opacity: 0.3
         }
+        */
+        // ENH054 - End
     }
 
     Rectangle {

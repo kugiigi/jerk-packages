@@ -13,10 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-// ENH037 - Manual screen rotation button
-// import QtQuick 2.4
+
 import QtQuick 2.12
-// ENH037 - End
 import QtQuick.Window 2.2
 import Unity.InputInfo 0.1
 import Unity.Session 0.1

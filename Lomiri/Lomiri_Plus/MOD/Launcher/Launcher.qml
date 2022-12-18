@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.12
 import "../Components"
 import Ubuntu.Components 1.3
 import Ubuntu.Gestures 0.1
@@ -205,12 +205,8 @@ FocusScope {
             drawer.focusInput();
         }
         if (state === "drawer" && !onlyOpen)
-        // ENH016 - PR#405
-        //     if (alsoToggleLauncher && !root.lockedVisible)
-        //         switchToNextState("");
-            if (alsoToggleLauncher)
-                hide();
-		// ENH016 - End
+            if (alsoToggleLauncher && !root.lockedVisible)
+                switchToNextState("");
             else
                 switchToNextState("visible");
         else
@@ -374,31 +370,37 @@ FocusScope {
         }
     }
 
-    BackgroundBlur {
-        id: backgroundBlur
-        anchors.fill: parent
-        // ENH031 - Blur behavior in Drawer
-        // anchors.topMargin: root.inverted ? 0 : -root.topPanelHeight
-        anchors.topMargin: root.inverted ? -root.topMarginBlur : -(root.topPanelHeight + root.topMarginBlur)
-        anchors.leftMargin: -root.leftMarginBlur
-        // visible: root.interactiveBlur && root.blurSource && drawer.x > -drawer.width
-        // ENH046 - Lomiri Plus Settings
-        //visible: root.interactiveBlur && root.blurSource && drawer.fullyOpen
-        visible: root.interactiveBlur && root.blurSource
-                            && ((shell.settings.drawerBlurFullyOpen && drawer.fullyOpen) || (!shell.settings.drawerBlurFullyOpen && drawer.x > -drawer.width))
-        // ENH046 - End
-        // ENH031 - End
-        blurAmount: units.gu(6)
-        sourceItem: root.blurSource
-        blurRect: Qt.rect(panel.width,
-        // ENH031 - Blur behavior in Drawer
-                          // root.topPanelHeight,
-                          root.topPanelHeight + root.topMarginBlur,
-                          drawer.width + drawer.x - panel.width,
-                          // height - root.topPanelHeight)
-                          height - root.topPanelHeight - root.topMarginBlur)
-      // ENH031 - End
-        cached: drawer.moving
+    Item {
+        clip: true
+        x: 0
+        y: drawer.y
+        width: drawer.width + drawer.x
+        height: drawer.height
+        BackgroundBlur {
+            id: backgroundBlur
+            x: 0
+            y: 0
+            width: drawer.width
+            height: drawer.height
+            // ENH031 - Blur behavior in Drawer
+            // visible: root.interactiveBlur && root.blurSource && drawer.x > -drawer.width
+            // ENH046 - Lomiri Plus Settings
+            //visible: root.interactiveBlur && root.blurSource && drawer.fullyOpen
+            visible: root.interactiveBlur && root.blurSource
+                                && ((shell.settings.drawerBlurFullyOpen && drawer.fullyOpen) || (!shell.settings.drawerBlurFullyOpen && drawer.x > -drawer.width))
+            // ENH046 - End
+            // ENH031 - End
+            sourceItem: root.blurSource
+            // ENH031 - Blur behavior in Drawer
+            // blurRect: Qt.rect(0,
+            blurRect: Qt.rect(0 + root.leftMarginBlur,
+                              // root.topPanelHeight,
+                              root.topPanelHeight + root.topMarginBlur,
+                              drawer.width,
+                              drawer.height)
+          // ENH031 - End
+            occluding: (drawer.width == root.width) && drawer.fullyOpen
+        }
     }
 
     Drawer {
@@ -434,6 +436,14 @@ FocusScope {
 
         onOpenRequested: {
             root.toggleDrawer(false, true);
+        }
+
+        onFullyClosedChanged: {
+            if (!fullyClosed)
+                return
+
+            drawer.unFocusInput()
+            root.focus = false
         }
     }
 

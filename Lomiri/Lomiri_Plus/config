@@ -20,6 +20,7 @@ Features:\n
   - Screen rotation button that appears when rotating the device while rotation is locked\n
   - Punchhole battery indicator\n
   - Notch/punchhole and rounded corners configuration for margins and UI adjustments\n
+  - Always show the desktop mode toggle\n
 Device Specific Hack:\n
   Pro1-X:\n
     - Directly type passcode even with the cover page still displayed (initial page that you swipe left/right)
