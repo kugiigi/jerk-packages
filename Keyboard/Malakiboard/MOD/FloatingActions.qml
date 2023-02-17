@@ -134,6 +134,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: units.gu(5)
                 Layout.preferredHeight: keypad.keyHeight - units.gu(1) //backSpaceLeft.height - units.gu(1)
+                // ENH073 - Settings for Backspace & Enter in cursor mode
+                visible: fullScreenItem.settings.showBackSpaceEnter
+                // ENH073 - End
                 BackspaceKey {
                     id: backSpaceLeft
                     anchors.left: parent.left
@@ -149,6 +152,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: units.gu(5)
                 Layout.preferredHeight: keypad.keyHeight - units.gu(1) //returnKeyLeft.height - units.gu(1)
+                // ENH073 - Settings for Backspace & Enter in cursor mode
+                visible: fullScreenItem.settings.showBackSpaceEnter
+                // ENH073 - End
                 ReturnKey {
                     id: returnKeyLeft
                     anchors.left: parent.left
@@ -202,6 +208,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: units.gu(5)
                 Layout.preferredHeight: keypad.keyHeight - units.gu(1) //backSpace.height - units.gu(1)
+                // ENH073 - Settings for Backspace & Enter in cursor mode
+                visible: fullScreenItem.settings.showBackSpaceEnter
+                // ENH073 - End
                 BackspaceKey {
                     id: backSpace
                     anchors.right: parent.right
@@ -217,6 +226,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: units.gu(5)
                 Layout.preferredHeight: keypad.keyHeight - units.gu(1) //units.gu(5)//returnKey.height - units.gu(1)
+                // ENH073 - Settings for Backspace & Enter in cursor mode
+                visible: fullScreenItem.settings.showBackSpaceEnter
+                // ENH073 - End
                 ReturnKey {
                     id: returnKey
                     anchors.right: parent.right

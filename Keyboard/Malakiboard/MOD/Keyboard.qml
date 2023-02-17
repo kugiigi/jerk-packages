@@ -42,6 +42,12 @@ import QtQuick.Layouts 1.3
 // Temp workaround for disabling height
 import GSettings 1.0
 // ENH008 - End
+// ENH070 - Keyboard settings
+import Qt.labs.settings 1.0
+import QtQuick.Controls 2.12 as QQC2
+import QtQuick.Layouts 1.3
+import QtQuick.Controls.Suru 2.2
+// ENH070 - End
 
 Item {
     id: fullScreenItem
@@ -81,11 +87,6 @@ Item {
         }
     }
     // ENH008 - End
-    
-    // ENH009 - Custom keyboard height
-    readonly property real customPortraitHeight: 0.31 //default: 0
-    readonly property real customLandscapeHeight: 0.49 //default: 0
-    // ENH009 - End
 
     property bool cursorSwipe: false
     property int prevSwipePositionX
@@ -103,12 +104,53 @@ Item {
     onHeightChanged: fullScreenItem.reportKeyboardVisibleRect();
     
     Component.onCompleted: Theme.load(maliit_input_method.theme)
+    // ENH070 - Keyboard settings
+    property alias settings: mal_settings
+    Item {
+        id: mal_settings
+
+        // Appearance & Layout
+        property alias useCustomHeight: settingsObj.useCustomHeight
+        property alias customPortraitHeight: settingsObj.customPortraitHeight
+        property alias customLandscapeHeight: settingsObj.customLandscapeHeight
+        property alias useCustomRibbonHeight: settingsObj.useCustomRibbonHeight
+        property alias customRibbonHeight: settingsObj.customRibbonHeight
+        property alias customRibbonFontSize: settingsObj.customRibbonFontSize
+        
+        // Advanced Text Manipulation Mode
+        property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
+
+        Settings {
+            id: settingsObj
+
+            category: "malaki"
+            fileName: "/home/phablet/.config/maliit-server/maliit-server.conf"
+
+            property bool useCustomHeight: false
+            property real customPortraitHeight: 0.31
+            property real customLandscapeHeight: 0.49
+            property bool useCustomRibbonHeight: false
+            property real customRibbonHeight: 6 // in gu
+            property real customRibbonFontSize: 17 // in dp
+            property bool showBackSpaceEnter: true
+        }
+    }
+
+    function showSettings() {
+        settingsLoader.active = true
+    }
+
+    function hideSettings() {
+        settingsLoader.active = false
+    }
+    // ENH070 - End
+    
 
     Item {
         id: canvas
         objectName: "ubuntuKeyboard" // Allow us to specify a specific keyboard within autopilot.
 
-        // ENH009 - Custom keyboard height
+        // ENH071 - Custom height
         // property real keyboardHeight: (fullScreenItem.oneHanded ? keyboardSurface.oneHandedWidth * UI.oneHandedHeight
         //                     : fullScreenItem.height * (fullScreenItem.landscape ? fullScreenItem.tablet ? UI.tabletKeyboardHeightLandscape 
         //                                                                                                                   : UI.phoneKeyboardHeightLandscape
@@ -121,8 +163,8 @@ Item {
             var addedHeight = wordRibbon.height + borderTop.height + keyboardSurface.addBottomMargin
 
             if (fullScreenItem.landscape) {
-                if (fullScreenItem.customLandscapeHeight > 0) {
-                    multiplier = fullScreenItem.customLandscapeHeight
+                if (fullScreenItem.settings.useCustomHeight) {
+                    multiplier = fullScreenItem.settings.customLandscapeHeight
                 } else {
                     if (fullScreenItem.tablet) {
                         multiplier = UI.tabletKeyboardHeightLandscape 
@@ -131,8 +173,8 @@ Item {
                     }
                 }
             } else {
-                if (fullScreenItem.customPortraitHeight > 0) {
-                    multiplier = fullScreenItem.customPortraitHeight
+                if (fullScreenItem.settings.useCustomHeight > 0) {
+                    multiplier = fullScreenItem.settings.customPortraitHeight
                 } else {
                     if (fullScreenItem.tablet) {
                         multiplier = UI.tabletKeyboardHeightPortrait 
@@ -142,16 +184,11 @@ Item {
                 }
             }
 
-//~             if (fullScreenItem.oneHanded) {
-//~                 mainHeight = keyboardSurface.oneHandedWidth * UI.oneHandedHeight
-//~                 mainHeight = fullScreenItem.height *  multiplier
-//~             } else {
-                mainHeight = fullScreenItem.height *  multiplier
-//~             }
+            mainHeight = fullScreenItem.height *  multiplier
 
             return mainHeight + addedHeight
         }
-        // ENH009 - End
+        // ENH071 - End
 
         anchors.bottom: parent.bottom
         anchors.left: parent.left
@@ -186,6 +223,9 @@ Item {
                 keyboardSurface.returnToBoundsY(keyboardSurface.floatY)
             }
         }
+        // ENH070 - Keyboard settings
+        onHidingCompleteChanged: if (hidingComplete) fullScreenItem.hideSettings()
+        // ENH070 - End
 
         // These rectangles are outside canvas so that they can still be drawn even if layer.enabled is true
         Rectangle {
@@ -661,10 +701,26 @@ Item {
                         left: parent.left
                         right: parent.right
                     }
+                    // ENH072 - Custom ribbon height
+                    // height: canvas.wordribbon_visible ? (fullScreenItem.tablet ? units.gu(UI.tabletWordribbonHeight)
+                    //                                                            : units.gu(UI.phoneWordribbonHeight))
+                    //                                   : 0
+                    height: {
+                        if (canvas.wordribbon_visible) {
+                            if (fullScreenItem.settings.useCustomRibbonHeight) {
+                                return units.gu(fullScreenItem.settings.customRibbonHeight)
+                            } else {
+                                if (fullScreenItem.tablet) {
+                                    return units.gu(UI.tabletWordribbonHeight)
+                                } else {
+                                    return units.gu(UI.phoneWordribbonHeight)
+                                }
+                            }
+                        }
 
-                    height: canvas.wordribbon_visible ? (fullScreenItem.tablet ? units.gu(UI.tabletWordribbonHeight)
-                                                                               : units.gu(UI.phoneWordribbonHeight))
-                                                      : 0
+                        return 0
+                    }
+                    // ENH072 - End
                     onHeightChanged: fullScreenItem.reportKeyboardVisibleRect();
                 }
             }
@@ -683,7 +739,20 @@ Item {
                 
                 z: 1
                 visible: fullScreenItem.cursorSwipe
-                height: fullScreenItem.tablet ? units.gu(UI.tabletWordribbonHeight) : units.gu(UI.phoneWordribbonHeight)
+                // ENH072 - Custom ribbon height
+                // height: fullScreenItem.tablet ? units.gu(UI.tabletWordribbonHeight) : units.gu(UI.phoneWordribbonHeight)
+                height: {
+                    if (fullScreenItem.settings.useCustomRibbonHeight) {
+                        return units.gu(fullScreenItem.settings.customRibbonHeight)
+                    } else {
+                        if (fullScreenItem.tablet) {
+                            return units.gu(UI.tabletWordribbonHeight)
+                        } else {
+                            return units.gu(UI.phoneWordribbonHeight)
+                        }
+                    }
+                }
+                // ENH072 - End
                 state: wordRibbon.visible ? "wordribbon" : "top"
                 anchors {
                     left: keyboardComp.left
@@ -968,6 +1037,225 @@ Item {
                     bottom: parent.bottom
                 }
             }
+            // ENH070 - Keyboard settings
+            Loader {
+                id: settingsLoader
+                active: false
+                z: 1000
+                anchors.fill: parent
+                opacity: 0.7
+
+                sourceComponent: Component {
+                    Rectangle {
+                        id: malSettingsRec
+
+                        property alias stack: stack
+
+                        focus: false
+                        color: Suru.backgroundColor
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 0
+                            QQC2.ToolBar {
+                                Layout.fillWidth: true
+                                Layout.bottomMargin: units.dp(1)
+                                RowLayout {
+                                    anchors.fill: parent
+                                    QQC2.ToolButton {
+                                        Layout.fillHeight: true
+                                        icon.width: units.gu(2)
+                                        icon.height: units.gu(2)
+                                        action: QQC2.Action {
+                                            icon.name:  stack.depth > 1 ? "back" : "close"
+                                            shortcut: StandardKey.Cancel
+                                             onTriggered: {
+                                                if (stack.depth > 1) {
+                                                    stack.pop()
+                                                } else {
+                                                    settingsLoader.active = false
+                                                }
+                                            }
+                                        }
+                                    }
+                                    QQC2.Label {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        text: stack.currentItem.title
+                                        verticalAlignment: Text.AlignVCenter
+                                        Suru.textLevel: Suru.HeadingThree
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+
+                            QQC2.StackView {
+                                id: stack
+                                
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                initialItem: settingsPage
+                            }
+                            
+                            QQC2.Button {
+                                id: closeButton
+
+                                text: "Close"
+                                Layout.fillWidth: true
+                                onClicked: settingsLoader.active = false
+                            }
+                        }
+                    }
+                }
+            }
+            Component {
+                id: settingsPage
+                
+                MKSettingsPage {
+                    title: "Malakiboard Settings"
+
+                    MKSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Appearance && Layouts"
+                        onClicked: settingsLoader.item.stack.push(appearancePage, {"title": text})
+                    }
+                    MKSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Advanced"
+                        onClicked: settingsLoader.item.stack.push(advancedPage, {"title": text})
+                    }
+                }
+            }
+            Component {
+                id: advancedPage
+                
+                MKSettingsPage {
+                    QQC2.CheckDelegate {
+                        id: showBackSpaceEnter
+                        Layout.fillWidth: true
+                        text: "Show Backspace and Enter in cursor mode"
+                        onCheckedChanged: fullScreenItem.settings.showBackSpaceEnter = checked
+                        Binding {
+                            target: showBackSpaceEnter
+                            property: "checked"
+                            value: fullScreenItem.settings.showBackSpaceEnter
+                        }
+                    }
+                }
+            }
+            Component {
+                id: appearancePage
+                
+                MKSettingsPage {
+                    MKSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Custom Height"
+                        onClicked: settingsLoader.item.stack.push(customHeightPage, {"title": text})
+                    }
+                    MKSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Custom Ribbon Height"
+                        onClicked: settingsLoader.item.stack.push(customRibbonHeightPage, {"title": text})
+                    }
+                }
+            }
+            Component {
+                id: customHeightPage
+                
+                MKSettingsPage {
+                    QQC2.CheckDelegate {
+                        id: useCustomHeight
+                        Layout.fillWidth: true
+                        text: "Enable"
+                        onCheckedChanged: fullScreenItem.settings.useCustomHeight = checked
+                        Binding {
+                            target: useCustomHeight
+                            property: "checked"
+                            value: fullScreenItem.settings.useCustomHeight
+                        }
+                    }
+                    MKSliderItem {
+                        id: customPortraitHeight
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: fullScreenItem.settings.useCustomHeight
+                        title: "Portrait Height (in %)"
+                        minimumValue: 0.2
+                        maximumValue: 0.7
+                        percentageValue: true
+                        onValueChanged: fullScreenItem.settings.customPortraitHeight = value
+                        Binding {
+                            target: customPortraitHeight
+                            property: "value"
+                            value: fullScreenItem.settings.customPortraitHeight
+                        }
+                    }
+                    MKSliderItem {
+                        id: customLandscapeHeight
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: fullScreenItem.settings.useCustomHeight
+                        title: "Landscape Height (in %)"
+                        minimumValue: 0.3
+                        maximumValue: 0.7
+                        percentageValue: true
+                        onValueChanged: fullScreenItem.settings.customLandscapeHeight = value
+                        Binding {
+                            target: customLandscapeHeight
+                            property: "value"
+                            value: fullScreenItem.settings.customLandscapeHeight
+                        }
+                    }
+                }
+            }
+            Component {
+                id: customRibbonHeightPage
+                
+                MKSettingsPage {
+                    QQC2.CheckDelegate {
+                        id: useCustomRibbonHeight
+                        Layout.fillWidth: true
+                        text: "Enable"
+                        onCheckedChanged: fullScreenItem.settings.useCustomRibbonHeight = checked
+                        Binding {
+                            target: useCustomRibbonHeight
+                            property: "checked"
+                            value: fullScreenItem.settings.useCustomRibbonHeight
+                        }
+                    }
+                    MKSliderItem {
+                        id: customRibbonHeight
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: fullScreenItem.settings.customRibbonHeight
+                        title: "Height (in Grid Unit)"
+                        minimumValue: 2
+                        maximumValue: 10
+                        onValueChanged: fullScreenItem.settings.customRibbonHeight = value
+                        Binding {
+                            target: customRibbonHeight
+                            property: "value"
+                            value: fullScreenItem.settings.customRibbonHeight
+                        }
+                    }
+                    MKSliderItem {
+                        id: customRibbonFontSize
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: fullScreenItem.settings.customRibbonFontSize
+                        title: "Font Size (in density pixel)"
+                        minimumValue: 10
+                        maximumValue: 30
+                        onValueChanged: fullScreenItem.settings.customRibbonFontSize = value
+                        Binding {
+                            target: customRibbonFontSize
+                            property: "value"
+                            value: fullScreenItem.settings.customRibbonFontSize
+                        }
+                    }
+                }
+            }
+            // ENH070 - End
         } //keyboardSurface
 
         state: "HIDDEN"

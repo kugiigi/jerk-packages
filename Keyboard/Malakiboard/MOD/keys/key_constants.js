@@ -63,7 +63,7 @@ var actionKeyPressedColor = "#aeaeae"
 var actionKeyBorderColor = "#888888"
 
 var top_margin = 1;  // gu
-var bottom_margin = 1; // gu
+var bottom_margin = 2; // gu
 var tabletRowMargin = 1; // gu
 var phoneRowMarginLandscape = 4; // dp
 var phoneRowMarginPortrait = 7; // dp
@@ -84,6 +84,19 @@ var phoneKeyboardHeightLandscape = 0.49; // percent of screen
 
 var tabletKeyboardHeightPortrait = 0.31; // percent of screen
 var tabletKeyboardHeightLandscape = 0.34; // percent of screen
+
+var oneHandedHeight = 0.60; // percent of width
+
+var tabletOneHandedMaxWidth = 50; //gu
+var tabletOneHandedPreferredWidthLandscape = 0.33; // percent of screen
+var tabletOneHandedPreferredWidthPortrait = 0.50; // percent of screen
+
+var phoneOneHandedMaxWidth = 60; //gu
+var phoneOneHandedPreferredWidthLandscape = 0.50; // percent of screen
+var phoneOneHandedPreferredWidthPortrait = 1.00; // percent of screen
+
+var keyboardBorderWidth = 0.2; //gu
+var actionBarWidth = 5; //gu
 
 /* for UITK Components */
 var toolkitTheme = "Ubuntu.Components.Themes.Ambiance" 

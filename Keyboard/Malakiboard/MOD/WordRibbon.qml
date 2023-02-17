@@ -33,6 +33,7 @@ Rectangle {
         id: listView
         objectName: "wordListView"
         anchors.fill: parent
+        clip: true
 
         model: maliit_wordribbon
 
@@ -62,7 +63,20 @@ Rectangle {
 
                 Label {
                     id: wordItem
-                    font.pixelSize: units.dp(fullScreenItem.tablet ? UI.tabletWordRibbonFontSize : UI.phoneWordRibbonFontSize)
+                    // ENH072 - Custom ribbon height
+                    // font.pixelSize: units.dp(fullScreenItem.tablet ? UI.tabletWordRibbonFontSize : UI.phoneWordRibbonFontSize)
+                    font.pixelSize: {
+                        if (fullScreenItem.settings.useCustomRibbonHeight) {
+                            return units.dp(fullScreenItem.settings.customRibbonFontSize)
+                        } else {
+                            if (fullScreenItem.tablet) {
+                                return units.dp(UI.tabletWordRibbonFontSize)
+                            } else {
+                                return units.dp(UI.phoneWordRibbonFontSize)
+                            }
+                        }
+                    }
+                    // ENH072 - End
                     font.family: UI.fontFamily
                     font.weight: textBold ? Font.Bold : Font.Light
                     text: word;
