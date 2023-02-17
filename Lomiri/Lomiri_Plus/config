@@ -1,33 +1,3 @@
 target_component="lomiri"
 package_description="Lomiri Plus is Lomiri but with extra experimental features and fixes.\n
-A settings page is available via bottom swipe in the lockscreen where you can enable/disable features and customizations.\n
-List of changes and features:\n
-Customization:\n
-  - Separate lockscreen wallpaper\n
-  - Custom color and logo for the Launcher button\n
-  - Top panel opacity\n
-  - Indicator panel interactive blur\n
-  - Option to always hide the top panel so apps are always in fullscreen\n
-  - Interactive blur in the App drawer and an alternative more performant behavior\n
-  - Inverted app drawer\n
-  - Rounded app preview in the App Spread\n
-Features:\n
-  - Enable side-stage\n
-  - Floating side-stage mode\n
-  - Side-stage keybaord shortcuts\n
-  - Bottom side gestures to open the indicator panels or application menu\n
-  - Immersive mode indicator will actually disable the edge gestures and multi-finger gestures\n
-  - Screen rotation button that appears when rotating the device while rotation is locked\n
-  - Punchhole battery indicator\n
-  - Notch/punchhole and rounded corners configuration for margins and UI adjustments\n
-  - Always show the desktop mode toggle\n
-Device Specific Hack:\n
-  Pro1-X:\n
-    - Directly type passcode even with the cover page still displayed (initial page that you swipe left/right)
-    - Automatically toggle OSK based on orientation\n
-	- Use Fn/Yellow Arrow key to manually toggle the OSK\n
-	- Use Camera key to toggle orientation\n
-Outer Wilds Fun Stuffs\n
-  - Theme that includes wallpaper and the whole solar system!\n
-  - Alternate theme that mimics the Main Menu\n
-  - In-display fingerprint marker"
+A settings page is available via bottom swipe in the lockscreen where you can enable/disable features and customizations.\n"

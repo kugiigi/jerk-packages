@@ -22,19 +22,21 @@ import Utils 0.1
 import "../Components"
 import "Indicators"
 
-Rectangle {
+// ENH058 - Interative Blur (Focal)
+// Rectangle {
+Item {
+// ENH058 - End
     id: content
 
     property QtObject model: null
     property int currentMenuIndex: -1
     property Component pageDelegate
-    // ENH028 - Open indicators via gesture
-    property color panelColor: theme.palette.normal.background
-    property real bgOpacity: 1
-
+    // ENH056 - Quick toggles
+    property alias listView: listViewContent
+    // ENH056 - End
+    // ENH058 - Interative Blur (Focal)
     // color: theme.palette.normal.background
-    color: "transparent"
-    // ENH028 - End
+    // ENH058 - End
 
     width: units.gu(40)
     height: units.gu(42)
@@ -42,15 +44,6 @@ Rectangle {
     onCurrentMenuIndexChanged: {
         listViewContent.currentIndex = currentMenuIndex;
     }
-    
-    // ENH028 - Open indicators via gesture
-    Rectangle {
-        anchors.fill: parent
-        opacity: bgOpacity
-        color: panelColor
-        
-    }
-    // ENH028 - End
 
     ListView {
         id: listViewContent

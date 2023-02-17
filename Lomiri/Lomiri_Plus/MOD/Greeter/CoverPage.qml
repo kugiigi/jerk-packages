@@ -31,6 +31,7 @@ Showable {
     property real launcherOffset
     // ENH034 - Separate wallpaper lockscreen and desktop
     property alias fallbackBackground: greeterBackground.fallbackSource
+    property bool useCoverPageWallpaper: false
     // ENH034 - End
     property alias background: greeterBackground.source
     property alias backgroundSourceSize: greeterBackground.sourceSize
@@ -60,6 +61,9 @@ Showable {
     signal fastModeToggle
     signal owToggle
     // ENH032 - End
+    // ENH064 - Dynamic Cove
+    property bool dynamicCoveClock: infographicsLoader.item && infographicsLoader.item.dynamicCoveClock
+    // ENH064 - End
 
     function hideRight() {
         d.forceRightOnNextHideAnimation = true;
@@ -211,6 +215,9 @@ Showable {
                 return "../OuterWilds/graphics/lockscreen.png"
             }
             if (shell.settings.useCustomLockscreen) {
+                if (root.useCoverPageWallpaper) {
+                    return "file:///home/phablet/Pictures/lomiriplus/coverpage"
+                }
                 return "file:///home/phablet/Pictures/lomiriplus/lockscreen"
             }
 
@@ -299,6 +306,9 @@ Showable {
         objectName: "infographicsLoader"
         active: root.showInfographic && infographicsArea.width > units.gu(32)
         anchors.fill: infographicsArea
+        // ENH064 - Dynamic Cove
+        z: dragHandle.z + 1
+        // ENH064 - End
 
         sourceComponent:Infographics {
             id: infographics
@@ -460,7 +470,12 @@ Showable {
             left: parent.left
             right: parent.right
         }
-        onDraggingChanged: if (dragging) shell.showSettings()
+        onDraggingChanged: {
+            if (dragging) {
+                shell.showSettings()
+                shell.haptics.play()
+            }
+        }
     }
     // ENH046 - End
 }

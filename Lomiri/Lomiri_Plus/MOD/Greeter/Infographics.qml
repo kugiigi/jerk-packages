@@ -17,6 +17,10 @@
 import "Gradient.js" as Gradient
 import QtQuick 2.12
 import Ubuntu.Components 1.3
+// ENH064 - Dynamic Cove
+import "../Components"
+import "../LPDynamicCove" as DynamicCove
+// ENH064 - End
 
 Item {
     id: infographic
@@ -29,6 +33,9 @@ Item {
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
     // ENH032 - End
+    // ENH064 - Dynamic Cove
+    readonly property alias dynamicCoveClock: dynamicCove.isClock
+    // ENH064 - End
 
     QtObject {
         id: d
@@ -101,8 +108,10 @@ Item {
         }
         notification.hideAnim.start()
     }
-
-    visible: model.username !== ""
+    // ENH064 - Dynamic Cove
+    // visible: model.username !== ""
+    visible: model.username !== "" || shell.settings.enableDynamicCove
+    // ENH064 - End
 
     Component.onCompleted: {
         currentWeekDay = new Date().getDay()
@@ -152,6 +161,116 @@ Item {
                 start()
             }
         }
+
+        MouseArea {
+            id: circularMenuMouseArea
+
+            anchors {
+                fill: parent
+                margins: units.gu(-3)
+            }
+            hoverEnabled: true
+            propagateComposedEvents: true
+            
+//~             Rectangle {
+//~                 id: bg
+
+//~                 anchors.fill: parent
+//~                 color: "blue"
+//~                 radius: width / 2
+//~                 opacity: 0.5
+//~             }
+        }
+
+        // ENH064 - Dynamic Cove
+        Loader {
+            id: dynamicCove
+
+            readonly property bool isCDPlayer: sourceComponent == cdPlayerComponent
+            readonly property bool isInfographic: sourceComponent == infographicComponent
+            readonly property bool isClock: sourceComponent == clockComponent
+            readonly property bool isTimer: sourceComponent == timerComponent
+            property var model: [
+                {"itemid": "infographics", "label": "Infographics", "component": infographicComponent, "iconName": "info"}
+                ,{"itemid": "cdplayer", "label": "Media Controls", "component": cdPlayerComponent, "iconName": "stock_music"}
+                ,{"itemid": "mediaplayer", "label": "Media Player", "component": mediaPlayerComponent, "iconName": "media-playlist"}
+                ,{"itemid": "clock", "label": "Clock", "component": clockComponent, "iconName": "clock"}
+                ,{"itemid": "timer", "label": "Timer", "component": timerComponent, "iconName": "timer"}
+                ,{"itemid": "stopwatch", "label": "Stopwatch", "component": stopwatchComponent, "iconName": "stopwatch"}
+            ]
+
+            asynchronous: true
+            anchors.fill: parent
+            sourceComponent: !infographics.enableOW && shell.settings.enableDynamicCove ? model[shell.settings.dynamicCoveCurrentItem].component : null
+            onSourceComponentChanged: d.useDotAnimation = true
+            onIsInfographicChanged: {
+                notification.hideAnim.start()
+                notification.showAnim.start()
+            }
+            Component.onCompleted: if (shell.settings.dcShowClockWhenLockscreen) shell.settings.dynamicCoveCurrentItem = 3
+        }
+
+        Component {
+            id: cdPlayerComponent
+
+            DynamicCove.LPCDPlayer {
+                id: cdPlayer
+
+                swipeArea: nextPrevSwipe
+                mouseArea: circleMouseArea
+            }
+        }
+        Component {
+            id: mediaPlayerComponent
+
+            DynamicCove.LPMediaPlayer {
+                id: mediaPlayer
+
+                swipeArea: nextPrevSwipe
+                mouseArea: circleMouseArea
+            }
+        }
+        Component {
+            id: infographicComponent
+
+            DynamicCove.LPDynamicCoveItem {
+                id: infographicItem
+
+                swipeArea: nextPrevSwipe
+                mouseArea: circleMouseArea
+            }
+        }
+        Component {
+            id: stopwatchComponent
+
+            DynamicCove.LPStopwatchFace {
+                id: stopWatchItem
+
+                swipeArea: nextPrevSwipe
+                mouseArea: circleMouseArea
+            }
+        }
+        Component {
+            id: clockComponent
+
+            DynamicCove.LPClock {
+                id: clockItem
+
+                mouseArea: circleMouseArea
+            }
+        }
+        Component {
+            id: timerComponent
+
+            DynamicCove.LPTimer {
+                id: timerItem
+
+                swipeArea: nextPrevSwipe
+                mouseArea: circleMouseArea
+                secondaryMouseArea: secondMouseArea
+            }
+        }
+        // ENH064 - End
 
         Repeater {
             id: pastCircles
@@ -213,11 +332,72 @@ Item {
                 }
             }
         }
+        // ENH064 - Dynamic Cove
+        ListModel {
+            id: discoModeModel
+            
+            signal dataAboutToChange
+            signal dataChanged
 
+            function randomNumber(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+            
+            function generateRandomNumber(min, max) {
+                    return Math.random() * (max - min) + min;
+            }
+
+            
+            function refillData() {
+                dataAboutToChange()
+                clear()
+                let maxItems = randomNumber(5, 20)
+                
+                for (let step = 0; step < maxItems; step++) {
+                    let randomnum = generateRandomNumber(0, 1)
+                    append({"modelData": randomnum})
+                }
+                dataChanged()
+            }
+
+            Component.onCompleted: {
+                refillData()
+            }
+
+            onDataAboutToChange: infographic.startHideAnimation()
+            onDataChanged: infographic.startShowAnimation()
+        }
+
+        Timer {
+            id: discoTimer
+
+            running: dynamicCove.isCDPlayer && dynamicCove.item && dynamicCove.item.visible
+                            && dynamicCove.item.spinAnimation.running && !dynamicCove.item.spinAnimation.paused
+            repeat: true
+            interval: 5000
+            triggeredOnStart: true
+            onTriggered: {
+                discoModeModel.refillData()
+            }
+        }
+        Connections {
+            target: presentCircles
+            onModelChanged: {
+                if (presentCircles.model == discoModeModel) {
+                    discoTimer.restart()
+                } else {
+                    discoTimer.stop()
+                }
+            }
+        }
+        // ENH064 - End
         Repeater {
             id: presentCircles
             objectName: "presentCircles"
-            model: infographic.model.firstMonth
+            // ENH064 - Dynamic Cove
+            // model: infographic.model.firstMonth
+            model: dynamicCove.isCDPlayer && shell.settings.enableCDPlayerDisco ? discoModeModel : infographic.model.firstMonth
+            // ENH064 - End
 
             delegate: ObjectPositioner {
                 property alias presentCircleChangeAnim: presentCircleChangeAnim
@@ -266,7 +446,11 @@ Item {
                             ColorAnimation {
                                 target: presentCircle
                                 property: "color"
-                                to: Gradient.threeColorByIndex(index, infographic.model.currentDay, whiteTheme)
+                                // ENH064 - Dynamic Cove
+                                // to: Gradient.threeColorByIndex(index, infographic.model.currentDay, whiteTheme)
+                                to: dynamicCove.isCDPlayer && shell.settings.enableCDPlayerDisco ? '#'+(0x1000000+Math.random()*0xffffff).toString(16).substr(1,6) // Random color
+                                            : Gradient.threeColorByIndex(index, infographic.model.currentDay, whiteTheme)
+                                // ENH064 - End
                                 easing.type: Easing.OutCurve
                                 duration: circleChangeAnimTimer.interval * d.circleModifier
                             }
@@ -335,14 +519,23 @@ Item {
         Repeater {
             id: dots
             objectName: "dots"
-
-            model: infographic.model.firstMonth
+            // ENH064 - Dynamic Cove
+            // model: infographic.model.firstMonth
+            model: !dynamicCove.isClock && !dynamicCove.isTimer ? infographic.model.firstMonth : 12
+            onModelChanged: {
+                infographics.startHideAnimation()
+                infographics.startShowAnimation()
+            }
+            // ENH064 - End
 
             delegate: ObjectPositioner {
                 property alias unlockAnimation: dotUnlockAnim
                 property alias changeAnimation: dotChangeAnim
-
-                property int currentDay: infographic.model.currentDay
+                // ENH064 - Dynamic Cove
+                // property int currentDay: infographic.model.currentDay
+                property int currentDay: dynamicCove.isClock ? dynamicCove.item && dynamicCove.item.currentHour ? dynamicCove.item.currentHour : 0
+                                                             : dynamicCove.isTimer ? 0 : infographic.model.currentDay
+                // ENH064 - End
 
                 index: model.index
                 count: dots.count
@@ -404,6 +597,9 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             color: "white"
+            // ENH064 - Dynamic Cove
+            visible: dynamicCove.isInfographic || !shell.settings.enableDynamicCove
+            // ENH064 - End
 
             PropertyAnimation {
                 id: increaseOpacity
@@ -427,7 +623,8 @@ Item {
             }
         }
     }
-
+    // ENH064 - Dynamic Cove
+    /*
     MouseArea {
         anchors.fill: dataCircle
         enabled: notification.text != ""
@@ -438,4 +635,101 @@ Item {
             }
         }
     }
+    */
+
+    LPCircularMenu {
+        id: circleMenu
+
+        anchors {
+            fill: dataCircle
+            margins: units.gu(-3)
+        }
+        model: dynamicCove.model
+        mouseArea: circularMenuMouseArea
+        enabled: dataCircle.visible && shell.settings.enableDynamicCove
+        onSelected: shell.settings.dynamicCoveCurrentItem = selectedIndex
+        currentSelectedIndex: shell.settings.dynamicCoveCurrentItem
+    }
+
+    LPRoundMouseArea {
+        id: circleMouseArea
+
+        anchors.centerIn: dataCircle
+        height: 0.7 * dataCircle.width
+        width: height
+        propagateComposedEvents: true
+        hoverEnabled: true
+
+//~         Rectangle {
+//~             color: "red"
+//~             radius: width / 2
+//~             anchors.fill: parent
+//~             opacity: 0.5
+//~         }
+
+        enabled: dataCircle.visible && ((!dynamicCove.item && notification.text != "") || (dynamicCove.item && dynamicCove.item.enableMouseArea))
+        function reloadUSerDataDots() {
+            if (!d.animating) {
+                reloadUserData()
+                // ENH061 - Add haptics
+                shell.haptics.playSubtle()
+                // ENH061 - End
+            }
+        }
+        onClicked: {
+            if (dynamicCove.isInfographic) {
+                reloadUSerDataDots()
+            }
+        }
+        onDoubleClicked: {
+            if (!dynamicCove.item) {
+                reloadUSerDataDots()
+            }
+        }
+    }
+    
+    LPRoundMouseArea {
+        id: secondMouseArea
+
+        enabled: dataCircle.visible && dynamicCove.item && dynamicCove.item.secondaryMouseArea == this
+        propagateComposedEvents: true
+        anchors.centerIn: dataCircle
+        width: dynamicCove.item && dynamicCove.item.secondaryMouseAreaWidth > 0 ? dynamicCove.item.secondaryMouseAreaWidth
+                                                                               : dataCircle.width / 2
+        height: width
+    }
+
+    SwipeArea {
+        id: nextPrevSwipe
+
+        // draggingCustom is used for implementing trigger delay
+        readonly property real threshold: shell.convertFromInch(0.5) // Old: units.gu(5)
+        readonly property bool goingPositive: distance > 0
+        readonly property bool goingNegative: distance < 0
+        property bool draggingCustom: Math.abs(distance) >=  threshold
+
+        signal triggered
+
+        anchors.centerIn: circleMouseArea
+        direction: dynamicCove.item ? dynamicCove.item.swipeAreaDirection : SwipeArea.Vertical
+        width: dynamicCove.item && dynamicCove.item.swipeAreaWidth > 0 ? dynamicCove.item.swipeAreaWidth
+                                                                               : dataCircle.width
+        height: width
+        enabled: dataCircle.visible && dynamicCove.item && dynamicCove.item.swipeArea == this && dynamicCove.item.enableSwipeArea && !circleMenu.mouseArea.pressed
+
+        onDraggingChanged: {
+            if (!dragging && draggingCustom) {
+                triggered()
+            }
+        }
+
+        onDraggingCustomChanged: {
+            if (draggingCustom) {
+                shell.haptics.play()
+            } else {
+                shell.haptics.playSubtle()
+            }
+        }
+    }
+    // ENH064 - End
 }

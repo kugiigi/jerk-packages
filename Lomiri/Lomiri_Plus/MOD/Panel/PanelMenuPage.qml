@@ -33,6 +33,32 @@ PageStack {
 
     signal modelCountChanged(int count)
     // ENH028 - End
+    // ENH056 - Quick toggles
+    property string identifier
+    property int menuIndex: -1
+    property var rotationToggle
+    property var flashlightToggle
+    property var autoDarkModeToggle
+    property var darkModeToggle
+    property var desktopModeToggle
+    property var silentModeToggle
+    property var flightModeToggle
+    property var mobileDataToggle
+    property var wifiToggle
+    property var bluetoothToggle
+    property var locationToggle
+    property var immersiveToggle
+    property var hotspotToggle
+    property var autoBrightnessToggle
+    property var brightnessSlider
+    property var volumeSlider
+    property var dateItem
+    property var lockItem
+    // ENH056 - End
+    // ENH064 - Dynamic Cove
+    property var mediaPlayer
+    property var playbackItem
+    // ENH064 - End
 
     Connections {
         id: dynamicChanges
@@ -126,7 +152,7 @@ PageStack {
 
                 z: page.header.z + 1
                 color: "transparent"
-                height: root.inverted && root.height >= maximumHeightWhenInverted + units.gu(10)? root.height - maximumHeightWhenInverted : 0
+                height: root.inverted && root.height >= maximumHeightWhenInverted + units.gu(10) ? root.height - maximumHeightWhenInverted : 0
                 anchors {
                     top: parent.top
                     left: parent.left
@@ -136,7 +162,7 @@ PageStack {
                 Label {
                     id: timeDateLabel
 
-                    visible: labelHeader.height > units.gu(20)
+                    visible: labelHeader.height > units.gu(10)
                     textSize: Label.XLarge
                     anchors.fill: parent
                     horizontalAlignment: Text.AlignHCenter
@@ -240,6 +266,86 @@ PageStack {
                     sourceComponent: page.factory.load(model)
 
                     onLoaded: {
+                        // ENH028 - Open indicators via gesture
+                        if (root.identifier == "indicator-datetime") {
+                            if (model.action == "indicator.phone.open-calendar-app") {
+                                root.dateItem = item
+                            }
+                        }
+                        if (root.identifier == "indicator-session") {
+                            if (model.action == "indicator.switch-to-screensaver") {
+                                root.lockItem = item
+                            }
+                        }
+                        // ENH028 - End
+                        // ENH064 - Dynamic Cove
+                        if (root.identifier == "indicator-sound") {
+                            if (model.type == "com.canonical.unity.media-player") {
+                                root.mediaPlayer = item
+                            }
+                            if (model.type == "com.canonical.unity.playback-item") {
+                                root.playbackItem = item
+                            }
+                        }
+                        // ENH064 - End
+                        // ENH056 - Quick toggles
+                        if (model.type == "com.canonical.unity.slider") {
+                            if (root.identifier == "indicator-power" && model.action == "indicator.brightness") {
+                                root.brightnessSlider = item
+                            }
+                            if (root.identifier == "indicator-sound" && model.action == "indicator.volume") {
+                                root.volumeSlider = item
+                            }
+                        }
+                        if (model.type == "com.canonical.indicator.switch") {
+                            if (root.identifier == "indicator-rotation-lock" && model.action == "indicator.rotation-lock") {
+                                root.rotationToggle = item
+                            }
+                            if (root.identifier == "indicator-power" && model.action == "indicator.flashlight") {
+                                root.flashlightToggle = item
+                            }
+                            if (root.identifier == "kugiigi-indicator-darkmode" && model.action == "indicator.auto") {
+                                root.autoDarkModeToggle = item
+                            }
+                            if (root.identifier == "kugiigi-indicator-darkmode" && model.action == "indicator.toggle") {
+                                root.darkModeToggle = item
+                            }
+                            if (root.identifier == "indicator-session" && model.action == "indicator.usage-mode") {
+                                root.desktopModeToggle = item
+                            }
+                            if (root.identifier == "indicator-sound" && model.action == "indicator.silent-mode") {
+                                root.silentModeToggle = item
+                            }
+                            if (root.identifier == "indicator-network" && model.action == "indicator.airplane.enabled") {
+                                root.flightModeToggle = item
+                            }
+                            if (root.identifier == "indicator-network" && model.action == "indicator.mobiledata.enabled") {
+                                root.mobileDataToggle = item
+                            }
+                            if (root.identifier == "indicator-network" && model.action == "indicator.wifi.enable") {
+                                root.wifiToggle = item
+                            }
+                            if (root.identifier == "indicator-bluetooth" && model.action == "indicator.bluetooth-enabled") {
+                                root.bluetoothToggle = item
+                            }
+                            if (root.identifier == "indicator-location" && model.action == "indicator.location-detection-enabled") {
+                                root.locationToggle = item
+                            }
+                            if (root.identifier == "kugiigi-indicator-immersive" && model.action == "indicator.toggle") {
+                                root.immersiveToggle = item
+                            }
+                            if (root.identifier == "indicator-network" && model.action == "indicator.hotspot.enable") {
+                                root.hotspotToggle = item
+                            }
+                            if (root.identifier == "indicator-power" && model.action == "indicator.auto-brightness") {
+                                root.autoBrightnessToggle = item
+                            }
+                        }
+
+                        if (item.hasOwnProperty("parentMenuIndex")) {
+                            item.parentMenuIndex = root.menuIndex;
+                        }
+                        // ENH056 - End
                         if (item.hasOwnProperty("selected")) {
                             item.selected = listView.selectedIndex == index;
                         }

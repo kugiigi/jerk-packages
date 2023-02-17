@@ -20,6 +20,13 @@ import Ubuntu.Components 1.3
 import Ubuntu.Gestures 0.1
 import "../Components"
 import "Indicators"
+// ENH058 - Interative Blur (Focal)
+import "../Launcher"
+// ENH058 - End
+// ENH056 - Quick toggles
+import QtQuick.Layouts 1.12
+import Ubuntu.Components.ListItems 1.3 as ListItems
+// ENH056 - End
 
 Showable {
     id: root
@@ -33,13 +40,20 @@ Showable {
     property real openedHeight: units.gu(71)
     property bool enableHint: true
     property bool showOnClick: true
-    property color panelColor: theme.palette.normal.background
+    property color panelColor: "#DA000000"
     property real menuContentX: 0
 
     property alias alignment: bar.alignment
     property alias hideRow: bar.hideRow
     property alias rowItemDelegate: bar.rowItemDelegate
     property alias pageDelegate: content.pageDelegate
+    // ENH058 - Interative Blur (Focal)
+    property var blurSource : null
+    property rect blurRect : Qt.rect(0, 0, 0, 0)
+    //  Added for notch atbp
+    property real leftMarginBlur
+    property real topMarginBlur
+    // ENH058 - End
     // ENH002 - Notch/Punch hole fix
     property alias contentRightMargin: bar.contentRightMargin
     property alias contentLeftMargin: bar.contentLeftMargin
@@ -49,6 +63,29 @@ Showable {
     property string currentTitle
     property real panelOpacity: 1
     property int initialIndexOnInverted: -1
+    // ENH028 - End
+    // ENH056 - Quick toggles
+    property bool enableQuickToggles: false
+    property var rotationToggle
+    property var flashlightToggle
+    property var autoDarkModeToggle
+    property var darkModeToggle
+    property var desktopModeToggle
+    property var silentModeToggle
+    property var flightModeToggle
+    property var mobileDataToggle
+    property var wifiToggle
+    property var bluetoothToggle
+    property var locationToggle
+    property var immersiveToggle
+    property var hotspotToggle
+    property var autoBrightnessToggle
+    property var brightnessSlider
+    property var volumeSlider
+    // ENH056 - End
+    // ENH028 - Open indicators via gesture
+    property var dateItem
+    property var lockItem
     // ENH028 - End
 
     readonly property real unitProgress: Math.max(0, (height - minimizedPanelHeight) / (openedHeight - minimizedPanelHeight))
@@ -99,48 +136,72 @@ Showable {
 
     onUnitProgressChanged: d.updateState()
 
+    // ENH058 - Interative Blur (Focal)
+    BackgroundBlur {
+        x: 0 - root.leftMarginBlur
+        y: 0 - root.topMarginBlur
+        width: root.blurRect.width
+        height: root.blurRect.height
+        visible: root.height > root.minimizedPanelHeight
+        sourceItem: root.blurSource
+        blurRect: root.blurRect
+        occluding: false
+    }
+    // ENH058 - End
+
     // ENH028 - Open indicators via gesture
     onFullyClosedChanged: {
         if (fullyClosed) {
             inverted = false
+            // ENH056 - Quick toggles
+            quickToggles.editMode = false
+            // ENH056 - End
         }
     }
-    function openAsInverted() {
+    function openAsInverted(indicatorIndex) {
         inverted = true
-        if (initialIndexOnInverted > -1) {
-            bar.setCurrentItemIndex(initialIndexOnInverted)
-        } else {
-            if (currentMenuIndex >= root.model.count || currentMenuIndex < 0) {
-                bar.setCurrentItemIndex(0)
+
+        if (indicatorIndex == -1) {
+            if (initialIndexOnInverted > -1) {
+                bar.setCurrentItemIndex(initialIndexOnInverted)
             } else {
-                bar.setCurrentItemIndex(currentMenuIndex)
+                if (currentMenuIndex >= root.model.count || currentMenuIndex < 0) {
+                    bar.setCurrentItemIndex(0)
+                } else {
+                    bar.setCurrentItemIndex(currentMenuIndex)
+                }
             }
+        } else {
+            bar.setCurrentItemIndex(indicatorIndex)
         }
         show()
     }
-//~     Label {
-//~         id: test
-//~         z: 100
-//~         anchors.fill: parent
-//~         wrapMode: Text.WordWrap
-//~         horizontalAlignment: Text.AlignHCenter
-//~         verticalAlignment: Text.AlignVCenter
-//~         color: "blue"
-//~     }
     // ENH028 - End
 
     Item {
+        // ENH056 - Quick toggles
+        id: menuContainer
+        // ENH056 - End
         anchors {
             left: parent.left
             right: parent.right
             // ENH028 - Open indicators via gesture
             // top: bar.bottom
             // bottom: parent.bottom
-            top: root.inverted ? parent.top : bar.bottom
-            bottom: root.inverted ? bar.top : parent.bottom
+            // ENH056 - Quick toggles
+            //top: root.inverted ? parent.top : bar.bottom
+            //bottom: root.inverted ? bar.top : parent.bottom
+            // ENH056 - End
             // ENH028 - End
         }
         clip: root.partiallyOpened
+
+        // ENH058 - Interative Blur (Focal)
+        Rectangle {
+            color: "#DA000000"
+            anchors.fill: parent
+        }
+        // ENH058 - End
 
         // eater
         MouseArea {
@@ -151,6 +212,363 @@ Showable {
             enabled: root.state != "initial"
             visible: content.visible
         }
+        
+        // ENH056 - Quick toggles
+        MouseArea {
+            id: quickToggles
+
+            readonly property real toggleHeight: units.gu(6)
+            readonly property real rowHeight: quickToggles.toggleHeight + units.gu(3)
+            readonly property real rowMargins: gridLayout.anchors.margins * 2
+            readonly property bool multiRows: rowHeight + rowMargins !== gridLayout.height + rowMargins
+
+            property bool editMode: false
+            property bool expanded: false
+
+            readonly property var toggleItems: [
+                /* Rotation */          {"type": 0, "controlType": "toggle", "slot": 1, "toggleObj": root.rotationToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "orientation-lock", "iconOff": "view-rotate"}                                 
+                /* Flashlight */        , {"type": 1, "controlType": "toggle", "slot": 1, "toggleObj": root.flashlightToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "torch-on", "iconOff": "torch-off"}                                     
+                /* Dark mode */         , {"type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "weather-clear-night-symbolic", "iconOff": "night-mode"}                   
+                /* Desktop mode */      , {"type": 3, "controlType": "toggle", "slot": 1, "toggleObj": root.desktopModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "computer-symbolic", "iconOff": "phone-smartphone-symbolic"}        
+                /* Silent mode */       , {"type": 4, "controlType": "toggle", "slot": 1, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "audio-speakers-muted-symbolic", "iconOff": "audio-speakers-symbolic"} 
+                /* Flight mode */       , {"type": 5, "controlType": "toggle", "slot": 1, "toggleObj": root.flightModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "airplane-mode", "iconOff": "airplane-mode-disabled"}                  
+                /* Mobile data */       , {"type": 6, "controlType": "toggle", "slot": 1, "toggleObj": root.mobileDataToggle, "holdActionType": "indicator"
+                                        , "holdActionUrl": "settings:///system/cellular"
+                                        , "iconOn": "transfer-progress", "iconOff": "transfer-none"}                       
+                /* Wifi */              , {"type": 7, "controlType": "toggle", "slot": 1, "toggleObj": root.wifiToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "network-wifi-symbolic", "iconOff": "wifi-none"}                                
+                /* Bluetooth */         , {"type": 8, "controlType": "toggle", "slot": 1, "toggleObj": root.bluetoothToggle, "holdActionType": "external"
+                                        , "holdActionUrl": "settings:///system/bluetooth"
+                                        , "iconOn": "bluetooth-active", "iconOff": "bluetooth-disabled"}
+                /* Location */          , {"type": 9, "controlType": "toggle", "slot": 1, "toggleObj": root.locationToggle, "holdActionType": "external"
+                                        , "holdActionUrl": "settings:///system/location"
+                                        , "iconOn": "location-idle", "iconOff": "location-disabled"}         
+                /* Immersive */         , {"type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "media-record", "iconOff": "media-optical-symbolic"} 	
+                /* Hotspot */           , {"type": 11, "controlType": "toggle", "slot": 1, "toggleObj": root.hotspotToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "hotspot-connected", "iconOff": "hotspot-disabled"} 		
+                /* Auto brightness */   , {"type": 12, "controlType": "toggle", "slot": 1, "toggleObj": root.autoBrightnessToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "display-brightness-symbolic", "iconOff": "display-brightness-min"}
+                /* Auto Dark mode */    , {"type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "weather-few-clouds-night-symbolic", "iconOff": "weather-few-clouds-night-symbolic"}            
+                /* Media Player */      , {"type": 14, "controlType": "media", "slot": 0, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "", "iconOff": ""} 
+                /* Brightness */        , {"type": 15, "controlType": "slider", "slot": 0, "toggleObj": root.brightnessSlider, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "", "iconOff": ""} 
+                /* Volume */            , {"type": 16, "controlType": "slider", "slot": 0, "toggleObj": root.volumeSlider, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "", "iconOff": ""} 
+            ]
+
+            z: 2
+            visible: content.visible && root.enableQuickToggles
+            
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            onWheel: wheel.accepted = true;
+            enabled: root.state != "initial"
+            clip: true
+
+            height: {
+                if (visible) {
+                    if (expanded || editMode) {
+                        return gridLayout.height + rowMargins
+                    } else {
+                        return rowHeight + rowMargins
+                    }
+                } else {
+                    return 0
+                }
+            }
+            anchors {
+                left: parent.left
+                right: parent.right
+            }
+
+            Behavior on height { UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration } }
+
+            onClicked: mouse.accepted = true
+
+            onPressAndHold: {
+                editMode = !editMode
+                shell.haptics.playSubtle()
+            }
+            
+            function arrMove(arr, oldIndex, newIndex) {
+                if (newIndex >= arr.length) {
+                    let i = newIndex - arr.length + 1;
+                    while (i--) {
+                        arr.push(undefined);
+                    }
+                }
+                arr.splice(newIndex, 0, arr.splice(oldIndex, 1)[0]);
+                return arr;
+            }
+
+            ListItems.ThinDivider {
+                id: quickTogglesDivider
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                }
+            }
+
+            GridLayout  {
+                id: gridLayout
+
+                columns: Math.floor((width - (anchors.margins * 2)) / (quickToggles.toggleHeight + units.gu(2)))
+                columnSpacing: 0
+                rowSpacing: 0
+                anchors {
+                    top: parent.top
+                    left: parent.left
+                    right: parent.right
+                    margins: units.gu(1)
+                }
+
+                Repeater {
+                    id: togglesRepeater
+
+                    model: shell.settings.quickToggles
+
+                    Item {
+                        id: itemContainer
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: quickToggles.rowHeight
+                        Layout.columnSpan: itemData.slot == 0 && gridLayout.columns > 0 ? gridLayout.columns : itemData.slot
+
+                        readonly property bool isMediaPlayer: itemControlType == "media"
+                        property var itemData: quickToggles.toggleItems[modelData.type]
+                        property int itemIndex: index
+                        property int itemType: modelData.type
+                        property string itemControlType: itemData.controlType
+                        property var toggleObj: itemData ? itemData.toggleObj : null
+
+                        visible: opacity > 0
+                        opacity: isMediaPlayer ? shell.playbackItemIndicator && (shell.playbackItemIndicator.canPlay || quickToggles.editMode)
+                                                            && (modelData.enabled || quickToggles.editMode) ? 1 : 0
+                                               : toggleObj && (modelData.enabled || quickToggles.editMode) ? 1 : 0
+
+                        Behavior on opacity {
+                            UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration }
+                        }
+                        
+                        Item {
+                            id: toggleContainer
+
+                            property int type: (index >= 0) ? togglesRepeater.model[index].type : -1
+
+                            x: 0
+                            y: 0
+                            width: parent.width
+                            height: parent.height
+
+                            states: [
+                                State {
+                                    name: "active"; when: gridArea.activeId == toggleContainer.type
+                                    PropertyChanges {target: toggleContainer; x: gridArea.mouseX - parent.x - width / 2; y: gridArea.mouseY - parent.y - height - units.gu(3); z: 10}
+                                }
+                            ]
+                            
+                            Behavior on x {
+                                UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration }
+                            }
+                            Behavior on y {
+                                UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration }
+                            }
+
+                            Loader {
+                                id: itemLoader
+
+                                property alias itemData: itemContainer.itemData
+                                property alias itemIndex: itemContainer.itemIndex
+                                property alias itemType: itemContainer.itemType
+                                property alias toggleObject: itemContainer.toggleObj
+                                property var modelItemData: modelData
+
+                                sourceComponent: {
+                                    switch (itemContainer.itemControlType) {
+                                        case "media":
+                                            return mediaPlayerComponent
+                                        case "slider":
+                                            return sliderComponent
+                                        default:
+                                            return quickToggleComponent
+                                    }
+                                }
+                                asynchronous: true
+                                visible: status == Loader.Ready
+                                anchors.fill: parent
+                            }
+                        }
+                    }
+                }
+
+                Component {
+                    id: quickToggleComponent
+
+                    Item {
+                        LPQuickToggleButton {
+                            id: toggleButton
+
+                            anchors.centerIn: parent
+                            editMode: quickToggles.editMode
+                            toggleObj: toggleObject
+                            checked: toggleObj ? quickToggles.editMode ? modelItemData.enabled : toggleObj.checked  
+                                               : false
+                            enabled: toggleObj ? toggleObj.enabled || quickToggles.editMode : false
+                            iconName: checked || quickToggles.editMode ? controlData.iconOn : controlData.iconOff
+                            height: quickToggles.toggleHeight
+                            width: height
+                            controlData: itemData
+                            controlIndex: itemIndex
+                            
+                            onClicked: {
+                                if (!editMode) {
+                                    toggleObj.clicked()
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Component {
+                    id: sliderComponent
+
+                    Item {
+                        LPSliderMenu {
+                            anchors {
+                                fill: parent
+                                topMargin: units.gu(0.5)
+                                bottomMargin: anchors.topMargin
+                                leftMargin: units.gu(1.5)
+                                rightMargin: anchors.leftMargin
+                            }
+                            // Specifically disable brightness when auto brightness is enabled
+                            enabled: {
+                                if (editMode) {
+                                    return true
+                                } else {
+                                    switch (toggleObj) {
+                                        case root.brightnessSlider:
+                                            return !root.autoBrightnessToggle || (root.autoBrightnessToggle && !root.autoBrightnessToggle.checked)
+                                            break
+                                        default:
+                                            return true
+                                    }
+                                }
+                            }
+                            sliderObj: toggleObject
+                            toggleObj: toggleObject
+                            editMode: quickToggles.editMode
+                            checked: modelItemData.enabled
+                            controlData: itemData
+                            controlIndex: itemIndex
+                        }
+                    }
+                }
+                Component {
+                    id: mediaPlayerComponent
+
+                    Item {
+                        LPMediaControls {
+                            anchors {
+                                fill: parent
+                                topMargin: units.gu(0.5)
+                                bottomMargin: anchors.topMargin
+                                leftMargin: units.gu(1.5)
+                                rightMargin: anchors.leftMargin
+                            }
+                            mediaPlayerObj: shell.mediaPlayerIndicator
+                            playBackObj: shell.playbackItemIndicator
+                            toggleObj: toggleObject
+                            editMode: quickToggles.editMode
+                            checked: modelItemData.enabled
+                            controlData: itemData
+                            controlIndex: itemIndex
+                            
+                            onClicked: {
+                                if (!editMode) {
+                                     playPause()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            MouseArea {
+                id: gridArea
+
+                property var currentItem: gridLayout.childAt(mouseX, mouseY) //item underneath cursor
+                // For offset to the top
+                //property var currentItem: isDragActive ? gridLayout.childAt(mouseX, mouseY - quickToggles.toggleHeight) : gridLayout.childAt(mouseX, mouseY) //item underneath cursor
+                property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
+                property int activeId: -1 //type of active item
+                property int activeIndex //current position of active item
+                readonly property bool isDragActive: activeId > -1
+
+                enabled: quickToggles.editMode
+                anchors.fill: gridLayout
+                hoverEnabled: true
+                propagateComposedEvents: true
+
+                onPressAndHold: {
+                    if (currentItem) {
+                        activeIndex = index
+                        activeId = currentItem.itemType
+                    } else {
+                        quickToggles.editMode = !quickToggles.editMode
+                    }
+                    shell.haptics.play()
+                }
+                onReleased: {
+                    activeId = -1
+                    shell.settings.quickToggles = togglesRepeater.model.slice()
+                    togglesRepeater.model = Qt.binding( function () { return shell.settings.quickToggles } )
+                }
+                onPositionChanged: {
+                    if (activeId != -1 && index != -1 && index != activeIndex) {
+                        togglesRepeater.model = quickToggles.arrMove(togglesRepeater.model, activeIndex, activeIndex = index)
+                        shell.haptics.playSubtle()
+                    }
+                }
+            }
+
+            SwipeArea {
+                enabled: !quickToggles.editMode
+                anchors.fill: parent
+                direction: quickToggles.expanded ? SwipeArea.Downwards : SwipeArea.Upwards
+                onDraggingChanged: {
+                    if (dragging) {
+                        quickToggles.expanded = !quickToggles.expanded
+                    }
+                }
+            }
+
+            Icon {
+                visible: quickToggles.multiRows && !quickToggles.editMode
+                name: quickToggles.expanded ? "down" : "up"
+                height: units.gu(1.5)
+                width: height
+                color: theme.palette.normal.backgroundText
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: quickToggles.expanded = !quickToggles.expanded
+                }
+            }
+        }
+        // ENH056 - End
 
         MenuContent {
             id: content
@@ -159,25 +577,25 @@ Showable {
             anchors {
                 left: parent.left
                 right: parent.right
-                top: parent.top
+                // ENH056 - Quick toggles
+                // top: parent.top
+                // ENH056 - End
             }
-            height: openedHeight - bar.height - handle.height
+            // ENH056 - Quick toggles
+            // height: openedHeight - bar.height - handle.height
+            height: openedHeight - bar.height - handle.height - quickToggles.height
+            // ENH056 - End
             model: root.model
             visible: root.unitProgress > 0
             currentMenuIndex: bar.currentItemIndex
-            // ENH028 - Open indicators via gesture
-            panelColor: root.panelColor
-            bgOpacity: root.panelOpacity
-            // ENH028 - End
         }
     }
 
     // ENH054 - Transparent drag handle
     Rectangle {
         color: root.panelColor
-        opacity: root.panelOpacity
         anchors.fill: handle
-        visible: root.inverted || root.fullyOpened
+        visible: root.inverted
     }
     // ENH054 - End
 
@@ -216,11 +634,8 @@ Showable {
 
     Rectangle {
         anchors.fill: bar
-        color: panelColor
+        color: root.panelColor
         visible: !root.fullyClosed
-        // ENH028 - Open indicators via gesture
-        opacity: root.panelOpacity
-        // ENH028 - End
     }
 
     Keys.onPressed: {
@@ -242,11 +657,60 @@ Showable {
         states: [
             State {
                 when: root.inverted
-                AnchorChanges { target: bar; anchors.bottom: handle.top; }
+                // ENH056 - Quick toggles
+                //AnchorChanges { target: bar; anchors.bottom: handle.top; }
+                AnchorChanges {
+                    target: bar
+                    anchors.bottom: handle.top
+                }
+
+                AnchorChanges {
+                    target: quickToggles
+                    anchors.top: content.bottom
+                }
+
+                AnchorChanges {
+                    target: quickTogglesDivider
+                    anchors.top: parent.top
+                }
+
+                AnchorChanges {
+                    target: menuContainer
+                    anchors.top: parent.top
+                    anchors.bottom: bar.top
+                }
+
+                AnchorChanges {
+                    target: content
+                    anchors.top: parent.top
+                }
+                // ENH056 - End
             }
             , State {
                 when: !root.inverted
-                AnchorChanges { target: bar; anchors.top: parent.top; }
+                // ENH056 - Quick toggles
+                //AnchorChanges { target: bar; anchors.top: parent.top; }
+                AnchorChanges {
+                    target: bar
+                    anchors.top: parent.top
+                }
+
+                AnchorChanges {
+                    target: quickToggles
+                    anchors.top: content.bottom
+                }
+
+                AnchorChanges {
+                    target: menuContainer
+                    anchors.top: bar.bottom
+                    anchors.bottom: parent.bottom
+                }
+
+                AnchorChanges {
+                    target: content
+                    anchors.top: parent.top
+                }
+                // ENH056 - End
             }
         ]
     }

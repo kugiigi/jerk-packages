@@ -30,9 +30,6 @@ import "../Components"
 import "../Components/PanelState"
 import ".."
 import "Indicators"
-// ENH030 - Blurred indicator panel
-import "../Launcher"
-// ENH030 - End
 
 Item {
     id: root
@@ -41,7 +38,11 @@ Item {
 
     property real minimizedPanelHeight: units.gu(3)
     property real expandedPanelHeight: units.gu(7)
-    property real menuWidth: partialWidth ? units.gu(40) : width
+    // ENH069 - Wider landscape top panel pages
+    // property real menuWidth: partialWidth ? units.gu(40) : width
+    property real menuWidth: partialWidth ? shell.settings.widerLandscapeTopPanel ? units.gu(50) : units.gu(40)
+                                          : width
+    // ENH069 - End
     property alias applicationMenuContentX: __applicationMenus.menuContentX
 
     property alias applicationMenus: __applicationMenus
@@ -54,12 +55,6 @@ Item {
     // ENH028 - Open indicators via gesture
     property string dateTimeString
     // ENH028 - End
-    // ENH030 - Blurred indicator panel
-    property Item blurSource: null
-    property bool interactiveBlur: false
-    property real leftMarginBlur
-    property real topMarginBlur
-    // ENH030 - End
     // ENH036 - Use punchole as battery indicator
     property bool batteryCircleEnabled
     property real batteryCircleBorder
@@ -69,10 +64,26 @@ Item {
     // ENH048 - Always hide panel mode
     property bool forceHidePanel: true
     // ENH048 - End
+    // ENH064 - Dynamic Cove
+    property var mediaPlayer
+    property var playbackItem
+    // ENH064 - End
+    // ENH058 - Interative Blur (Focal)
+    property var blurSource : null
+    // Added for notch atbp
+    property real leftMarginBlur
+    property real topMarginBlur
+    // ENH058 - End
             
 
     // Whether our expanded menus should take up the full width of the panel
-    property bool partialWidth: width >= units.gu(60)
+    // ENH066 - Option to always full width the top panel menu
+    // property bool partialWidth: width >= units.gu(60)
+    property bool partialWidth: !(shell.settings.alwaysFullWidthTopPanel && (shell.orientation == Qt.PortraitOrientation
+                                                                                    || shell.orientation == Qt.InvertedPortraitOrientation)
+                                 )
+                                 && width >= units.gu(60)
+    // ENH066 - End
 
     property string mode: "staged"
 
@@ -150,31 +161,6 @@ Item {
     }
     */
     // ENH028 - End
-    
-    // ENH030 - Blurred indicator panel
-    Loader {
-        active: root.interactiveBlur
-        asynchronous: true
-        sourceComponent: BackgroundBlur {
-                id: backgroundBlur
-                property real fullBlurAmount: units.gu(6)
-                x: 0 - root.leftMarginBlur
-                y: 0 - root.topMarginBlur
-                width: blurRect.width
-                height: blurRect.height
-                visible: root.interactiveBlur && root.blurSource && (__applicationMenus.unitProgress > 0 || __indicators.unitProgress > 0)
-                blurAmount: __applicationMenus.unitProgress ? (__applicationMenus.unitProgress / 1) * fullBlurAmount
-                                    : __indicators.unitProgress ? (__indicators.unitProgress / 1) * fullBlurAmount
-                                                    : fullBlurAmount
-                sourceItem: root.blurSource
-                blurRect: Qt.rect(0,
-                                  0,
-                                  sourceItem.width,
-                                  sourceItem.height)
-                occluding: false
-            }
-    }
-    // ENH030 - End
 
     Item {
         id: panelArea
@@ -227,11 +213,9 @@ Item {
                 right: parent.right
             }
             height: minimizedPanelHeight
-            // ENH030 - Blurred indicator panel
             // ENH046 - Lomiri Plus Settings
             opacity: shell.settings.topPanelOpacity / 100
             // ENH046 - End
-            // ENH030 - End
 
             Behavior on color { ColorAnimation { duration: UbuntuAnimation.FastDuration } }
         }
@@ -348,16 +332,27 @@ Item {
             alignment: Qt.AlignLeft
             enableHint: !callHint.active && !fullscreenMode
             showOnClick: false
-            panelColor: panelAreaBackground.color
-            // ENH028 - Open indicators via gesture
-            panelOpacity: root.interactiveBlur ? 0.9 : 1
-            // ENH028 - End
+            // ENH058 - Interative Blur (Focal)
+            // panelColor: panelAreaBackground.color
+            // ENH058 - End
+            // ENH056 - Quick toggles
+            enableQuickToggles: false
+            // ENH056 - End
             // ENH002 - Notch/Punch hole fix
             contentLeftMargin: shell.isBuiltInScreen 
                                     ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "left" && !shell.deviceConfiguration.fullyHideNotchInPortrait 
                                                 ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
                                     : 0
             // ENH002 - End
+            // ENH058 - Interative Blur (Focal)
+            blurSource: root.blurSource
+            blurRect: Qt.rect(x,
+                              0,
+                              root.width,
+                              root.height)
+            leftMarginBlur: root.leftMarginBlur
+            topMarginBlur: root.topMarginBlur
+            // ENH058 - End
 
             onShowTapped: {
                 if (callHint.active) {
@@ -419,6 +414,9 @@ Item {
             enabled: d.enableTouchMenus
             opacity: d.showTouchMenu ? 1 : 0
             visible: opacity != 0
+            // ENH058 - Interative Blur (Focal)
+            clip: true
+            // ENH058 - End
             Behavior on opacity { UbuntuNumberAnimation { duration: UbuntuAnimation.SnapDuration } }
 
             onEnabledChanged: {
@@ -512,10 +510,12 @@ Item {
             overFlowWidth: width - appMenuClear
             enableHint: !callHint.active && !fullscreenMode
             showOnClick: !callHint.visible
-            panelColor: panelAreaBackground.color
-            // ENH028 - Open indicators via gesture
-            panelOpacity: root.interactiveBlur ? 0.9 : 1
-            // ENH028 - End
+            // ENH058 - Interative Blur (Focal)
+            // panelColor: panelAreaBackground.color
+            // ENH058 - End
+            // ENH056 - Quick toggles
+            enableQuickToggles: shell.settings.enableQuickToggles
+            // ENH056 - End
             // ENH002 - Notch/Punch hole fix
             // ENH036 - Use punchole as battery indicator
             /*contentRightMargin: shell.isBuiltInScreen && !inverted
@@ -528,6 +528,15 @@ Item {
                                     : 0
             // ENH036 - End
             // ENH002 - End
+            // ENH058 - Interative Blur (Focal)
+            blurSource: root.blurSource
+            blurRect: Qt.rect(x,
+                              0,
+                              root.width,
+                              root.height)
+            leftMarginBlur: root.leftMarginBlur
+            topMarginBlur: root.topMarginBlur
+            // ENH058 - End
 
             // On small screens, the Indicators' handle area is the entire top
             // bar unless there is an application menu. In that case, our handle
@@ -548,7 +557,13 @@ Item {
                 readonly property bool overflow: parent.width - (x - __indicators.rowContentX) > __indicators.overFlowWidth
                 // ENH036 - Use punchole as battery indicator
                 // readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator)
-                readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator || hideBatteryIndicator)
+                // ENH060 - Show/Hide Indicators Settings
+                readonly property bool alwaysHidden: shell.settings.alwaysHiddenIndicatorIcons.includes(identifier)
+                readonly property bool alwaysShown: shell.settings.alwaysShownIndicatorIcons.includes(identifier)
+                // readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator || hideBatteryIndicator)
+                readonly property bool hidden: !expanded && (alwaysHidden || overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator || hideBatteryIndicator)
+                                                    && !alwaysShown
+                // ENH060 - End
                 // ENH036 - End
                 // HACK for indicator-session
                 readonly property bool hideSessionIndicator: identifier == "indicator-session" && Math.min(Screen.width, Screen.height) <= units.gu(60)
@@ -571,7 +586,12 @@ Item {
                 Behavior on opacity { UbuntuNumberAnimation { duration: UbuntuAnimation.SnapDuration } }
                 // ENH036 - Use punchole as battery indicator
                 // width: ((expanded || indicatorVisible) && !hideSessionIndicator && !hideKeyboardIndicator) ? implicitWidth : 0
-                width: ((expanded || indicatorVisible) && !hideSessionIndicator && !hideKeyboardIndicator && !hideBatteryIndicator) ? implicitWidth : 0
+                // ENH060 - Show/Hide Indicators Settings
+                // width: ((expanded || indicatorVisible) && !hideSessionIndicator && !hideKeyboardIndicator && !hideBatteryIndicator) ? implicitWidth : 0
+                width: !alwaysHidden && ((expanded || indicatorVisible)
+                                                                && !hideSessionIndicator && !hideKeyboardIndicator && !hideBatteryIndicator)
+                                    || alwaysShown ? implicitWidth : 0
+                // ENH060 - End
                 // ENH036 - End
 
                 Behavior on width { UbuntuNumberAnimation { duration: UbuntuAnimation.SnapDuration } }
@@ -605,6 +625,34 @@ Item {
             pageDelegate: PanelMenuPage {
                 objectName: modelData.identifier + "-page"
                 submenuIndex: 0
+                // ENH056 - Quick toggles
+                menuIndex: modelData.index
+                identifier: modelData.identifier
+                onRotationToggleChanged: __indicators.rotationToggle = rotationToggle
+                onFlashlightToggleChanged: __indicators.flashlightToggle = flashlightToggle
+                onAutoDarkModeToggleChanged: __indicators.autoDarkModeToggle = autoDarkModeToggle
+                onDarkModeToggleChanged: __indicators.darkModeToggle = darkModeToggle
+                onDesktopModeToggleChanged: __indicators.desktopModeToggle = desktopModeToggle
+                onSilentModeToggleChanged: __indicators.silentModeToggle = silentModeToggle
+                onFlightModeToggleChanged: __indicators.flightModeToggle = flightModeToggle
+                onMobileDataToggleChanged: __indicators.mobileDataToggle = mobileDataToggle
+                onWifiToggleChanged: __indicators.wifiToggle = wifiToggle
+                onBluetoothToggleChanged: __indicators.bluetoothToggle = bluetoothToggle
+                onLocationToggleChanged: __indicators.locationToggle = locationToggle
+                onImmersiveToggleChanged: __indicators.immersiveToggle = immersiveToggle
+                onHotspotToggleChanged: __indicators.hotspotToggle = hotspotToggle
+                onAutoBrightnessToggleChanged: __indicators.autoBrightnessToggle = autoBrightnessToggle
+                onBrightnessSliderChanged: __indicators.brightnessSlider = brightnessSlider
+                onVolumeSliderChanged: __indicators.volumeSlider = volumeSlider
+                // ENH056 - End
+                // ENH064 - Dynamic Cove
+                onMediaPlayerChanged: root.mediaPlayer = mediaPlayer
+                onPlaybackItemChanged: root.playbackItem = playbackItem
+                // ENH064 - End
+                // ENH028 - Open indicators via gesture
+                onDateItemChanged: __indicators.dateItem = dateItem
+                onLockItemChanged: __indicators.lockItem = lockItem
+                // ENH028 - End
 
                 menuModel: delegate.menuModel
                 // ENH028 - Open indicators via gesture
@@ -644,6 +692,9 @@ Item {
             enabled: !applicationMenus.expanded
             opacity: !callHint.visible && !applicationMenus.expanded ? 1 : 0
             Behavior on opacity { UbuntuNumberAnimation { duration: UbuntuAnimation.SnapDuration } }
+            // ENH058 - Interative Blur (Focal)
+            clip: true
+            // ENH058 - End
 
             onEnabledChanged: {
                 if (!enabled) hide();

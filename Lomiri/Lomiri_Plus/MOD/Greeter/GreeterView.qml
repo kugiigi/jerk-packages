@@ -441,6 +441,7 @@ FocusScope {
         // background: root.background
         //background: "file:///home/phablet/Pictures/lomiri_wallpapers/lockscreen"
         fallbackBackground: root.background
+        useCoverPageWallpaper: shell.settings.useCustomCoverPage
         // ENH034 - End
         hasCustomBackground: root.hasCustomBackground
         backgroundShadeOpacity: 0.4
@@ -484,6 +485,13 @@ FocusScope {
             largeMode: coverPage.isLargeScreen
             gradientTimeText: shell.settings.ow_GradientColoredTime
             // ENH032 - End
+            // ENH064 - Dynamic Cove
+            // ENH065 - Option to hide lockscreen clock
+            //visible: !shell.settings.hideLockscreenClock
+            visible: !shell.settings.hideLockscreenClock && !(shell.settings.dcDigitalClockMode && coverPage.dynamicCoveClock)
+            // ENH065 - End
+            dateOnly: !shell.settings.dcDigitalClockMode && coverPage.dynamicCoveClock
+            // ENH064 - End
         }
 
         // ENH032 - Infographics Outer Wilds

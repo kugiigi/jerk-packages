@@ -156,6 +156,9 @@ Item {
             property int menuIndex: -1
             property var extendedData: menuData && menuData.ext || undefined
             property var serverValue: getExtendedProperty(menuData, "actionState", undefined)
+            // ENH056 - Quick toggles
+            property int parentMenuIndex: -1
+            // ENH056 - End
 
             text: menuData && menuData.label || ""
             minIcon: getExtendedProperty(extendedData, "minIcon", "")
@@ -289,6 +292,9 @@ Item {
             objectName: "standardMenu"
             property QtObject menuData: null
             property int menuIndex: -1
+            // ENH028 - Open indicators via gesture
+            property int parentMenuIndex: -1
+            // ENH028 - End
 
             text: menuData && menuData.label || ""
             iconSource: menuData && menuData.icon || ""
@@ -406,6 +412,9 @@ Item {
             property int menuIndex: -1
             property var extendedData: menuData && menuData.ext || undefined
             property bool serverChecked: menuData && menuData.isToggled || false
+            // ENH056 - Quick toggles
+            property int parentMenuIndex: -1
+            // ENH056 - End
 
             text: menuData && menuData.label || ""
             iconSource: menuData && menuData.icon || ""

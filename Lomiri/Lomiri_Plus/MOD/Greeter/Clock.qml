@@ -35,6 +35,9 @@ Item {
     property bool largeMode: false
     property bool gradientTimeText: false
     // ENH032 - End
+    // ENH064 - Dynamic Cove
+    property bool dateOnly: false
+    // ENH064 - End
 
     Component.onCompleted: {
         if (visible) {
@@ -65,7 +68,10 @@ Item {
         menu: timeModel.model
         onUpdated: {
             if (timeLabel.text != rightLabel) {
-                if (rightLabel != "") timeLabel.text = rightLabel;
+                // ENH063 - Proper centering of lockscreen clock
+                // if (rightLabel != "") timeLabel.text = rightLabel;
+                if (rightLabel != "") timeLabel.text = rightLabel.trim();
+                // ENH063 - End
                 clock.currentDate = new Date();
             }
         }
@@ -102,6 +108,9 @@ Item {
             width: timeLabel.width
             height: timeLabel.contentHeight
             anchors.horizontalCenter: parent.horizontalCenter
+            // ENH064 - Dynamic Cove
+            visible: !clock.dateOnly
+            // ENH064 - End
 
             Label {
                 id: timeLabel
@@ -114,9 +123,20 @@ Item {
                                                                  : units.gu(8.5)
                                                : units.gu(7.5)
                 // color: "white"
-                color: clock.owThemed && solidColor ? "#f17f44" : "white"
+                // ENH067 - Custom Lockscreen Clock Color
+                //color: clock.owThemed && solidColor ? "#f17f44" : "white"
+                color: clock.owThemed && solidColor ? "#f17f44"
+                                    : shell.settings.useCustomLSClockColor ? shell.settings.customLSClockColor
+                                                                           : "white"
+                // ENH067 - End
                 visible: !clock.owThemed || solidColor
-                font.family: clock.owThemed ? "Likhan" : "Ubuntu"
+                // ENH068 - Custom Lockscreen Clock Font
+                //font.family: clock.owThemed ? "Likhan" : "Ubuntu"
+                font.family: clock.owThemed ? "Likhan"
+                                            : shell.settings.useCustomLSClockFont
+                                                    && shell.settings.customLSClockFont ? shell.settings.customLSClockFont
+                                                                                        : "Ubuntu"
+                // ENH068 - End
                 text: Qt.formatTime(clock.currentDate)
                 font.weight: Font.Light
             }
@@ -139,7 +159,10 @@ Item {
 
         Item {
             width: dateLabel.width
-            height: dateLabel.contentHeight
+            // ENH064 - Dynamic Cove
+            // height: dateLabel.contentHeight
+            height: clock.dateOnly ? units.gu(15) : dateLabel.contentHeight
+            // ENH064 - End
             anchors.horizontalCenter: parent.horizontalCenter
 
             Label {
@@ -147,13 +170,42 @@ Item {
                 objectName: "dateLabel"
 
                 // fontSize: "medium"
-                color: "white"
+                // ENH067 - Custom Lockscreen Clock Color
+                // color: "white"
+                color: shell.settings.useCustomLSClockColor ? shell.settings.customLSClockColor
+                                                            : "white"
+                // ENH067 - End
                 visible: !clock.owThemed
-                fontSize: clock.owThemed ? clock.largeMode ? "x-large" : "large"
-                                         : "medium"
-                font.family: clock.owThemed ? "Likhan" : "Ubuntu"
+                // ENH064 - Dynamic Cove
+                //fontSize: clock.owThemed ? clock.largeMode ? "x-large" : "large"
+                //                         : "medium"
+                fontSize: {
+                    if (clock.dateOnly) {
+                        return "large"
+                    } else {
+                        if (clock.owThemed) {
+                            if (clock.largeMode) {
+                                return  "x-large"
+                            } else {
+                                return "large"
+                            }
+                        }
+                    }
+                    return "medium"
+                }
+                // ENH064 - End
+                // ENH068 - Custom Lockscreen Clock Font
+                //font.family: clock.owThemed ? "Likhan" : "Ubuntu"
+                font.family: clock.owThemed ? "Likhan"
+                                            : shell.settings.useCustomLSClockFont
+                                                    && shell.settings.customLSClockFont ? shell.settings.customLSClockFont
+                                                                                        : "Ubuntu"
+                // ENH068 - End
                 text: Qt.formatDate(clock.currentDate, Qt.DefaultLocaleLongDate)
                 font.weight: Font.Light
+                // ENH064 - Dynamic Cove
+                anchors.verticalCenter: parent.verticalCenter
+                // ENH064 - End
             }
             Loader {
                 active: clock.owThemed

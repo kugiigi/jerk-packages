@@ -5,7 +5,7 @@ import QtQuick.Layouts 1.3
 Item {
     id: settingsPage
 
-    property list<QtObject> settingsItems
+    default property alias data: contentColumn.data
 	property string title
 
 	Flickable {
@@ -20,8 +20,6 @@ Item {
 			id: contentColumn
 
             spacing: 0
-
-            children: settingsPage.settingsItems
 
 			anchors{
 				top: parent.top
