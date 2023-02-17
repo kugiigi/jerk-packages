@@ -13,7 +13,7 @@ Item {
     AnimatedImage {
         id: gif
         source: "graphics/OWMainMenu.gif"
-        cache: true
+        cache: false
         asynchronous: true
         opacity: 0
         anchors.fill: parent

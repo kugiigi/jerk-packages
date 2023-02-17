@@ -176,8 +176,7 @@ Item {
         }
     }
 
-    // ENH055 - Remove panel white line
-    /*
+    // ENH055 - Remove panel white line (DISABLED)
     Rectangle {
         id: grayLine
         height: units.dp(2)
@@ -208,7 +207,6 @@ Item {
         opacity: expanded ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: UbuntuAnimation.SnapDuration } }
     }
-    */
     // ENH055 - End
 
     Item {

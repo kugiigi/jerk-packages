@@ -31,7 +31,9 @@ FocusScope {
     property bool lockedVisible: false
     property bool available: true // can be used to disable all interactions
     property alias inverted: panel.inverted
+    // ENH058 - Interative Blur (Focal)
     property Item blurSource: null
+    // ENH058 - End
     property bool interactiveBlur: false
     property int topPanelHeight: 0
     property bool drawerEnabled: true
@@ -370,6 +372,7 @@ FocusScope {
         }
     }
 
+    // ENH058 - Interative Blur (Focal)
     Item {
         clip: true
         x: 0
@@ -382,14 +385,7 @@ FocusScope {
             y: 0
             width: drawer.width
             height: drawer.height
-            // ENH031 - Blur behavior in Drawer
-            // visible: root.interactiveBlur && root.blurSource && drawer.x > -drawer.width
-            // ENH046 - Lomiri Plus Settings
-            //visible: root.interactiveBlur && root.blurSource && drawer.fullyOpen
-            visible: root.interactiveBlur && root.blurSource
-                                && ((shell.settings.drawerBlurFullyOpen && drawer.fullyOpen) || (!shell.settings.drawerBlurFullyOpen && drawer.x > -drawer.width))
-            // ENH046 - End
-            // ENH031 - End
+            visible: root.interactiveBlur && root.blurSource && drawer.x > -drawer.width
             sourceItem: root.blurSource
             // ENH031 - Blur behavior in Drawer
             // blurRect: Qt.rect(0,
@@ -402,6 +398,7 @@ FocusScope {
             occluding: (drawer.width == root.width) && drawer.fullyOpen
         }
     }
+    // ENH058 - End
 
     Drawer {
         id: drawer

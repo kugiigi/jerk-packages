@@ -280,7 +280,8 @@ FocusScope {
             }
         }
         active: (root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
-                    ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage && priv.sideStageEnabled)
+                    ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate 
+                                            && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage && priv.sideStageEnabled)
 		// ENH015 - End
     }
 
@@ -306,7 +307,8 @@ FocusScope {
             }
         }
         active: (root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
-                    ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && priv.sideStageEnabled)
+                    ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate
+                                    && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && priv.sideStageEnabled)
         // ENH015 - End
     }
 
@@ -768,7 +770,8 @@ FocusScope {
                     readonly property bool shouldRun: root.enableOW && !root.suspended
 
                     running: shouldRun
-                    paused: (priv.focusedAppDelegate && priv.focusedAppDelegate == priv.mainStageDelegate) || (priv.focusedAppDelegate == priv.sideStageDelegate && sideStage.shown)
+                    paused: shouldRun && ((priv.focusedAppDelegate && priv.focusedAppDelegate == priv.mainStageDelegate)
+                                            || (priv.focusedAppDelegate == priv.sideStageDelegate && sideStage.shown))
                     onStopped: if (shouldRun) restart()
                     onStarted: if (movingItems.item) movingItems.item.probe.resetAnimation()
                     PropertyAction {
@@ -805,7 +808,7 @@ FocusScope {
                         SequentialAnimation {
                             PauseAnimation { duration: 30000 }
                             PropertyAction {
-                                target: movingItems.item.attlerock
+                                target: movingItems.item ? movingItems.item.attlerock : null
                                 property: "visible"
                                 value: true
                             }
@@ -816,17 +819,17 @@ FocusScope {
                                 target: movingItems.item ? movingItems.item.attlerock : null
                                 anchorPoint: Qt.point(0, 0)
                                 path: Path {
-                                    startX: movingItems.item.attlerock.startPos.x
-                                    startY: movingItems.item.attlerock.startPos.y
+                                    startX: movingItems.item ? movingItems.item.attlerock.startPos.x : 0
+                                    startY: movingItems.item ? movingItems.item.attlerock.startPos.y : 0
 
                                     PathLine {
-                                       x: movingItems.item.attlerock.endPos.x
-                                       y: movingItems.item.attlerock.endPos.y
+                                       x: movingItems.item ? movingItems.item.attlerock.endPos.x : 0
+                                       y: movingItems.item ? movingItems.item.attlerock.endPos.y : 0
                                     }
                                 }
                             }
                             PropertyAction {
-                                target: movingItems.item.attlerock
+                                target: movingItems.item ? movingItems.item.attlerock : null
                                 property: "visible"
                                 value: false
                             }
@@ -1091,7 +1094,7 @@ FocusScope {
             InverseMouseArea {
                 id: sideStageCloseMouseArea
                 anchors.fill: parent
-                enabled: priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && sideStage.floating && sideStage.shown
+                enabled: priv.focusedAppDelegate && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && sideStage.floating && sideStage.shown
                 visible: enabled
                 onPressed: {
                     mouse.accepted = false;

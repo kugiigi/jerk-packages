@@ -41,6 +41,9 @@ FocusScope {
     // ENH007 - Bottom search in drawer
     property bool inverted
     // ENH007 - End
+    // ENH059 - Redesigned drawer search field
+    property bool searchMode: false
+    // ENH059 - End
 
     signal applicationSelected(string appId)
 
@@ -289,7 +292,13 @@ FocusScope {
                 // ENH007 - Bottom search in drawer
                 // height: units.gu(4)
                 // anchors { left: parent.left; top: parent.top; right: parent.right; margins: units.gu(1) }
-                height: units.gu(5)
+                // ENH059 - Redesigned drawer search field
+                //height: shell.settings.bigDrawerSearchField ? units.gu(5) : units.gu(4)
+                height: root.searchMode || !shell.settings.hideDrawerSearch ? searchField.height : 0
+                Behavior on height {
+                    UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration }
+                }
+                // ENH059 - End
                 anchors {
                     left: parent.left
                     right: parent.right
@@ -304,21 +313,29 @@ FocusScope {
                     id: searchField
                     objectName: "searchField"
                     inputMethodHints: Qt.ImhNoPredictiveText; //workaround to get the clear button enabled without the need of a space char event or change in focus
+                    // ENH059 - Redesigned drawer search field
                     anchors {
                         left: parent.left
-                        top: parent.top
+                        // top: parent.top
                         right: parent.right
+                        
                         bottom: parent.bottom
                     }
+                    opacity: searchFieldContainer.height > 0 ? 1 : 0
+                    height: shell.settings.bigDrawerSearchField ? units.gu(5) : units.gu(4)
+                    // ENH059 - End
                     placeholderText: i18n.tr("Search…")
                     z: 100
 
                     // ENH007 - Bottom search in drawer
                     // KeyNavigation.down: appList
-                    font.pixelSize: parent.height * 0.6
+                    font.pixelSize: parent.height * 0.5
                     KeyNavigation.down: root.inverted ? null : appList
                     KeyNavigation.up: root.inverted ? appList : null
                     // ENH007 - End
+                    // ENH059 - Redesigned drawer search field
+                    onFocusChanged: root.searchMode = focus
+                    // ENH059 - End
 
                     onAccepted: {
                         if (searchField.displayText != "" && appList) {
@@ -383,6 +400,36 @@ FocusScope {
             }
             // ENH007 - End
         }
+
+        // ENH059 - Redesigned drawer search field
+        Icon {
+            id: bottomHintSearch
+            visible: shell.settings.hideDrawerSearch
+            name: "toolkit_bottom-edge-hint"
+            anchors {
+                bottom: parent.bottom
+                horizontalCenter: parent.horizontalCenter
+            }
+            height: units.gu(3)
+            width: height
+        }
+        SwipeArea {
+            enabled: bottomHintSearch.visible
+            height: units.gu(2)
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+            }
+            direction: SwipeArea.Upwards
+            onDraggingChanged: {
+                if (dragging) {
+                    root.focusInput()
+                    shell.haptics.play()
+                }
+            }
+        }
+        // ENH059 - End
 
         Component {
             id: drawerDelegateComponent

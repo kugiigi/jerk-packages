@@ -49,6 +49,13 @@ import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Suru 2.2
 // ENH046 - End
+// ENH067 - Custom Lockscreen Clock Color
+import "LPColorpicker"
+// ENH067 - End
+// ENH064 - Dynamic Cove
+import Ubuntu.MediaScanner 0.1
+import QtMultimedia 5.6
+// ENH064 - End
 
 
 StyledItem {
@@ -78,7 +85,15 @@ StyledItem {
     // ENH046 - Lomiri Plus Settings
     property alias settings: lp_settings
     property alias lpsettingsLoader: settingsLoader
+    Suru.theme: Suru.Dark
     // ENH046 - End
+    // ENH064 - Dynamic Cove
+    property alias mediaPlayerIndicator: panel.mediaPlayer
+    property alias playbackItemIndicator: panel.playbackItem
+    property alias alarmItem: alarm
+    property alias alarmItemModel: alarmModel
+    property alias mediaPlayer: mediaPlayerLoader.item
+    // ENH064 - End
 
     // to be set from outside
     property int orientationAngle: 0
@@ -204,28 +219,109 @@ StyledItem {
     }
 
     property real edgeSize: units.gu(settings.edgeDragWidth)
-
+    // ENH061 - Add haptics
+    readonly property alias haptics: hapticsFeedback
+    LPHaptics {
+        id: hapticsFeedback
+    }
+    // ENH061 - End
+    // ENH028 - Open indicators via gesture
+    readonly property int sessionIndicatorIndex: panel.indicators.lockItem ? panel.indicators.lockItem.parentMenuIndex : 0
+    readonly property int powerIndicatorIndex: panel.indicators.brightnessSlider ? panel.indicators.brightnessSlider.parentMenuIndex : 0
+    readonly property int soundIndicatorIndex: panel.indicators.silentModeToggle ? panel.indicators.silentModeToggle.parentMenuIndex : 0
+    readonly property int networkIndicatorIndex: panel.indicators.wifiToggle ? panel.indicators.wifiToggle.parentMenuIndex : 0
+    readonly property int datetimeIndicatorIndex: panel.indicators.dateItem ? panel.indicators.dateItem.parentMenuIndex : 0
+    readonly property int rotationToggleIndex: panel.indicators.rotationToggle ? panel.indicators.rotationToggle.parentMenuIndex : 0
+    readonly property int locationToggleIndex: panel.indicators.locationToggle ? panel.indicators.locationToggle.parentMenuIndex : 0
+    readonly property int bluetoothToggleIndex: panel.indicators.bluetoothToggle ? panel.indicators.bluetoothToggle.parentMenuIndex : 0
+    readonly property int darkModeToggleIndex: panel.indicators.autoDarkModeToggle ? panel.indicators.autoDarkModeToggle.parentMenuIndex : 0
+    
+    readonly property var indicatorsModel: [
+        {"identifier": "indicator-session", "name": "System", "icon": "system-devices-panel", "indicatorIndex": sessionIndicatorIndex}
+        ,{"identifier": "indicator-datetime", "name": "Time and Date", "icon": "preferences-system-time-symbolic", "indicatorIndex": datetimeIndicatorIndex}
+        ,{"identifier": "indicator-network", "name": "Network", "icon": "network-wifi-symbolic", "indicatorIndex": networkIndicatorIndex}
+        ,{"identifier": "indicator-power", "name": "Battery", "icon": "battery-full-symbolic", "indicatorIndex": powerIndicatorIndex}
+        ,{"identifier": "indicator-sound", "name": "Sound", "icon": "audio-speakers-symbolic", "indicatorIndex": soundIndicatorIndex}
+        ,{"identifier": "indicator-rotation-lock", "name": "Rotation", "icon": "orientation-lock", "indicatorIndex": rotationToggleIndex}
+        ,{"identifier": "indicator-location", "name": "Location", "icon": "location", "indicatorIndex": locationToggleIndex}
+        ,{"identifier": "indicator-bluetooth", "name": "Bluetooth", "icon": "bluetooth-active", "indicatorIndex": bluetoothToggleIndex}
+        ,{"identifier": "kugiigi-indicator-darkmode", "name": "Dark Mode", "icon": "night-mode", "indicatorIndex": darkModeToggleIndex}
+    ]
+    // ENH028 - End
     // ENH046 - Lomiri Plus Settings
+    function convertFromInch(value) {
+        return (Screen.pixelDensity * 25.4) * value
+    }
+
+    function removeItemFromList(arr, value, isColor) {
+        var i = 0;
+        while (i < arr.length) {
+            if ((isColor && Qt.colorEqual(arr[i], value))
+                    || (!isColor && arr[i] === value)) {
+                arr.splice(i, 1);
+            } else {
+                ++i;
+            }
+        }
+        return arr;
+    }
+
+    function indicatorLabel(identifier) {
+        switch (identifier) {
+            case "indicator-messages":
+                return "Notifications"
+                break
+            case "indicator-rotation-lock":
+                return "Rotation"
+                break
+            case "kugiigi-indicator-immersive":
+                return "Immersive Mode"
+                break
+            case "indicator-keyboard":
+                return "Keyboard"
+                break
+            case "indicator-transfer":
+                return "Transfer/Files"
+                break
+            case "indicator-location":
+                return "Location"
+                break
+            case "indicator-bluetooth":
+                return "Bluetooth"
+                break
+            case "indicator-network":
+                return "Network"
+                break
+            case "indicator-sound":
+                return "Sound"
+                break
+            case "indicator-power":
+                return "Battery"
+                break
+            case "indicator-datetime":
+                return "Time and Date"
+                break
+            case "kugiigi-indicator-darkmode":
+                return "Dark Mode"
+                break
+            case "indicator-session":
+                return "System"
+                break
+        }
+
+        return identifier
+    }
     Item {
         id: lp_settings
 
-        property alias enableEyeFP: settingsObj.lp_enableEyeFP
-        property alias useCustomLockscreen: settingsObj.useCustomLockscreen
-        property alias indicatorBlur: settingsObj.indicatorBlur
-        property alias drawerBlur: settingsObj.drawerBlur
-        property alias drawerBlurFullyOpen: settingsObj.drawerBlurFullyOpen
-        property alias invertedDrawer: settingsObj.invertedDrawer
+        // General
+        property alias enableHaptics: settingsObj.enableHaptics
+        property alias enableSlimVolume: settingsObj.enableSlimVolume
         property alias enableSideStage: settingsObj.enableSideStage
-        property alias indicatorGesture: settingsObj.indicatorGesture
         property alias orientationPrompt: settingsObj.orientationPrompt
-        property alias useLomiriLogo: settingsObj.useLomiriLogo
-        property alias useNewLogo: settingsObj.useNewLogo
-        property alias useCustomLogo: settingsObj.useCustomLogo
-        property alias useCustomBFBColor: settingsObj.useCustomBFBColor
-        property alias customLogoScale: settingsObj.customLogoScale
-        property alias customLogoColor: settingsObj.customLogoColor
-        property alias customBFBColor: settingsObj.customBFBColor
-        property alias roundedBFB: settingsObj.roundedBFB
+        property alias savedPalettes: settingsObj.savedPalettes
+
+        // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
         property alias notchHeightMargin: settingsObj.notchHeightMargin
         property alias notchPosition: settingsObj.notchPosition
@@ -236,8 +332,47 @@ StyledItem {
         property alias batteryCircle: settingsObj.batteryCircle
         property alias punchHoleWidth: settingsObj.punchHoleWidth
         property alias punchHoleHeightFromTop: settingsObj.punchHoleHeightFromTop
-        property alias alwaysHideTopPanel: settingsObj.alwaysHideTopPanel
+
+        // Drawer / Launcher
+        property alias drawerBlur: settingsObj.drawerBlur
+        property alias drawerBlurFullyOpen: settingsObj.drawerBlurFullyOpen
+        property alias invertedDrawer: settingsObj.invertedDrawer
+        property alias hideDrawerSearch: settingsObj.hideDrawerSearch
+        property alias useLomiriLogo: settingsObj.useLomiriLogo
+        property alias useNewLogo: settingsObj.useNewLogo
+        property alias useCustomLogo: settingsObj.useCustomLogo
+        property alias useCustomBFBColor: settingsObj.useCustomBFBColor
+        property alias customLogoScale: settingsObj.customLogoScale
+        property alias customLogoColor: settingsObj.customLogoColor
+        property alias customBFBColor: settingsObj.customBFBColor
+        property alias roundedBFB: settingsObj.roundedBFB
+        property alias bigDrawerSearchField: settingsObj.bigDrawerSearchField
+        
+        // Indicators/Top Panel
+        property alias indicatorBlur: settingsObj.indicatorBlur
+        property alias indicatorGesture: settingsObj.indicatorGesture
+        property alias specificIndicatorGesture: settingsObj.specificIndicatorGesture
+        property alias directAccessIndicators: settingsObj.directAccessIndicators
         property alias topPanelOpacity: settingsObj.topPanelOpacity
+        property alias alwaysHideTopPanel: settingsObj.alwaysHideTopPanel
+        property alias alwaysHiddenIndicatorIcons: settingsObj.alwaysHiddenIndicatorIcons
+        property alias alwaysShownIndicatorIcons: settingsObj.alwaysShownIndicatorIcons
+        property alias alwaysFullWidthTopPanel: settingsObj.alwaysFullWidthTopPanel
+        property alias widerLandscapeTopPanel: settingsObj.widerLandscapeTopPanel
+
+        //Quick Toggles
+        property alias enableQuickToggles: settingsObj.enableQuickToggles
+        property alias quickToggles: settingsObj.quickToggles
+        property alias gestureMediaControls: settingsObj.gestureMediaControls
+
+        // Lockscreen
+        property alias useCustomLockscreen: settingsObj.useCustomLockscreen
+        property alias useCustomCoverPage: settingsObj.useCustomCoverPage
+        property alias hideLockscreenClock: settingsObj.hideLockscreenClock
+        property alias useCustomLSClockColor: settingsObj.useCustomLSClockColor
+        property alias customLSClockColor: settingsObj.customLSClockColor
+        property alias useCustomLSClockFont: settingsObj.useCustomLSClockFont
+        property alias customLSClockFont: settingsObj.customLSClockFont
 
         // Pro1-X
         property alias pro1_OSKOrientation: settingsObj.pro1_OSKOrientation
@@ -251,12 +386,33 @@ StyledItem {
         property alias enableAlternateOW: settingsObj.ow_enableAlternateOW
         property alias ow_mainMenu: settingsObj.ow_mainMenu
         property alias ow_qmChance: settingsObj.ow_qmChance
+        property alias enableEyeFP: settingsObj.lp_enableEyeFP
+
+        // Dynamic Cove
+        property alias enableDynamicCove: settingsObj.enableDynamicCove
+        property alias dynamicCoveCurrentItem: settingsObj.dynamicCoveCurrentItem
+        property alias dcDigitalClockMode: settingsObj.dcDigitalClockMode
+        property alias dcShowClockWhenLockscreen: settingsObj.dcShowClockWhenLockscreen
+        property alias enableCDPlayer: settingsObj.enableCDPlayer
+        property alias enableCDPlayerDisco: settingsObj.enableCDPlayerDisco
+        
+        // Stopwatch Data
+        property alias dcStopwatchTimeMS: settingsObj.dcStopwatchTimeMS
+        property alias dcStopwatchLastEpoch: settingsObj.dcStopwatchLastEpoch
+
+        // Timer Data
+        property alias dcRunningTimer: settingsObj.dcRunningTimer
+        property alias dcLastTimeTimer: settingsObj.dcLastTimeTimer
 
         // Non-persistent settings
         property bool enableOW: false
 
         Settings {
             id: settingsObj
+
+            // ENH061 - Add haptics
+            Component.onCompleted: shell.haptics.enabled = Qt.binding( function() { return enableHaptics } )
+            // ENH061 - End
 
             category: "lomiriplus"
             property bool lp_enableEyeFP: false
@@ -319,30 +475,317 @@ StyledItem {
             property bool ow_enableAlternateOW: false
             property bool ow_mainMenu: false
             property int ow_qmChance: 10
+
+            property bool enableQuickToggles: false
+            property var quickToggles: [
+                {"type": 14, "enabled": true}
+                ,{"type": 7, "enabled": true}
+                , {"type": 6, "enabled": true}
+                , {"type": 8, "enabled": true}
+                , {"type": 2, "enabled": true}
+                , {"type": 1, "enabled": true}
+                , {"type": 4, "enabled": true}
+                , {"type": 0, "enabled": false}
+                , {"type": 13, "enabled": false}
+                , {"type": 12, "enabled": false}
+                , {"type": 9, "enabled": false}
+                , {"type": 11, "enabled": false}
+                , {"type": 5, "enabled": false}
+                , {"type": 3, "enabled": false}
+                , {"type": 10, "enabled": false}
+                , {"type": 15, "enabled": false}
+                , {"type": 16, "enabled": false}
+            ]
+
+            property bool bigDrawerSearchField: false
+            property bool enableCDPlayer: true
+            property bool enableCDPlayerDisco: false
+            property bool useCustomCoverPage: false
+            property bool hideDrawerSearch: false
+            property var alwaysHiddenIndicatorIcons: []
+            property var alwaysShownIndicatorIcons: []
+            property bool enableHaptics: false
+            property bool enableSlimVolume: false
+            property bool gestureMediaControls: false
+            property int dynamicCoveCurrentItem: 0
+            property bool enableDynamicCove: false
+            property bool dcDigitalClockMode: false
+            property bool hideLockscreenClock: false
+            property int dcStopwatchTimeMS: 0
+            property real dcStopwatchLastEpoch: 0
+            property real dcRunningTimer: 0
+            property int dcLastTimeTimer: 0
+            property bool dcShowClockWhenLockscreen: true
+            property bool alwaysFullWidthTopPanel: false
+            property string customLSClockColor: "#000000" // HTML format
+            property bool useCustomLSClockColor: false
+            property var savedPalettes: []
+            property bool useCustomLSClockFont: false
+            property string customLSClockFont: "Ubuntu"
+            property bool widerLandscapeTopPanel: false
+            property bool specificIndicatorGesture: false
+            property var directAccessIndicators: [
+                {"id": 0, "enabled": true} // indicator-session
+                ,{"id": 1, "enabled": true} // indicator-datetime
+                ,{"id": 2, "enabled": true} // indicator-network
+                ,{"id": 3, "enabled": true} // indicator-power
+                ,{"id": 4, "enabled": true} // indicator-sound
+                ,{"id": 5, "enabled": false} // indicator-rotation-lock
+                ,{"id": 6, "enabled": false} // indicator-location
+                ,{"id": 7, "enabled": false} // indicator-bluetooth
+                ,{"id": 8, "enabled": false} // kugiigi-indicator-darkmode
+            ]
         }
     }
     
     function showSettings() {
         settingsLoader.active = true
     }
+    
+    // ENH067 - Custom Lockscreen Clock Color
+    Loader {
+        id: colorPickerLoader
+
+        property var itemToColor
+        property color oldColor
+
+        anchors.fill: parent
+        z: settingsLoader.z + 1
+        active: false
+        
+        function open(caller) {
+            itemToColor = caller
+            oldColor = caller.text
+            active = true
+        }
+        
+        function close() {
+            active = false
+        }
+        
+        function applyColor() {
+            itemToColor.text = item.colorValue
+        }
+
+        function revertColor() {
+            itemToColor.text = oldColor
+            item.setColor(itemToColor.text)
+        }
+        
+        function savePalette(palette) {
+            let strPalette = palette.toString()
+            let tempArr = shell.settings.savedPalettes.slice()
+            tempArr = shell.removeItemFromList(tempArr, strPalette, true)
+            tempArr.push(strPalette)
+            shell.settings.savedPalettes = tempArr.slice()
+        }
+
+        function deletePalette(palette) {
+            let paletteDelete = palette
+            let tempArr = shell.settings.savedPalettes.slice()
+            tempArr = shell.removeItemFromList(tempArr, paletteDelete, true)
+            shell.settings.savedPalettes = tempArr.slice()
+        }
+
+        onLoaded: {
+            item.setColor(itemToColor.text)
+        }
+        
+        sourceComponent: Component {
+            Item {
+                id: colorPickerContainer
+
+                property alias colorValue: colorPicker.colorValue
+
+                function setColor(colorToSet) {
+                    colorPicker.setColorValue(colorToSet)
+                }
+
+                Rectangle {
+                    id: colorPickerFloat
+
+                    x: shell.width / 2 - width / 2
+                    y: shell.height - height
+                    width: Math.min(units.gu(60), parent.width - units.gu(4))
+                    height: units.gu(50)
+                    radius: units.gu(2)
+                    color: theme.palette.normal.background
+                    clip: true
+
+                    // Eater mouse events
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.AllButtons
+                        onWheel: wheel.accepted = true;
+                    }
+
+                    ColumnLayout {
+                        spacing: 0
+                        anchors.fill: parent
+
+                        Rectangle {
+                            Layout.preferredHeight: units.gu(6)
+                            Layout.fillWidth: true
+                            color: theme.palette.normal.foreground
+
+                            RowLayout {
+                                anchors {
+                                    fill: parent
+                                    leftMargin: units.gu(2)
+                                    rightMargin: units.gu(2)
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: colorPicker.colorValue
+                                    color: theme.palette.normal.foregroundText
+                                    horizontalAlignment: Text.AlignHCenter
+                                }
+                                Rectangle {
+                                    Layout.preferredWidth: units.gu(10)
+                                    Layout.preferredHeight: units.gu(4)
+                                    Layout.alignment: Qt.AlignRight
+                                    radius: units.gu(1)
+                                    color: colorPicker.colorValue
+                                    border {
+                                        width: units.dp(1)
+                                        color: theme.palette.normal.foregroundText
+                                    }
+                                }
+                                QQC2.CheckBox {
+                                    id: paletteMode
+                                    Layout.alignment: Qt.AlignRight
+                                    text: "Palette Mode"
+                                    onCheckedChanged: colorPicker.paletteMode = !colorPicker.paletteMode
+                                    Binding {
+                                        target: paletteMode
+                                        property: "checked"
+                                        value: colorPicker.paletteMode
+                                    }
+                                }
+                                MouseArea {
+                                    id: dragButton
+
+                                    readonly property bool dragActive: drag.active
+
+                                    Layout.fillHeight: true
+                                    Layout.preferredWidth: units.gu(6)
+                                    Layout.preferredHeight: width
+                                    Layout.alignment: Qt.AlignRight
+
+                                    drag.target: colorPickerFloat
+                                    drag.axis: Drag.XAndYAxis
+                                    drag.minimumX: 0
+                                    drag.maximumX: shell.width - colorPickerFloat.width
+                                    drag.minimumY: 0
+                                    drag.maximumY: shell.height - colorPickerFloat.height
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        color: dragButton.pressed ? theme.palette.selected.overlay : theme.palette.normal.overlay
+
+                                        Behavior on color {
+                                            ColorAnimation { duration: UbuntuAnimation.FastDuration }
+                                        }
+
+                                        Icon {
+                                            id: icon
+
+                                            implicitWidth: dragButton.width * 0.60
+                                            implicitHeight: implicitWidth
+                                            name: "grip-large"
+                                            anchors.centerIn: parent
+                                            color: theme.palette.normal.overlayText
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Rectangle {
+                            color: theme.palette.normal.foregroundText
+                            Layout.preferredHeight: units.dp(1)
+                            Layout.fillWidth: true
+                        }
+                        Colorpicker {
+                            id: colorPicker
+
+                            Layout.fillHeight: true
+                            Layout.fillWidth: true
+
+                            enableDetails: false
+                        }
+                        Rectangle {
+                            color: theme.palette.normal.foregroundText
+                            Layout.preferredHeight: units.dp(1)
+                            Layout.fillWidth: true
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: units.gu(6)
+                            color: theme.palette.normal.foreground
+
+                            RowLayout {
+                                anchors {
+                                    fill: parent
+                                    leftMargin: units.gu(2)
+                                    rightMargin: units.gu(2)
+                                }
+                                QQC2.Button {
+                                    Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                    text: "Close"
+                                    onClicked: colorPickerLoader.close()
+                                }
+                                QQC2.Button {
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                    text: colorPicker.savedPaletteIsSelected ? "Delete Palette" : "Save Palette"
+                                    onClicked: {
+                                        if (colorPicker.savedPaletteIsSelected) {
+                                            colorPickerLoader.deletePalette(colorPicker.savedPaletteColor)
+                                        } else {
+                                            colorPickerLoader.savePalette(colorPicker.colorValue)
+                                        }
+                                    }
+                                }
+                                QQC2.Button {
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                    text: "Revert"
+                                    onClicked: colorPickerLoader.revertColor()
+                                }
+                                QQC2.Button {
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                    text: "Apply"
+                                    onClicked: colorPickerLoader.applyColor()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // ENH067 - End
 
     Loader {
         id: settingsLoader
         active: false
         z: inputMethod.visible ? inputMethod.z - 1 : shellBorderLoader.z + 1
-        anchors {
-            bottom: parent.bottom
-            bottomMargin: inputMethod.visibleRect.height
-            horizontalCenter: parent.horizontalCenter
-        }
         width: Math.min(parent.width, units.gu(40))
         height: inputMethod.visible ? parent.height - inputMethod.visibleRect.height - panel.minimizedPanelHeight
                                     : Math.min(parent.height, units.gu(60))
+        onActiveChanged: {
+            if (!active) colorPickerLoader.close()
+        }
 
         sourceComponent: Component {
             Rectangle {
+                id: lpSettingsRec
+
                 property alias stack: stack
                 color: Suru.backgroundColor
+                x: shell.width / 2 - width / 2
+                y: shell.height - height
+
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 0
@@ -375,6 +818,42 @@ StyledItem {
                                 Suru.textLevel: Suru.HeadingThree
                                 elide: Text.ElideRight
                             }
+                            MouseArea {
+                                id: settingsDragButton
+
+                                readonly property bool dragActive: drag.active
+
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: units.gu(6)
+                                Layout.preferredHeight: width
+                                Layout.alignment: Qt.AlignRight
+
+                                drag.target: lpSettingsRec
+                                drag.axis: Drag.XAndYAxis
+                                drag.minimumX: 0
+                                drag.maximumX: shell.width - lpSettingsRec.width
+                                drag.minimumY: 0
+                                drag.maximumY: shell.height - lpSettingsRec.height
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    color: settingsDragButton.pressed ? theme.palette.selected.background : theme.palette.normal.background
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: UbuntuAnimation.FastDuration }
+                                    }
+
+                                    Icon {
+                                        id: icon
+
+                                        implicitWidth: settingsDragButton.width * 0.60
+                                        implicitHeight: implicitWidth
+                                        name: "grip-large"
+                                        anchors.centerIn: parent
+                                        color: theme.palette.normal.overlayText
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -403,285 +882,318 @@ StyledItem {
         LPSettingsPage {
             title: "Lomiri Plus Settings"
 
-            settingsItems: [
-                LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Outer Wilds"
-                    onClicked: settingsLoader.item.stack.push(outerWildsPage, {"title": text})
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Outer Wilds"
+                onClicked: settingsLoader.item.stack.push(outerWildsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "General"
+                onClicked: settingsLoader.item.stack.push(generalPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Customizations"
+                onClicked: settingsLoader.item.stack.push(customizationsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Features"
+                onClicked: settingsLoader.item.stack.push(featuresPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Device Configuration"
+                onClicked: settingsLoader.item.stack.push(devicePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Device Specific Hacks"
+                onClicked: settingsLoader.item.stack.push(deviceSpecificPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: generalPage
+        
+        LPSettingsPage {
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Haptics feedback for button presses and swipe gestures\n"
+                + "Only applies to some controls and not all"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: enableHaptics
+                Layout.fillWidth: true
+                text: "Enable haptics"
+                onCheckedChanged: shell.settings.enableHaptics = checked
+                Binding {
+                    target: enableHaptics
+                    property: "checked"
+                    value: shell.settings.enableHaptics
                 }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Customizations"
-                    onClicked: settingsLoader.item.stack.push(customizationsPage, {"title": text})
+            }
+            QQC2.CheckDelegate {
+                id: enableSlimVolume
+                Layout.fillWidth: true
+                text: "Slim slider notification bubble"
+                onCheckedChanged: shell.settings.enableSlimVolume = checked
+                Binding {
+                    target: enableSlimVolume
+                    property: "checked"
+                    value: shell.settings.enableSlimVolume
                 }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Features"
-                    onClicked: settingsLoader.item.stack.push(featuresPage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Device Configuration"
-                    onClicked: settingsLoader.item.stack.push(devicePage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Device Specific Hacks"
-                    onClicked: settingsLoader.item.stack.push(deviceSpecificPage, {"title": text})
-                }
-            ]
+            }
         }
     }
     Component {
         id: outerWildsPage
         
         LPSettingsPage {
-            settingsItems: [
-                QQC2.Label {
-                    Layout.fillWidth: true
-                    Layout.margins: units.gu(2)
-                    text: "May crash Lomiri in some devices especially the default version"
-                    wrapMode: Text.WordWrap
-                    Suru.textLevel: Suru.Caption
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "May crash Lomiri in some devices especially the default version"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: owTheme
+                Layout.fillWidth: true
+                text: "Outer Wilds Theme"
+                onCheckedChanged: shell.settings.enableOW = checked
+                Binding {
+                    target: owTheme
+                    property: "checked"
+                    value: shell.settings.enableOW
                 }
-                ,QQC2.CheckDelegate {
-                    id: owTheme
-                    Layout.fillWidth: true
-                    text: "Outer Wilds Theme"
-                    onCheckedChanged: shell.settings.enableOW = checked
+            }
+            QQC2.CheckDelegate {
+                id: enableAlternateOW
+                Layout.fillWidth: true
+                text: "Alternate Outer Wilds Theme"
+                onCheckedChanged: shell.settings.enableAlternateOW = checked
+                Binding {
+                    target: enableAlternateOW
+                    property: "checked"
+                    value: shell.settings.enableAlternateOW
+                }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAlternateOW
+                text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.ItemDelegate {
+                Layout.fillWidth: true
+                visible: shell.settings.enableAlternateOW
+                text: "Quantum Luck"
+                indicator: QQC2.SpinBox {
+                    id: ow_qmChance
+                    anchors {
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                        verticalCenter: parent.verticalCenter
+                    }
+                    from: 1
+                    to: 500
+                    stepSize: 1
+                    editable: true
+                    onValueChanged: shell.settings.ow_qmChance = value
                     Binding {
-                        target: owTheme
-                        property: "checked"
-                        value: shell.settings.enableOW
+                        target: ow_qmChance
+                        property: "value"
+                        value: shell.settings.ow_qmChance
                     }
                 }
-                ,QQC2.CheckDelegate {
-                    id: enableAlternateOW
-                    Layout.fillWidth: true
-                    text: "Alternate Outer Wilds Theme"
-                    onCheckedChanged: shell.settings.enableAlternateOW = checked
-                    Binding {
-                        target: enableAlternateOW
-                        property: "checked"
-                        value: shell.settings.enableAlternateOW
-                    }
+            }
+            QQC2.CheckDelegate {
+                id: eyeFPMarker
+                Layout.fillWidth: true
+                text: "Eye Fingerprint Marker"
+                onCheckedChanged: shell.settings.enableEyeFP = checked
+                Binding {
+                    target: eyeFPMarker
+                    property: "checked"
+                    value: shell.settings.enableEyeFP
                 }
-                ,QQC2.Label {
-                    Layout.fillWidth: true
-                    Layout.margins: units.gu(2)
-                    visible: shell.settings.enableAlternateOW
-                    text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
-                    wrapMode: Text.WordWrap
-                    Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: ow_ColoredClock
+                Layout.fillWidth: true
+                text: "Themed Lockscreen Clock"
+                onCheckedChanged: shell.settings.ow_ColoredClock = checked
+                Binding {
+                    target: ow_ColoredClock
+                    property: "checked"
+                    value: shell.settings.ow_ColoredClock
                 }
-                ,QQC2.ItemDelegate {
-                    Layout.fillWidth: true
-                    visible: shell.settings.enableAlternateOW
-                    text: "Quantum Luck"
-                    indicator: QQC2.SpinBox {
-                        id: ow_qmChance
-                        anchors {
-                            right: parent.right
-                            rightMargin: units.gu(2)
-                            verticalCenter: parent.verticalCenter
-                        }
-                        from: 1
-                        to: 500
-                        stepSize: 1
-                        editable: true
-                        onValueChanged: shell.settings.ow_qmChance = value
-                        Binding {
-                            target: ow_qmChance
-                            property: "value"
-                            value: shell.settings.ow_qmChance
-                        }
-                    }
+            }
+            QQC2.CheckDelegate {
+                id: ow_GradientColoredTime
+                Layout.fillWidth: true
+                visible: shell.settings.ow_ColoredClock
+                text: "Gradient Time Text"
+                onCheckedChanged: shell.settings.ow_GradientColoredTime = checked
+                Binding {
+                    target: ow_GradientColoredTime
+                    property: "checked"
+                    value: shell.settings.ow_GradientColoredTime
                 }
-                , QQC2.CheckDelegate {
-                    id: eyeFPMarker
-                    Layout.fillWidth: true
-                    text: "Eye Fingerprint Marker"
-                    onCheckedChanged: shell.settings.enableEyeFP = checked
-                    Binding {
-                        target: eyeFPMarker
-                        property: "checked"
-                        value: shell.settings.enableEyeFP
-                    }
+            }
+            QQC2.CheckDelegate {
+                id: ow_mainMenu
+                Layout.fillWidth: true
+                text: "Outer Wilds Menu"
+                onCheckedChanged: shell.settings.ow_mainMenu = checked
+                Binding {
+                    target: ow_mainMenu
+                    property: "checked"
+                    value: shell.settings.ow_mainMenu
                 }
-                , QQC2.CheckDelegate {
-                    id: ow_ColoredClock
-                    Layout.fillWidth: true
-                    text: "Themed Lockscreen Clock"
-                    onCheckedChanged: shell.settings.ow_ColoredClock = checked
-                    Binding {
-                        target: ow_ColoredClock
-                        property: "checked"
-                        value: shell.settings.ow_ColoredClock
-                    }
-                }
-                , QQC2.CheckDelegate {
-                    id: ow_GradientColoredTime
-                    Layout.fillWidth: true
-                    visible: shell.settings.ow_ColoredClock
-                    text: "Gradient Time Text"
-                    onCheckedChanged: shell.settings.ow_GradientColoredTime = checked
-                    Binding {
-                        target: ow_GradientColoredTime
-                        property: "checked"
-                        value: shell.settings.ow_GradientColoredTime
-                    }
-                }
-                , QQC2.CheckDelegate {
-                    id: ow_mainMenu
-                    Layout.fillWidth: true
-                    text: "Outer Wilds Menu"
-                    onCheckedChanged: shell.settings.ow_mainMenu = checked
-                    Binding {
-                        target: ow_mainMenu
-                        property: "checked"
-                        value: shell.settings.ow_mainMenu
-                    }
-                }
-                ,QQC2.ItemDelegate {
-                    id: ow_bfbLogo
+            }
+            QQC2.ItemDelegate {
+                id: ow_bfbLogo
 
-                    Layout.fillWidth: true
-                    text: "Logo"
-                    indicator: QQC2.SpinBox {
-                        id: owLogo
-                        anchors {
-                            right: parent.right
-                            rightMargin: units.gu(2)
-                            verticalCenter: parent.verticalCenter
-                        }
-                        from: 0
-                        to: 9
-                        stepSize: 1
-                        textFromValue: function(value, locale) {
-                                            switch (value) {
-                                                case 0:
-                                                    return "Disabled"
-                                                case 1:
-                                                    return "Brittle Hollow"
-                                                case 2:
-                                                    return "Dark Bramble"
-                                                case 3:
-                                                    return "Hourglass Twins"
-                                                case 4:
-                                                    return "Interloper"
-                                                case 5:
-                                                    return "Nomai Eye"
-                                                case 6:
-                                                    return "Quantum Moon"
-                                                case 7:
-                                                    return "Stranger Eye"
-                                                case 8:
-                                                    return "Sun"
-                                                case 9:
-                                                    return "Timber Hearth"
-                                            }
-                                       }
-                        valueFromText: function(text, locale) {
-                                            switch (text) {
-                                                case "None":
-                                                    return 0
-                                                case "Middle":
-                                                    return 1
-                                                case "Left":
-                                                    return 2
-                                                case "Right":
-                                                    return 3
-                                                case "Disabled":
-                                                    return 0
-                                                case "Brittle Hollow":
-                                                    return 1
-                                                case "Dark Bramble":
-                                                    return 2
-                                                case "Hourglass Twins":
-                                                    return 3
-                                                case "Interloper":
-                                                    return 4
-                                                case "Nomai Eye":
-                                                    return 5
-                                                case "Quantum Moon":
-                                                    return 6
-                                                case "Stranger Eye":
-                                                    return 7
-                                                case "Sun":
-                                                    return 8
-                                                case "Timber Hearth":
-                                                    return 9
-                                            }
-                                       }
-                        onValueChanged: shell.settings.ow_bfbLogo = value
-                        Binding {
-                            target: owLogo
-                            property: "value"
-                            value: shell.settings.ow_bfbLogo
-                        }
+                Layout.fillWidth: true
+                text: "Logo"
+                indicator: QQC2.SpinBox {
+                    id: owLogo
+                    anchors {
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                        verticalCenter: parent.verticalCenter
+                    }
+                    from: 0
+                    to: 9
+                    stepSize: 1
+                    textFromValue: function(value, locale) {
+                                        switch (value) {
+                                            case 0:
+                                                return "Disabled"
+                                            case 1:
+                                                return "Brittle Hollow"
+                                            case 2:
+                                                return "Dark Bramble"
+                                            case 3:
+                                                return "Hourglass Twins"
+                                            case 4:
+                                                return "Interloper"
+                                            case 5:
+                                                return "Nomai Eye"
+                                            case 6:
+                                                return "Quantum Moon"
+                                            case 7:
+                                                return "Stranger Eye"
+                                            case 8:
+                                                return "Sun"
+                                            case 9:
+                                                return "Timber Hearth"
+                                        }
+                                   }
+                    valueFromText: function(text, locale) {
+                                        switch (text) {
+                                            case "None":
+                                                return 0
+                                            case "Middle":
+                                                return 1
+                                            case "Left":
+                                                return 2
+                                            case "Right":
+                                                return 3
+                                            case "Disabled":
+                                                return 0
+                                            case "Brittle Hollow":
+                                                return 1
+                                            case "Dark Bramble":
+                                                return 2
+                                            case "Hourglass Twins":
+                                                return 3
+                                            case "Interloper":
+                                                return 4
+                                            case "Nomai Eye":
+                                                return 5
+                                            case "Quantum Moon":
+                                                return 6
+                                            case "Stranger Eye":
+                                                return 7
+                                            case "Sun":
+                                                return 8
+                                            case "Timber Hearth":
+                                                return 9
+                                        }
+                                   }
+                    onValueChanged: shell.settings.ow_bfbLogo = value
+                    Binding {
+                        target: owLogo
+                        property: "value"
+                        value: shell.settings.ow_bfbLogo
                     }
                 }
-            ]
+            }
         }
     }
     Component {
         id: deviceSpecificPage
         
         LPSettingsPage {
-            settingsItems: [
-                LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Fxtec Pro1-X"
-                    onClicked: settingsLoader.item.stack.push(pro1Page, {"title": text})
-                }
-            ]
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Fxtec Pro1-X"
+                onClicked: settingsLoader.item.stack.push(pro1Page, {"title": text})
+            }
 
             Component {
                 id: pro1Page
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            text: "Disables OSK when in the same orientation as the physical keyboard and enables it when in any other orientation"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Disables OSK when in the same orientation as the physical keyboard and enables it when in any other orientation"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: pro1_OSKOrientation
+                        Layout.fillWidth: true
+                        text: "Automatically toggle on-screen keyboard"
+                        onCheckedChanged: shell.settings.pro1_OSKOrientation = checked
+                        Binding {
+                            target: pro1_OSKOrientation
+                            property: "checked"
+                            value: shell.settings.pro1_OSKOrientation
                         }
-                        ,QQC2.CheckDelegate {
-                            id: pro1_OSKOrientation
-                            Layout.fillWidth: true
-                            text: "Automatically toggle on-screen keyboard"
-                            onCheckedChanged: shell.settings.pro1_OSKOrientation = checked
-                            Binding {
-                                target: pro1_OSKOrientation
-                                property: "checked"
-                                value: shell.settings.pro1_OSKOrientation
-                            }
+                    }
+                    QQC2.CheckDelegate {
+                        id: pro1_OSKToggleKey
+                        Layout.fillWidth: true
+                        text: "Use Fn/Yellow Arrow Key to toggle OSK"
+                        onCheckedChanged: shell.settings.pro1_OSKToggleKey = checked
+                        Binding {
+                            target: pro1_OSKToggleKey
+                            property: "checked"
+                            value: shell.settings.pro1_OSKToggleKey
                         }
-                        ,QQC2.CheckDelegate {
-                            id: pro1_OSKToggleKey
-                            Layout.fillWidth: true
-                            text: "Use Fn/Yellow Arrow Key to toggle OSK"
-                            onCheckedChanged: shell.settings.pro1_OSKToggleKey = checked
-                            Binding {
-                                target: pro1_OSKToggleKey
-                                property: "checked"
-                                value: shell.settings.pro1_OSKToggleKey
-                            }
+                    }
+                    QQC2.CheckDelegate {
+                        id: pro1_orientationToggleKey
+                        Layout.fillWidth: true
+                        text: "Use Camera Key to toggle orientation"
+                        onCheckedChanged: shell.settings.pro1_orientationToggleKey = checked
+                        Binding {
+                            target: pro1_orientationToggleKey
+                            property: "checked"
+                            value: shell.settings.pro1_orientationToggleKey
                         }
-                        ,QQC2.CheckDelegate {
-                            id: pro1_orientationToggleKey
-                            Layout.fillWidth: true
-                            text: "Use Camera Key to toggle orientation"
-                            onCheckedChanged: shell.settings.pro1_orientationToggleKey = checked
-                            Binding {
-                                target: pro1_orientationToggleKey
-                                property: "checked"
-                                value: shell.settings.pro1_orientationToggleKey
-                            }
-                        }
-                    ]
+                    }
                 }
             }
         }
@@ -690,675 +1202,1302 @@ StyledItem {
         id: customizationsPage
         
         LPSettingsPage {
-            settingsItems: [
-                LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Lockscreen"
-                    onClicked: settingsLoader.item.stack.push(lockscreenPage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Launcher"
-                    onClicked: settingsLoader.item.stack.push(launcherPage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Top Panel"
-                    onClicked: settingsLoader.item.stack.push(topPanelpage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "App Drawer"
-                    onClicked: settingsLoader.item.stack.push(drawerpage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "App Spread"
-                    onClicked: settingsLoader.item.stack.push(spreadPage, {"title": text})
-                }
-            ]
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Lockscreen"
+                onClicked: settingsLoader.item.stack.push(lockscreenPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Launcher"
+                onClicked: settingsLoader.item.stack.push(launcherPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Top Panel"
+                onClicked: settingsLoader.item.stack.push(topPanelpage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "App Drawer"
+                onClicked: settingsLoader.item.stack.push(drawerpage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "App Spread"
+                onClicked: settingsLoader.item.stack.push(spreadPage, {"title": text})
+            }
+
             Component {
                 id: lockscreenPage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            text: "Custom Wallpaper Filename: ~/Pictures/lomiriplus/lockscreen"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Filename: ~/Pictures/lomiriplus/lockscreen"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: customLockscreenWP
+                        Layout.fillWidth: true
+                        text: "Custom Wallpaper"
+                        onCheckedChanged: shell.settings.useCustomLockscreen = checked
+                        Binding {
+                            target: customLockscreenWP
+                            property: "checked"
+                            value: shell.settings.useCustomLockscreen
                         }
-                        ,QQC2.CheckDelegate {
-                            id: customLockscreenWP
-                            Layout.fillWidth: true
-                            text: "Custom Wallpaper"
-                            onCheckedChanged: shell.settings.useCustomLockscreen = checked
-                            Binding {
-                                target: customLockscreenWP
-                                property: "checked"
-                                value: shell.settings.useCustomLockscreen
-                            }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLockscreen
+                        text: "Filename: ~/Pictures/lomiriplus/coverpage"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: useCustomCoverPageWP
+                        Layout.fillWidth: true
+                        visible: shell.settings.useCustomLockscreen
+                        text: "Custom Cover Page Wallpaper"
+                        onCheckedChanged: shell.settings.useCustomCoverPage = checked
+                        Binding {
+                            target: useCustomCoverPageWP
+                            property: "checked"
+                            value: shell.settings.useCustomCoverPage
                         }
-                    ]
+                    }
+                    QQC2.CheckDelegate {
+                        id: hideLockscreenClock
+                        Layout.fillWidth: true
+                        text: "Hide clock"
+                        onCheckedChanged: shell.settings.hideLockscreenClock = checked
+                        Binding {
+                            target: hideLockscreenClock
+                            property: "checked"
+                            value: shell.settings.hideLockscreenClock
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: useCustomLSClockColor
+                        Layout.fillWidth: true
+                        text: "Custom clock color"
+                        onCheckedChanged: shell.settings.useCustomLSClockColor = checked
+                        Binding {
+                            target: useCustomLSClockColor
+                            property: "checked"
+                            value: shell.settings.useCustomLSClockColor
+                        }
+                    }
+                    LPColorField {
+                        id: customLSClockColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLSClockColor
+                        onTextChanged: shell.settings.customLSClockColor = text
+                        onColorPicker: colorPickerLoader.open(customLSClockColor)
+                        Binding {
+                            target: customLSClockColor
+                            property: "text"
+                            value: shell.settings.customLSClockColor
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: useCustomLSClockFont
+                        Layout.fillWidth: true
+                        text: "Custom clock font"
+                        onCheckedChanged: shell.settings.useCustomLSClockFont = checked
+                        Binding {
+                            target: useCustomLSClockFont
+                            property: "checked"
+                            value: shell.settings.useCustomLSClockFont
+                        }
+                    }
+                    OptionSelector {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLSClockFont
+                        text: i18n.tr("Custom clock font")
+                        model: Qt.fontFamilies()
+                        containerHeight: itemHeight * 6
+                        selectedIndex: model.indexOf(shell.settings.customLSClockFont)
+                        onSelectedIndexChanged: shell.settings.customLSClockFont = model[selectedIndex]
+                    }
                 }
             }
             Component {
                 id: topPanelpage
+
+                LPSettingsPage {
+                    QQC2.ItemDelegate {
+                        Layout.fillWidth: true
+                        text: "Top Panel Opacity"
+                        indicator: QQC2.SpinBox {
+                            id: topPanelOpacity
+                            anchors {
+                                right: parent.right
+                                rightMargin: units.gu(2)
+                                verticalCenter: parent.verticalCenter
+                            }
+                            from: 10
+                            to: 100
+                            stepSize: 10
+                            onValueChanged: shell.settings.topPanelOpacity = value
+                            Binding {
+                                target: topPanelOpacity
+                                property: "value"
+                                value: shell.settings.topPanelOpacity
+                            }
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: indicatorBlur
+                        Layout.fillWidth: true
+                        text: "Top Panel Pages Blur"
+                        onCheckedChanged: shell.settings.indicatorBlur = checked
+                        Binding {
+                            target: indicatorBlur
+                            property: "checked"
+                            value: shell.settings.indicatorBlur
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Always displays the top panel menu in full width in portrait orientations"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: alwaysFullWidthTopPanel
+                        Layout.fillWidth: true
+                        text: "Always full width top panel menu"
+                        onCheckedChanged: shell.settings.alwaysFullWidthTopPanel = checked
+                        Binding {
+                            target: alwaysFullWidthTopPanel
+                            property: "checked"
+                            value: shell.settings.alwaysFullWidthTopPanel
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: widerLandscapeTopPanel
+                        Layout.fillWidth: true
+                        text: "Wider top panel pages in landscape"
+                        onCheckedChanged: shell.settings.widerLandscapeTopPanel = checked
+                        Binding {
+                            target: widerLandscapeTopPanel
+                            property: "checked"
+                            value: shell.settings.widerLandscapeTopPanel
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Top panel will always be hidden unless in the greeter or app spread"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: alwaysHideTopPanel
+                        Layout.fillWidth: true
+                        text: "Always Hide Top Panel"
+                        onCheckedChanged: shell.settings.alwaysHideTopPanel = checked
+                        Binding {
+                            target: alwaysHideTopPanel
+                            property: "checked"
+                            value: shell.settings.alwaysHideTopPanel
+                        }
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Always Hidden Icons"
+                        onClicked: settingsLoader.item.stack.push(alwaysHiddenIconsPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Always Shown Icons"
+                        onClicked: settingsLoader.item.stack.push(alwaysShownIconsPage, {"title": text})
+                    }
+                }
+            }
+            Component {
+                id: alwaysHiddenIconsPage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.ItemDelegate {
+                    Repeater {
+                        model: indicatorsModel
+
+                        QQC2.CheckDelegate {
+                            id: checkDelegateHidden
+
                             Layout.fillWidth: true
-                            text: "Top Panel Opacity"
-                            indicator: QQC2.SpinBox {
-                                id: topPanelOpacity
-                                anchors {
-                                    right: parent.right
-                                    rightMargin: units.gu(2)
-                                    verticalCenter: parent.verticalCenter
+                            text: shell.indicatorLabel(model.identifier)
+
+                            onCheckedChanged: {
+                                // Remove first from always hidden list to avoid duplicate though it doesn't matter :)
+                                let tempHiddenArr = shell.settings.alwaysHiddenIndicatorIcons.slice()
+                                if (shell.settings.alwaysHiddenIndicatorIcons.includes(model.identifier)) {
+                                    tempHiddenArr = shell.removeItemFromList(tempHiddenArr, model.identifier)
                                 }
-                                from: 10
-                                to: 100
-                                stepSize: 10
-                                onValueChanged: shell.settings.topPanelOpacity = value
-                                Binding {
-                                    target: topPanelOpacity
-                                    property: "value"
-                                    value: shell.settings.topPanelOpacity
+
+                                if (checked) {
+                                    // Make sure it's not in always shown list
+                                    if (shell.settings.alwaysShownIndicatorIcons.includes(model.identifier)) {
+                                        let tempShownArr = shell.settings.alwaysShownIndicatorIcons.slice()
+                                        tempShownArr = shell.removeItemFromList(tempShownArr, model.identifier)
+                                        shell.settings.alwaysShownIndicatorIcons = tempShownArr.slice()
+                                    }
+
+                                    // Add to always hidden list
+                                    tempHiddenArr.push(model.identifier)
                                 }
+
+                                shell.settings.alwaysHiddenIndicatorIcons = tempHiddenArr.slice()
                             }
-                        }
-                        ,QQC2.CheckDelegate {
-                            id: indicatorBlur
-                            Layout.fillWidth: true
-                            text: "Top Panel Pages Blur"
-                            onCheckedChanged: shell.settings.indicatorBlur = checked
                             Binding {
-                                target: indicatorBlur
+                                target: checkDelegateHidden
                                 property: "checked"
-                                value: shell.settings.indicatorBlur
+                                value: shell.settings.alwaysHiddenIndicatorIcons.includes(model.identifier)
                             }
                         }
-                        ,QQC2.Label {
+                    }
+                }
+            }
+            Component {
+                id: alwaysShownIconsPage
+                
+                LPSettingsPage {
+                    Repeater {
+                        model: indicatorsModel
+
+                        QQC2.CheckDelegate {
+                            id: checkDelegateShown
                             Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            text: "Top panel will always be hidden unless in the greeter or app spread"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
-                        }
-                        ,QQC2.CheckDelegate {
-                            id: alwaysHideTopPanel
-                            Layout.fillWidth: true
-                            text: "Always Hide Top Panel"
-                            onCheckedChanged: shell.settings.alwaysHideTopPanel = checked
+                            text: shell.indicatorLabel(model.identifier)
+
+                            onCheckedChanged: {
+                                // Remove first from always shown list to avoid duplicate though it doesn't matter :)
+                                let tempShownArr = shell.settings.alwaysShownIndicatorIcons.slice()
+                                if (shell.settings.alwaysShownIndicatorIcons.includes(model.identifier)) {
+                                    tempShownArr = shell.removeItemFromList(tempShownArr, model.identifier)
+                                }
+
+                                if (checked) {
+                                    // Make sure it's not in always hidden list
+                                    if (shell.settings.alwaysHiddenIndicatorIcons.includes(model.identifier)) {
+                                        let tempHiddenArr = shell.settings.alwaysHiddenIndicatorIcons.slice()
+                                        tempHiddenArr = shell.removeItemFromList(tempHiddenArr, model.identifier)
+                                        shell.settings.alwaysHiddenIndicatorIcons = tempHiddenArr.slice()
+                                    }
+
+                                    // Add to always hidden list
+                                    tempShownArr.push(model.identifier)
+                                }
+
+                                shell.settings.alwaysShownIndicatorIcons = tempShownArr.slice()
+                            }
                             Binding {
-                                target: alwaysHideTopPanel
+                                target: checkDelegateShown
                                 property: "checked"
-                                value: shell.settings.alwaysHideTopPanel
+                                value: shell.settings.alwaysShownIndicatorIcons.includes(model.identifier)
                             }
                         }
-                    ]
+                    }
                 }
             }
             Component {
                 id: drawerpage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.CheckDelegate {
-                            id: drawerBlur
-                            Layout.fillWidth: true
-                            text: "Interactive Blur"
-                            onCheckedChanged: shell.settings.drawerBlur = checked
-                            Binding {
-                                target: drawerBlur
-                                property: "checked"
-                                value: shell.settings.drawerBlur
-                            }
+                    QQC2.CheckDelegate {
+                        id: drawerBlur
+                        Layout.fillWidth: true
+                        text: "Interactive Blur"
+                        onCheckedChanged: shell.settings.drawerBlur = checked
+                        Binding {
+                            target: drawerBlur
+                            property: "checked"
+                            value: shell.settings.drawerBlur
                         }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            visible: shell.settings.drawerBlur
-                            text: "Better performance while opening the drawer"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: invertedDrawer
+                        Layout.fillWidth: true
+                        text: "Inverted App Drawer"
+                        onCheckedChanged: shell.settings.invertedDrawer = checked
+                        Binding {
+                            target: invertedDrawer
+                            property: "checked"
+                            value: shell.settings.invertedDrawer
                         }
-                        ,QQC2.CheckDelegate {
-                            id: drawerBlurFullyOpen
-                            Layout.fillWidth: true
-                            visible: shell.settings.drawerBlur
-                            text: "Blur only when fully open"
-                            onCheckedChanged: shell.settings.drawerBlurFullyOpen = checked
-                            Binding {
-                                target: drawerBlurFullyOpen
-                                property: "checked"
-                                value: shell.settings.drawerBlurFullyOpen
-                            }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Swipe up from the bottom or type something with a physical keyboard to search"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: hideDrawerSearch
+                        Layout.fillWidth: true
+                        text: "Hide search field"
+                        onCheckedChanged: shell.settings.hideDrawerSearch = checked
+                        Binding {
+                            target: hideDrawerSearch
+                            property: "checked"
+                            value: shell.settings.hideDrawerSearch
                         }
-                        ,QQC2.CheckDelegate {
-                            id: invertedDrawer
-                            Layout.fillWidth: true
-                            text: "Inverted App Drawer"
-                            onCheckedChanged: shell.settings.invertedDrawer = checked
-                            Binding {
-                                target: invertedDrawer
-                                property: "checked"
-                                value: shell.settings.invertedDrawer
-                            }
+                    }
+                    QQC2.CheckDelegate {
+                        id: bigDrawerSearchFieldDrawer
+                        Layout.fillWidth: true
+                        text: "Bigger Search Field"
+                        onCheckedChanged: shell.settings.bigDrawerSearchField = checked
+                        Binding {
+                            target: bigDrawerSearchFieldDrawer
+                            property: "checked"
+                            value: shell.settings.bigDrawerSearchField
                         }
-                    ]
+                    }
                 }
             }
             Component {
                 id: spreadPage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            text: "Requires Notch/Punchhole configuration and Corner Radius"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Requires Notch/Punchhole configuration and Corner Radius"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: roundedAppPreview
+                        Layout.fillWidth: true
+                        text: "Rounded App Preview"
+                        onCheckedChanged: shell.settings.roundedAppPreview = checked
+                        Binding {
+                            target: roundedAppPreview
+                            property: "checked"
+                            value: shell.settings.roundedAppPreview
                         }
-                        ,QQC2.CheckDelegate {
-                            id: roundedAppPreview
-                            Layout.fillWidth: true
-                            text: "Rounded App Preview"
-                            onCheckedChanged: shell.settings.roundedAppPreview = checked
-                            Binding {
-                                target: roundedAppPreview
-                                property: "checked"
-                                value: shell.settings.roundedAppPreview
-                            }
-                        }
-                    ]
+                    }
                 }
             }
             Component {
                 id: launcherPage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.CheckDelegate {
-                            id: roundedBFB
-                            Layout.fillWidth: true
-                            text: "Rounded Launcher Button"
-                            onCheckedChanged: shell.settings.roundedBFB = checked
+                    QQC2.CheckDelegate {
+                        id: roundedBFB
+                        Layout.fillWidth: true
+                        text: "Rounded Launcher Button"
+                        onCheckedChanged: shell.settings.roundedBFB = checked
+                        Binding {
+                            target: roundedBFB
+                            property: "checked"
+                            value: shell.settings.roundedBFB
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: useCustomBFBColor
+                        Layout.fillWidth: true
+                        text: "Custom BFB Color"
+                        onCheckedChanged: shell.settings.useCustomBFBColor = checked
+                        Binding {
+                            target: useCustomBFBColor
+                            property: "checked"
+                            value: shell.settings.useCustomBFBColor
+                        }
+                    }
+                    LPColorField {
+                        id: customBFBColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomBFBColor
+                        onTextChanged: shell.settings.customBFBColor = text
+                        onColorPicker: colorPickerLoader.open(customBFBColor)
+                        Binding {
+                            target: customBFBColor
+                            property: "text"
+                            value: shell.settings.customBFBColor
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: useNewLogo
+                        Layout.fillWidth: true
+                        text: "Use New Ubuntu Logo"
+                        onCheckedChanged: shell.settings.useNewLogo = checked
+                        Binding {
+                            target: useNewLogo
+                            property: "checked"
+                            value: shell.settings.useNewLogo
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: useLomiriLogo
+                        Layout.fillWidth: true
+                        text: "Use Lomiri Logo"
+                        onCheckedChanged: shell.settings.useLomiriLogo = checked
+                        Binding {
+                            target: useLomiriLogo
+                            property: "checked"
+                            value: shell.settings.useLomiriLogo
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Custom Logo Filename: ~/Pictures/lomiriplus/bfb.svg"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.CheckDelegate {
+                        id: useCustomLogo
+                        Layout.fillWidth: true
+                        text: "Custom Logo (SVG)"
+                        onCheckedChanged: shell.settings.useCustomLogo = checked
+                        Binding {
+                            target: useCustomLogo
+                            property: "checked"
+                            value: shell.settings.useCustomLogo
+                        }
+                    }
+                    QQC2.ItemDelegate {
+                        Layout.fillWidth: true
+                        text: "Logo scale (%)"
+                        visible: shell.settings.useCustomLogo
+                        indicator: QQC2.SpinBox {
+                            id: logScale
+                            anchors {
+                                right: parent.right
+                                rightMargin: units.gu(2)
+                                verticalCenter: parent.verticalCenter
+                            }
+                            from: 5
+                            to: 100
+                            stepSize: 5
+                            onValueChanged: shell.settings.customLogoScale = value
                             Binding {
-                                target: roundedBFB
-                                property: "checked"
-                                value: shell.settings.roundedBFB
+                                target: logScale
+                                property: "value"
+                                value: shell.settings.customLogoScale
                             }
                         }
-                        ,QQC2.CheckDelegate {
-                            id: useCustomBFBColor
-                            Layout.fillWidth: true
-                            text: "Custom BFB Color"
-                            onCheckedChanged: shell.settings.useCustomBFBColor = checked
-                            Binding {
-                                target: useCustomBFBColor
-                                property: "checked"
-                                value: shell.settings.useCustomBFBColor
-                            }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: customLogoColor.visible
+                        text: "Will replace all #ffffff surfaces in the SVG"
+                        Suru.textLevel: Suru.Caption
+                        wrapMode: Text.WordWrap
+                    }
+
+                    LPColorField {
+                        id: customLogoColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        title: "Logo Color"
+                        visible: shell.settings.useCustomLogo
+                        onTextChanged: shell.settings.customLogoColor = text
+                        onColorPicker: colorPickerLoader.open(this)
+                        Binding {
+                            target: customLogoColor
+                            property: "text"
+                            value: shell.settings.customLogoColor
                         }
-                        ,QQC2.TextField {
-                            id: customBFBColor
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            visible: shell.settings.useCustomBFBColor
-                            onTextChanged: shell.settings.customBFBColor = text
-                            Binding {
-                                target: customBFBColor
-                                property: "text"
-                                value: shell.settings.customBFBColor
-                            }
-                        }
-                        , QQC2.CheckDelegate {
-                            id: useNewLogo
-                            Layout.fillWidth: true
-                            text: "Use New Ubuntu Logo"
-                            onCheckedChanged: shell.settings.useNewLogo = checked
-                            Binding {
-                                target: useNewLogo
-                                property: "checked"
-                                value: shell.settings.useNewLogo
-                            }
-                        }
-                        , QQC2.CheckDelegate {
-                            id: useLomiriLogo
-                            Layout.fillWidth: true
-                            text: "Use Lomiri Logo"
-                            onCheckedChanged: shell.settings.useLomiriLogo = checked
-                            Binding {
-                                target: useLomiriLogo
-                                property: "checked"
-                                value: shell.settings.useLomiriLogo
-                            }
-                        }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            text: "Custom Logo Filename: ~/Pictures/lomiriplus/bfb.svg"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
-                        }
-                        ,QQC2.CheckDelegate {
-                            id: useCustomLogo
-                            Layout.fillWidth: true
-                            text: "Custom Logo (SVG)"
-                            onCheckedChanged: shell.settings.useCustomLogo = checked
-                            Binding {
-                                target: useCustomLogo
-                                property: "checked"
-                                value: shell.settings.useCustomLogo
-                            }
-                        }
-                        ,QQC2.ItemDelegate {
-                            Layout.fillWidth: true
-                            text: "Logo scale (%)"
-                            visible: shell.settings.useCustomLogo
-                            indicator: QQC2.SpinBox {
-                                id: logScale
-                                anchors {
-                                    right: parent.right
-                                    rightMargin: units.gu(2)
-                                    verticalCenter: parent.verticalCenter
-                                }
-                                from: 5
-                                to: 100
-                                stepSize: 5
-                                onValueChanged: shell.settings.customLogoScale = value
-                                Binding {
-                                    target: logScale
-                                    property: "value"
-                                    value: shell.settings.customLogoScale
-                                }
-                            }
-                        }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            visible: customLogoColorItem.visible
-                            text: "Will replace all #ffffff surfaces in the SVG"
-                            Suru.textLevel: Suru.Caption
-                            wrapMode: Text.WordWrap
-                        }
-                        ,QQC2.ItemDelegate {
-                            id: customLogoColorItem
-                            Layout.fillWidth: true
-                            text: "Logo Color"
-                            visible: shell.settings.useCustomLogo
-                            indicator: QQC2.TextField {
-                                id: customLogoColor
-                                anchors {
-                                    right: parent.right
-                                    rightMargin: units.gu(2)
-                                    verticalCenter: parent.verticalCenter
-                                }
-                                onTextChanged: shell.settings.customLogoColor = text
-                                Binding {
-                                    target: customLogoColor
-                                    property: "text"
-                                    value: shell.settings.customLogoColor
-                                }
-                            }
-                        }
-                    ]
+                    }
                 }
             }
         }
     }
     Component {
         id: featuresPage
+
+        LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Quick toggles"
+                onClicked: settingsLoader.item.stack.push(quickTogglesPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Dynamic Cove"
+                onClicked: settingsLoader.item.stack.push(dynamicCovePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Indicator Open Gesture"
+                onClicked: settingsLoader.item.stack.push(indicatorOpenPage, {"title": text})
+            }
+            QQC2.CheckDelegate {
+                id: enableSideStage
+                Layout.fillWidth: true
+                text: "Side-Stage"
+                onCheckedChanged: shell.settings.enableSideStage = checked
+                Binding {
+                    target: enableSideStage
+                    property: "checked"
+                    value: shell.settings.enableSideStage
+                }
+            }
+            QQC2.CheckDelegate {
+                id: orientationPrompt
+                Layout.fillWidth: true
+                text: "Screen Rotation Button"
+                onCheckedChanged: shell.settings.orientationPrompt = checked
+                Binding {
+                    target: orientationPrompt
+                    property: "checked"
+                    value: shell.settings.orientationPrompt
+                }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Requires: Right punchholes, Notch Side Margin, Exact Punchhole Width, Punchhole Height From Top"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: batteryCircleCheck
+                Layout.fillWidth: true
+                text: "Punchhole Battery Indicator"
+                onCheckedChanged: shell.settings.batteryCircle = checked
+                Binding {
+                    target: batteryCircleCheck
+                    property: "checked"
+                    value: shell.settings.batteryCircle
+                }
+            }
+        }
+    }
+    Component {
+        id: indicatorOpenPage
         
         LPSettingsPage {
-            settingsItems: [
-                QQC2.CheckDelegate {
-                    id: enableSideStage
-                    Layout.fillWidth: true
-                    text: "Side-Stage"
-                    onCheckedChanged: shell.settings.enableSideStage = checked
-                    Binding {
-                        target: enableSideStage
-                        property: "checked"
-                        value: shell.settings.enableSideStage
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Swipe from the very bottom of left/right edge to open the application menu/indicator panel\n\n"
+                + " • Default: Indicator panel or application menu opens after swiping\n"
+                + " • Direct Access (Only for indicators): Swipe and drag to select a specific predefined indicator. Release to select. "
+                + "Quick short swipe will open the Notifications/Messages Indicator"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: indicatorGesture
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.indicatorGesture = checked
+                Binding {
+                    target: indicatorGesture
+                    property: "checked"
+                    value: shell.settings.indicatorGesture
+                }
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Direct Access"
+                onClicked: settingsLoader.item.stack.push(directAccessPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: directAccessPage
+        
+        LPSettingsPage {
+            QQC2.CheckDelegate {
+                id: specificIndicatorGesture
+                Layout.fillWidth: true
+                text: "Enable"
+                visible: shell.settings.indicatorGesture
+                onCheckedChanged: shell.settings.specificIndicatorGesture = checked
+                Binding {
+                    target: specificIndicatorGesture
+                    property: "checked"
+                    value: shell.settings.specificIndicatorGesture
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.preferredHeight: units.gu(8)
+                text: "Indicators:\n"
+                + "Click the item and not the checkbox :)\n"
+                + "Avoid enabling too many items"
+                verticalAlignment: Text.AlignVCenter
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.preferredHeight: contentHeight
+
+                interactive: false
+                model: shell.settings.directAccessIndicators
+
+                ViewItems.dragMode: true
+                ViewItems.selectMode: true
+                ViewItems.onDragUpdated: {
+                    if (event.status == ListItemDrag.Started) {
+                        if (model[event.from] == "Immutable")
+                            event.accept = false;
+                        return;
+                    }
+                    if (model[event.to] == "Immutable") {
+                        event.accept = false;
+                        return;
+                    }
+                    // No instantaneous updates
+                    if (event.status == ListItemDrag.Moving) {
+                        event.accept = false;
+                        return;
+                    }
+                    if (event.status == ListItemDrag.Dropped) {
+                        var fromItem = model[event.from];
+                        var list = model;
+                        list.splice(event.from, 1);
+                        list.splice(event.to, 0, fromItem);
+                        shell.settings.directAccessIndicators = list;
                     }
                 }
-                ,QQC2.Label {
-                    Layout.fillWidth: true
-                    Layout.margins: units.gu(2)
-                    text: "Swipe from the very bottom of left/right edge to open the application menu/indicator panel"
-                    wrapMode: Text.WordWrap
-                    Suru.textLevel: Suru.Caption
-                }
-                ,QQC2.CheckDelegate {
-                    id: indicatorGesture
-                    Layout.fillWidth: true
-                    text: "Bottom Side Gestures"
-                    onCheckedChanged: shell.settings.indicatorGesture = checked
-                    Binding {
-                        target: indicatorGesture
-                        property: "checked"
-                        value: shell.settings.indicatorGesture
+                delegate: ListItem {
+                    height: layout.height + (divider.visible ? divider.height : 0)
+                    color: dragging ? theme.palette.selected.base : "transparent"
+                    selected: modelData.enabled
+                    onClicked: {
+                        let arrNewValues = shell.settings.directAccessIndicators.slice()
+                        arrNewValues[model.index].enabled = !selected
+                        shell.settings.directAccessIndicators = arrNewValues
+                    }
+
+                    ListItemLayout {
+                        id: layout
+                        title.text:  shell.indicatorLabel(shell.indicatorsModel[modelData.id].identifier)
                     }
                 }
-                ,QQC2.CheckDelegate {
-                    id: orientationPrompt
-                    Layout.fillWidth: true
-                    text: "Screen Rotation Button"
-                    onCheckedChanged: shell.settings.orientationPrompt = checked
-                    Binding {
-                        target: orientationPrompt
-                        property: "checked"
-                        value: shell.settings.orientationPrompt
-                    }
+            }
+        }
+    }
+    Component {
+        id: dynamicCovePage
+        
+        LPSettingsPage {
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Enables different functions inside the lockscreen circle\n"
+                + "Media controls, Timer, Stopwatch, Clock, etc\n\n"
+                + "Press and drag on the dotted cirlce to select a function"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: enableDynamicCove
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableDynamicCove = checked
+                Binding {
+                    target: enableDynamicCove
+                    property: "checked"
+                    value: shell.settings.enableDynamicCove
                 }
-                ,QQC2.Label {
-                    Layout.fillWidth: true
-                    Layout.margins: units.gu(2)
-                    text: "Requires: Right punchholes, Notch Side Margin, Exact Punchhole Width, Punchhole Height From Top"
-                    wrapMode: Text.WordWrap
-                    Suru.textLevel: Suru.Caption
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Entering the lockscreen will always show the clock\n"
+                + "Otherwise, the last selected will be shown"
+                wrapMode: Text.WordWrap
+                visible: dcShowClockWhenLockscreen.visible
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: dcShowClockWhenLockscreen
+                Layout.fillWidth: true
+                text: "Always prefer to show clock"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.dcShowClockWhenLockscreen = checked
+                Binding {
+                    target: dcShowClockWhenLockscreen
+                    property: "checked"
+                    value: shell.settings.dcShowClockWhenLockscreen
                 }
-                ,QQC2.CheckDelegate {
-                    id: batteryCircleCheck
-                    Layout.fillWidth: true
-                    text: "Punchhole Battery Indicator"
-                    onCheckedChanged: shell.settings.batteryCircle = checked
-                    Binding {
-                        target: batteryCircleCheck
-                        property: "checked"
-                        value: shell.settings.batteryCircle
-                    }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Press and hold to toggle disco mode"
+                wrapMode: Text.WordWrap
+                visible: enableCDPlayerDiscoCheck.visible
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: enableCDPlayerDiscoCheck
+                Layout.fillWidth: true
+                text: "Enable Disco mode in media controls"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.enableCDPlayerDisco = checked
+                Binding {
+                    target: enableCDPlayerDiscoCheck
+                    property: "checked"
+                    value: shell.settings.enableCDPlayerDisco
                 }
-            ]
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "For playlists to work, create a symlink of the music app's database files\n"
+                + "Source: /home/phablet/.local/share/com.ubuntu.music/Databases/\n"
+                + "Destination: /home/phablet/.local/share/Canonical/unity8/QML/OfflineStorage/Databases/\n"
+                + "Files:"
+                + " - 2be3974e34f63282a99a37e9e2077ee4.sqlite\n"
+                + " - 2be3974e34f63282a99a37e9e2077ee4.ini\n"
+                + " - d332dbaaf4b3a1a7909b1d623eb1d02b.sqlite\n"
+                + " - d332dbaaf4b3a1a7909b1d623eb1d02b.ini"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+        }
+    }
+    Component {
+        id: quickTogglesPage
+        
+        LPSettingsPage {
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Located at the bottom of Top Panel pages\n"
+                + "Single click: Toggles the setting\n"
+                + "Press and hold: Opens corresponding indicator panel or settings page\n"
+                + "Swipe up/down: Expands/Collapses the toggles list\n"
+                + "Press and hold on empty space: Enter/Exit edit mode\n"
+                + "Press and hold then drag to rearrange items"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: quickTogglesTopPanel
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableQuickToggles = checked
+                Binding {
+                    target: quickTogglesTopPanel
+                    property: "checked"
+                    value: shell.settings.enableQuickToggles
+                }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: gestureMediaControls.visible
+                text: "Single click: Play/Pause\n"
+                + "Swipe left/right: Play next/previous song"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: gestureMediaControls
+                Layout.fillWidth: true
+                text: "Gesture-mode media controls"
+                visible: shell.settings.enableQuickToggles
+                onCheckedChanged: shell.settings.gestureMediaControls = checked
+                Binding {
+                    target: gestureMediaControls
+                    property: "checked"
+                    value: shell.settings.gestureMediaControls
+                }
+            }
         }
     }
     Component {
         id: devicePage
         
         LPSettingsPage {
-            settingsItems: [
-                QQC2.Label {
-                    Layout.fillWidth: true
-                    Layout.margins: units.gu(2)
-                    text: "Most configuration only takes effect when your device doesn't have pre-configuration"
-                    wrapMode: Text.WordWrap
-                }
-                , Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: units.dp(1)
-                    color: Suru.neutralColor
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Notch / Punchhole"
-                    onClicked: settingsLoader.item.stack.push(notchpage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Punchhole Battery (Experimental)"
-                    onClicked: settingsLoader.item.stack.push(punchPage, {"title": text})
-                }
-                ,LPSettingsNavItem {
-                    Layout.fillWidth: true
-                    text: "Rounded Corners"
-                    onClicked: settingsLoader.item.stack.push(cornerPage, {"title": text})
-                }
-            ]
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Most configuration only takes effect when your device doesn't have pre-configuration"
+                wrapMode: Text.WordWrap
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Notch / Punchhole"
+                onClicked: settingsLoader.item.stack.push(notchpage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Punchhole Battery (Experimental)"
+                onClicked: settingsLoader.item.stack.push(punchPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Rounded Corners"
+                onClicked: settingsLoader.item.stack.push(cornerPage, {"title": text})
+            }
+
             Component {
                 id: notchpage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.ItemDelegate {
-                            id: notchPositionItem
-                            readonly property bool notchEnabled: shell.settings.notchPosition > 0
-                            Layout.fillWidth: true
-                            text: "Notch Position"
-                            indicator: QQC2.SpinBox {
-                                id: notchPosition
-                                anchors {
-                                    right: parent.right
-                                    rightMargin: units.gu(2)
-                                    verticalCenter: parent.verticalCenter
-                                }
-                                from: 0
-                                to: 3
-                                stepSize: 1
-                                textFromValue: function(value, locale) {
-                                                    switch (value) {
-                                                        case 0:
-                                                            return "None"
-                                                        case 1:
-                                                            return "Middle"
-                                                        case 2:
-                                                            return "Left"
-                                                        case 3:
-                                                            return "Right"
-                                                    }
-                                               }
-                                valueFromText: function(text, locale) {
-                                                    switch (text) {
-                                                        case "None":
-                                                            return 0
-                                                        case "Middle":
-                                                            return 1
-                                                        case "Left":
-                                                            return 2
-                                                        case "Right":
-                                                            return 3
-                                                    }
-                                               }
-                                onValueChanged: shell.settings.notchPosition = value
-                                Binding {
-                                    target: notchPosition
-                                    property: "value"
-                                    value: shell.settings.notchPosition
-                                }
+                    QQC2.ItemDelegate {
+                        id: notchPositionItem
+                        readonly property bool notchEnabled: shell.settings.notchPosition > 0
+                        Layout.fillWidth: true
+                        text: "Notch Position"
+                        indicator: QQC2.SpinBox {
+                            id: notchPosition
+                            anchors {
+                                right: parent.right
+                                rightMargin: units.gu(2)
+                                verticalCenter: parent.verticalCenter
                             }
-                        }
-                        ,QQC2.CheckDelegate {
-                            id: fullyHideNotchInNative
-                            Layout.fillWidth: true
-                            visible: notchPositionItem.notchEnabled
-                            text: "Fully hide notch in native orientation"
-                            onCheckedChanged: shell.settings.fullyHideNotchInNative = checked
-                            Binding {
-                                target: fullyHideNotchInNative
-                                property: "checked"
-                                value: shell.settings.fullyHideNotchInNative
-                            }
-                        }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            verticalAlignment: QQC2.Label.AlignVCenter
-                            visible: notchPositionItem.notchEnabled
-                            text: "Notch Top Margin"
-                        }
-                        ,QQC2.SpinBox {
-                            id: notchHeightMargin
-                            Layout.fillWidth: true
-                            Layout.topMargin: 0
-                            Layout.margins: units.gu(2)
-                            visible: notchPositionItem.notchEnabled
-                            editable: true
                             from: 0
-                            to: 400
-                            stepSize: 10
-                            onValueChanged: shell.settings.notchHeightMargin = value
+                            to: 3
+                            stepSize: 1
+                            textFromValue: function(value, locale) {
+                                                switch (value) {
+                                                    case 0:
+                                                        return "None"
+                                                    case 1:
+                                                        return "Middle"
+                                                    case 2:
+                                                        return "Left"
+                                                    case 3:
+                                                        return "Right"
+                                                }
+                                           }
+                            valueFromText: function(text, locale) {
+                                                switch (text) {
+                                                    case "None":
+                                                        return 0
+                                                    case "Middle":
+                                                        return 1
+                                                    case "Left":
+                                                        return 2
+                                                    case "Right":
+                                                        return 3
+                                                }
+                                           }
+                            onValueChanged: shell.settings.notchPosition = value
                             Binding {
-                                target: notchHeightMargin
+                                target: notchPosition
                                 property: "value"
-                                value: shell.settings.notchHeightMargin
+                                value: shell.settings.notchPosition
                             }
                         }
-                        , Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: units.dp(1)
-                            color: Suru.neutralColor
-                            visible: notchPositionItem.notchEnabled
+                    }
+                    QQC2.CheckDelegate {
+                        id: fullyHideNotchInNative
+                        Layout.fillWidth: true
+                        visible: notchPositionItem.notchEnabled
+                        text: "Fully hide notch in native orientation"
+                        onCheckedChanged: shell.settings.fullyHideNotchInNative = checked
+                        Binding {
+                            target: fullyHideNotchInNative
+                            property: "checked"
+                            value: shell.settings.fullyHideNotchInNative
                         }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            verticalAlignment: QQC2.Label.AlignVCenter
-                            visible: notchPositionItem.notchEnabled
-                            text: "Notch Side Margin"
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        verticalAlignment: QQC2.Label.AlignVCenter
+                        visible: notchPositionItem.notchEnabled
+                        text: "Notch Top Margin"
+                    }
+                    QQC2.SpinBox {
+                        id: notchHeightMargin
+                        Layout.fillWidth: true
+                        Layout.topMargin: 0
+                        Layout.margins: units.gu(2)
+                        visible: notchPositionItem.notchEnabled
+                        editable: true
+                        from: 0
+                        to: 400
+                        stepSize: 10
+                        onValueChanged: shell.settings.notchHeightMargin = value
+                        Binding {
+                            target: notchHeightMargin
+                            property: "value"
+                            value: shell.settings.notchHeightMargin
                         }
-                        ,QQC2.SpinBox {
-                            id: notchWidthMargin
-                            Layout.fillWidth: true
-                            Layout.topMargin: 0
-                            Layout.margins: units.gu(2)
-                            visible: notchPositionItem.notchEnabled
-                            editable: true
-                            from: 0
-                            to: 400
-                            stepSize: 10
-                            onValueChanged: shell.settings.notchWidthMargin = value
-                            Binding {
-                                target: notchWidthMargin
-                                property: "value"
-                                value: shell.settings.notchWidthMargin
-                            }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: units.dp(1)
+                        color: Suru.neutralColor
+                        visible: notchPositionItem.notchEnabled
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        verticalAlignment: QQC2.Label.AlignVCenter
+                        visible: notchPositionItem.notchEnabled
+                        text: "Notch Side Margin"
+                    }
+                    QQC2.SpinBox {
+                        id: notchWidthMargin
+                        Layout.fillWidth: true
+                        Layout.topMargin: 0
+                        Layout.margins: units.gu(2)
+                        visible: notchPositionItem.notchEnabled
+                        editable: true
+                        from: 0
+                        to: 400
+                        stepSize: 10
+                        onValueChanged: shell.settings.notchWidthMargin = value
+                        Binding {
+                            target: notchWidthMargin
+                            property: "value"
+                            value: shell.settings.notchWidthMargin
                         }
-                    ]
+                    }
                 }
             }
             Component {
                 id: punchPage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            verticalAlignment: QQC2.Label.AlignVCenter
-                            text: "Exact Punchhole Width"
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        verticalAlignment: QQC2.Label.AlignVCenter
+                        text: "Exact Punchhole Width"
+                    }
+                    QQC2.SpinBox {
+                        id: punchHoleWidth
+                        Layout.fillWidth: true
+                        Layout.topMargin: 0
+                        Layout.margins: units.gu(2)
+                        editable: true
+                        from: 0
+                        to: 300
+                        stepSize: 10
+                        onValueChanged: shell.settings.punchHoleWidth = value
+                        Binding {
+                            target: punchHoleWidth
+                            property: "value"
+                            value: shell.settings.punchHoleWidth
                         }
-                        ,QQC2.SpinBox {
-                            id: punchHoleWidth
-                            Layout.fillWidth: true
-                            Layout.topMargin: 0
-                            Layout.margins: units.gu(2)
-                            editable: true
-                            from: 0
-                            to: 300
-                            stepSize: 10
-                            onValueChanged: shell.settings.punchHoleWidth = value
-                            Binding {
-                                target: punchHoleWidth
-                                property: "value"
-                                value: shell.settings.punchHoleWidth
-                            }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: units.dp(1)
+                        color: Suru.neutralColor
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        verticalAlignment: QQC2.Label.AlignVCenter
+                        text: "Punchhole Height From Top"
+                    }
+                    QQC2.SpinBox {
+                        id: punchHoleHeightFromTop
+                        Layout.fillWidth: true
+                        Layout.topMargin: 0
+                        Layout.margins: units.gu(2)
+                        editable: true
+                        from: 0
+                        to: 200
+                        stepSize: 5
+                        onValueChanged: shell.settings.punchHoleHeightFromTop = value
+                        Binding {
+                            target: punchHoleHeightFromTop
+                            property: "value"
+                            value: shell.settings.punchHoleHeightFromTop
                         }
-                        , Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: units.dp(1)
-                            color: Suru.neutralColor
-                        }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            verticalAlignment: QQC2.Label.AlignVCenter
-                            text: "Punchhole Height From Top"
-                        }
-                        ,QQC2.SpinBox {
-                            id: punchHoleHeightFromTop
-                            Layout.fillWidth: true
-                            Layout.topMargin: 0
-                            Layout.margins: units.gu(2)
-                            editable: true
-                            from: 0
-                            to: 200
-                            stepSize: 5
-                            onValueChanged: shell.settings.punchHoleHeightFromTop = value
-                            Binding {
-                                target: punchHoleHeightFromTop
-                                property: "value"
-                                value: shell.settings.punchHoleHeightFromTop
-                            }
-                        }
-                        , Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: units.dp(1)
-                            color: Suru.neutralColor
-                        }
-                    ]
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: units.dp(1)
+                        color: Suru.neutralColor
+                    }
                 }
             }
             Component {
                 id: cornerPage
                 
                 LPSettingsPage {
-                    settingsItems: [
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            text: "Only necessary or has effects when a notch/punchhole is configured"
-                            wrapMode: Text.WordWrap
-                            Suru.textLevel: Suru.Caption
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Only necessary or has effects when a notch/punchhole is configured"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.Caption
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        verticalAlignment: QQC2.Label.AlignVCenter
+                        text: "Corner Radius"
+                    }
+                    QQC2.SpinBox {
+                        id: roundedCornerRadius
+                        Layout.fillWidth: true
+                        Layout.topMargin: 0
+                        Layout.margins: units.gu(2)
+                        editable: true
+                        from: 0
+                        to: 500
+                        stepSize: 10
+                        onValueChanged: shell.settings.roundedCornerRadius = value
+                        Binding {
+                            target: roundedCornerRadius
+                            property: "value"
+                            value: shell.settings.roundedCornerRadius
                         }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            verticalAlignment: QQC2.Label.AlignVCenter
-                            text: "Corner Radius"
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: units.dp(1)
+                        color: Suru.neutralColor
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        verticalAlignment: QQC2.Label.AlignVCenter
+                        text: "Corner Margin"
+                    }
+                    QQC2.SpinBox {
+                        id: roundedCornerMargin
+                        Layout.fillWidth: true
+                        Layout.topMargin: 0
+                        Layout.margins: units.gu(2)
+                        editable: true
+                        from: 0
+                        to: 200
+                        stepSize: 5
+                        onValueChanged: shell.settings.roundedCornerMargin = value
+                        Binding {
+                            target: roundedCornerMargin
+                            property: "value"
+                            value: shell.settings.roundedCornerMargin
                         }
-                        ,QQC2.SpinBox {
-                            id: roundedCornerRadius
-                            Layout.fillWidth: true
-                            Layout.topMargin: 0
-                            Layout.margins: units.gu(2)
-                            editable: true
-                            from: 0
-                            to: 500
-                            stepSize: 10
-                            onValueChanged: shell.settings.roundedCornerRadius = value
-                            Binding {
-                                target: roundedCornerRadius
-                                property: "value"
-                                value: shell.settings.roundedCornerRadius
-                            }
-                        }
-                        , Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: units.dp(1)
-                            color: Suru.neutralColor
-                        }
-                        ,QQC2.Label {
-                            Layout.fillWidth: true
-                            Layout.margins: units.gu(2)
-                            verticalAlignment: QQC2.Label.AlignVCenter
-                            text: "Corner Margin"
-                        }
-                        ,QQC2.SpinBox {
-                            id: roundedCornerMargin
-                            Layout.fillWidth: true
-                            Layout.topMargin: 0
-                            Layout.margins: units.gu(2)
-                            editable: true
-                            from: 0
-                            to: 200
-                            stepSize: 5
-                            onValueChanged: shell.settings.roundedCornerMargin = value
-                            Binding {
-                                target: roundedCornerMargin
-                                property: "value"
-                                value: shell.settings.roundedCornerMargin
-                            }
-                        }
-                    ]
+                    }
                 }
             }
         }
     }
     // ENH046 - End
+    // ENH064 - Dynamic Cove
+    Settings {
+        id: clockAppSettings
+
+        fileName: "/home/phablet/.config/com.ubuntu.clock/com.ubuntu.clock.conf"
+        Component.onCompleted: alarm.defaultSound = value("defaultAlarmSound", "file:///usr/share/sounds/ubuntu/ringtones/Alarm clock.ogg")
+    }
+    Alarm {
+        id: alarm
+
+        readonly property string defaultId: "[LomiriPlus] Current Timer"
+        property url defaultSound: "file:///usr/share/sounds/ubuntu/ringtones/Ubuntu.ogg"
+
+        onStatusChanged: {
+            if (status !== Alarm.Ready)
+                return
+            if ((operation > Alarm.NoOperation)
+                    && (operation < Alarm.Reseting)) {
+                reset()
+            }
+        }
+    }
+
+    AlarmModel {
+        id: alarmModel
+    }
+
+    Loader {
+        id: mediaPlayerLoader
+
+        active: shell.settings.enableDynamicCove
+        asynchronous: true
+        sourceComponent: Component {
+            Item {
+                id: mediaPlayer
+                
+                readonly property bool isReady: allSongsModelModel.status === SongsModel.Ready
+                readonly property alias musicStore: musicStore
+                readonly property bool isPlaying: mediaPlayerObject.playbackState == MediaPlayer.PlayingState
+                readonly property bool isPaused: mediaPlayerObject.playbackState == MediaPlayer.PausedState
+                readonly property bool isStopped: mediaPlayerObject.playbackState == MediaPlayer.StoppedState
+                readonly property bool noMedia: mediaPlayerObject.status == MediaPlayer.NoMedia
+
+                property string currentPlaylist: ""
+
+                // Clear the queue and play a random track from this model
+                // - user has selected "Shuffle" in album/artists or "Tap to play random"
+                function playRandomSong(model) {
+                    // If no model is given use all the tracks
+                    if (model === undefined) {
+                        model = allSongsModel;
+                    }
+
+                    mediaPlayerObject.playlist.clearWrapper();
+                    mediaPlayerObject.playlist.addItemsFromModel(model);
+
+                    // Once the model count has been reached in the queue
+                    // shuffle the model
+                    mediaPlayerObject.playlist.setPendingShuffle(model.count);
+                }
+
+                function play() {
+                    mediaPlayerObject.play()
+                }
+
+                function clear() {
+                    mediaPlayerObject.playlist.clearWrapper()
+                }
+
+                MediaStore {
+                    id: musicStore
+                }
+
+                SortFilterModel {
+                    id: allSongsModel
+
+                    property alias rowCount: allSongsModelModel.rowCount
+                    model: SongsModel {
+                        id: allSongsModelModel
+
+                        store: musicStore
+                    }
+                    sort.property: "title"
+                    sort.order: Qt.AscendingOrder
+                    sortCaseSensitivity: Qt.CaseInsensitive
+                }
+
+                MediaPlayer {
+                    id: mediaPlayerObject
+
+                    playlist: Playlist {
+                        id: mediaPlayerPlaylist
+
+                        playbackMode: Playlist.Random
+
+                        readonly property int count: itemCount  // header actions etc depend on the model having 'count'
+                        readonly property bool empty: itemCount === 0
+                        property int pendingCurrentIndex: -1
+                        property var pendingCurrentState: null
+                        property int pendingShuffle: -1
+                        
+                        // as that doesn't emit changes
+                        readonly property bool canGoPrevious: {  // FIXME: pad.lv/1517580 use previousIndex() > -1 after mh implements it
+                            currentIndex !== 0 ||
+                            mediaPlayerObject.position > 5000
+                        }
+                        readonly property bool canGoNext: {  // FIXME: pad.lv/1517580 use nextIndex() > -1 after mh implements it
+                            currentIndex !== (itemCount - 1)
+                        }
+
+                        function addItemsFromModel(model) {
+                            var items = []
+
+                            // TODO: remove once playlists uses U1DB
+                            if (model.hasOwnProperty("linkLibraryListModel")) {
+                                model = model.linkLibraryListModel;
+                            }
+
+                            for (var i=0; i < model.rowCount; i++) {
+                                items.push(Qt.resolvedUrl(model.get(i, model.RoleModelData).filename));
+                            }
+
+                            mediaPlayerObject.playlist.addItems(items);
+                        }
+
+                        // Wrap the clear() method because we need to call stop first
+                        function clearWrapper() {
+                            // Stop the current playback (this ensures that play is run later)
+                            if (mediaPlayerObject.playbackState === MediaPlayer.PlayingState) {
+                                mediaPlayerObject.stop();
+                            }
+
+                            return console.log("Clear Playlist: " + clear())
+                        }
+
+                        // Replicates a model.get() on a ms2 model
+                        function get(index, role) {
+                            return metaForSource(itemSource(index));
+                        }
+
+                        // Wrap the next() method so we can check canGoNext
+                        function nextWrapper() {
+                            if (canGoNext) {
+                                next();
+                            }
+                        }
+
+                        // Wrap the previous() method so we can check canGoPrevious
+                        function previousWrapper() {
+                            if (canGoPrevious) {
+                                previous();
+                            }
+                        }
+
+                        // Process the pending current PlaybackState
+                        function processPendingCurrentState() {
+                            if (pendingCurrentState === MediaPlayer.PlayingState) {
+                                console.debug("Loading pending state play()");
+                                mediaPlayerObject.play();
+                            } else if (pendingCurrentState === MediaPlayer.PausedState) {
+                                console.debug("Loading pending state pause()");
+                                mediaPlayerObject.pause();
+                            } else if (pendingCurrentState === MediaPlayer.StoppedState) {
+                                console.debug("Loading pending state stop()");
+                                mediaPlayerObject.stop();
+                            }
+
+                            pendingCurrentState = null;
+                        }
+
+                        function setPendingShuffle(modelSize) {
+                            // Run next() and play() when the modelSize is reached
+                            if (modelSize <= itemCount) {
+                                mediaPlayerPlaylist.nextWrapper();  // find a random track
+                                mediaPlayerObject.play();  // next does not enforce play
+                            } else {
+                                pendingShuffle = modelSize;
+                            }
+                        }
+                    }
+
+                    property bool endOfMedia: false
+
+                    onStatusChanged: {
+                        if (status == MediaPlayer.EndOfMedia && settings.repeat == "none") {
+                            console.debug("End of media, stopping.")
+
+                            // Tells the onStopped to set the curentIndex = 0
+                            endOfMedia = true;
+
+                            stop();
+                        }
+                    }
+
+                    function toggle() {
+                        if (playbackState === MediaPlayer.PlayingState) {
+                            pause();
+                        } else {
+                            play();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // ENH064 - End
     
     // ENH002 - Notch/Punch hole fix
     DeviceConfiguration {
@@ -1858,9 +2997,11 @@ StyledItem {
 
     // ENH028 - Open indicators via gesture
     Loader {
+        id: indicatorSwipeLoader
+
         active: shell.settings.indicatorGesture
         asynchronous: true
-        height: (Screen.pixelDensity * 25.4) * 0.5 // 0.5 inch
+        height: shell.convertFromInch(0.3) // 0.3 inch
         width: shell.edgeSize
         z: greeter.fullyShown ? greeter.z + 1 : overlay.z - 1
         anchors {
@@ -1872,20 +3013,62 @@ StyledItem {
             id: indicatorsBottomSwipe
             
             // draggingCustom is used for implementing trigger delay
-            property bool draggingCustom: distance >= units.gu(4) 
-            
-            signal triggered
+            readonly property bool partialWidth: thresholdWidth == maxThresholdWidth
+            readonly property real customThreshold: shell.convertFromInch(0.2) // 0.3 inch
+            readonly property real maxThresholdWidth: shell.convertFromInch(3) // 3 inches //units.gu(50)
+            readonly property real thresholdWidth: Math.min(shell.width, maxThresholdWidth)
+            readonly property int stagesCount: indicatorBottomItemsLoader.model.length
+            readonly property real stageWidth: thresholdWidth / stagesCount
+            readonly property bool fineControl: shell.settings.specificIndicatorGesture
+            readonly property var highlightedItem: indicatorBottomItemsLoader.item
+                                    ? indicatorBottomItemsLoader.item.childAt(indicatorBottomItemsLoader.item.width
+                                                                              - indicatorSwipeLoader.item.distance
+                                                                              + (partialWidth ? customThreshold : 0)
+                                                                              , 0)
+                                    : null
+            property bool draggingCustom: distance >= customThreshold
+            property bool triggerDirectAccess: false
+
             enabled: !shell.immersiveMode
             direction: SwipeArea.Leftwards
             immediateRecognition: true
             
             onDraggingCustomChanged: {
-                if(dragging){
-                    triggered()
+                if(dragging && !fineControl){
+                    trigger(-1)
                 }	
             }
-            
-            onTriggered: panel.indicators.openAsInverted()
+
+            onDraggingChanged: {
+                if (!dragging) {
+                    if (fineControl && draggingCustom) {
+                        if (highlightedItem && triggerDirectAccess) {
+                            trigger(shell.indicatorsModel[highlightedItem.itemId].indicatorIndex)
+                        } else {
+                            trigger(0)
+                        }
+                    }
+                    triggerDirectAccess = false
+                    swipeTriggerDelay.stop()
+                } else {
+                    swipeTriggerDelay.restart()
+                }
+            }
+
+            function trigger(index) {
+                panel.indicators.openAsInverted(index)
+                shell.haptics.play()
+            }
+
+            // Delay showing direct access to enable quick short swipe to always open notifications
+            // and quick access to quick toggles
+            Timer {
+                id: swipeTriggerDelay
+
+                interval: 200
+                running: false
+                onTriggered: indicatorsBottomSwipe.triggerDirectAccess = true
+            }
 
             Rectangle {
                 // Visualize
@@ -1895,11 +3078,108 @@ StyledItem {
             }
         }
     }
+
+    Loader {
+        id: indicatorBottomItemsLoader
+        
+        property var model: shell.settings.directAccessIndicators
+
+        active: shell.settings.indicatorGesture && shell.settings.specificIndicatorGesture
+        asynchronous: true
+        z: overlay.z + 1
+        width: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.thresholdWidth : parent.width
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.height : 0
+            horizontalCenter: parent.horizontalCenter
+        }
+
+        state: "full"
+        states: [
+            State {
+                name: "full"
+                AnchorChanges {
+                    target: indicatorBottomItemsLoader
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.right: undefined
+                    anchors.left: undefined
+                }
+                PropertyChanges {
+                    target: indicatorBottomItemsLoader
+                    anchors.rightMargin: 0
+                }
+            }
+            , State {
+                name: "partial"
+                when: indicatorSwipeLoader.item && indicatorSwipeLoader.item.partialWidth
+                AnchorChanges {
+                    target: indicatorBottomItemsLoader
+                    anchors.horizontalCenter: undefined
+                    anchors.right: parent.right
+                }
+                PropertyChanges {
+                    target: indicatorBottomItemsLoader
+                    anchors.rightMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.customThreshold : 0
+                }
+            }
+        ]
+
+        sourceComponent: RowLayout {
+            id: indicatorOptions
+
+            layoutDirection: Qt.RightToLeft
+            visible: opacity > 0
+            opacity: indicatorSwipeLoader.item && indicatorSwipeLoader.item.triggerDirectAccess
+                                    && indicatorSwipeLoader.item.draggingCustom ? 1 : 0
+
+            Behavior on opacity { UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration } }
+
+            Repeater {
+                id: indicatorSwipeRepeater
+
+                model: indicatorBottomItemsLoader.model
+
+                Item {
+                    Layout.preferredHeight: units.gu(5)
+                    Layout.fillWidth: true
+
+                    readonly property string itemId: modelData.id
+                    readonly property string itemIcon: shell.indicatorsModel[modelData.id].icon
+                    readonly property bool highlighted: indicatorSwipeLoader.item && indicatorSwipeLoader.item.highlightedItem == this
+                                                            && indicatorOptions.visible 
+
+                    visible: modelData.enabled
+                    scale: highlighted ? 1.2 : 1
+                    Behavior on scale { UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration } }
+
+                    onHighlightedChanged: if (highlighted) shell.haptics.playSubtle()
+
+                    Rectangle {
+                        color: highlighted ? theme.palette.highlighted.foreground : theme.palette.normal.foreground
+                        radius: width / 2
+                        anchors.centerIn: parent
+                        height: parent.height
+                        width: height
+                        opacity: 0.8
+                        Behavior on color { ColorAnimation { duration: UbuntuAnimation.FastDuration } }
+                    }
+                    Icon {
+                        anchors.centerIn: parent
+                        height: units.gu(3)
+                        width: height
+                        name: itemIcon
+                        color: highlighted ? theme.palette.normal.activity : theme.palette.normal.foregroundText
+                        Behavior on color { ColorAnimation { duration: UbuntuAnimation.FastDuration } }
+                    }
+                }
+            }
+        }
+    }
     
     Loader {
         active: shell.settings.indicatorGesture
         asynchronous: true
-        height: (Screen.pixelDensity * 25.4) * 0.5 // 0.5 inch
+        height: shell.convertFromInch(0.3) // 0.3 inch
         width: shell.edgeSize
         z: panel.applicationMenus.fullyOpened ? overlay.z - 1 : overlay.z + 1
         anchors {
@@ -2130,15 +3410,11 @@ StyledItem {
                                         ? shell.shellMargin * 1.5 : units.gu(7)
             // ENH002 - End
             applicationMenuContentX: launcher.lockedVisible ? launcher.panelWidth : 0
-            // ENH030 - Blurred indicator panel
-            blurSource: greeter.shown ? greeter : stages
-            // ENH046 - Lomiri Plus Settings
-            //interactiveBlur: shell.interactiveBlur
-            interactiveBlur: shell.settings.indicatorBlur
-            // ENH046 - End
+            // ENH058 - Interative Blur (Focal)
+            blurSource: shell.settings.indicatorBlur ? (greeter.shown ? greeter : stages) : null
             leftMarginBlur: !greeter.shown ? overlay.anchors.leftMargin : 0
             topMarginBlur: !greeter.shown ? overlay.anchors.topMargin : 0
-            // ENH030 - End
+            // ENH058 - End
             // ENH036 - Use punchole as battery indicator
             batteryCircleEnabled : batteryCircle.visible
             batteryCircleBorder: batteryCircle.borderWidth
@@ -2211,7 +3487,10 @@ StyledItem {
             // lockedVisible: (lockedByUser || shell.atDesktop) && lockAllowed
             lockedVisible: ((lockedByUser && !greeter.locked) || shell.atDesktop) && lockAllowed
             // ENH014 - End
-            blurSource: greeter.shown ? greeter : stages
+            // ENH058 - Interative Blur (Focal)
+            // blurSource: greeter.shown ? greeter : stages
+            blurSource: shell.settings.drawerBlur ? (greeter.shown ? greeter : stages) : null
+            // ENH058 - End
             interactiveBlur: shell.interactiveBlur
             // ENH031 - Blur behavior in Drawer
             leftMarginBlur: overlay.anchors.leftMargin
