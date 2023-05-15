@@ -77,10 +77,18 @@ Rectangle {
                         }
                     }
                     // ENH072 - End
-                    font.family: UI.fontFamily
+                    // ENH091 - Font settings
+                    // font.family: UI.fontFamily
+                    font.family: fullScreenItem.settings.useCustomFont
+                            && fullScreenItem.settings.customFont ? fullScreenItem.settings.customFont
+                                                                  : UI.fontFamily
+                    // ENH091 - End
                     font.weight: textBold ? Font.Bold : Font.Light
                     text: word;
                     anchors.centerIn: parent
+                    // ENH092 - Word ribbon font color
+                    color: fullScreenItem.theme.fontColor
+                    // ENH092 - End
                 }
             }
 

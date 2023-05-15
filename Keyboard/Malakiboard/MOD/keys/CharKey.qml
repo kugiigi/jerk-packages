@@ -150,13 +150,19 @@ Item {
             }
             radius: units.dp(4)
 
-            /// label of the key
+            // label of the key
             //  the label is also the value subitted to the app
 
             Text {
                 id: keyLabel
                 text: (keypad.activeKeypadState === "NORMAL") ? label : shifted;
-                font.family: UI.fontFamily
+                // ENH091 - Font settings
+                // font.family: UI.fontFamily
+                font.family: fullScreenItem.settings.useCustomFont
+                        && fullScreenItem.settings.customFont 
+                        && maliit_input_method.activeLanguage !== "emoji" ? fullScreenItem.settings.customFont
+                                                              : UI.fontFamily
+                // ENH091 - End
                 font.pixelSize: fontSize
                 font.weight: Font.Light
                 color: fullScreenItem.theme.fontColor
@@ -172,7 +178,7 @@ Item {
                 visible: !keypad.hideKeyLabels
             }
 
-            /// shows an annotation
+            // shows an annotation
             // used e.g. for indicating the existence of extended keys
 
             Text {
@@ -183,7 +189,13 @@ Item {
                 anchors.top: parent.top
                 anchors.topMargin: units.gu(UI.annotationTopMargin)
                 anchors.rightMargin: units.gu(UI.annotationRightMargin)
-                font.family: UI.annotationFont
+                // ENH091 - Font settings
+                // font.family: UI.annotationFont
+                font.family: fullScreenItem.settings.useCustomFont
+                        && fullScreenItem.settings.customFont
+                        && maliit_input_method.activeLanguage !== "emoji" ? fullScreenItem.settings.customFont
+                                                              : UI.annotationFont
+                // ENH091 - End
                 font.pixelSize: fontSize / 3
                 font.weight: Font.Light
                 color: fullScreenItem.theme.annotationFontColor

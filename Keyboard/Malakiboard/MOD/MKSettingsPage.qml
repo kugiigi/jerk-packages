@@ -2,11 +2,10 @@
 import QtQuick 2.12
 import QtQuick.Layouts 1.3
 
-Item {
+MKBasePage {
     id: settingsPage
 
     default property alias data: contentColumn.data
-	property string title
 
 	Flickable {
 		id: flickable

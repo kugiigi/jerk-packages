@@ -126,8 +126,11 @@ Item {
         // ENH032 - Infographics Outer Wilds
         visible: !infographic.enableOW
         // ENH032 - End
-
-        width: Math.min(parent.height, parent.width) / divisor
+        // ENH064 - Dynamic Cove
+        // width: Math.min(parent.height, parent.width) / divisor
+        readonly property real maxWidth: units.gu(45)
+        width: Math.min(maxWidth, (Math.min(parent.height, parent.width) / divisor))
+        // ENH064 - End
         height: width
 
         anchors.centerIn: parent

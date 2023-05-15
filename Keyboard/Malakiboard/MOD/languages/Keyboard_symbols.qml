@@ -47,6 +47,27 @@ KeyPad {
             CharKey { label: "0"; shifted: "]"; extended: ["°"]; rightSide: true; }
         }
 
+        // ENH081 - Number row
+        Row {
+            visible: fullScreenItem.settings.showNumberRow
+            anchors.horizontalCenter: parent.horizontalCenter;
+            anchors.margins: 50;
+            height: visible ? implicitHeight : 0
+            spacing: 0
+
+            CharKey { label: "×"; shifted: "•"; leftSide: true; }
+            CharKey { label: "÷"; shifted: "○"; extendedShifted: ["●", "◉", "◌", "◎"]; }
+            CharKey { label: "≠"; shifted: "□"; extendedShifted: ["■", "▣", "▦", "▩"]; }
+            CharKey { label: "≈"; shifted: "◇"; extendedShifted: ["◆", "◈"]; }
+            CharKey { label: "≤"; shifted: "☆"; extendedShifted: ["★"]; }
+            CharKey { label: "≥"; shifted: "△"; extendedShifted: ["▲"]; }
+            CharKey { label: "±"; shifted: "♤"; extendedShifted: ["♠"]; }
+            CharKey { label: "°"; shifted: "♡"; extendedShifted: ["♥"]; }
+            CharKey { label: "π"; shifted: "♢"; extendedShifted: ["♦"]; }
+            CharKey { label: "∞"; shifted: "♧"; extendedShifted: ["♣"]; rightSide: true; }
+        }
+        // ENH081 - End
+
         Row {
             anchors.horizontalCenter: parent.horizontalCenter;
             anchors.margins: 50;

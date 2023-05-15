@@ -48,7 +48,13 @@ Item {
     Loader {
         id: characterKeypadLoader
         objectName: "characterKeyPadLoader"
-        anchors.fill: parent
+        // ENH081 - Number row
+        // anchors.fill: parent
+        anchors {
+            fill: parent
+            topMargin: numberRow.visible ? numberRow.height : 0
+        }
+        // ENH081 - End
         asynchronous: false
         source: panel.state === "CHARACTERS" ? internal.characterKeypadSource : internal.symbolKeypadSource
         onLoaded: {
@@ -60,6 +66,35 @@ Item {
             }
         }
     }
+
+    // ENH081 - Number row
+    Row {
+        id: numberRow
+
+        visible: fullScreenItem.settings.showNumberRow && keypad.state == "CHARACTERS"
+                    && maliit_input_method.activeLanguage !== "emoji"
+                    && maliit_input_method.activeLanguage !== "ja"
+                    && canvas.layoutId !== "number"
+                    && canvas.layoutId !== "telephone"
+        anchors {
+            top: parent.top
+            horizontalCenter: parent.horizontalCenter
+        }
+
+        spacing: 0
+
+        CharKey { label: "1"; shifted: "1"; extended: ["!"]; extendedShifted: ["!"]; leftSide: true; }
+        CharKey { label: "2"; shifted: "2"; extended: ["@"]; extendedShifted: ["@"]; }
+        CharKey { label: "3"; shifted: "3"; extended: ["#"]; extendedShifted: ["#"]; }
+        CharKey { label: "4"; shifted: "4"; extended: ["$"]; extendedShifted: ["$"]; }
+        CharKey { label: "5"; shifted: "5"; extended: ["%"]; extendedShifted: ["%"]; }
+        CharKey { label: "6"; shifted: "6"; extended: ["^"]; extendedShifted: ["^"]; }
+        CharKey { label: "7"; shifted: "7"; extended: ["&"]; extendedShifted: ["&"]; }
+        CharKey { label: "8"; shifted: "8"; extended: ["*"]; extendedShifted: ["*"]; }
+        CharKey { label: "9"; shifted: "9"; extended: ["("]; extendedShifted: ["("]; }
+        CharKey { label: "0"; shifted: "0"; extended: [")"]; extendedShifted: [")"]; rightSide: true; }
+    }
+    // ENH081 - End
 
     ExtendedKeysSelector {
         id: extendedKeysSelector

@@ -98,7 +98,10 @@ MultiPointTouchArea {
 
     Timer {
         id: holdTimer
-        interval: 300
+        // ENH080 - Long press delay settings
+        // interval: 300
+        interval: fullScreenItem.settings.longPressDelay
+        // ENH080 - End
         onTriggered: {
             if (root.pressed) {
                 root.pressAndHold();
