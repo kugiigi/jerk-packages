@@ -1,0 +1,2 @@
+target_component="system-settings"
+package_description="Blocks OTA updates to avoid system breakage in case of jerk installations conflicts"
