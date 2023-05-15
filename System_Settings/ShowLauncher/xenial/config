@@ -1,0 +1,2 @@
+target_component="system-settings"
+package_description="Always show the Launcher item instead of being shown only in large screens"
