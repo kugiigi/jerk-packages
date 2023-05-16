@@ -382,6 +382,7 @@ Item {
                 maliit_geometry.visibleRect = Qt.rect(0, 0, fullScreenItem.width, fullScreenItem.height);
             } else {
                 fullScreenItem.reportKeyboardVisibleRect()
+                colorPickerLoader.close()
             }
         }
 
@@ -1782,7 +1783,7 @@ Item {
                 id: customRibbonHeight
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: fullScreenItem.settings.customRibbonHeight
+                visible: fullScreenItem.settings.useCustomRibbonHeight
                 title: "Height (in Grid Unit)"
                 minimumValue: 2
                 maximumValue: 10
@@ -1798,7 +1799,7 @@ Item {
                 id: customRibbonFontSize
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: fullScreenItem.settings.customRibbonFontSize
+                visible: fullScreenItem.settings.useCustomRibbonHeight
                 title: "Font Size (in density pixel)"
                 minimumValue: 10
                 maximumValue: 30
@@ -1842,7 +1843,7 @@ Item {
                     }
                 }
             } else {
-                if (fullScreenItem.settings.useCustomHeight > 0) {
+                if (fullScreenItem.settings.useCustomHeight) {
                     multiplier = fullScreenItem.settings.customPortraitHeight
                 } else {
                     if (fullScreenItem.tablet) {
@@ -2787,7 +2788,18 @@ Item {
 
                         Rectangle {
                             id: recVisual
-                            color: fullScreenItem.theme.actionKeyColor
+
+                            color: {
+                                if (fullScreenItem.theme.backgroundColor !== fullScreenItem.theme.actionKeyColor) {
+                                    return fullScreenItem.theme.actionKeyColor
+                                } else if (fullScreenItem.theme.backgroundColor !== fullScreenItem.theme.actionKeyPressedColor) {
+                                    return fullScreenItem.theme.actionKeyPressedColor
+                                } else if (fullScreenItem.theme.backgroundColor !== fullScreenItem.theme.charKeyPressedColor) {
+                                    return fullScreenItem.theme.charKeyPressedColor
+                                } else {
+                                    return fullScreenItem.theme.fontColor
+                                }
+                            }
                             radius: height / 2
                             height: units.gu(0.5)
                             anchors {
@@ -2924,6 +2936,9 @@ Item {
             , { "id": "selectCurrentWord", "title": i18n.tr("Select current word"), "component": actionSelectCurrentWord }
             , { "id": "selectPrevWord", "title": i18n.tr("Select previous word"), "component": actionSelectPrevWord }
             , { "id": "selectNextWord", "title": i18n.tr("Select next word"), "component": actionSelectNextWord }
+            , { "id": "copyAll", "title": i18n.tr("Copy all"), "component": actionCopyAll }
+            , { "id": "cutAll", "title": i18n.tr("Cut all"), "component": actionCutAll }
+            , { "id": "selectAllAndPaste", "title": i18n.tr("Select all and paste"), "component": actionSelectAllAndPaste }
             , { "id": "tab", "title": i18n.tr("Tab"), "component": actionTab }
             , { "id": "settings", "title": i18n.tr("Keyboard settings"), "component": actionSettings }
             , { "id": "mkSettings", "title": i18n.tr("Malakiboard settings"), "component": actionMKSettings }
@@ -3042,6 +3057,30 @@ Item {
             iconName: "next"
             text: i18n.tr("Select next word")
             onTrigger: fullScreenItem.selectNextWord()
+        }
+
+        MKBaseAction {
+            id: actionCopyAll
+
+            iconName: "edit-copy"
+            text: i18n.tr("Copy all")
+            onTrigger: fullScreenItem.copyAll()
+        }
+
+        MKBaseAction {
+            id: actionCutAll
+
+            iconName: "edit-cut"
+            text: i18n.tr("Cut all")
+            onTrigger: fullScreenItem.cutAll()
+        }
+
+        MKBaseAction {
+            id: actionSelectAllAndPaste
+
+            iconName: "edit-paste"
+            text: i18n.tr("Select all and paste")
+            onTrigger: fullScreenItem.selectAllAndPaste()
         }
 
         MKBaseAction {
@@ -3381,6 +3420,22 @@ Item {
     function selectNextWord() {
         commitPreedit();
         event_handler.onKeyReleased("SelectNextWord", "keysequence");
+    }
+    function copyAll() {
+        commitPreedit();
+        event_handler.onKeyReleased("SelectAll", "keysequence");
+        event_handler.onKeyReleased("Copy", "keysequence");
+        event_handler.onKeyReleased("", "right");
+    }
+    function cutAll() {
+        commitPreedit();
+        event_handler.onKeyReleased("SelectAll", "keysequence");
+        event_handler.onKeyReleased("Cut", "keysequence");
+    }
+    function selectAllAndPaste() {
+        commitPreedit();
+        event_handler.onKeyReleased("SelectAll", "keysequence");
+        event_handler.onKeyReleased("Paste", "keysequence");
     }
     // ENH089 - End
 
