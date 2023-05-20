@@ -1,10 +1,10 @@
 import QtQuick 2.9
 import Ubuntu.Components 1.3
-import QtGraphicalEffects 1.12
+// import QtGraphicalEffects 1.12
 
 Item {
     id: goIndicator
-    
+
     property real defaultWidth: units.gu(5)
     property real defaultScale: 1
     property real maxScale: 2
@@ -45,6 +45,7 @@ Item {
         }
     }
 
+    /* Breaks Lomiri
     DropShadow {
 
         readonly property color shadowColor: goIndicator.shadowColor
@@ -58,6 +59,7 @@ Item {
         color: Qt.hsla(shadowColor.hslHue, shadowColor.hslSaturation, shadowColor.hslLightness, 0.5)
         source: bg
     }
+    */
 
     Rectangle {
         id: bg
@@ -65,6 +67,10 @@ Item {
         anchors.fill: parent
         radius: width / 2
         color: heldState ? heldColor : defaultColor
+        border {
+            width: units.dp(1)
+            color: theme.palette.normal.base
+        }
 
         Behavior on color {
             ColorAnimation {
