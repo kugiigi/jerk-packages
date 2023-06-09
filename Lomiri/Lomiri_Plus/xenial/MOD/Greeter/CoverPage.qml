@@ -488,7 +488,7 @@ Showable {
         id: bottomSwipeArea
         readonly property real longSwipeThreshold: units.gu(20)
         readonly property real shortSwipeThreshold: units.gu(5)
-        readonly property bool longSwipe: distance > longSwipeThreshold
+        readonly property bool longSwipe: distance > longSwipeThreshold && (!shell.settings.onlyShowLomiriSettingsWhenUnlocked || !shell.showingGreeter)
         readonly property bool shortSwipe: distance > shortSwipeThreshold
 
         direction: SwipeArea.Upwards

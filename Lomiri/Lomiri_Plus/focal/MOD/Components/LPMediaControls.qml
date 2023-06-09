@@ -13,7 +13,11 @@ LPQuickToggleButton {
     readonly property bool canGoPrevious: playBackObj && playBackObj.canGoPrevious ? true : false
     readonly property bool playing: playBackObj && playBackObj.playing ? true : false
     readonly property bool canPlay: playBackObj && playBackObj.canPlay ? true : false
-    readonly property string song: mediaPlayerObj ? mediaPlayerObj.song ? mediaPlayerObj.song : "No Title" : ""
+    readonly property string song: mediaPlayerObj ? mediaPlayerObj.song ? mediaPlayerObj.song
+                                                                        : mediaPlayerObj.albumArt && mediaPlayerObj.albumArt.toString().search("thumbnailer") > -1
+                                                                            ? shell.getFilename(mediaPlayerObj.albumArt.toString())
+                                                                            : "No Title"
+                                                  : ""
     readonly property string artist: mediaPlayerObj ? mediaPlayerObj.artist : ""
     readonly property string album: mediaPlayerObj ? mediaPlayerObj.album : ""
     readonly property var albumArt: mediaPlayerObj ? mediaPlayerObj.albumArt : ""
@@ -28,7 +32,7 @@ LPQuickToggleButton {
             mediaPlayer.playBackObj.play(!playing)
         }
     }
-
+    
     function next() {
         if (mediaPlayer.playBackObj) {
             mediaPlayer.playBackObj.next()

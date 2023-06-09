@@ -279,7 +279,10 @@ LPDynamicCoveItem {
 					}
 				} else {
 					if (cdPlayer.mediaPlayerObj) {
-						return cdPlayer.mediaPlayerObj.song ? cdPlayer.mediaPlayerObj.song : "No Title"
+						return cdPlayer.mediaPlayerObj.song ? cdPlayer.mediaPlayerObj.song
+                                                            : cdPlayer.mediaPlayerObj.albumArt && cdPlayer.mediaPlayerObj.albumArt.toString().search("thumbnailer") > -1
+                                                                            ? shell.getFilename(cdPlayer.mediaPlayerObj.albumArt.toString())
+                                                                                               : "No Title"
 					}
 				}
 
@@ -305,6 +308,7 @@ LPDynamicCoveItem {
 			Layout.fillWidth: true
 			Layout.alignment: Qt.AlignBottom
 
+            visible: text !== ""
 			opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
 			text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.artist : ""
 			wrapMode: Text.Wrap
@@ -325,6 +329,7 @@ LPDynamicCoveItem {
 			Layout.fillWidth: true
 			Layout.alignment: Qt.AlignBottom
 
+            visible: text !== ""
 			opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
 			text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.album : ""
 			textSize: Label.XSmall

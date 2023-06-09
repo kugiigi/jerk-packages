@@ -302,6 +302,13 @@ StyledItem {
     }
     // ENH056 - End
 
+    // ENH064 - Dynamic Cove
+    function getFilename(_filepath) {
+        let _returnValue = _filepath.split('\\').pop().split('/').pop();
+        return _returnValue.replace(/\.[^/.]+$/, "")
+    }
+    // ENH064 - End
+
     // ENH046 - Lomiri Plus Settings
     function convertFromInch(value) {
         return (Screen.pixelDensity * 25.4) * value
@@ -430,10 +437,13 @@ StyledItem {
         property alias verticalBatteryIndicatorIcon: settingsObj.verticalBatteryIndicatorIcon
         property alias enableOSKToggleInIndicator: settingsObj.enableOSKToggleInIndicator
         property alias enableLomiriSettingsToggleIndicator: settingsObj.enableLomiriSettingsToggleIndicator
+        property alias onlyShowLomiriSettingsWhenUnlocked: settingsObj.onlyShowLomiriSettingsWhenUnlocked
         property alias enableAppSuspensionToggleIndicator: settingsObj.enableAppSuspensionToggleIndicator
         property alias enableActiveScreenToggleIndicator: settingsObj.enableActiveScreenToggleIndicator
         property alias showAppSuspensionIconIndicator: settingsObj.showAppSuspensionIconIndicator
         property alias showActiveScreenIconIndicator: settingsObj.showActiveScreenIconIndicator
+        property alias onlyShowNotificationsIndicatorWhenGreen: settingsObj.onlyShowNotificationsIndicatorWhenGreen
+        property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -463,6 +473,7 @@ StyledItem {
         property alias ow_GradientColoredTime: settingsObj.ow_GradientColoredTime
         property alias ow_bfbLogo: settingsObj.ow_bfbLogo
         property alias enableAlternateOW: settingsObj.ow_enableAlternateOW
+        property alias ow_theme: settingsObj.ow_theme
         property alias ow_mainMenu: settingsObj.ow_mainMenu
         property alias ow_qmChance: settingsObj.ow_qmChance
         property alias enableEyeFP: settingsObj.lp_enableEyeFP
@@ -663,6 +674,14 @@ StyledItem {
             ]
             property bool showBottomHintDrawer: true
             property bool showMiddleNotchHint: false
+            property bool onlyShowNotificationsIndicatorWhenGreen: false
+            property bool onlyShowSoundIndicatorWhenSilent: false
+            property int ow_theme: 0
+            /*
+                0 - Main Menu
+                1 - Solar System
+            */
+            property bool onlyShowLomiriSettingsWhenUnlocked: true
         }
     }
 
@@ -1046,6 +1065,17 @@ StyledItem {
         id: generalPage
         
         LPSettingsPage {
+             QQC2.CheckDelegate {
+                id: onlyShowLomiriSettingsWhenUnlocked
+                Layout.fillWidth: true
+                text: "LP settings only available when unlocked"
+                onCheckedChanged: shell.settings.onlyShowLomiriSettingsWhenUnlocked = checked
+                Binding {
+                    target: onlyShowLomiriSettingsWhenUnlocked
+                    property: "checked"
+                    value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
+                }
+            }
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
@@ -1207,14 +1237,15 @@ StyledItem {
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                text: "May crash Lomiri in some devices especially the default version"
+                color: theme.palette.normal.negative
+                text: "May crash Lomiri especially the Solar System theme. Settings is non-persistent to avoid being stuck."
                 wrapMode: Text.WordWrap
                 Suru.textLevel: Suru.Caption
             }
             QQC2.CheckDelegate {
                 id: owTheme
                 Layout.fillWidth: true
-                text: "Outer Wilds Theme"
+                text: "Enable Theme"
                 onCheckedChanged: shell.settings.enableOW = checked
                 Binding {
                     target: owTheme
@@ -1222,28 +1253,29 @@ StyledItem {
                     value: shell.settings.enableOW
                 }
             }
-            QQC2.CheckDelegate {
-                id: enableAlternateOW
+            OptionSelector {
                 Layout.fillWidth: true
-                text: "Alternate Outer Wilds Theme"
-                onCheckedChanged: shell.settings.enableAlternateOW = checked
-                Binding {
-                    target: enableAlternateOW
-                    property: "checked"
-                    value: shell.settings.enableAlternateOW
-                }
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Theme")
+                model: [
+                    i18n.tr("Main Menu"),
+                    i18n.tr("Solar System")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.ow_theme
+                onSelectedIndexChanged: shell.settings.ow_theme = selectedIndex
             }
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: shell.settings.enableAlternateOW
+                visible: shell.settings.enableOW && shell.settings.ow_theme == 0
                 text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
                 wrapMode: Text.WordWrap
                 Suru.textLevel: Suru.Caption
             }
             QQC2.ItemDelegate {
                 Layout.fillWidth: true
-                visible: shell.settings.enableAlternateOW
+                visible: shell.settings.enableOW && shell.settings.ow_theme == 0
                 text: "Quantum Luck"
                 indicator: QQC2.SpinBox {
                     id: ow_qmChance
@@ -1301,7 +1333,7 @@ StyledItem {
             QQC2.CheckDelegate {
                 id: ow_mainMenu
                 Layout.fillWidth: true
-                text: "Outer Wilds Menu"
+                text: "Main Menu"
                 onCheckedChanged: shell.settings.ow_mainMenu = checked
                 Binding {
                     target: ow_mainMenu
@@ -1693,17 +1725,6 @@ StyledItem {
                         Suru.textLevel: Suru.HeadingThree
                     }
                     QQC2.CheckDelegate {
-                        id: enableLomiriSettingsToggleIndicator
-                        Layout.fillWidth: true
-                        text: "Show Lomiri Plus settings"
-                        onCheckedChanged: shell.settings.enableLomiriSettingsToggleIndicator = checked
-                        Binding {
-                            target: enableLomiriSettingsToggleIndicator
-                            property: "checked"
-                            value: shell.settings.enableLomiriSettingsToggleIndicator
-                        }
-                    }
-                    QQC2.CheckDelegate {
                         id: enableActiveScreenToggleIndicator
                         Layout.fillWidth: true
                         text: "Show active screen toggle"
@@ -1745,6 +1766,24 @@ StyledItem {
                             target: showAppSuspensionIconIndicator
                             property: "checked"
                             value: shell.settings.showAppSuspensionIconIndicator
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Date and Time"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.HeadingThree
+                    }
+                    QQC2.CheckDelegate {
+                        id: twoDigitHourDateTimeIndicator
+                        Layout.fillWidth: true
+                        text: "2-Digit Hour Format"
+                        onCheckedChanged: shell.settings.twoDigitHourDateTimeIndicator = checked
+                        Binding {
+                            target: twoDigitHourDateTimeIndicator
+                            property: "checked"
+                            value: shell.settings.twoDigitHourDateTimeIndicator
                         }
                     }
                     QQC2.Label {
@@ -1801,19 +1840,19 @@ StyledItem {
                     QQC2.Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
-                        text: "Date and Time"
+                        text: "Sound"
                         wrapMode: Text.WordWrap
                         Suru.textLevel: Suru.HeadingThree
                     }
                     QQC2.CheckDelegate {
-                        id: twoDigitHourDateTimeIndicator
+                        id: onlyShowSoundIndicatorWhenSilent
                         Layout.fillWidth: true
-                        text: "2-Digit Hour Format"
-                        onCheckedChanged: shell.settings.twoDigitHourDateTimeIndicator = checked
+                        text: "Only show icon when silent"
+                        onCheckedChanged: shell.settings.onlyShowSoundIndicatorWhenSilent = checked
                         Binding {
-                            target: twoDigitHourDateTimeIndicator
+                            target: onlyShowSoundIndicatorWhenSilent
                             property: "checked"
-                            value: shell.settings.twoDigitHourDateTimeIndicator
+                            value: shell.settings.onlyShowSoundIndicatorWhenSilent
                         }
                     }
                     QQC2.Label {
@@ -1832,6 +1871,24 @@ StyledItem {
                             target: enableOSKToggleInIndicator
                             property: "checked"
                             value: shell.settings.enableOSKToggleInIndicator
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Notifications"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.HeadingThree
+                    }
+                    QQC2.CheckDelegate {
+                        id: onlyShowNotificationsIndicatorWhenGreen
+                        Layout.fillWidth: true
+                        text: "Only show icon when green"
+                        onCheckedChanged: shell.settings.onlyShowNotificationsIndicatorWhenGreen = checked
+                        Binding {
+                            target: onlyShowNotificationsIndicatorWhenGreen
+                            property: "checked"
+                            value: shell.settings.onlyShowNotificationsIndicatorWhenGreen
                         }
                     }
                 }
@@ -3025,7 +3082,7 @@ StyledItem {
             target: greeter
             onShownChanged: {
                 if (!target.shown && stage.topLevelSurfaceList.count == 0) {
-                    eyeBlinkLoader.active = lp_settings.enableOW && lp_settings.enableAlternateOW
+                    eyeBlinkLoader.active = lp_settings.enableOW && lp_settings.ow_theme == 0
                 }
             }
         }
@@ -3448,7 +3505,7 @@ StyledItem {
 			// ENH002 - End
             // ENH032 - Infographics Outer Wilds
             enableOW: lp_settings.enableOW
-            alternateOW: lp_settings.enableAlternateOW
+            alternateOW: lp_settings.ow_theme == 0
             eyeOpened: eyeBlinkLoader.item ? eyeBlinkLoader.item.eyeOpened : false
             blinkComplete: eyeBlinkLoader.item ? eyeBlinkLoader.item.blinkComplete : false
             // ENH032 - End
@@ -3625,6 +3682,7 @@ StyledItem {
         id: indicatorBottomItemsLoader
 
         property var model: shell.settings.directAccessIndicators
+        property int enabledCount: 0
 
         active: shell.settings.indicatorGesture && shell.settings.specificIndicatorGesture
         asynchronous: true
@@ -3636,6 +3694,18 @@ StyledItem {
             rightMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.customThreshold : 0
             left: parent.left
             leftMargin: anchors.rightMargin
+        }
+
+        onModelChanged: {
+            enabledCount = 0
+
+            if (model) {
+                for (let i = 0; i < model.length; i++) {
+                    if (model[i].enabled) {
+                      enabledCount += 1
+                    }
+                }
+            }
         }
 
         state: "full"
@@ -3683,7 +3753,9 @@ StyledItem {
                 model: indicatorBottomItemsLoader.model
 
                 Item {
-                    readonly property real preferredSize: (indicatorBottomItemsLoader.width / indicatorSwipeRepeater.count) - units.gu(0.5)
+                    id: indicatorItem
+
+                    readonly property real preferredSize: (indicatorBottomItemsLoader.width / indicatorBottomItemsLoader.enabledCount)
                     readonly property real maximumSize: units.gu(6)
 
                     readonly property string itemId: modelData.id
@@ -3695,11 +3767,10 @@ StyledItem {
                     Layout.preferredWidth: preferredSize
                     Layout.preferredHeight: preferredSize
                     Layout.maximumHeight: maximumSize
-                    Layout.maximumWidth: maximumSize
 
                     visible: modelData.enabled
                     z: highlighted ? 2 : 1
-                    scale: highlighted ? 1.5 : 1
+                    scale: highlighted ? 1.3 : 1
                     Behavior on scale { UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration } }
 
                     onHighlightedChanged: if (highlighted) shell.haptics.playSubtle()
@@ -3709,7 +3780,9 @@ StyledItem {
 
                         color: highlighted ? theme.palette.highlighted.foreground : theme.palette.normal.foreground
                         radius: width / 2
-                        anchors.fill: parent
+                        width: Math.min(parent.width, indicatorItem.maximumSize)
+                        height: width
+                        anchors.centerIn: parent
                         Behavior on color { ColorAnimation { duration: UbuntuAnimation.FastDuration } }
                     }
                     Icon {

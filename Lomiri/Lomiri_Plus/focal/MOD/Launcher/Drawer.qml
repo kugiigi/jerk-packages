@@ -296,7 +296,7 @@ FocusScope {
                 transitions: Transition {
                     AnchorAnimation { duration: LomiriAnimation.FastDuration }
                 }
-				// ENH007 - End
+                // ENH007 - End
 
                 TextField {
                     id: searchField
@@ -460,8 +460,9 @@ FocusScope {
 
                 function findFromPinnedApps(model, _appId) {
                     for (var i = 0; i < model.rowCount(); ++i) {
-                        if (model.get(i).appId == _appId) {
-                           return model.get(i)
+                        let _currentApp = model.get(i)
+                        if (_currentApp.pinned && _currentApp.appId == _appId) {
+                           return _currentApp
                         }
                     }
                     return null
