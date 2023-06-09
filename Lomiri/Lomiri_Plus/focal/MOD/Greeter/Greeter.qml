@@ -82,7 +82,7 @@ Showable {
 
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: shell.settings.enableOW
-    property bool alternateOW: shell.settings.enableAlternateOW
+    property bool alternateOW: shell.settings.ow_theme == 0
     property bool fastModeOW: false
     // ENH032 - End
 

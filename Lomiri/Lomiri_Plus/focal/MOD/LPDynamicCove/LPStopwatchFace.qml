@@ -88,7 +88,8 @@ LPDynamicCoveItem {
         width: units.gu(5)
         height: width
         Component.onCompleted: {
-            width = parent.width
+            delayOpenAnimation.restart()
+
             if (shell.settings.dcStopwatchLastEpoch > 0) {
                 milliseconds = shell.settings.dcStopwatchTimeMS + (new Date().getTime() - shell.settings.dcStopwatchLastEpoch)
                 start()
@@ -106,6 +107,16 @@ LPDynamicCoveItem {
             }
         }
         Behavior on width { LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration } }
+
+        // WORKAROUND: Delay to avoid the issue where the animation
+        // doesn't seem to execute upong locking the device
+        Timer {
+            id: delayOpenAnimation
+
+            running: false
+            interval: 1
+            onTriggered: stopwatchCircle.width = stopwatchCircle.parent.width
+        }
         
         Timer {
             id: timer
@@ -156,20 +167,20 @@ LPDynamicCoveItem {
         }
         
         Label {
-			anchors {
+            anchors {
                 bottom: time.top
                 bottomMargin: units.gu(6)
                 horizontalCenter: parent.horizontalCenter
             }
-			text: "》"
-			rotation: -90
-			color: theme.palette.normal.negative
-			opacity: stopwatchCircle.aboutToClear ? 0 : 0.8
+            text: "》"
+            rotation: -90
+            color: theme.palette.normal.negative
+            opacity: stopwatchCircle.aboutToClear ? 0 : 0.8
 
-			Behavior on opacity {
-				LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-			}
-		}
+            Behavior on opacity {
+                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+            }
+        }
         
         Label {
             text: "Clear"

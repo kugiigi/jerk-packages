@@ -610,7 +610,9 @@ Item {
                 readonly property bool alwaysHidden: shell.settings.alwaysHiddenIndicatorIcons.includes(identifier)
                 readonly property bool alwaysShown: shell.settings.alwaysShownIndicatorIcons.includes(identifier)
                 // readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator || hideBatteryIndicator)
-                readonly property bool hidden: !expanded && (alwaysHidden || overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator || hideBatteryIndicator)
+                readonly property bool hidden: !expanded && (alwaysHidden || overflow || !indicatorVisible || hideSessionIndicator
+                                                                                            || hideKeyboardIndicator || hideBatteryIndicator
+                                                                                            || hideMessagesIndicator || hideSoundIndicator)
                                                     && !alwaysShown
                 // ENH060 - End
                 // ENH036 - End
@@ -621,6 +623,14 @@ Item {
                 // ENH036 - Use punchole as battery indicator
                 readonly property bool hideBatteryIndicator: identifier == "indicator-power" && panel.batteryCircleEnabled
                 // ENH036 - End
+                // ENH060 - Show/Hide Indicators Settings
+                readonly property bool hideMessagesIndicator: identifier == "indicator-messages" && shell.settings.onlyShowNotificationsIndicatorWhenGreen
+                                                                    && messagesEmpty
+                readonly property bool hideSoundIndicator: identifier == "indicator-sound" && shell.settings.onlyShowSoundIndicatorWhenSilent
+                                                                    && !soundIsSilent
+                property bool messagesEmpty: true
+                property bool soundIsSilent: false
+                // ENH060 - End
 
                 height: parent.height
                 expanded: indicators.expanded
@@ -638,7 +648,8 @@ Item {
                 // ENH060 - Show/Hide Indicators Settings
                 // width: ((expanded || indicatorVisible) && !hideSessionIndicator && !hideKeyboardIndicator && !hideBatteryIndicator) ? implicitWidth : 0
                 width: !alwaysHidden && ((expanded || indicatorVisible)
-                                                                && !hideSessionIndicator && !hideKeyboardIndicator && !hideBatteryIndicator)
+                                                                && !hideSessionIndicator && !hideKeyboardIndicator && !hideBatteryIndicator
+                                                                && !hideMessagesIndicator && !hideSoundIndicator)
                                     || alwaysShown ? implicitWidth : 0
                 // ENH060 - End
                 // ENH036 - End
@@ -670,6 +681,26 @@ Item {
                             }
                         }
                     }
+                    // ENH060 - Show/Hide Indicators Settings
+                    if (identifier == "indicator-messages") {
+                        if (icons) {
+                            if (icons[0].search("messages-new") > -1) {
+                                messagesEmpty = false
+                            } else {
+                                messagesEmpty = true
+                            }
+                        }
+                    }
+                    if (identifier == "indicator-sound") {
+                        if (icons) {
+                            if (icons[0].search("muted") > -1) {
+                                soundIsSilent = true
+                            } else {
+                                soundIsSilent = false
+                            }
+                        }
+                    }
+                    // ENH060 - End
                 }
                 // ENH036 - End
                 // ENH095 - Middle notch support

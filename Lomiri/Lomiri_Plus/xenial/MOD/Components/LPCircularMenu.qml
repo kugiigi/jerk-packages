@@ -7,8 +7,8 @@ import "../Greeter" as Greeter
 Item {
 	id: circularMenu
 
-    //property var currentItem: menuCircle.childAt(mouseArea.mouseX, mouseArea.mouseY - units.gu(6)) // with offset
-	property var currentItem: menuCircle.childAt(mouseArea.mouseX, mouseArea.mouseY) //item underneath cursor
+    property var currentItem: null
+	property var currentAngle: angle(mouseArea.mouseX, mouseArea.mouseY)
 	property int currentIndex: currentItem ? currentItem.index : -1 //item underneath cursor
     property alias model: circleMenuRepeater.model
     property int currentSelectedIndex: -1
@@ -16,17 +16,30 @@ Item {
     
     signal selected(int selectedIndex)
 
+    // From Stackoverflow LOL
+    function angle(ex, ey) {
+        var dy = ey - mouseArea.height / 2;
+        var dx = ex - mouseArea.width / 2;
+        var theta = Math.atan2(dy, dx); // range (-PI, PI]
+        theta *= 180 / Math.PI; // rads to degs, range (-180, 180]
+        if (theta < 0) theta = 360 + theta; // range [0, 360)
+        return theta;
+    }
+
     Connections {
         target: mouseArea
         onClicked: mouse.accepted = true
 
-        onPressed: {
-            shell.haptics.playSubtle()
+        onDelayedPressedChanged: {
+            if (target.delayedPressed) {
+                shell.haptics.playSubtle()
+            }
         }
 
         onReleased: {
             if (circularMenu.currentItem) {
                 circularMenu.selected(circularMenu.currentIndex)
+                circularMenu.currentItem = null
             }
         }
     }
@@ -45,12 +58,33 @@ Item {
 		Repeater {
 			id: circleMenuRepeater
 
+            readonly property real angleRange: 360 / circleMenuRepeater.count
+
 			delegate: Greeter.ObjectPositioner {
                 id: delegateContainer
 
+                // Offset by 90 since repeater starts at the top while the angle calculator starts from the right
+                readonly property real angleStart: (circleMenuRepeater.angleRange * index) - (circleMenuRepeater.angleRange / 2) - 90
+                readonly property real angleEnd: angleStart + circleMenuRepeater.angleRange - 1
+
 				property alias unlockAnimation: dotUnlockAnim
 				property alias changeAnimation: dotChangeAnim
-				property bool highlighted: circularMenu.currentIndex == index
+				property bool highlighted: {
+                    if (circularMenu.mouseArea.delayedPressed) {
+                        let _start = angleStart < 0 ? angleStart + 360
+                                                    : angleStart > 360 ? angleStart - 360
+                                                                       : angleStart
+                        let _end = angleEnd < 0 ? angleEnd + 360
+                                                : angleEnd > 360 ? angleEnd - 360
+                                                                 : angleEnd
+                        
+                        if (circularMenu.currentAngle > _start && circularMenu.currentAngle < _end) {
+                            return true
+                        }
+                    }
+
+                    return false
+                }
 				property bool selected: circularMenu.currentSelectedIndex == index
 
 				property int currentDay: 2
@@ -61,14 +95,20 @@ Item {
 				count: circleMenuRepeater.count
 				radius: menuCircle.width / 2
 				halfSize: menuItem.width / 2
-				posOffset: circularMenu.mouseArea.pressed ? radius / menuItem.width / 3 : 3
-                rotation: circularMenu.mouseArea.pressed ? 0 : 180
+				posOffset: circularMenu.mouseArea.delayedPressed ? radius / menuItem.width / 3 : 3
+                rotation: circularMenu.mouseArea.delayedPressed ? 0 : 180
                 
                 Behavior on posOffset { SpringAnimation { spring: 2; damping: 0.2 } }
                 Behavior on rotation { SpringAnimation { spring: 2; damping: 0.2 } }
 				
 				onHighlightedChanged: {
-					if (highlighted && !selected) shell.haptics.playSubtle()
+                    if (highlighted) {
+                        circularMenu.currentItem = this
+
+                        if (!selected) {
+                            shell.haptics.playSubtle()
+                        }
+                    }
 				}
 
 				Rectangle {

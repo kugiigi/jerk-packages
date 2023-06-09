@@ -169,6 +169,8 @@ LPDynamicCoveItem {
     }
     
     LPClockCircle {
+        id: clockCircle
+
         isFoldVisible: true
         
         anchors.centerIn: parent
@@ -177,10 +179,10 @@ LPDynamicCoveItem {
         opacity: timer.aboutToSwipeAction ? 0 : 1
 
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration } }
-        Behavior on width { LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration } }
          
         Component.onCompleted: {
-            width = parent.width
+            delayOpenAnimation.restart()
+            
 
             if (shell.settings.dcRunningTimer > 0 && shell.settings.dcRunningTimer > Date.now()) {
                 root_timesetter.targettime = shell.settings.dcRunningTimer
@@ -204,6 +206,25 @@ LPDynamicCoveItem {
             } else {
                 shell.settings.dcLastTimeTimer = root_timesetter.timerduration
             }
+        }
+
+        // WORKAROUND: Delay to avoid the issue where the animation
+        // doesn't seem to execute upong locking the device
+        Timer {
+            id: delayOpenAnimation
+
+            running: false
+            interval: 1
+            onTriggered: openAnimation.start()
+        }
+
+        LomiriNumberAnimation {
+            id: openAnimation
+
+            target: clockCircle
+            property: "width"
+            to: clockCircle.parent.width
+            duration: LomiriAnimation.SlowDuration
         }
 
         Item {

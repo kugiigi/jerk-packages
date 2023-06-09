@@ -554,7 +554,10 @@ FocusScope {
 
         direction: Direction.Rightwards
 
-        enabled: root.available
+        // ENH018 - Immersive mode
+        // enabled: root.available
+        enabled: root.available && !shell.immersiveMode
+        // ENH018 - End
         // ENH002 - Notch/Punch hole fix
         // x: -root.x // so if launcher is adjusted relative to screen, we stay put (like tutorial does when teasing)
         // width: root.dragAreaWidth

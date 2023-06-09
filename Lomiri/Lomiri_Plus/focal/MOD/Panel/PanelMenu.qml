@@ -231,7 +231,11 @@ Showable {
                                         , "iconOn": "orientation-lock", "iconOff": "view-rotate"}                                 
                 /* Flashlight */        , {"type": 1, "controlType": "toggle", "slot": 1, "toggleObj": root.flashlightToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "torch-on", "iconOff": "torch-off"}                                     
-                /* Dark mode */         , {"type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                // ENH116 - Standalone Dark mode toggle
+                // /* Dark mode */         , {"type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Dark mode */         , {"type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle ? root.darkModeToggle : darkModeToggle
+                                        , "holdActionType": "indicator", "holdActionUrl": ""
+                // ENH116 - End
                                         , "iconOn": "weather-clear-night-symbolic", "iconOff": "night-mode"}                   
                 /* Desktop mode */      , {"type": 3, "controlType": "toggle", "slot": 1, "toggleObj": root.desktopModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "computer-symbolic", "iconOff": "phone-smartphone-symbolic"}        
@@ -249,15 +253,23 @@ Showable {
                                         , "iconOn": "bluetooth-active", "iconOff": "bluetooth-disabled"}
                 /* Location */          , {"type": 9, "controlType": "toggle", "slot": 1, "toggleObj": root.locationToggle, "holdActionType": "external"
                                         , "holdActionUrl": "settings:///system/location"
-                                        , "iconOn": "location-idle", "iconOff": "location-disabled"}         
-                /* Immersive */         , {"type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle, "holdActionType": "indicator", "holdActionUrl": ""
-                                        , "iconOn": "media-record", "iconOff": "media-optical-symbolic"} 	
+                                        , "iconOn": "location-idle", "iconOff": "location-disabled"}
+                // ENH115 - Standalone Immersive mode
+                // /* Immersive */         , {"type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Immersive */         , {"type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle ? root.immersiveToggle : immersiveModeToggle
+                // ENH115 - End
+                                        , "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "media-record", "iconOff": "media-optical-symbolic"}
                 /* Hotspot */           , {"type": 11, "controlType": "toggle", "slot": 1, "toggleObj": root.hotspotToggle, "holdActionType": "external"
                                         , "holdActionUrl": "settings:///system/hotspot"
-                                        , "iconOn": "hotspot-connected", "iconOff": "hotspot-disabled"} 		
+                                        , "iconOn": "hotspot-connected", "iconOff": "hotspot-disabled"}     
                 /* Auto brightness */   , {"type": 12, "controlType": "toggle", "slot": 1, "toggleObj": root.autoBrightnessToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "display-brightness-symbolic", "iconOff": "display-brightness-min"}
-                /* Auto Dark mode */    , {"type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                // ENH116 - Standalone Dark mode toggle
+                // /* Auto Dark mode */    , {"type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Auto Dark mode */    , {"type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle ? root.autoDarkModeToggle : autoDarkModeToggle
+                                        , "holdActionType": "indicator", "holdActionUrl": ""
+                // ENH116 - End
                                         , "iconOn": "weather-few-clouds-night-symbolic", "iconOff": "weather-few-clouds-night-symbolic"}            
                 /* Media Player */      , {"type": 14, "controlType": "media", "slot": 0, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "", "iconOff": ""} 
@@ -433,6 +445,45 @@ Showable {
 
                     onClicked: shell.isScreenActive = !shell.isScreenActive
                 }
+
+                // ENH115 - Standalone Immersive mode
+                Item {
+                    id: immersiveModeToggle
+
+                    readonly property bool checked: shell.settings.immersiveMode
+                    readonly property bool enabled: true
+                    readonly property string parentMenuIndex: "ayatana-indicator-session"
+
+                    signal clicked
+
+                    onClicked: shell.settings.immersiveMode = !shell.settings.immersiveMode
+                }
+                // ENH115 - End
+
+                // ENH116 - Standalone Dark mode toggle
+                Item {
+                    id: darkModeToggle
+
+                    readonly property bool checked: shell.themeSettings.isDarkMode
+                    readonly property bool enabled: true
+                    readonly property string parentMenuIndex: "ayatana-indicator-session"
+
+                    signal clicked
+
+                    onClicked: shell.themeSettings.toggleTheme()
+                }
+                Item {
+                    id: autoDarkModeToggle
+
+                    readonly property bool checked: shell.settings.enableAutoDarkMode
+                    readonly property bool enabled: true
+                    readonly property string parentMenuIndex: "ayatana-indicator-session"
+
+                    signal clicked
+
+                    onClicked: shell.settings.enableAutoDarkMode = !shell.settings.enableAutoDarkMode
+                }
+                // ENH116 - End
 
                 Component {
                     id: quickToggleComponent

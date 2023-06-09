@@ -49,6 +49,7 @@ import Qt.labs.settings 1.0
 import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Suru 2.2
+import Ubuntu.Components.Pickers 1.3
 // ENH046 - End
 // ENH067 - Custom Lockscreen Clock Color
 import "LPColorpicker"
@@ -60,6 +61,9 @@ import QtMultimedia 5.6
 // ENH056 - Quick toggles
 import QtSystemInfo 5.0
 // ENH056 - End
+// ENH116 - Standalone Dark mode toggle
+import Lomiri.Indicators 0.1 as Indicators
+// ENH116 - End
 
 
 StyledItem {
@@ -75,13 +79,13 @@ StyledItem {
                             ? deviceConfiguration.notchHeightMargin + (orientation == 1 && panel.batteryCircleEnabled ? panel.batteryCircleBorder : 0)
                                 : 0
     // ENH036 - End
-	property real shellLeftMargin: orientation == 8 ? shellMargin : 0
-	property real shellRightMargin: orientation == 2 ? shellMargin : 0
-	property real shellBottomMargin: orientation == 4 ? shellMargin : 0
-	property real shellTopMargin: orientation == 1 ? shellMargin : 0
+    property real shellLeftMargin: orientation == 8 ? shellMargin : 0
+    property real shellRightMargin: orientation == 2 ? shellMargin : 0
+    property real shellBottomMargin: orientation == 4 ? shellMargin : 0
+    property real shellTopMargin: orientation == 1 ? shellMargin : 0
     
     readonly property bool isBuiltInScreen: Screen.name == Qt.application.screens[0].name
-	// ENH002 - End
+    // ENH002 - End
     // ENH037 - Manual screen rotation button
     readonly property bool isFullScreen: panel.focusedSurfaceIsFullscreen
     // ENH037 - End
@@ -91,6 +95,9 @@ StyledItem {
     property alias lpsettingsLoader: settingsLoader
     Suru.theme: Suru.Dark
     // ENH046 - End
+    // ENH116 - Standalone Dark mode toggle
+    property alias themeSettings: themeSettings
+    // ENH116 - End
     // ENH064 - Dynamic Cove
     property alias mediaPlayerIndicator: panel.mediaPlayer
     property alias playbackItemIndicator: panel.playbackItem
@@ -313,6 +320,109 @@ StyledItem {
     }
     // ENH056 - End
 
+    // ENH064 - Dynamic Cove
+    function getFilename(_filepath) {
+        let _returnValue = _filepath.split('\\').pop().split('/').pop();
+        return _returnValue.replace(/\.[^/.]+$/, "")
+    }
+    // ENH064 - End
+
+    // ENH116 - Standalone Dark mode toggle
+    Indicators.SharedLomiriMenuModel {
+        id: timeModel
+        objectName: "timeModel"
+
+        busName: "org.ayatana.indicator.datetime"
+        actions: { "indicator": "/org/ayatana/indicator/datetime" }
+        menuObjectPath: "/org/ayatana/indicator/datetime/phone"
+    }
+
+    Indicators.ModelActionRootState {
+        menu: timeModel.model
+        onUpdated: {
+            if (shell.settings.enableAutoDarkMode && shell.settings.immediateDarkModeSwitch) {
+                themeSettings.checkAutoToggle()
+            }
+        }
+    }
+
+    Item {
+        id: themeSettings
+ 
+        readonly property string defaultPath: "/home/phablet/.config/lomiri-ui-toolkit/theme.ini"
+        readonly property bool isDarkMode: currentTheme == "Lomiri.Components.Themes.SuruDark"
+        property string currentTheme: "Lomiri.Components.Themes.Ambiance"
+
+        function checkAutoToggle() {
+            let _rawStartTime = Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeStartTime, "hh:mm")
+            let _rawEndTime = Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeEndTime, "hh:mm")
+            let _currentTime = new Date()
+            let _startTime = new Date()
+            let _endTime = new Date()
+
+            _startTime.setHours(_rawStartTime.getHours())
+            _startTime.setMinutes(_rawStartTime.getMinutes())
+            _endTime.setHours(_rawEndTime.getHours())
+            _endTime.setMinutes(_rawEndTime.getMinutes())
+
+            let _reverseLogic = _startTime > _endTime
+                
+            if ( (!_reverseLogic && _currentTime >= _startTime && _currentTime <= _endTime)
+                    || (
+                            _reverseLogic && ((_currentTime >= _startTime && _currentTime >= _endTime) || (_currentTime <= _startTime && _currentTime <= _endTime))
+                       )
+               ) {
+                if (!isDarkMode) {
+                    setToDark()
+                }
+            } else {
+                if (isDarkMode) {
+                    setToAmbiance()
+                }
+            }
+        }
+
+        function updateCurrentValue() {
+            // Refresh data in case it was changed externally
+            themeSettingsObj.fileName = ""
+            themeSettingsObj.fileName = defaultPath
+
+            currentTheme = themeSettingsObj.value("theme", "Lomiri.Components.Themes.Ambiance")
+        }
+
+        function toggleTheme() {
+            updateCurrentValue()
+
+            if (isDarkMode) {
+                setToAmbiance()
+            } else {
+                setToDark()
+            }
+        }
+
+        function setToAmbiance() {
+            themeSettingsObj.setValue("theme", "Lomiri.Components.Themes.Ambiance")
+            currentTheme = "Lomiri.Components.Themes.Ambiance"
+        }
+
+        function setToDark() {
+            themeSettingsObj.setValue("theme", "Lomiri.Components.Themes.SuruDark")
+            currentTheme = "Lomiri.Components.Themes.SuruDark"
+        }
+
+        Settings {
+            id: themeSettingsObj
+
+            fileName: themeSettings.defaultPath
+
+            Component.onCompleted: {
+                themeSettings.updateCurrentValue()
+                themeSettings.checkAutoToggle()
+            }
+        }
+    }
+    // ENH116 - End
+
     // ENH046 - Lomiri Plus Settings
     function convertFromInch(value) {
         return (Screen.pixelDensity * 25.4) * value
@@ -442,10 +552,21 @@ StyledItem {
         property alias verticalBatteryIndicatorIcon: settingsObj.verticalBatteryIndicatorIcon
         property alias enableOSKToggleInIndicator: settingsObj.enableOSKToggleInIndicator
         property alias enableLomiriSettingsToggleIndicator: settingsObj.enableLomiriSettingsToggleIndicator
+        property alias onlyShowLomiriSettingsWhenUnlocked: settingsObj.onlyShowLomiriSettingsWhenUnlocked
         property alias enableAppSuspensionToggleIndicator: settingsObj.enableAppSuspensionToggleIndicator
         property alias enableActiveScreenToggleIndicator: settingsObj.enableActiveScreenToggleIndicator
         property alias showAppSuspensionIconIndicator: settingsObj.showAppSuspensionIconIndicator
         property alias showActiveScreenIconIndicator: settingsObj.showActiveScreenIconIndicator
+        property alias enableImmersiveModeToggleIndicator: settingsObj.enableImmersiveModeToggleIndicator
+        property alias showImmersiveModeIconIndicator: settingsObj.showImmersiveModeIconIndicator
+        property alias enableDarkModeToggleIndicator: settingsObj.enableDarkModeToggleIndicator
+        property alias enableAutoDarkMode: settingsObj.enableAutoDarkMode
+        property alias enableAutoDarkModeToggleIndicator: settingsObj.enableAutoDarkModeToggleIndicator
+        property alias immediateDarkModeSwitch: settingsObj.immediateDarkModeSwitch
+        property alias autoDarkModeStartTime: settingsObj.autoDarkModeStartTime
+        property alias autoDarkModeEndTime: settingsObj.autoDarkModeEndTime
+        property alias onlyShowNotificationsIndicatorWhenGreen: settingsObj.onlyShowNotificationsIndicatorWhenGreen
+        property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -475,6 +596,7 @@ StyledItem {
         property alias ow_GradientColoredTime: settingsObj.ow_GradientColoredTime
         property alias ow_bfbLogo: settingsObj.ow_bfbLogo
         property alias enableAlternateOW: settingsObj.ow_enableAlternateOW
+        property alias ow_theme: settingsObj.ow_theme
         property alias ow_mainMenu: settingsObj.ow_mainMenu
         property alias ow_qmChance: settingsObj.ow_qmChance
         property alias enableEyeFP: settingsObj.lp_enableEyeFP
@@ -499,6 +621,7 @@ StyledItem {
         // Non-persistent settings
         property bool enableOW: false
         property bool showInfographics: true
+        property bool immersiveMode: false
 
         Settings {
             id: settingsObj
@@ -681,6 +804,22 @@ StyledItem {
              1 - Multi-display
              2 - Mirrored
             */
+            property bool enableImmersiveModeToggleIndicator: false
+            property bool showImmersiveModeIconIndicator: false
+            property bool enableDarkModeToggleIndicator: false
+            property bool enableAutoDarkMode: false
+            property bool immediateDarkModeSwitch: false
+            property string autoDarkModeStartTime: "19:00"
+            property string autoDarkModeEndTime: "06:00"
+            property bool enableAutoDarkModeToggleIndicator: false
+            property bool onlyShowNotificationsIndicatorWhenGreen: false
+            property bool onlyShowSoundIndicatorWhenSilent: false
+            property int ow_theme: 0
+            /*
+                0 - Main Menu
+                1 - Solar System
+            */
+            property bool onlyShowLomiriSettingsWhenUnlocked: true
         }
     }
 
@@ -1064,6 +1203,17 @@ StyledItem {
         id: generalPage
         
         LPSettingsPage {
+            QQC2.CheckDelegate {
+                id: onlyShowLomiriSettingsWhenUnlocked
+                Layout.fillWidth: true
+                text: "LP settings only available when unlocked"
+                onCheckedChanged: shell.settings.onlyShowLomiriSettingsWhenUnlocked = checked
+                Binding {
+                    target: onlyShowLomiriSettingsWhenUnlocked
+                    property: "checked"
+                    value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
+                }
+            }
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
@@ -1238,14 +1388,15 @@ StyledItem {
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                text: "May crash Lomiri in some devices especially the default version"
+                color: theme.palette.normal.negative
+                text: "May crash Lomiri especially the Solar System theme. Settings is non-persistent to avoid being stuck."
                 wrapMode: Text.WordWrap
                 Suru.textLevel: Suru.Caption
             }
             QQC2.CheckDelegate {
                 id: owTheme
                 Layout.fillWidth: true
-                text: "Outer Wilds Theme"
+                text: "Enable Theme"
                 onCheckedChanged: shell.settings.enableOW = checked
                 Binding {
                     target: owTheme
@@ -1253,28 +1404,29 @@ StyledItem {
                     value: shell.settings.enableOW
                 }
             }
-            QQC2.CheckDelegate {
-                id: enableAlternateOW
+            OptionSelector {
                 Layout.fillWidth: true
-                text: "Alternate Outer Wilds Theme"
-                onCheckedChanged: shell.settings.enableAlternateOW = checked
-                Binding {
-                    target: enableAlternateOW
-                    property: "checked"
-                    value: shell.settings.enableAlternateOW
-                }
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Theme")
+                model: [
+                    i18n.tr("Main Menu"),
+                    i18n.tr("Solar System")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.ow_theme
+                onSelectedIndexChanged: shell.settings.ow_theme = selectedIndex
             }
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: shell.settings.enableAlternateOW
+                visible: shell.settings.enableOW && shell.settings.ow_theme == 0
                 text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
                 wrapMode: Text.WordWrap
                 Suru.textLevel: Suru.Caption
             }
             QQC2.ItemDelegate {
                 Layout.fillWidth: true
-                visible: shell.settings.enableAlternateOW
+                visible: shell.settings.enableOW && shell.settings.ow_theme == 0
                 text: "Quantum Luck"
                 indicator: QQC2.SpinBox {
                     id: ow_qmChance
@@ -1332,7 +1484,7 @@ StyledItem {
             QQC2.CheckDelegate {
                 id: ow_mainMenu
                 Layout.fillWidth: true
-                text: "Outer Wilds Menu"
+                text: "Main Menu"
                 onCheckedChanged: shell.settings.ow_mainMenu = checked
                 Binding {
                     target: ow_mainMenu
@@ -1737,7 +1889,7 @@ StyledItem {
                     QQC2.CheckDelegate {
                         id: enableActiveScreenToggleIndicator
                         Layout.fillWidth: true
-                        text: "Show active screen toggle"
+                        text: "Active screen toggle"
                         onCheckedChanged: shell.settings.enableActiveScreenToggleIndicator = checked
                         Binding {
                             target: enableActiveScreenToggleIndicator
@@ -1748,7 +1900,7 @@ StyledItem {
                     QQC2.CheckDelegate {
                         id: showActiveScreenIconIndicator
                         Layout.fillWidth: true
-                        text: "Display icon indicator for active screen"
+                        text: "Active screen icon indicator"
                         onCheckedChanged: shell.settings.showActiveScreenIconIndicator = checked
                         Binding {
                             target: showActiveScreenIconIndicator
@@ -1759,7 +1911,7 @@ StyledItem {
                     QQC2.CheckDelegate {
                         id: enableAppSuspensionToggleIndicator
                         Layout.fillWidth: true
-                        text: "Show app suspension toggle"
+                        text: "App suspension toggle"
                         onCheckedChanged: shell.settings.enableAppSuspensionToggleIndicator = checked
                         Binding {
                             target: enableAppSuspensionToggleIndicator
@@ -1770,12 +1922,74 @@ StyledItem {
                     QQC2.CheckDelegate {
                         id: showAppSuspensionIconIndicator
                         Layout.fillWidth: true
-                        text: "Display icon indicator for app suspension"
+                        text: "App suspension icon indicator"
                         onCheckedChanged: shell.settings.showAppSuspensionIconIndicator = checked
                         Binding {
                             target: showAppSuspensionIconIndicator
                             property: "checked"
                             value: shell.settings.showAppSuspensionIconIndicator
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: enableAutoDarkModeToggleIndicator
+                        Layout.fillWidth: true
+                        text: "Scheduled dark mode toggle"
+                        onCheckedChanged: shell.settings.enableAutoDarkModeToggleIndicator = checked
+                        Binding {
+                            target: enableAutoDarkModeToggleIndicator
+                            property: "checked"
+                            value: shell.settings.enableAutoDarkModeToggleIndicator
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: enableDarkModeToggleIndicator
+                        Layout.fillWidth: true
+                        text: "Dark mode toggle"
+                        onCheckedChanged: shell.settings.enableDarkModeToggleIndicator = checked
+                        Binding {
+                            target: enableDarkModeToggleIndicator
+                            property: "checked"
+                            value: shell.settings.enableDarkModeToggleIndicator
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: enableImmersiveModeToggleIndicator
+                        Layout.fillWidth: true
+                        text: "Immersive mode toggle"
+                        onCheckedChanged: shell.settings.enableImmersiveModeToggleIndicator = checked
+                        Binding {
+                            target: enableImmersiveModeToggleIndicator
+                            property: "checked"
+                            value: shell.settings.enableImmersiveModeToggleIndicator
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: showImmersiveModeIconIndicator
+                        Layout.fillWidth: true
+                        text: "Immersive mode icon indicator"
+                        onCheckedChanged: shell.settings.showImmersiveModeIconIndicator = checked
+                        Binding {
+                            target: showImmersiveModeIconIndicator
+                            property: "checked"
+                            value: shell.settings.showImmersiveModeIconIndicator
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Date and Time"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.HeadingThree
+                    }
+                    QQC2.CheckDelegate {
+                        id: twoDigitHourDateTimeIndicator
+                        Layout.fillWidth: true
+                        text: "2-Digit Hour Format"
+                        onCheckedChanged: shell.settings.twoDigitHourDateTimeIndicator = checked
+                        Binding {
+                            target: twoDigitHourDateTimeIndicator
+                            property: "checked"
+                            value: shell.settings.twoDigitHourDateTimeIndicator
                         }
                     }
                     QQC2.Label {
@@ -1832,19 +2046,19 @@ StyledItem {
                     QQC2.Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
-                        text: "Date and Time"
+                        text: "Sound"
                         wrapMode: Text.WordWrap
                         Suru.textLevel: Suru.HeadingThree
                     }
                     QQC2.CheckDelegate {
-                        id: twoDigitHourDateTimeIndicator
+                        id: onlyShowSoundIndicatorWhenSilent
                         Layout.fillWidth: true
-                        text: "2-Digit Hour Format"
-                        onCheckedChanged: shell.settings.twoDigitHourDateTimeIndicator = checked
+                        text: "Only show icon when silent"
+                        onCheckedChanged: shell.settings.onlyShowSoundIndicatorWhenSilent = checked
                         Binding {
-                            target: twoDigitHourDateTimeIndicator
+                            target: onlyShowSoundIndicatorWhenSilent
                             property: "checked"
-                            value: shell.settings.twoDigitHourDateTimeIndicator
+                            value: shell.settings.onlyShowSoundIndicatorWhenSilent
                         }
                     }
                     QQC2.Label {
@@ -1863,6 +2077,24 @@ StyledItem {
                             target: enableOSKToggleInIndicator
                             property: "checked"
                             value: shell.settings.enableOSKToggleInIndicator
+                        }
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Notifications"
+                        wrapMode: Text.WordWrap
+                        Suru.textLevel: Suru.HeadingThree
+                    }
+                    QQC2.CheckDelegate {
+                        id: onlyShowNotificationsIndicatorWhenGreen
+                        Layout.fillWidth: true
+                        text: "Only show icon when green"
+                        onCheckedChanged: shell.settings.onlyShowNotificationsIndicatorWhenGreen = checked
+                        Binding {
+                            target: onlyShowNotificationsIndicatorWhenGreen
+                            property: "checked"
+                            value: shell.settings.onlyShowNotificationsIndicatorWhenGreen
                         }
                     }
                 }
@@ -2197,6 +2429,11 @@ StyledItem {
                 text: "App Drawer Dock"
                 onClicked: settingsLoader.item.stack.push(drawerDockPage, {"title": text})
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Auto Dark Mode"
+                onClicked: settingsLoader.item.stack.push(autoDarkModePage, {"title": text})
+            }
             QQC2.CheckDelegate {
                 id: enableSideStage
                 Layout.fillWidth: true
@@ -2236,6 +2473,82 @@ StyledItem {
                     property: "checked"
                     value: shell.settings.batteryCircle
                 }
+            }
+        }
+    }
+    Component {
+        id: autoDarkModePage
+
+        LPSettingsPage {
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Automatically toggle dark mode based on set start and end time\n\n"
+                + " • Immediate: Toggles dark mode in real time\n"
+                + " • Delayed: Toggles only on next wake up of the device"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: enableAutoDarkMode
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableAutoDarkMode = checked
+                Binding {
+                    target: enableAutoDarkMode
+                    property: "checked"
+                    value: shell.settings.enableAutoDarkMode
+                }
+            }
+            QQC2.CheckDelegate {
+                id: immediateDarkModeSwitch
+                Layout.fillWidth: true
+                visible: shell.settings.enableAutoDarkMode
+                text: "Auto switch immediately"
+                onCheckedChanged: shell.settings.immediateDarkModeSwitch = checked
+                Binding {
+                    target: immediateDarkModeSwitch
+                    property: "checked"
+                    value: shell.settings.immediateDarkModeSwitch
+                }
+            }
+            QQC2.ItemDelegate {
+                id: startTimeListitem
+
+                property date date: Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeStartTime, "hh:mm")
+
+                Layout.fillWidth: true
+                visible: shell.settings.enableAutoDarkMode
+                text: "Start time"
+                indicator: Label {
+                    text: startTimeListitem.date.toLocaleTimeString(Qt.locale(),Locale.ShortFormat)
+                    anchors {
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                        verticalCenter: parent.verticalCenter
+                    }
+                }
+                onDateChanged: shell.settings.autoDarkModeStartTime = date.toLocaleString(Qt.locale(), "hh:mm")
+                onClicked: PickerPanel.openDatePicker(startTimeListitem, "date", "Hours|Minutes")
+            }
+            QQC2.ItemDelegate {
+                id: endTimeListitem
+
+                property date date: Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeEndTime, "hh:mm")
+
+                Layout.fillWidth: true
+                visible: shell.settings.enableAutoDarkMode
+                text: "End time"
+                indicator: Label {
+                    text: endTimeListitem.date.toLocaleTimeString(Qt.locale(),Locale.ShortFormat)
+                    anchors {
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                        verticalCenter: parent.verticalCenter
+                    }
+                }
+                onDateChanged: shell.settings.autoDarkModeEndTime = date.toLocaleString(Qt.locale(), "hh:mm")
+                onClicked: PickerPanel.openDatePicker(endTimeListitem, "date", "Hours|Minutes")
             }
         }
     }
@@ -3059,7 +3372,7 @@ StyledItem {
             target: greeter
             onShownChanged: {
                 if (!target.shown && stage.topLevelSurfaceList.count == 0) {
-                    eyeBlinkLoader.active = lp_settings.enableOW && lp_settings.enableAlternateOW
+                    eyeBlinkLoader.active = lp_settings.enableOW && lp_settings.ow_theme == 0
                 }
             }
         }
@@ -3300,7 +3613,10 @@ StyledItem {
     
     // ENH018 - Immersive mode
     /* Detect Immersive mode */
-    property bool immersiveMode: settings.edgeDragWidth == 0
+    // ENH115 - Standalone Immersive mode
+    //property bool immersiveMode: settings.edgeDragWidth == 0
+    property bool immersiveMode: settings.edgeDragWidth == 0 || shell.settings.immersiveMode
+    // ENH115 - End
     // ENH018 - End
 
     WallpaperResolver {
@@ -3470,13 +3786,13 @@ StyledItem {
             objectName: "stage"
             anchors.fill: parent
             // ENH002 - Notch/Punch hole fix
-			anchors.leftMargin: shell.shellLeftMargin
-			anchors.rightMargin: shell.shellRightMargin
-			anchors.bottomMargin: shell.shellBottomMargin
-			// ENH002 - End
+            anchors.leftMargin: shell.shellLeftMargin
+            anchors.rightMargin: shell.shellRightMargin
+            anchors.bottomMargin: shell.shellBottomMargin
+            // ENH002 - End
             // ENH032 - Infographics Outer Wilds
             enableOW: lp_settings.enableOW
-            alternateOW: lp_settings.enableAlternateOW
+            alternateOW: lp_settings.ow_theme == 0
             eyeOpened: eyeBlinkLoader.item ? eyeBlinkLoader.item.eyeOpened : false
             blinkComplete: eyeBlinkLoader.item ? eyeBlinkLoader.item.blinkComplete : false
             // ENH032 - End
@@ -3604,11 +3920,11 @@ StyledItem {
             enabled: !shell.immersiveMode
             direction: SwipeArea.Leftwards
             immediateRecognition: true
-            
+
             onDraggingCustomChanged: {
                 if(dragging && !fineControl){
                     trigger(-1)
-                }	
+                }   
             }
 
             onDraggingChanged: {
@@ -3655,6 +3971,7 @@ StyledItem {
         id: indicatorBottomItemsLoader
 
         property var model: shell.settings.directAccessIndicators
+        property int enabledCount: 0
 
         active: shell.settings.indicatorGesture && shell.settings.specificIndicatorGesture
         asynchronous: true
@@ -3666,6 +3983,18 @@ StyledItem {
             rightMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.customThreshold : 0
             left: parent.left
             leftMargin: anchors.rightMargin
+        }
+
+        onModelChanged: {
+            enabledCount = 0
+
+            if (model) {
+                for (let i = 0; i < model.length; i++) {
+                    if (model[i].enabled) {
+                      enabledCount += 1
+                    }
+                }
+            }
         }
 
         state: "full"
@@ -3713,7 +4042,9 @@ StyledItem {
                 model: indicatorBottomItemsLoader.model
 
                 Item {
-                    readonly property real preferredSize: (indicatorBottomItemsLoader.width / indicatorSwipeRepeater.count) - units.gu(0.5)
+                    id: indicatorItem
+
+                    readonly property real preferredSize: (indicatorBottomItemsLoader.width / indicatorBottomItemsLoader.enabledCount)
                     readonly property real maximumSize: units.gu(6)
 
                     readonly property string itemId: modelData.id
@@ -3725,11 +4056,10 @@ StyledItem {
                     Layout.preferredWidth: preferredSize
                     Layout.preferredHeight: preferredSize
                     Layout.maximumHeight: maximumSize
-                    Layout.maximumWidth: maximumSize
 
                     visible: modelData.enabled
                     z: highlighted ? 2 : 1
-                    scale: highlighted ? 1.5 : 1
+                    scale: highlighted ? 1.3 : 1
                     Behavior on scale { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
 
                     onHighlightedChanged: if (highlighted) shell.haptics.playSubtle()
@@ -3739,7 +4069,9 @@ StyledItem {
 
                         color: highlighted ? theme.palette.highlighted.foreground : theme.palette.normal.foreground
                         radius: width / 2
-                        anchors.fill: parent
+                        width: Math.min(parent.width, indicatorItem.maximumSize)
+                        height: width
+                        anchors.centerIn: parent
                         Behavior on color { ColorAnimation { duration: LomiriAnimation.FastDuration } }
                     }
                     Icon {
@@ -3779,7 +4111,7 @@ StyledItem {
             onDraggingCustomChanged: {
                 if(dragging){
                     triggered()
-                }	
+                }   
             }
             
             onTriggered: panel.applicationMenus.openAsInverted()
@@ -3807,9 +4139,9 @@ StyledItem {
             //leftMargin: (launcher.lockedVisible && greeter.shown ? launcher.panelWidth : 0) + shell.shellLeftMargin
             leftMargin: (launcher.lockedByUser && launcher.lockAllowed && launcher.shown ? launcher.panelWidth : 0) + shell.shellLeftMargin
             // ENH014 - End
-			rightMargin: shell.shellRightMargin
-			bottomMargin: shell.shellBottomMargin
-			// ENH002 - End
+            rightMargin: shell.shellRightMargin
+            bottomMargin: shell.shellBottomMargin
+            // ENH002 - End
         }
         z: notifications.useModal || panel.indicators.shown || wizard.active || tutorial.running || launcher.drawerShown ? overlay.z + 1 : overlay.z - 1
     }
@@ -3820,10 +4152,10 @@ StyledItem {
         anchors.fill: parent
         // ENH002 - Notch/Punch hole fix
         anchors.topMargin: deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
-		anchors.leftMargin: shell.shellLeftMargin
-		anchors.rightMargin: shell.shellRightMargin
-		anchors.bottomMargin: shell.shellBottomMargin
-		// ENH002 - End
+        anchors.leftMargin: shell.shellLeftMargin
+        anchors.rightMargin: shell.shellRightMargin
+        anchors.bottomMargin: shell.shellBottomMargin
+        // ENH002 - End
         sourceComponent: {
             if (shell.mode != "shell") {
                 if (screenWindow.primary) return integratedGreeter;
@@ -3945,6 +4277,13 @@ StyledItem {
                 // its animations.  So this is simpler.
                 showGreeterDelayed.start();
             }
+            // ENH116 - Standalone Dark mode toggle
+            if (shell.settings.enableAutoDarkMode) {
+                if (Powerd.status == Powerd.On) {
+                    shell.themeSettings.checkAutoToggle()
+                }
+            }
+            // ENH116 - End
         }
     }
 
@@ -3970,8 +4309,8 @@ StyledItem {
         // ENH002 - Notch/Punch hole fix
         anchors.topMargin: deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
         anchors.leftMargin: shell.shellLeftMargin
-		anchors.rightMargin: shell.shellRightMargin
-		anchors.bottomMargin: shell.shellBottomMargin
+        anchors.rightMargin: shell.shellRightMargin
+        anchors.bottomMargin: shell.shellBottomMargin
         
         Rectangle {
             // Black out top part when in fullscreen
@@ -3985,7 +4324,7 @@ StyledItem {
             }
             height: shell.shellTopMargin
         }
-		// ENH002 - End
+        // ENH002 - End
 
         Panel {
             id: panel

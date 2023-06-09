@@ -59,8 +59,10 @@ FocusScope {
         anchors.topMargin: units.gu(2)
         // ENH105 - Custom app drawer
         anchors.bottomMargin: bottomDockLoader.item && bottomDockLoader.item.shown ?
-                                        bottomDockLoader.item.expanded && bottomDockLoader.item.expandingFinished ? bottomDockLoader.height + bottomDockLoader.anchors.bottomMargin
-                                                 : bottomDockLoader.item.rowHeight + bottomDockLoader.item.verticalPadding
+                                        // For anchoring with dock expansion
+                                        //bottomDockLoader.item.expanded && bottomDockLoader.item.expandingFinished ? bottomDockLoader.height + bottomDockLoader.anchors.bottomMargin
+                                        //         : bottomDockLoader.item.rowHeight + bottomDockLoader.item.verticalPadding
+                                        bottomDockLoader.item.rowHeight + bottomDockLoader.item.verticalPadding
                                                             + bottomDockLoader.anchors.bottomMargin
                                     : 0
         anchors.leftMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.leftMargin : 0
@@ -76,6 +78,11 @@ FocusScope {
         cellHeight: root.delegateHeight
         // ENH105 - Custom app drawer
         clip: true
+        onMovingChanged: {
+            if (moving && bottomDockLoader.item) {
+                bottomDockLoader.item.expanded = false
+            }
+        }
         // ENH105 - End
 
         PullToRefresh {
@@ -169,13 +176,20 @@ FocusScope {
 
             height: dockedAppGrid.height + verticalPadding
             visible: shown
+
+            onShownChanged: {
+                if (!shown) {
+                    expanded = false
+                }
+            }
             
             Rectangle {
                 id: bg
                 color: theme.palette.normal.foreground
-                opacity: 0.8
+                opacity: bottomDock.expanded ? 1 : 0.6
                 radius: units.gu(3)
                 anchors.fill: parent
+                Behavior on opacity { UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration } }
             }
 
             Icon {

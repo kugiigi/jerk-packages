@@ -7,11 +7,11 @@ import QtQuick.LocalStorage 2.0
 import "MediaPlayer" as MediaPlayer
 
 LPDynamicCoveItem {
-	id: mediaPlayer
+    id: mediaPlayer
 
     readonly property string allSongId: "dc-all"
-	readonly property var mediaPlayerObj: shell.mediaPlayer
-	readonly property bool playing: mediaPlayerObj && mediaPlayerObj.isPlaying
+    readonly property var mediaPlayerObj: shell.mediaPlayer
+    readonly property bool playing: mediaPlayerObj && mediaPlayerObj.isPlaying
     readonly property bool aboutToTakeAction: swipeArea.dragging && swipeArea.draggingCustom
     readonly property bool noMedia: mediaPlayerObj && mediaPlayerObj.noMedia
     readonly property bool paused: mediaPlayerObj && mediaPlayerObj.isPaused
@@ -95,28 +95,37 @@ LPDynamicCoveItem {
         hoverEnabled: true
     }
 
-	Item {
-		id: container
+    Item {
+        id: container
 
-		anchors.fill: parent
-		visible: mediaPlayerObj.isReady
-		
-		Component.onCompleted: playlistsModel.filterPlaylists()
+        anchors.fill: parent
+        visible: mediaPlayerObj.isReady
+        
+        Component.onCompleted: playlistsModel.filterPlaylists()
 
-		Rectangle {
+        Rectangle {
             id: bg
 
-			color: theme.palette.normal.foreground
-			opacity: 0.3
+            color: theme.palette.normal.foreground
+            opacity: 0.3
             anchors.centerIn: parent
-			width: units.gu(5)
+            width: units.gu(5)
             height: width
-			radius: width / 2
-            Component.onCompleted: {
-                width = parent.width
-            }
+            radius: width / 2
+            Component.onCompleted: delayOpenAnimation.restart()
+
             Behavior on width { LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration } }
-		}
+
+            // WORKAROUND: Delay to avoid the issue where the animation
+            // doesn't seem to execute upong locking the device
+            Timer {
+                id: delayOpenAnimation
+
+                running: false
+                interval: 1
+                onTriggered: bg.width = bg.parent.width
+            }
+        }
 
         Item {
             id: contents
@@ -254,13 +263,13 @@ LPDynamicCoveItem {
                 }
             }
         }
-		
-		MediaPlayer.LPPlaylistsModel {
-			id: playlistsModel
-			syncFactor: 1
-		}
-		MediaPlayer.LPPlaylistsModel {
-			id: playlistTracksModel
+        
+        MediaPlayer.LPPlaylistsModel {
+            id: playlistsModel
+            syncFactor: 1
+        }
+        MediaPlayer.LPPlaylistsModel {
+            id: playlistTracksModel
 
             onRowCountChanged: {
                 if (rowCount == mediaPlayer.pendingPlaylistTrackCount && mediaPlayer.playlistPending) {
@@ -268,6 +277,6 @@ LPDynamicCoveItem {
                     mediaPlayer.playPendingPlaylist()
                 }
             }
-		}
-	}
+        }
+    }
 }
