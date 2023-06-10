@@ -557,6 +557,142 @@ Item {
         // ENH100 - Camera button to toggle rotation and OSK
         onToggleRotation: root.toggleRotation()
         // ENH100 - End
+        // ENH117 - Shell reachability
+        property bool pulledDown: false
+
+        Behavior on x {
+            id: xBehavior
+            LomiriNumberAnimation {}
+        }
+        Behavior on y {
+            id: yBehavior
+            LomiriNumberAnimation {}
+        }
+
+        onPulledDownChanged: {
+            xBehavior.enabled = true
+            yBehavior.enabled = true
+
+            if (pulledDown) {
+                switch(Math.abs(transformRotationAngle)) {
+                    case 0:
+                        y += nativeHeight / 3
+                    break
+                    case 90:
+                        x -= (nativeWidth / 3)
+                    break
+                    case 180:
+                        y -= (nativeHeight / 3)
+                    break
+                    case 270:
+                        x += (nativeWidth / 3)
+                    break
+                }
+            } else {
+                if (transformRotationAngle == 90 || transformRotationAngle == 270) {
+                    let _heightWidth = nativeHeight - nativeWidth
+                    if (_heightWidth) {
+                        x = -(_heightWidth / 2)
+                        y = _heightWidth / 2
+                    } else {
+                        x = _heightWidth / 2
+                        y = -(_heightWidth / 2)
+                    }
+                } else {
+                    x = 0
+                    y = 0
+                }
+            }
+
+            xBehavior.enabled = false
+            yBehavior.enabled = false
+        }
+
+        onTransformRotationAngleChanged: pulledDown = false
+        
+        Loader {
+            active: shell.settings.enablePullDownGesture
+            asynchronous: true
+            sourceComponent: swipeHandlersComponent
+            anchors.fill: parent
+            anchors.bottomMargin: parent.height / 2
+            z: 1000
+        }
+
+        Component {
+            id: swipeHandlersComponent
+
+            Item {
+                Connections {
+                    target: Powerd
+                    onStatusChanged: {
+                        if (target.status == Powerd.Off) {
+                            shell.pulledDown = false
+                        }
+                    }
+                }
+                LPPullDownSwipeHandler {
+                    id: leftPullDownSwipeArea
+
+                    pullDownState: shell.pulledDown
+                    usePhysicalUnit: true
+                    width: shell.edgeSize
+                    anchors {
+                        top: parent.top
+                        bottom: parent.bottom
+                        left: parent.left
+                        leftMargin: shell.shellLeftMargin
+                    }
+
+                    onTrigger: {
+                        if (pullDownState) {
+                            shell.pulledDown = false
+                        } else {
+                            shell.pulledDown = true
+                        }
+                    }
+
+                    /*
+                    Rectangle {
+                        color: "red"
+                        opacity: 0.6
+                        anchors.fill: parent
+                    }
+                    */
+                }
+
+                LPPullDownSwipeHandler {
+                    id: rightPullDownSwipeArea
+
+                    pullDownState: shell.pulledDown
+                    usePhysicalUnit: true
+                    width: shell.edgeSize
+                    anchors {
+                        top: parent.top
+                        bottom: parent.bottom
+                        right: parent.right
+                        rightMargin: shell.shellRightMargin
+                    }
+
+                    onTrigger: {
+                        if (pullDownState) {
+                            shell.pulledDown = false
+                        } else {
+                            shell.pulledDown = true
+                        }
+                    }
+
+                    /*
+                    Rectangle {
+                        color: "blue"
+                        opacity: 0.6
+                        anchors.fill: parent
+                    }
+                    */
+                }
+            }
+        }
+        // ENH117 - End
     }
 
     Rectangle {
