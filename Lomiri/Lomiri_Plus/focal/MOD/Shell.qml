@@ -499,6 +499,7 @@ StyledItem {
         property alias disableLeftEdgeMousePush: settingsObj.disableLeftEdgeMousePush
         property alias disableRightEdgeMousePush: settingsObj.disableRightEdgeMousePush
         property alias externalDisplayBehavior: settingsObj.externalDisplayBehavior
+        property alias enablePullDownGesture: settingsObj.enablePullDownGesture
 
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
@@ -820,6 +821,7 @@ StyledItem {
                 1 - Solar System
             */
             property bool onlyShowLomiriSettingsWhenUnlocked: true
+            property bool enablePullDownGesture: false
         }
     }
 
@@ -2434,6 +2436,11 @@ StyledItem {
                 text: "Auto Dark Mode"
                 onClicked: settingsLoader.item.stack.push(autoDarkModePage, {"title": text})
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Abot Kamay"
+                onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
+            }
             QQC2.CheckDelegate {
                 id: enableSideStage
                 Layout.fillWidth: true
@@ -2575,6 +2582,33 @@ StyledItem {
                     target: enableDrawerDock
                     property: "checked"
                     value: shell.settings.enableDrawerDock
+                }
+            }
+        }
+    }
+    Component {
+        id: pullDownPage
+        
+        LPSettingsPage {
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Swipe down from the upper half of the leftmost or rightmost edge to pull down the shell to a more reachable state."
+                + " Swipe area is the same width as the swipe area for the side gestures.\n\n"
+                + " • Pull Down: Swipe down and release\n"
+                + " • Reset: Swipe up and release"
+                wrapMode: Text.WordWrap
+                Suru.textLevel: Suru.Caption
+            }
+            QQC2.CheckDelegate {
+                id: enablePullDownGesture
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enablePullDownGesture = checked
+                Binding {
+                    target: enablePullDownGesture
+                    property: "checked"
+                    value: shell.settings.enablePullDownGesture
                 }
             }
         }
