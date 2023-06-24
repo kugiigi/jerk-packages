@@ -28,6 +28,19 @@ MouseArea {
     }
     onPressAndHold: applicationContextMenu(appId)
 
+    Keys.onPressed: {
+        switch(event.key) {
+            case Qt.Key_Enter:
+            case Qt.Key_Return:
+                applicationSelected(appId)
+            break
+            case Qt.Key_Control:
+            case Qt.Key_Menu:
+                applicationContextMenu(appId)
+            break
+        }
+    }
+
     z: loader.active ? 1 : 0
 
     Column {

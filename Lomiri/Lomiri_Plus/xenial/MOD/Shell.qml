@@ -414,9 +414,11 @@ StyledItem {
         property alias roundedBFB: settingsObj.roundedBFB
         property alias bigDrawerSearchField: settingsObj.bigDrawerSearchField
         property alias showBottomHintDrawer: settingsObj.showBottomHintDrawer
+        property alias enableDrawerBottomSwipe: settingsObj.enableDrawerBottomSwipe
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
+        property alias drawerDockType: settingsObj.drawerDockType
         property alias drawerDockApps: settingsObj.drawerDockApps
         
         // Indicators/Top Panel
@@ -445,6 +447,7 @@ StyledItem {
         property alias showActiveScreenIconIndicator: settingsObj.showActiveScreenIconIndicator
         property alias onlyShowNotificationsIndicatorWhenGreen: settingsObj.onlyShowNotificationsIndicatorWhenGreen
         property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
+        property alias hideTimeIndicatorAlarmIcon: settingsObj.hideTimeIndicatorAlarmIcon
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -681,9 +684,17 @@ StyledItem {
             /*
                 0 - Main Menu
                 1 - Solar System
+                2 - Sealed Vault
             */
             property bool onlyShowLomiriSettingsWhenUnlocked: true
             property bool enablePullDownGesture: false
+            property bool hideTimeIndicatorAlarmIcon: false
+            property int drawerDockType: 0
+            /*
+                0 - Bottom Dock
+                1 - Integrated Dock
+            */
+            property bool enableDrawerBottomSwipe: false
         }
     }
 
@@ -918,7 +929,7 @@ StyledItem {
     Loader {
         id: settingsLoader
         active: false
-        z: inputMethod.visible ? inputMethod.z - 1 : shellBorderLoader.z + 1
+        z: inputMethod.visible ? inputMethod.z - 1 : cursor.z - 2
         width: Math.min(parent.width, units.gu(40))
         height: inputMethod.visible ? parent.height - inputMethod.visibleRect.height - panel.minimizedPanelHeight
                                     : Math.min(parent.height, units.gu(60))
@@ -1240,7 +1251,7 @@ StyledItem {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 color: theme.palette.normal.negative
-                text: "May crash Lomiri especially the Solar System theme. Settings is non-persistent to avoid being stuck."
+                text: "Consumes a lot of memory and may crash Lomiri especially the Solar System theme. Settings is non-persistent to avoid being stuck."
                 wrapMode: Text.WordWrap
                 Suru.textLevel: Suru.Caption
             }
@@ -1261,7 +1272,8 @@ StyledItem {
                 text: i18n.tr("Theme")
                 model: [
                     i18n.tr("Main Menu"),
-                    i18n.tr("Solar System")
+                    i18n.tr("Solar System"),
+                    i18n.tr("Sealed Vault")
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.ow_theme
@@ -1788,6 +1800,17 @@ StyledItem {
                             value: shell.settings.twoDigitHourDateTimeIndicator
                         }
                     }
+                    QQC2.CheckDelegate {
+                        id: hideTimeIndicatorAlarmIcon
+                        Layout.fillWidth: true
+                        text: "Hide alarm icon"
+                        onCheckedChanged: shell.settings.hideTimeIndicatorAlarmIcon = checked
+                        Binding {
+                            target: hideTimeIndicatorAlarmIcon
+                            property: "checked"
+                            value: shell.settings.hideTimeIndicatorAlarmIcon
+                        }
+                    }
                     QQC2.Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
@@ -2006,6 +2029,17 @@ StyledItem {
                             value: shell.settings.invertedDrawer
                         }
                     }
+                    QQC2.CheckDelegate {
+                        id: enableDrawerBottomSwipe
+                        Layout.fillWidth: true
+                        text: "Bottom swipe up to search"
+                        onCheckedChanged: shell.settings.enableDrawerBottomSwipe = checked
+                        Binding {
+                            target: enableDrawerBottomSwipe
+                            property: "checked"
+                            value: shell.settings.enableDrawerBottomSwipe
+                        }
+                    }
                     QQC2.Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
@@ -2028,7 +2062,7 @@ StyledItem {
                         id: showBottomHintDrawer
                         Layout.fillWidth: true
                         text: "Show bottom hint"
-                        visible: shell.settings.hideDrawerSearch
+                        visible: shell.settings.hideDrawerSearch || shell.settings.enableDrawerBottomSwipe
                         onCheckedChanged: shell.settings.showBottomHintDrawer = checked
                         Binding {
                             target: showBottomHintDrawer
@@ -2279,10 +2313,15 @@ StyledItem {
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                text: "Dock of pinned apps displayed at the bottom of the app drawer\n\n"
-                + " • Expand/Collapse: Swipe up/down\n"
+                text: "New section in the app drawer where you can pin or add apps\n\n"
                 + " • Toggle edit mode: Press and hold on empty space to enter/exit. Use context menu to enter. Click on app to exit.\n"
-                + " • Rearrange apps: Press, hold and drag on app icons"
+                + " • Rearrange apps: Press, hold and drag on app icons\n\n"
+                + "Bottom Dock:\n"
+                + " - Displayed at the bottom of the app drawer\n"
+                + " - Collapsible by swiping up and down\n\n"
+                + "Integrated Dock:\n"
+                + " - Displayed at the top of the app drawer or at the bottom when it's inverted\n"
+                + ' - Works more like a "Favorites" section than a usual dock\n'
                 wrapMode: Text.WordWrap
                 Suru.textLevel: Suru.Caption
             }
@@ -2296,6 +2335,19 @@ StyledItem {
                     property: "checked"
                     value: shell.settings.enableDrawerDock
                 }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDrawerDock
+                text: i18n.tr("Dock type")
+                model: [
+                    i18n.tr("Bottom Dock"),
+                    i18n.tr("Integrated Dock")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.drawerDockType
+                onSelectedIndexChanged: shell.settings.drawerDockType = selectedIndex
             }
         }
     }
@@ -3540,6 +3592,7 @@ StyledItem {
             // ENH032 - Infographics Outer Wilds
             enableOW: lp_settings.enableOW
             alternateOW: lp_settings.ow_theme == 0
+            dlcOW: lp_settings.ow_theme == 2
             eyeOpened: eyeBlinkLoader.item ? eyeBlinkLoader.item.eyeOpened : false
             blinkComplete: eyeBlinkLoader.item ? eyeBlinkLoader.item.blinkComplete : false
             // ENH032 - End

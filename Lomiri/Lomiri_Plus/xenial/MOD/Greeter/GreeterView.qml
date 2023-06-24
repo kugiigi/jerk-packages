@@ -68,6 +68,8 @@ FocusScope {
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
     property bool alternateOW: false
+    property bool solarOW: false
+    property bool dlcOW: false
     property bool fastModeOW: false
     signal fastModeToggle
     signal owToggle
@@ -195,6 +197,7 @@ FocusScope {
         // ENH032 - Infographics Outer Wilds
         owWallpaper: root.enableOW
         owAlternateWallpaper: root.alternateOW
+        owDLCWallpaper: root.dlcOW
         Loader {
             active: lockscreen.owWallpaper && lockscreen.owAlternateWallpaper && lockscreen.shown && !coverPage.shown
             asynchronous: true
@@ -470,6 +473,8 @@ FocusScope {
         // ENH032 - Infographics Outer Wilds
         enableOW: root.enableOW
         alternateOW: root.alternateOW
+        solarOW: root.solarOW
+        dlcOW: root.dlcOW
         fastModeOW: root.fastModeOW
         onOwToggle: root.owToggle()
         onFastModeToggle: root.fastModeToggle()
@@ -482,6 +487,7 @@ FocusScope {
             anchors.centerIn: parent
             // ENH032 - Infographics Outer Wilds
             owThemed: root.enableOW || shell.settings.ow_ColoredClock
+            owDLCThemed: root.enableOW && root.dlcOW
             largeMode: coverPage.isLargeScreen
             gradientTimeText: shell.settings.ow_GradientColoredTime
             // ENH032 - End

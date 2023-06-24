@@ -66,8 +66,11 @@ Showable {
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
     property bool alternateOW: false
+    property bool solarOW: false
+    property bool dlcOW: false
     property bool owWallpaper: false
     property bool owAlternateWallpaper: false
+    property bool owDLCWallpaper: false
     property bool fastModeOW: false
     signal fastModeToggle
     signal owToggle
@@ -222,6 +225,9 @@ Showable {
             if (root.owWallpaper && root.owAlternateWallpaper) {
                 return "../OuterWilds/graphics/loading_screen.png"
             }
+            if (root.enableOW && root.dlcOW) {
+                return "../OuterWilds/graphics/OWVault.png"
+            }
             if (root.enableOW || root.owWallpaper) {
                 return "../OuterWilds/graphics/lockscreen.png"
             }
@@ -283,7 +289,7 @@ Showable {
         id: solarSystemLoader
         property bool fastMode: false
 
-        active: root.enableOW && !root.alternateOW
+        active: root.enableOW && root.solarOW
         asynchronous: true
         anchors.fill: infographicsArea
         sourceComponent: solarSystemComp
@@ -324,6 +330,19 @@ Showable {
         OWMainMenu {
             id: mainMenu
         }
+    }
+
+    Loader {
+        id: dlcOWLoader
+
+        active: root.enableOW && root.dlcOW
+        asynchronous: true
+        anchors.fill: greeterBackground
+        sourceComponent: dlcComponent
+    }
+    Component {
+        id: dlcComponent
+        OWVaultFire {}
     }
 
     // ENH032 - End

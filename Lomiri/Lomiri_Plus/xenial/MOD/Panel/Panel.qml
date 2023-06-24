@@ -736,6 +736,14 @@ Item {
                     notchMargin = newMargin
                 }
 
+                /* Disabled for now since it sometimes causes continuous binding loop error
+                onImplicitWidthChanged: {
+                    if (!actuallyHidden && !expanded) {
+                        ListView.view.delayedNotchAdjustment()
+                    }
+                }
+                */
+
                 onActuallyHiddenChanged: {
                     if (!actuallyHidden && !expanded) {
                         notchExpandDelay.restart()

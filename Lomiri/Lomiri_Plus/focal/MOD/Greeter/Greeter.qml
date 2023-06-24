@@ -83,6 +83,8 @@ Showable {
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: shell.settings.enableOW
     property bool alternateOW: shell.settings.ow_theme == 0
+    property bool solarOW: shell.settings.ow_theme == 1
+    property bool dlcOW: shell.settings.ow_theme == 2
     property bool fastModeOW: false
     // ENH032 - End
 
@@ -433,6 +435,16 @@ Showable {
             target: loader.item
             property: "alternateOW"
             value: root.alternateOW
+        }
+        Binding {
+            target: loader.item
+            property: "solarOW"
+            value: root.solarOW
+        }
+        Binding {
+            target: loader.item
+            property: "dlcOW"
+            value: root.dlcOW
         }
         Binding {
             target: loader.item

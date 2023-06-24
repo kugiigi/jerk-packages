@@ -65,6 +65,7 @@ Instantiator {
                         text: "Lomiri encountered an unrecoverable error while loading:"
                         fontSize: "large"
                         // ENH113 - Proper wrapping lomiri error page
+                        color: "black"
                         wrapMode: Text.WordWrap
                         anchors {
                             left: parent.left
@@ -76,6 +77,7 @@ Instantiator {
                     Label {
                         text: errorString
                         // ENH113 - Proper wrapping lomiri error page
+                        color: "black"
                         wrapMode: Text.WordWrap
                         anchors {
                             left: parent.left

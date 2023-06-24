@@ -14,7 +14,7 @@ RowLayout {
         Layout.alignment: Qt.AlignLeft
     }
 
-	QQC2.TextField {
+	TextField {
 		id: colorField
 
 		Layout.fillWidth: true

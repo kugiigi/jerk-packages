@@ -549,19 +549,7 @@ Item {
         // ENH117 - Shell reachability
         property bool pulledDown: false
 
-        Behavior on x {
-            id: xBehavior
-            UbuntuNumberAnimation {}
-        }
-        Behavior on y {
-            id: yBehavior
-            UbuntuNumberAnimation {}
-        }
-
         onPulledDownChanged: {
-            xBehavior.enabled = true
-            yBehavior.enabled = true
-
             if (pulledDown) {
                 switch(Math.abs(transformRotationAngle)) {
                     case 0:
@@ -592,9 +580,6 @@ Item {
                     y = 0
                 }
             }
-
-            xBehavior.enabled = false
-            yBehavior.enabled = false
         }
 
         onTransformRotationAngleChanged: pulledDown = false
