@@ -83,6 +83,7 @@ FocusScope {
     onFullyClosedChanged: {
         if (fullyClosed) {
             appList.collapseDock()
+            appList.exitEditMode()
         }
     }
     // ENH105 - End
@@ -138,7 +139,7 @@ FocusScope {
 
     function focusInput() {
         searchField.selectAll();
-        searchField.focus = true;
+        searchField.forceActiveFocus()
     }
 
     function unFocusInput() {
@@ -442,7 +443,7 @@ FocusScope {
             // ENH059 - Redesigned drawer search field
             Icon {
                 id: bottomHintSearch
-                visible: shell.settings.hideDrawerSearch && shell.settings.showBottomHintDrawer
+                visible: searchSwipeArea.enabled && shell.settings.showBottomHintDrawer
                 name: "toolkit_bottom-edge-hint"
                 anchors {
                     bottom: parent.bottom
@@ -452,7 +453,8 @@ FocusScope {
                 width: height
             }
             SwipeArea {
-                enabled: shell.settings.hideDrawerSearch
+                id: searchSwipeArea
+                enabled: shell.settings.hideDrawerSearch || shell.settings.enableDrawerBottomSwipe
                 height: units.gu(2)
                 anchors {
                     left: parent.left

@@ -18,9 +18,6 @@
 import QtQuick 2.12
 import Lomiri.Components 1.3
 import "../Components"
-// ENH105 - Custom app drawer
-import QtQuick.Layouts 1.12
-// ENH105 - End
 
 FocusScope {
     id: root
@@ -31,7 +28,7 @@ FocusScope {
     property alias model: gridView.model
     property alias interactive: gridView.interactive
     property alias currentIndex: gridView.currentIndex
-    property alias draggingVertically: gridView.draggingVertically
+    readonly property bool draggingVertically: mainFlickable.interactive ? mainFlickable.draggingVertically : gridView.draggingVertically
 
     property alias header: gridView.header
     property alias topMargin: gridView.topMargin
@@ -40,9 +37,11 @@ FocusScope {
     property alias verticalLayoutDirection: gridView.verticalLayoutDirection
     // ENH007 - End
     // ENH105 - Custom app drawer
+    readonly property bool inverted: gridView.verticalLayoutDirection == GridView.BottomToTop
     property var contextMenuItem: null
     property var rawModel
     property bool showDock: false
+    readonly property bool isIntegratedDock: shell.settings.drawerDockType == 1
     signal applicationSelected(string appId)
     signal applicationContextMenu(string appId, var caller, bool fromDocked)
     // ENH105 - End
@@ -53,70 +52,88 @@ FocusScope {
     property alias refreshing: pullToRefresh.refreshing
     signal refresh();
 
-    GridView {
-        id: gridView
-        anchors.fill: parent
-        anchors.topMargin: units.gu(2)
-        // ENH105 - Custom app drawer
-        anchors.bottomMargin: bottomDockLoader.item && bottomDockLoader.item.shown ?
-                                        // For anchoring with dock expansion
-                                        //bottomDockLoader.item.expanded && bottomDockLoader.item.expandingFinished ? bottomDockLoader.height + bottomDockLoader.anchors.bottomMargin
-                                        //         : bottomDockLoader.item.rowHeight + bottomDockLoader.item.verticalPadding
-                                        bottomDockLoader.item.rowHeight + bottomDockLoader.item.verticalPadding
-                                                            + bottomDockLoader.anchors.bottomMargin
-                                    : 0
-        anchors.leftMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.leftMargin : 0
-        anchors.rightMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.rightMargin  : 0
-        bottomMargin: bottomDockLoader.item && bottomDockLoader.item.shown ? units.gu(2) : 0
-        // ENH105 - End
-        focus: true
-
-        readonly property int overflow: width - (root.columns * root.delegateWidth)
-        readonly property real spacing: Math.floor(overflow / root.columns)
-
-        cellWidth: root.delegateWidth + spacing
-        cellHeight: root.delegateHeight
-        // ENH105 - Custom app drawer
-        clip: true
-        onMovingChanged: {
-            if (moving && bottomDockLoader.item) {
-                bottomDockLoader.item.expanded = false
-            }
-        }
-        // ENH105 - End
-
-        PullToRefresh {
-            id: pullToRefresh
-            parent: gridView
-            target: gridView
-
-            readonly property real contentY: gridView.contentY - gridView.originY
-            y: -contentY - units.gu(5)
-
-            readonly property color pullLabelColor: "white"
-            style: PullToRefreshScopeStyle {
-                activationThreshold: Math.min(units.gu(14), gridView.height / 5)
-            }
-
-            onRefresh: root.refresh();
-        }
-    }
-
     // ENH105 - Custom app drawer
-    function getAppItem(_appId) {
-        for (var i = 0; i < rawModel.rowCount(); ++i) {
-            let _modelIndex = rawModel.index(i, 0)
-            let _currentAppId = rawModel.data(_modelIndex, 0)
+    state: "normal"
+    states: [
+        State {
+            name: "bottomdock"
+            when: shell.settings.enableDrawerDock && !root.isIntegratedDock
+            AnchorChanges {
+                target: gridView
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+            }
+            AnchorChanges {
+                target: bottomDockLoader
+                anchors.top: undefined
+                anchors.bottom: parent.bottom
+            }
+            PropertyChanges {
+                target: gridView
 
-            if (_currentAppId == _appId) {
-                let _currentAppName = rawModel.data(_modelIndex, 1)
-                let _currentAppIcon = rawModel.data(_modelIndex, 2)
+                bottomMargin: bottomDockLoader.item && bottomDockLoader.item.shown ? units.gu(2) : 0
+                anchors.bottomMargin: bottomDockLoader.item && bottomDockLoader.item.shown ?
+                                                            bottomDockLoader.item.rowHeight + bottomDockLoader.item.verticalPadding
+                                                                    + bottomDockLoader.anchors.bottomMargin
+                                                : 0
+            }
+            PropertyChanges {
+                target: bottomDockLoader
 
-                return {"name": _currentAppName, "icon": _currentAppIcon }
+                anchors.bottomMargin: units.gu(2)
             }
         }
-        return null
-    }
+        , State {
+            name: "normal"
+            when: !root.inverted
+            AnchorChanges {
+                target: gridView
+                anchors.top: bottomDockLoader.bottom
+                anchors.bottom: parent.bottom
+            }
+            AnchorChanges {
+                target: bottomDockLoader
+                anchors.top: parent.top
+                anchors.bottom: undefined
+            }
+            PropertyChanges {
+                target: gridView
+
+                bottomMargin: 0
+                anchors.bottomMargin: 0
+            }
+            PropertyChanges {
+                target: bottomDockLoader
+
+                anchors.bottomMargin: 0
+            }
+        }
+        , State {
+            name: "inverted"
+            when: root.inverted
+            AnchorChanges {
+                target: gridView
+                anchors.top: parent.top
+                anchors.bottom: bottomDockLoader.top
+            }
+            AnchorChanges {
+                target: bottomDockLoader
+                anchors.top: undefined
+                anchors.bottom: parent.bottom
+            }
+            PropertyChanges {
+                target: gridView
+
+                bottomMargin: 0
+                anchors.bottomMargin: units.gu(2)
+            }
+            PropertyChanges {
+                target: bottomDockLoader
+
+                anchors.bottomMargin: 0
+            }
+        }
+    ]
 
     function addToDock(_appId) {
         if (!shell.settings.drawerDockApps.includes(_appId)) {
@@ -139,281 +156,159 @@ FocusScope {
         }
     }
 
+    function exitEditMode() {
+        if (bottomDockLoader.item) {
+            bottomDockLoader.item.editMode = false
+        }
+    }
+
     function collapseDock() {
         if (bottomDockLoader.item) {
             bottomDockLoader.item.expanded = false
         }
     }
-    
-    Loader {
-        id: bottomDockLoader
-        active: shell.settings.enableDrawerDock
-        asynchronous: true
+
+    onFocusChanged: {
+        if (focus) {
+            gridView.forceActiveFocus()
+        }
+    }
+
+    Flickable {
+        id: mainFlickable
+
+        readonly property bool isEnabled: shell.settings.enableDrawerDock && root.isIntegratedDock && root.showDock && !gridView.activeFocus
+
+        clip: true
+        focus: true
         anchors {
+            top: parent.top
             left: parent.left
             right: parent.right
-            leftMargin: units.gu(1)
-            rightMargin: units.gu(1)
             bottom: parent.bottom
-            bottomMargin: units.gu(2)
         }
-        sourceComponent: bottomDockComponent
-    }
 
-    Component {
-        id: bottomDockComponent
+        contentHeight: isEnabled ? gridView.contentHeight + gridView.anchors.topMargin + gridView.anchors.bottomMargin
+                                                + bottomDockLoader.height + bottomDockLoader.anchors.topMargin + bottomDockLoader.anchors.bottomMargin
+                                : height
+        contentWidth: parent.width
+        interactive: isEnabled && bottomDockLoader.item && !bottomDockLoader.item.editMode
+        
+        function positionToEnd() {
+            contentY = contentHeight - height
+        }
+        function delayedPositionToEnd() {
+            delayScroll.restart()
+        }
 
-        Item {
-            id: bottomDock
-
-            readonly property bool shown: root.showDock
-            readonly property real verticalPadding: units.gu(4)
-            readonly property real horizontalPadding: units.gu(1)
-            readonly property alias rowHeight: dockedAppGrid.rowHeight
-            property bool editMode: false
-            property bool expanded: false
-            property bool expandingFinished: false
-
-            height: dockedAppGrid.height + verticalPadding
-            visible: shown
-
-            onShownChanged: {
-                if (!shown) {
-                    expanded = false
-                }
-            }
-
-            Rectangle {
-                id: bg
-                color: theme.palette.normal.foreground
-                opacity: bottomDock.expanded ? 1 : 0.6
-                Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
-                radius: units.gu(3)
-                anchors.fill: parent
-            }
-
-            Icon {
-                z: wheelMouseArea.z + 1
-                visible: dockedAppGrid.multiRows && !bottomDock.editMode
-                name: bottomDock.expanded ? "down" : "up"
-                height: units.gu(1.5)
-                width: height
-                color: theme.palette.normal.backgroundText
-                anchors {
-                    top: parent.top
-                    horizontalCenter: parent.horizontalCenter
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bottomDock.expanded = !bottomDock.expanded
-                }
-            }
-            
-            MouseArea {
-                id: wheelMouseArea
-
-                z: dockedAppGrid.z + 1
-                anchors.fill: parent
-                acceptedButtons: Qt.NoButton
-                hoverEnabled: true
-
-                onWheel: {
-                    let _deltaY = wheel.angleDelta.y
-                    if (_deltaY >= 120) {
-                        bottomDock.expanded = true
-                    } else if (_deltaY <= -120) {
-                        bottomDock.expanded = false
-                    }
-                    wheel.accepted = true;
-                }
-            }
-            
-            MouseArea {
-                id: dockedAppGrid
-
-                readonly property real toggleHeight: root.delegateHeight
-                readonly property real rowHeight: root.delegateHeight
-                readonly property real rowMargins: 0
-                readonly property bool multiRows: rowHeight + rowMargins !== gridLayout.height + rowMargins
-
-                z: 2
-                hoverEnabled: true
-                acceptedButtons: Qt.AllButtons
-                clip: !bottomDock.editMode
-
-                height: {
-                    if (bottomDock.expanded || bottomDock.editMode) {
-                        return gridLayout.height + rowMargins
-                    } else {
-                        return rowHeight + rowMargins
-                    }
-                }
-                onHeightChanged: {
-                    if (height == gridLayout.height + rowMargins) {
-                        bottomDock.expandingFinished = true
-                    } else {
-                        bottomDock.expandingFinished = false
-                    }
-                }
-                anchors {
-                    verticalCenter: parent.verticalCenter
-                    left: parent.left
-                    right: parent.right
-                }
-
-                Behavior on height { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
-
-                onClicked: mouse.accepted = true
-
-                onPressAndHold: {
-                    bottomDock.editMode = !bottomDock.editMode
-                    shell.haptics.playSubtle()
-                }
-                
-                function arrMove(arr, oldIndex, newIndex) {
-                    if (newIndex >= arr.length) {
-                        let i = newIndex - arr.length + 1;
-                        while (i--) {
-                            arr.push(undefined);
-                        }
-                    }
-                    arr.splice(newIndex, 0, arr.splice(oldIndex, 1)[0]);
-                    return arr;
-                }
-
-                GridLayout  {
-                    id: gridLayout
-
-                    columns: Math.floor(gridView.width / gridView.cellWidth)
-                    columnSpacing: 0
-                    rowSpacing: 0
-                    anchors {
-                        top: parent.top
-                        left: parent.left
-                        right: parent.right
-                        leftMargin: bottomDock.horizontalPadding
-                        rightMargin: bottomDock.horizontalPadding
-                    }
-
-                    Repeater {
-                        id: appsRepeater
-
-                        model: shell.settings.drawerDockApps
-
-                        delegate: Item {
-                            id: itemContainer
-
-                            property var appData: modelData ? root.getAppItem(modelData) : null
-                            property string appId: modelData
-                            property int itemIndex: index
-
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: dockedAppGrid.rowHeight
-
-                            Connections {
-                                target: root.rawModel
-                                onRefreshingChanged: {
-                                    if (!refreshing) {
-                                        itemContainer.appData = Qt.binding( function() { return itemContainer.appId ? root.getAppItem(itemContainer.appId) : null } )
-                                    }
-                                }
-                            }
-
-                            LPDrawerAppDelegate {
-                                id: toggleContainer
-
-                                focused: root.contextMenuItem && root.contextMenuItem.appId == itemContainer.appId && root.contextMenuItem.fromDocked
-                                objectName: "drawerDockItem_" + itemContainer.appId
-                                delegateWidth: root.delegateWidth
-                                appId: itemContainer.appId
-                                appName: itemContainer.appData ? itemContainer.appData.name : itemContainer.appId
-                                iconSource: itemContainer.appData ? itemContainer.appData.icon : ""
-                                x: 0
-                                y: 0
-                                width: parent.width
-                                height: parent.height
-                                editMode: bottomDock.editMode
-
-                                states: [
-                                    State {
-                                        name: "active"; when: gridArea.activeId == itemContainer.appId
-                                        PropertyChanges {target: toggleContainer; x: gridArea.mouseX - parent.x - width / 2; y: gridArea.mouseY - parent.y - height - units.gu(3); z: 10}
-                                    }
-                                ]
-                                
-                                Behavior on x {
-                                    LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                                }
-                                Behavior on y {
-                                    LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                                }
-
-                                onApplicationSelected: {
-                                    if (!editMode) {
-                                        root.applicationSelected(appId)
-                                    } else {
-                                        bottomDock.editMode = false
-                                    }
-                                }
-                                onApplicationContextMenu: root.applicationContextMenu(appId, this, true)
-                            }
-                        }
-                    }
-                }
-
-                MouseArea {
-                    id: gridArea
-
-                    property var currentItem: gridLayout.childAt(mouseX, mouseY) //item underneath cursor
-                    // For offset to the top
-                    //property var currentItem: isDragActive ? gridLayout.childAt(mouseX, mouseY - dockedAppGrid.toggleHeight) : gridLayout.childAt(mouseX, mouseY) //item underneath cursor
-                    property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
-                    property string activeId: "" // app Id of active item
-                    property int activeIndex //current position of active item
-                    readonly property bool isDragActive: activeId > -1
-
-                    enabled: bottomDock.editMode
-                    anchors.fill: gridLayout
-                    hoverEnabled: true
-                    propagateComposedEvents: true
-
-                    onWheel: wheel.accepted = true
-                    onPressAndHold: {
-                        if (currentItem) {
-                            activeIndex = index
-                            activeId = currentItem.appId
-                        } else {
-                            bottomDock.editMode = !bottomDock.editMode
-                        }
-                        shell.haptics.play()
-                    }
-                    onReleased: {
-                        activeId = -1
-                        shell.settings.drawerDockApps = appsRepeater.model.slice()
-                        appsRepeater.model = Qt.binding( function () { return shell.settings.drawerDockApps } )
-                    }
-                    onPositionChanged: {
-                        if (activeId != -1 && index != -1 && index != activeIndex) {
-                            appsRepeater.model = dockedAppGrid.arrMove(appsRepeater.model, activeIndex, activeIndex = index)
-                            shell.haptics.playSubtle()
-                        }
-                    }
-                }
-
-                SwipeArea {
-                    enabled: !bottomDock.editMode
-                    anchors.fill: parent
-                    direction: bottomDock.expanded ? SwipeArea.Downwards : SwipeArea.Upwards
-                    onDraggingChanged: {
-                        if (dragging) {
-                            bottomDock.expanded = !bottomDock.expanded
-                        }
-                    }
+        // FIXME: Lazy approach for flicking to the end when inverted
+        Timer {
+            id: delayScroll
+            running: false
+            interval: 100
+            onTriggered: {
+                if (root.inverted && mainFlickable.isEnabled) {
+                    mainFlickable.positionToEnd()
                 }
             }
         }
+
+        GridView {
+            id: gridView
+            // ENH105 - Custom app drawer
+            // anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.topMargin: units.gu(2)
+
+            anchors.leftMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.leftMargin : 0
+            anchors.rightMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.rightMargin  : 0
+            topMargin: anchors.topMargin
+            // ENH105 - End
+            focus: true
+
+            readonly property int overflow: width - (root.columns * root.delegateWidth)
+            readonly property real spacing: Math.floor(overflow / root.columns)
+
+            cellWidth: root.delegateWidth + spacing
+            cellHeight: root.delegateHeight
+            // ENH105 - Custom app drawer
+            interactive: !mainFlickable.isEnabled
+            height: interactive ? implicitHeight : contentHeight
+            clip: true
+            onMovingChanged: {
+                if (moving && bottomDockLoader.item) {
+                    bottomDockLoader.item.expanded = false
+                }
+            }
+
+            /*
+            PullToRefresh {
+                id: pullToRefresh
+                parent: gridView
+                target: gridView
+
+                readonly property real contentY: gridView.contentY - gridView.originY
+                y: -contentY - units.gu(5)
+
+                readonly property color pullLabelColor: "white"
+                style: PullToRefreshScopeStyle {
+                    activationThreshold: Math.min(units.gu(14), gridView.height / 5)
+                }
+
+                onRefresh: root.refresh();
+            }
+            */
+            PullToRefresh {
+                id: pullToRefresh
+                parent: mainFlickable.isEnabled ? mainFlickable : gridView
+                target: mainFlickable.isEnabled ? mainFlickable : gridView
+
+                readonly property real contentY: mainFlickable.isEnabled ? mainFlickable.contentY - mainFlickable.originY
+                                                            : gridView.contentY - gridView.originY
+                y: -contentY - units.gu(5)
+
+                readonly property color pullLabelColor: "white"
+                style: PullToRefreshScopeStyle {
+                    activationThreshold: mainFlickable.isEnabled ? Math.min(units.gu(14), mainFlickable.height / 5)
+                                                    : Math.min(units.gu(14), gridView.height / 5)
+                }
+
+                onRefresh: root.refresh();
+            }
+            // ENH105 - End
+        }
+
+       Loader {
+            id: bottomDockLoader
+            active: shell.settings.enableDrawerDock
+            asynchronous: true
+            height: item ? item.height : 0 // Since height doesn't reset when inactive
+            focus: false
+            anchors {
+                left: parent.left
+                right: parent.right
+                leftMargin: root.isIntegratedDock ? 0 : units.gu(1)
+                rightMargin: root.isIntegratedDock ? 0 : units.gu(1)
+            }
+            onLoaded: if (mainFlickable.isEnabled) mainFlickable.delayedPositionToEnd()
+            sourceComponent: LPDrawerDock {
+                shown: root.showDock && !gridView.activeFocus
+                isIntegratedDock: root.isIntegratedDock
+                inverted: root.inverted
+                delegateHeight: root.delegateHeight
+                delegateWidth: root.delegateWidth
+                rawModel: root.rawModel
+                contextMenuItem: root.contextMenuItem
+
+                onShownChanged: if (root.inverted) mainFlickable.delayedPositionToEnd()
+
+                onApplicationSelected: root.applicationSelected(appId)
+                onApplicationContextMenu: root.applicationContextMenu(appId, caller, fromDocked)
+            }
+        }
     }
+
     // ENH105 - End
 
     ProgressBar {

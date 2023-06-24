@@ -32,6 +32,7 @@ Item {
     property date currentDate
     // ENH032 - Infographics Outer Wilds
     property bool owThemed: root.enableOW || shell.settings.ow_ColoredClock
+    property bool owDLCThemed: false
     property bool largeMode: false
     property bool gradientTimeText: false
     // ENH032 - End
@@ -125,11 +126,21 @@ Item {
                 // color: "white"
                 // ENH067 - Custom Lockscreen Clock Color
                 //color: clock.owThemed && solidColor ? "#f17f44" : "white"
-                color: clock.owThemed && solidColor ? "#f17f44"
-                                    : shell.settings.useCustomLSClockColor ? shell.settings.customLSClockColor
-                                                                           : "white"
+                color: {
+                    if (clock.owThemed && solidColor) {
+                        if (clock.owDLCThemed) {
+                            return "#52f7bd"
+                        } else {
+                            return "#f17f44"
+                        }
+                    } else if (shell.settings.useCustomLSClockColor) {
+                        return shell.settings.customLSClockColor
+                    }
+
+                    return "white"
+                }
                 // ENH067 - End
-                visible: !clock.owThemed || solidColor
+                visible: !timeGradientLoader.active || timeDLCGradientLoader.active
                 // ENH068 - Custom Lockscreen Clock Font
                 //font.family: clock.owThemed ? "Likhan" : "Ubuntu"
                 font.family: clock.owThemed ? "Likhan"
@@ -140,8 +151,30 @@ Item {
                 text: Qt.formatTime(clock.currentDate)
                 font.weight: Font.Light
             }
+
             Loader {
-                active: clock.owThemed && !timeLabel.solidColor
+                id: timeDLCGradientLoader
+
+                active: clock.owDLCThemed
+                asynchronous: true
+                anchors.fill: timeLabel
+                opacity: 0.3
+                sourceComponent: Component {
+                    RadialGradient {
+                        source: timeLabel
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#F0F0F0"; }
+                            GradientStop { position: 0.5; color: "#000000"; }
+                            GradientStop { position: 1.0; color: "#FFFFFF"; }
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: timeGradientLoader
+
+                active: clock.owThemed && !timeLabel.solidColor && !timeDLCGradientLoader.active
                 asynchronous: true
                 anchors.fill: timeLabel
                 sourceComponent: Component {
@@ -149,7 +182,7 @@ Item {
                         source: timeLabel
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: "#a74915" }
+                            GradientStop {position: 0.0; color: "#a74915" }
                             GradientStop { position: 1.0; color: "#faba36" }
                         }
                     }
@@ -172,10 +205,17 @@ Item {
                 // fontSize: "medium"
                 // ENH067 - Custom Lockscreen Clock Color
                 // color: "white"
-                color: shell.settings.useCustomLSClockColor ? shell.settings.customLSClockColor
-                                                            : "white"
+                color: {
+                    if (clock.owThemed && clock.owDLCThemed) {
+                        return "#52f7bd"
+                    } else if (shell.settings.useCustomLSClockColor) {
+                        return shell.settings.customLSClockColor
+                    }
+
+                    return "white"
+                }
                 // ENH067 - End
-                visible: !clock.owThemed
+                visible: !dateGradientLoader.active || dateDLCGradientLoader.active
                 // ENH064 - Dynamic Cove
                 //fontSize: clock.owThemed ? clock.largeMode ? "x-large" : "large"
                 //                         : "medium"
@@ -207,8 +247,10 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 // ENH064 - End
             }
+
             Loader {
-                active: clock.owThemed
+                id: dateGradientLoader
+                active: clock.owThemed && !dateDLCGradientLoader.active
                 asynchronous: true
                 anchors.fill: dateLabel
                 sourceComponent: Component {
@@ -217,6 +259,24 @@ Item {
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: "#0e0e18" }
                             GradientStop { position: 1.0; color: "#2cfefd" }
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: dateDLCGradientLoader
+                active: clock.owDLCThemed
+                asynchronous: true
+                anchors.fill: dateLabel
+                opacity: 0.3
+                sourceComponent: Component {
+                    RadialGradient {
+                        source: dateLabel
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#F0F0F0"; }
+                            GradientStop { position: 0.5; color: "#000000"; }
+                            GradientStop { position: 1.0; color: "#FFFFFF"; }
                         }
                     }
                 }

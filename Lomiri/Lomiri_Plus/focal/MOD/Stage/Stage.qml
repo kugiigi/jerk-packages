@@ -57,6 +57,7 @@ FocusScope {
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
     property bool alternateOW: false
+    property bool dlcOW: false
     property bool eyeOpened: false
     property bool blinkComplete: false
     // ENH032 - End
@@ -844,7 +845,7 @@ FocusScope {
                 SequentialAnimation {
                     id: bgMoveAnimation
 
-                    readonly property bool shouldRun: root.enableOW && !root.suspended
+                    readonly property bool shouldRun: root.enableOW && root.alternateOW && !root.suspended
 
                     running: shouldRun
                     paused: shouldRun && ((priv.focusedAppDelegate && priv.focusedAppDelegate == priv.mainStageDelegate)
@@ -915,11 +916,14 @@ FocusScope {
                 }
                 //source: root.enableOW ? "../OuterWilds/graphics/home.png" : fallbackSource
                 source: {
-                    if (root.enableOW && !root.alternateOW) {
-                        return "../OuterWilds/graphics/home.png"
-                    }
                     if (root.enableOW && root.alternateOW) {
                         return "../OuterWilds/graphics/desktop_timberhearth_tall.png"
+                    }
+                    if (root.enableOW && root.dlcOW) {
+                        return "../OuterWilds/graphics/OWDLCWallpaper.png"
+                    }
+                    if (root.enableOW) {
+                        return "../OuterWilds/graphics/home.png"
                     }
 
                     return fallbackSource
@@ -1036,7 +1040,8 @@ FocusScope {
             }
 
             Loader {
-                active: root.enableOW && !root.alternateOW && !root.suspended && (priv.focusedAppDelegate == priv.sideStageDelegate && !sideStage.shown)
+                active: root.enableOW && !root.alternateOW && !root.dlcOW
+                            && !root.suspended && (priv.focusedAppDelegate == priv.sideStageDelegate && !sideStage.shown)
                 sourceComponent: scoutComponent
                 asynchronous: true
                 z: wallpaper.z + 1

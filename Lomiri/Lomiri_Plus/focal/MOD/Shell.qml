@@ -529,9 +529,11 @@ StyledItem {
         property alias roundedBFB: settingsObj.roundedBFB
         property alias bigDrawerSearchField: settingsObj.bigDrawerSearchField
         property alias showBottomHintDrawer: settingsObj.showBottomHintDrawer
+        property alias enableDrawerBottomSwipe: settingsObj.enableDrawerBottomSwipe
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
+        property alias drawerDockType: settingsObj.drawerDockType
         property alias drawerDockApps: settingsObj.drawerDockApps
         
         // Indicators/Top Panel
@@ -568,6 +570,7 @@ StyledItem {
         property alias autoDarkModeEndTime: settingsObj.autoDarkModeEndTime
         property alias onlyShowNotificationsIndicatorWhenGreen: settingsObj.onlyShowNotificationsIndicatorWhenGreen
         property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
+        property alias hideTimeIndicatorAlarmIcon: settingsObj.hideTimeIndicatorAlarmIcon
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -819,9 +822,17 @@ StyledItem {
             /*
                 0 - Main Menu
                 1 - Solar System
+                2 - Sealed Vault
             */
             property bool onlyShowLomiriSettingsWhenUnlocked: true
             property bool enablePullDownGesture: false
+            property bool hideTimeIndicatorAlarmIcon: false
+            property int drawerDockType: 0
+            /*
+                0 - Bottom Dock
+                1 - Integrated Dock
+            */
+            property bool enableDrawerBottomSwipe: false
         }
     }
 
@@ -930,7 +941,7 @@ StyledItem {
                                     horizontalAlignment: Text.AlignHCenter
                                 }
                                 Rectangle {
-                                    Layout.preferredWidth: units.gu(10)
+                                    Layout.preferredWidth: units.gu(8)
                                     Layout.preferredHeight: units.gu(4)
                                     Layout.alignment: Qt.AlignRight
                                     radius: units.gu(1)
@@ -940,11 +951,13 @@ StyledItem {
                                         color: theme.palette.normal.foregroundText
                                     }
                                 }
-                                QQC2.CheckBox {
+                                LPSettingsCheckBox {
                                     id: paletteMode
                                     Layout.alignment: Qt.AlignRight
+                                    Layout.maximumWidth: units.gu(19)
                                     text: "Palette Mode"
-                                    onCheckedChanged: colorPicker.paletteMode = !colorPicker.paletteMode
+                                    inverted: true
+                                    onCheckedChanged: colorPicker.paletteMode = checked
                                     Binding {
                                         target: paletteMode
                                         property: "checked"
@@ -1018,14 +1031,15 @@ StyledItem {
                                     leftMargin: units.gu(2)
                                     rightMargin: units.gu(2)
                                 }
-                                QQC2.Button {
+                                Button {
                                     Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                                     text: "Close"
                                     onClicked: colorPickerLoader.close()
                                 }
-                                QQC2.Button {
+                                Button {
                                     Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                                     text: colorPicker.savedPaletteIsSelected ? "Delete Palette" : "Save Palette"
+                                    color: colorPicker.savedPaletteIsSelected ? theme.palette.normal.negative : theme.palette.normal.positive
                                     onClicked: {
                                         if (colorPicker.savedPaletteIsSelected) {
                                             colorPickerLoader.deletePalette(colorPicker.savedPaletteColor)
@@ -1034,14 +1048,15 @@ StyledItem {
                                         }
                                     }
                                 }
-                                QQC2.Button {
+                                Button {
                                     Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                                     text: "Revert"
                                     onClicked: colorPickerLoader.revertColor()
                                 }
-                                QQC2.Button {
+                                Button {
                                     Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                                     text: "Apply"
+                                    color: theme.palette.normal.positive
                                     onClicked: colorPickerLoader.applyColor()
                                 }
                             }
@@ -1056,7 +1071,7 @@ StyledItem {
     Loader {
         id: settingsLoader
         active: false
-        z: inputMethod.visible ? inputMethod.z - 1 : shellBorderLoader.z + 1
+        z: inputMethod.visible ? inputMethod.z - 1 : cursor.z - 2
         width: Math.min(parent.width, units.gu(40))
         height: inputMethod.visible ? parent.height - inputMethod.visibleRect.height - panel.minimizedPanelHeight
                                     : Math.min(parent.height, units.gu(60))
@@ -1083,6 +1098,7 @@ StyledItem {
                             anchors.fill: parent
                             QQC2.ToolButton {
                                 Layout.fillHeight: true
+                                Layout.preferredWidth: units.gu(4)
                                 icon.width: units.gu(2)
                                 icon.height: units.gu(2)
                                 action: QQC2.Action {
@@ -1097,12 +1113,12 @@ StyledItem {
                                     }
                                 }
                             }
-                            QQC2.Label {
+                            Label {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 text: stack.currentItem.title
                                 verticalAlignment: Text.AlignVCenter
-                                Suru.textLevel: Suru.HeadingThree
+                                textSize: Label.Large
                                 elide: Text.ElideRight
                             }
                             MouseArea {
@@ -1151,10 +1167,11 @@ StyledItem {
                         Layout.fillHeight: true
                         initialItem: settingsPage
                     }
-                    
-                    QQC2.Button {
+
+                    Button {
                         id: closeButton
 
+                        color: theme.palette.normal.foreground
                         text: "Close"
                         Layout.fillWidth: true
                         onClicked: settingsLoader.active = false
@@ -1205,7 +1222,7 @@ StyledItem {
         id: generalPage
         
         LPSettingsPage {
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: onlyShowLomiriSettingsWhenUnlocked
                 Layout.fillWidth: true
                 text: "LP settings only available when unlocked"
@@ -1216,15 +1233,7 @@ StyledItem {
                     value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
                 }
             }
-            QQC2.Label {
-                Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                text: "Haptics feedback for button presses and swipe gestures\n"
-                + "Only applies to some controls and not all"
-                wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
-            }
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: enableHaptics
                 Layout.fillWidth: true
                 text: "Enable haptics"
@@ -1235,7 +1244,18 @@ StyledItem {
                     value: shell.settings.enableHaptics
                 }
             }
-            QQC2.CheckDelegate {
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Haptics feedback for button presses and swipe gestures\n"
+                + "Only applies to some controls and not all"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
                 id: enableSlimVolume
                 Layout.fillWidth: true
                 text: "Slim slider notification bubble"
@@ -1246,7 +1266,7 @@ StyledItem {
                     value: shell.settings.enableSlimVolume
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: disableLeftEdgeMousePush
                 Layout.fillWidth: true
                 text: "Disable left mouse push (Launcher/Drawer)"
@@ -1257,7 +1277,7 @@ StyledItem {
                     value: shell.settings.disableLeftEdgeMousePush
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: disableRightEdgeMousePush
                 Layout.fillWidth: true
                 text: "Disable right mouse push (App spread)"
@@ -1292,14 +1312,14 @@ StyledItem {
         id: keyShortcutsPage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Ctrl + Period"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.HeadingThree
+                textSize: Label.Large
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: enableOSKToggleKeyboardShortcut
                 Layout.fillWidth: true
                 text: "Toggle OSK when physical keyboard is present"
@@ -1310,21 +1330,24 @@ StyledItem {
                     value: shell.settings.enableOSKToggleKeyboardShortcut
                 }
             }
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Camera Key function"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.HeadingThree
+                textSize: Label.Large
             }
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
-                Layout.margins: units.gu(2)
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
                 text: "This will only work if the camera key is properly mapped in your device's port"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: pro1_orientationToggleKey
                 Layout.fillWidth: true
                 text: "Use to toggle orientation"
@@ -1335,7 +1358,7 @@ StyledItem {
                     value: shell.settings.pro1_orientationToggleKey
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: enableCameraKeyDoublePress
                 Layout.fillWidth: true
                 visible: shell.settings.pro1_orientationToggleKey
@@ -1347,7 +1370,7 @@ StyledItem {
                     value: shell.settings.enableCameraKeyDoublePress
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: reversedCameraKeyDoubePress
                 Layout.fillWidth: true
                 visible: enableCameraKeyDoublePress.visible && shell.settings.enableCameraKeyDoublePress
@@ -1359,26 +1382,24 @@ StyledItem {
                     value: shell.settings.reversedCameraKeyDoubePress
                 }
             }
-            QQC2.ItemDelegate {
+            LPSettingsSlider {
+                id: cameraKeyDoublePressDelay
                 Layout.fillWidth: true
-                text: "Double press delay"
+                Layout.margins: units.gu(2)
                 visible: enableCameraKeyDoublePress.visible && shell.settings.enableCameraKeyDoublePress
-                indicator: QQC2.SpinBox {
-                    id: cameraKeyDoublePressDelay
-                    anchors {
-                        right: parent.right
-                        rightMargin: units.gu(2)
-                        verticalCenter: parent.verticalCenter
-                    }
-                    from: 100
-                    to: 1000
-                    stepSize: 50
-                    onValueChanged: shell.settings.cameraKeyDoublePressDelay = value
-                    Binding {
-                        target: cameraKeyDoublePressDelay
-                        property: "value"
-                        value: shell.settings.cameraKeyDoublePressDelay
-                    }
+                title: "Double press delay"
+                minimumValue: 100
+                maximumValue: 1000
+                stepSize: 50
+                resetValue: 300
+                live: false
+                roundValue: true
+                unitsLabel: "ms"
+                onValueChanged: shell.settings.cameraKeyDoublePressDelay = value
+                Binding {
+                    target: cameraKeyDoublePressDelay
+                    property: "value"
+                    value: shell.settings.cameraKeyDoublePressDelay
                 }
             }
         }
@@ -1387,15 +1408,16 @@ StyledItem {
         id: outerWildsPage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 color: theme.palette.normal.negative
-                text: "May crash Lomiri especially the Solar System theme. Settings is non-persistent to avoid being stuck."
+                text: "Consumes a lot of memory and may crash Lomiri especially the Solar System theme. Settings is non-persistent to avoid being stuck."
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: owTheme
                 Layout.fillWidth: true
                 text: "Enable Theme"
@@ -1412,44 +1434,45 @@ StyledItem {
                 text: i18n.tr("Theme")
                 model: [
                     i18n.tr("Main Menu"),
-                    i18n.tr("Solar System")
+                    i18n.tr("Solar System"),
+                    i18n.tr("Sealed Vault")
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.ow_theme
                 onSelectedIndexChanged: shell.settings.ow_theme = selectedIndex
             }
-            QQC2.Label {
+            LPSettingsSlider {
+                id: ow_qmChance
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 visible: shell.settings.enableOW && shell.settings.ow_theme == 0
-                text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
-                wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
-            }
-            QQC2.ItemDelegate {
-                Layout.fillWidth: true
-                visible: shell.settings.enableOW && shell.settings.ow_theme == 0
-                text: "Quantum Luck"
-                indicator: QQC2.SpinBox {
-                    id: ow_qmChance
-                    anchors {
-                        right: parent.right
-                        rightMargin: units.gu(2)
-                        verticalCenter: parent.verticalCenter
-                    }
-                    from: 1
-                    to: 500
-                    stepSize: 1
-                    editable: true
-                    onValueChanged: shell.settings.ow_qmChance = value
-                    Binding {
-                        target: ow_qmChance
-                        property: "value"
-                        value: shell.settings.ow_qmChance
-                    }
+                title: "Quantum Luck"
+                minimumValue: 1
+                maximumValue: 500
+                stepSize: 1
+                resetValue: 10
+                live: false
+                roundValue: true
+                enableFineControls: true
+                onValueChanged: shell.settings.ow_qmChance = value
+                Binding {
+                    target: ow_qmChance
+                    property: "value"
+                    value: shell.settings.ow_qmChance
                 }
             }
-            QQC2.CheckDelegate {
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: shell.settings.enableOW && shell.settings.ow_theme == 0
+                text: "Higher value means lesser chance to see the Quantum moon upon unlocking (i.e. 100 means your chance is 1 in a hundred)"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
                 id: eyeFPMarker
                 Layout.fillWidth: true
                 text: "Eye Fingerprint Marker"
@@ -1460,7 +1483,7 @@ StyledItem {
                     value: shell.settings.enableEyeFP
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: ow_ColoredClock
                 Layout.fillWidth: true
                 text: "Themed Lockscreen Clock"
@@ -1471,7 +1494,7 @@ StyledItem {
                     value: shell.settings.ow_ColoredClock
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: ow_GradientColoredTime
                 Layout.fillWidth: true
                 visible: shell.settings.ow_ColoredClock
@@ -1483,7 +1506,7 @@ StyledItem {
                     value: shell.settings.ow_GradientColoredTime
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: ow_mainMenu
                 Layout.fillWidth: true
                 text: "Main Menu"
@@ -1494,84 +1517,25 @@ StyledItem {
                     value: shell.settings.ow_mainMenu
                 }
             }
-            QQC2.ItemDelegate {
-                id: ow_bfbLogo
-
+            OptionSelector {
                 Layout.fillWidth: true
-                text: "Logo"
-                indicator: QQC2.SpinBox {
-                    id: owLogo
-                    anchors {
-                        right: parent.right
-                        rightMargin: units.gu(2)
-                        verticalCenter: parent.verticalCenter
-                    }
-                    from: 0
-                    to: 9
-                    stepSize: 1
-                    textFromValue: function(value, locale) {
-                                        switch (value) {
-                                            case 0:
-                                                return "Disabled"
-                                            case 1:
-                                                return "Brittle Hollow"
-                                            case 2:
-                                                return "Dark Bramble"
-                                            case 3:
-                                                return "Hourglass Twins"
-                                            case 4:
-                                                return "Interloper"
-                                            case 5:
-                                                return "Nomai Eye"
-                                            case 6:
-                                                return "Quantum Moon"
-                                            case 7:
-                                                return "Stranger Eye"
-                                            case 8:
-                                                return "Sun"
-                                            case 9:
-                                                return "Timber Hearth"
-                                        }
-                                   }
-                    valueFromText: function(text, locale) {
-                                        switch (text) {
-                                            case "None":
-                                                return 0
-                                            case "Middle":
-                                                return 1
-                                            case "Left":
-                                                return 2
-                                            case "Right":
-                                                return 3
-                                            case "Disabled":
-                                                return 0
-                                            case "Brittle Hollow":
-                                                return 1
-                                            case "Dark Bramble":
-                                                return 2
-                                            case "Hourglass Twins":
-                                                return 3
-                                            case "Interloper":
-                                                return 4
-                                            case "Nomai Eye":
-                                                return 5
-                                            case "Quantum Moon":
-                                                return 6
-                                            case "Stranger Eye":
-                                                return 7
-                                            case "Sun":
-                                                return 8
-                                            case "Timber Hearth":
-                                                return 9
-                                        }
-                                   }
-                    onValueChanged: shell.settings.ow_bfbLogo = value
-                    Binding {
-                        target: owLogo
-                        property: "value"
-                        value: shell.settings.ow_bfbLogo
-                    }
-                }
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Logo")
+                model: [
+                    i18n.tr("Disabled")
+                    ,i18n.tr("Brittle Hollow")
+                    ,i18n.tr("Dark Bramble")
+                    ,i18n.tr("Hourglass Twins")
+                    ,i18n.tr("Interloper")
+                    ,i18n.tr("Nomai Eye")
+                    ,i18n.tr("Quantum Moon")
+                    ,i18n.tr("Stranger Eye")
+                    ,i18n.tr("Sun")
+                    ,i18n.tr("Timber Hearth")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.ow_bfbLogo
+                onSelectedIndexChanged: shell.settings.ow_bfbLogo = selectedIndex
             }
         }
     }
@@ -1589,14 +1553,7 @@ StyledItem {
                 id: pro1Page
                 
                 LPSettingsPage {
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Disables OSK when in the same orientation as the physical keyboard and enables it when in any other orientation"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: pro1_OSKOrientation
                         Layout.fillWidth: true
                         text: "Automatically toggle on-screen keyboard"
@@ -1606,6 +1563,16 @@ StyledItem {
                             property: "checked"
                             value: shell.settings.pro1_OSKOrientation
                         }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Disables OSK when in the same orientation as the physical keyboard and enables it when in any other orientation"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
                     }
                     /* Doesn't work anymore
                     QQC2.CheckDelegate {
@@ -1658,14 +1625,7 @@ StyledItem {
                 id: lockscreenPage
                 
                 LPSettingsPage {
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Filename: ~/Pictures/lomiriplus/lockscreen"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: customLockscreenWP
                         Layout.fillWidth: true
                         text: "Custom Wallpaper"
@@ -1676,15 +1636,17 @@ StyledItem {
                             value: shell.settings.useCustomLockscreen
                         }
                     }
-                    QQC2.Label {
+                    Label {
                         Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        visible: shell.settings.useCustomLockscreen
-                        text: "Filename: ~/Pictures/lomiriplus/coverpage"
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Filename: ~/Pictures/lomiriplus/lockscreen"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
+                        font.italic: true
+                        textSize: Label.Small
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: useCustomCoverPageWP
                         Layout.fillWidth: true
                         visible: shell.settings.useCustomLockscreen
@@ -1696,7 +1658,18 @@ StyledItem {
                             value: shell.settings.useCustomCoverPage
                         }
                     }
-                    QQC2.CheckDelegate {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        visible: shell.settings.useCustomLockscreen
+                        text: "Filename: ~/Pictures/lomiriplus/coverpage"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
                         id: hideLockscreenClock
                         Layout.fillWidth: true
                         text: "Hide clock"
@@ -1707,7 +1680,7 @@ StyledItem {
                             value: shell.settings.hideLockscreenClock
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: useCustomLSClockColor
                         Layout.fillWidth: true
                         text: "Custom clock color"
@@ -1731,7 +1704,7 @@ StyledItem {
                             value: shell.settings.customLSClockColor
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: useCustomLSClockFont
                         Layout.fillWidth: true
                         text: "Custom clock font"
@@ -1773,28 +1746,27 @@ StyledItem {
                         text: "Always Shown Icons"
                         onClicked: settingsLoader.item.stack.push(alwaysShownIconsPage, {"title": text})
                     }
-                    QQC2.ItemDelegate {
+                    LPSettingsSlider {
+                        id: topPanelOpacity
                         Layout.fillWidth: true
-                        text: "Top Panel Opacity"
-                        indicator: QQC2.SpinBox {
-                            id: topPanelOpacity
-                            anchors {
-                                right: parent.right
-                                rightMargin: units.gu(2)
-                                verticalCenter: parent.verticalCenter
-                            }
-                            from: 10
-                            to: 100
-                            stepSize: 10
-                            onValueChanged: shell.settings.topPanelOpacity = value
-                            Binding {
-                                target: topPanelOpacity
-                                property: "value"
-                                value: shell.settings.topPanelOpacity
-                            }
+                        Layout.margins: units.gu(2)
+                        title: "Top Panel Opacity"
+                        minimumValue: 0
+                        maximumValue: 100
+                        stepSize: 10
+                        resetValue: 100
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: true
+                        roundValue: true
+                        onValueChanged: shell.settings.topPanelOpacity = value
+                        Binding {
+                            target: topPanelOpacity
+                            property: "value"
+                            value: shell.settings.topPanelOpacity
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: indicatorBlur
                         Layout.fillWidth: true
                         text: "Top Panel Pages Blur"
@@ -1805,14 +1777,7 @@ StyledItem {
                             value: shell.settings.indicatorBlur
                         }
                     }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Always displays the top panel menu in full width in portrait orientations"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: alwaysFullWidthTopPanel
                         Layout.fillWidth: true
                         text: "Always full width top panel menu"
@@ -1823,7 +1788,17 @@ StyledItem {
                             value: shell.settings.alwaysFullWidthTopPanel
                         }
                     }
-                    QQC2.CheckDelegate {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Always displays the top panel menu in full width in portrait orientations"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
                         id: widerLandscapeTopPanel
                         Layout.fillWidth: true
                         text: "Wider top panel pages in landscape"
@@ -1834,14 +1809,7 @@ StyledItem {
                             value: shell.settings.widerLandscapeTopPanel
                         }
                     }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Top panel will always be hidden unless in the greeter or app spread"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: alwaysHideTopPanel
                         Layout.fillWidth: true
                         text: "Always Hide Top Panel"
@@ -1852,7 +1820,17 @@ StyledItem {
                             value: shell.settings.alwaysHideTopPanel
                         }
                     }
-                    QQC2.CheckDelegate {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Top panel will always be hidden unless in the greeter or app spread"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
                         id: onlyHideTopPanelonLandscape
                         Layout.fillWidth: true
                         text: "Only Hide Top Panel on Landscape"
@@ -1870,25 +1848,14 @@ StyledItem {
                 id: indicatorOptionsPage
                 
                 LPSettingsPage {
-                    QQC2.Label {
+                    Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         text: "System"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.HeadingThree
+                        textSize: Label.Large
                     }
-                    QQC2.CheckDelegate {
-                        id: enableLomiriSettingsToggleIndicator
-                        Layout.fillWidth: true
-                        text: "Show Lomiri Plus settings"
-                        onCheckedChanged: shell.settings.enableLomiriSettingsToggleIndicator = checked
-                        Binding {
-                            target: enableLomiriSettingsToggleIndicator
-                            property: "checked"
-                            value: shell.settings.enableLomiriSettingsToggleIndicator
-                        }
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: enableActiveScreenToggleIndicator
                         Layout.fillWidth: true
                         text: "Active screen toggle"
@@ -1899,7 +1866,7 @@ StyledItem {
                             value: shell.settings.enableActiveScreenToggleIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: showActiveScreenIconIndicator
                         Layout.fillWidth: true
                         text: "Active screen icon indicator"
@@ -1910,7 +1877,7 @@ StyledItem {
                             value: shell.settings.showActiveScreenIconIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: enableAppSuspensionToggleIndicator
                         Layout.fillWidth: true
                         text: "App suspension toggle"
@@ -1921,7 +1888,7 @@ StyledItem {
                             value: shell.settings.enableAppSuspensionToggleIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: showAppSuspensionIconIndicator
                         Layout.fillWidth: true
                         text: "App suspension icon indicator"
@@ -1932,7 +1899,7 @@ StyledItem {
                             value: shell.settings.showAppSuspensionIconIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: enableAutoDarkModeToggleIndicator
                         Layout.fillWidth: true
                         text: "Scheduled dark mode toggle"
@@ -1943,7 +1910,7 @@ StyledItem {
                             value: shell.settings.enableAutoDarkModeToggleIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: enableDarkModeToggleIndicator
                         Layout.fillWidth: true
                         text: "Dark mode toggle"
@@ -1954,7 +1921,7 @@ StyledItem {
                             value: shell.settings.enableDarkModeToggleIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: enableImmersiveModeToggleIndicator
                         Layout.fillWidth: true
                         text: "Immersive mode toggle"
@@ -1965,7 +1932,7 @@ StyledItem {
                             value: shell.settings.enableImmersiveModeToggleIndicator
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: showImmersiveModeIconIndicator
                         Layout.fillWidth: true
                         text: "Immersive mode icon indicator"
@@ -1976,14 +1943,14 @@ StyledItem {
                             value: shell.settings.showImmersiveModeIconIndicator
                         }
                     }
-                    QQC2.Label {
+                    Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         text: "Date and Time"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.HeadingThree
+                        textSize: Label.Large
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: twoDigitHourDateTimeIndicator
                         Layout.fillWidth: true
                         text: "2-Digit Hour Format"
@@ -1994,14 +1961,25 @@ StyledItem {
                             value: shell.settings.twoDigitHourDateTimeIndicator
                         }
                     }
-                    QQC2.Label {
+                    LPSettingsCheckBox {
+                        id: hideTimeIndicatorAlarmIcon
+                        Layout.fillWidth: true
+                        text: "Hide alarm icon"
+                        onCheckedChanged: shell.settings.hideTimeIndicatorAlarmIcon = checked
+                        Binding {
+                            target: hideTimeIndicatorAlarmIcon
+                            property: "checked"
+                            value: shell.settings.hideTimeIndicatorAlarmIcon
+                        }
+                    }
+                    Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         text: "Battery"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.HeadingThree
+                        textSize: Label.Large
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: verticalBatteryIndicatorIcon
                         Layout.fillWidth: true
                         text: "Vertical icon"
@@ -2012,7 +1990,7 @@ StyledItem {
                             value: shell.settings.verticalBatteryIndicatorIcon
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: hideBatteryIndicatorBracket
                         Layout.fillWidth: true
                         text: "Hide parenthesis in label"
@@ -2023,7 +2001,7 @@ StyledItem {
                             value: shell.settings.hideBatteryIndicatorBracket
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: hideBatteryIndicatorPercentage
                         Layout.fillWidth: true
                         text: "Hide % in label"
@@ -2034,7 +2012,7 @@ StyledItem {
                             value: shell.settings.hideBatteryIndicatorPercentage
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: hideBatteryIndicatorIcon
                         Layout.fillWidth: true
                         text: "Hide icon"
@@ -2045,14 +2023,14 @@ StyledItem {
                             value: shell.settings.hideBatteryIndicatorIcon
                         }
                     }
-                    QQC2.Label {
+                    Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         text: "Sound"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.HeadingThree
+                        textSize: Label.Large
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: onlyShowSoundIndicatorWhenSilent
                         Layout.fillWidth: true
                         text: "Only show icon when silent"
@@ -2063,14 +2041,14 @@ StyledItem {
                             value: shell.settings.onlyShowSoundIndicatorWhenSilent
                         }
                     }
-                    QQC2.Label {
+                    Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         text: "Keyboard"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.HeadingThree
+                        textSize: Label.Large
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: enableOSKToggleInIndicator
                         Layout.fillWidth: true
                         text: "Show OSK toggle"
@@ -2081,14 +2059,14 @@ StyledItem {
                             value: shell.settings.enableOSKToggleInIndicator
                         }
                     }
-                    QQC2.Label {
+                    Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         text: "Notifications"
                         wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.HeadingThree
+                        textSize: Label.Large
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: onlyShowNotificationsIndicatorWhenGreen
                         Layout.fillWidth: true
                         text: "Only show icon when green"
@@ -2108,7 +2086,7 @@ StyledItem {
                     Repeater {
                         model: indicatorsModel
 
-                        QQC2.CheckDelegate {
+                        LPSettingsCheckBox {
                             id: checkDelegateHidden
 
                             Layout.fillWidth: true
@@ -2151,7 +2129,7 @@ StyledItem {
                     Repeater {
                         model: indicatorsModel
 
-                        QQC2.CheckDelegate {
+                        LPSettingsCheckBox {
                             id: checkDelegateShown
                             Layout.fillWidth: true
                             text: shell.indicatorLabel(model.identifier)
@@ -2190,7 +2168,7 @@ StyledItem {
                 id: drawerpage
                 
                 LPSettingsPage {
-                    QQC2.CheckDelegate {
+                    LPSettingsSwitch {
                         id: drawerBlur
                         Layout.fillWidth: true
                         text: "Interactive Blur"
@@ -2201,7 +2179,7 @@ StyledItem {
                             value: shell.settings.drawerBlur
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: invertedDrawer
                         Layout.fillWidth: true
                         text: "Inverted App Drawer"
@@ -2212,14 +2190,18 @@ StyledItem {
                             value: shell.settings.invertedDrawer
                         }
                     }
-                    QQC2.Label {
+                    LPSettingsCheckBox {
+                        id: enableDrawerBottomSwipe
                         Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Swipe up from the bottom or type something with a physical keyboard to search"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
+                        text: "Bottom swipe up to search"
+                        onCheckedChanged: shell.settings.enableDrawerBottomSwipe = checked
+                        Binding {
+                            target: enableDrawerBottomSwipe
+                            property: "checked"
+                            value: shell.settings.enableDrawerBottomSwipe
+                        }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: hideDrawerSearch
                         Layout.fillWidth: true
                         text: "Hide search field"
@@ -2230,11 +2212,21 @@ StyledItem {
                             value: shell.settings.hideDrawerSearch
                         }
                     }
-                    QQC2.CheckDelegate {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Swipe up from the bottom or type something with a physical keyboard to search"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
                         id: showBottomHintDrawer
                         Layout.fillWidth: true
                         text: "Show bottom hint"
-                        visible: shell.settings.hideDrawerSearch
+                        visible: shell.settings.hideDrawerSearch || shell.settings.enableDrawerBottomSwipe
                         onCheckedChanged: shell.settings.showBottomHintDrawer = checked
                         Binding {
                             target: showBottomHintDrawer
@@ -2242,7 +2234,7 @@ StyledItem {
                             value: shell.settings.showBottomHintDrawer
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: bigDrawerSearchFieldDrawer
                         Layout.fillWidth: true
                         text: "Bigger Search Field"
@@ -2259,14 +2251,7 @@ StyledItem {
                 id: spreadPage
                 
                 LPSettingsPage {
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Requires Notch/Punchhole configuration and Corner Radius"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: roundedAppPreview
                         Layout.fillWidth: true
                         text: "Rounded App Preview"
@@ -2277,13 +2262,23 @@ StyledItem {
                             value: shell.settings.roundedAppPreview
                         }
                     }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Requires Notch/Punchhole configuration and Corner Radius"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
                 }
             }
             Component {
                 id: launcherPage
                 
                 LPSettingsPage {
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: roundedBFB
                         Layout.fillWidth: true
                         text: "Rounded Launcher Button"
@@ -2294,7 +2289,7 @@ StyledItem {
                             value: shell.settings.roundedBFB
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: useCustomBFBColor
                         Layout.fillWidth: true
                         text: "Custom BFB Color"
@@ -2318,7 +2313,7 @@ StyledItem {
                             value: shell.settings.customBFBColor
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: useNewLogo
                         Layout.fillWidth: true
                         text: "Use New Ubuntu Logo"
@@ -2329,7 +2324,7 @@ StyledItem {
                             value: shell.settings.useNewLogo
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: useLomiriLogo
                         Layout.fillWidth: true
                         text: "Use Lomiri Logo"
@@ -2340,14 +2335,7 @@ StyledItem {
                             value: shell.settings.useLomiriLogo
                         }
                     }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: "Custom Logo Filename: ~/Pictures/lomiriplus/bfb.svg"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
-                    }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: useCustomLogo
                         Layout.fillWidth: true
                         text: "Custom Logo (SVG)"
@@ -2358,37 +2346,37 @@ StyledItem {
                             value: shell.settings.useCustomLogo
                         }
                     }
-                    QQC2.ItemDelegate {
+                    Label {
                         Layout.fillWidth: true
-                        text: "Logo scale (%)"
-                        visible: shell.settings.useCustomLogo
-                        indicator: QQC2.SpinBox {
-                            id: logScale
-                            anchors {
-                                right: parent.right
-                                rightMargin: units.gu(2)
-                                verticalCenter: parent.verticalCenter
-                            }
-                            from: 5
-                            to: 100
-                            stepSize: 5
-                            onValueChanged: shell.settings.customLogoScale = value
-                            Binding {
-                                target: logScale
-                                property: "value"
-                                value: shell.settings.customLogoScale
-                            }
-                        }
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Custom Logo Filename: ~/Pictures/lomiriplus/bfb.svg"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
                     }
-                    QQC2.Label {
+                    LPSettingsSlider {
+                        id: logScale
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
-                        visible: customLogoColor.visible
-                        text: "Will replace all #ffffff surfaces in the SVG"
-                        Suru.textLevel: Suru.Caption
-                        wrapMode: Text.WordWrap
+                        visible: shell.settings.useCustomLogo
+                        title: "Logo scale"
+                        minimumValue: 5
+                        maximumValue: 100
+                        stepSize: 5
+                        resetValue: 60
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: true
+                        roundValue: true
+                        onValueChanged: shell.settings.customLogoScale = value
+                        Binding {
+                            target: logScale
+                            property: "value"
+                            value: shell.settings.customLogoScale
+                        }
                     }
-
                     LPColorField {
                         id: customLogoColor
                         Layout.fillWidth: true
@@ -2402,6 +2390,17 @@ StyledItem {
                             property: "text"
                             value: shell.settings.customLogoColor
                         }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        visible: customLogoColor.visible
+                        text: "Will replace all #ffffff surfaces in the SVG"
+                        font.italic: true
+                        textSize: Label.Small
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
@@ -2441,7 +2440,7 @@ StyledItem {
                 text: "Abot Kamay"
                 onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
             }
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: enableSideStage
                 Layout.fillWidth: true
                 text: "Side-Stage"
@@ -2452,7 +2451,7 @@ StyledItem {
                     value: shell.settings.enableSideStage
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: orientationPrompt
                 Layout.fillWidth: true
                 text: "Screen Rotation Button"
@@ -2463,14 +2462,7 @@ StyledItem {
                     value: shell.settings.orientationPrompt
                 }
             }
-            QQC2.Label {
-                Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                text: "Requires: Right punchholes, Notch Side Margin, Exact Punchhole Width, Punchhole Height From Top"
-                wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
-            }
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: batteryCircleCheck
                 Layout.fillWidth: true
                 text: "Punchhole Battery Indicator"
@@ -2481,22 +2473,38 @@ StyledItem {
                     value: shell.settings.batteryCircle
                 }
             }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Requires: Right punchholes, Notch Side Margin, Exact Punchhole Width, Punchhole Height From Top"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
         }
     }
     Component {
         id: autoDarkModePage
 
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Automatically toggle dark mode based on set start and end time\n\n"
                 + " • Immediate: Toggles dark mode in real time\n"
                 + " • Delayed: Toggles only on next wake up of the device"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
                 id: enableAutoDarkMode
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2507,7 +2515,7 @@ StyledItem {
                     value: shell.settings.enableAutoDarkMode
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: immediateDarkModeSwitch
                 Layout.fillWidth: true
                 visible: shell.settings.enableAutoDarkMode
@@ -2519,41 +2527,25 @@ StyledItem {
                     value: shell.settings.immediateDarkModeSwitch
                 }
             }
-            QQC2.ItemDelegate {
+            LPSettingsTimeItem {
                 id: startTimeListitem
 
-                property date date: Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeStartTime, "hh:mm")
+                date: Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeStartTime, "hh:mm")
 
                 Layout.fillWidth: true
                 visible: shell.settings.enableAutoDarkMode
                 text: "Start time"
-                indicator: Label {
-                    text: startTimeListitem.date.toLocaleTimeString(Qt.locale(),Locale.ShortFormat)
-                    anchors {
-                        right: parent.right
-                        rightMargin: units.gu(2)
-                        verticalCenter: parent.verticalCenter
-                    }
-                }
                 onDateChanged: shell.settings.autoDarkModeStartTime = date.toLocaleString(Qt.locale(), "hh:mm")
                 onClicked: PickerPanel.openDatePicker(startTimeListitem, "date", "Hours|Minutes")
             }
-            QQC2.ItemDelegate {
+            LPSettingsTimeItem {
                 id: endTimeListitem
 
-                property date date: Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeEndTime, "hh:mm")
+                date: Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeEndTime, "hh:mm")
 
                 Layout.fillWidth: true
                 visible: shell.settings.enableAutoDarkMode
                 text: "End time"
-                indicator: Label {
-                    text: endTimeListitem.date.toLocaleTimeString(Qt.locale(),Locale.ShortFormat)
-                    anchors {
-                        right: parent.right
-                        rightMargin: units.gu(2)
-                        verticalCenter: parent.verticalCenter
-                    }
-                }
                 onDateChanged: shell.settings.autoDarkModeEndTime = date.toLocaleString(Qt.locale(), "hh:mm")
                 onClicked: PickerPanel.openDatePicker(endTimeListitem, "date", "Hours|Minutes")
             }
@@ -2563,17 +2555,28 @@ StyledItem {
         id: drawerDockPage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                text: "Dock of pinned apps displayed at the bottom of the app drawer\n\n"
-                + " • Expand/Collapse: Swipe up/down\n"
+                text: "New section in the app drawer where you can pin or add apps\n\n"
                 + " • Toggle edit mode: Press and hold on empty space to enter/exit. Use context menu to enter. Click on app to exit.\n"
-                + " • Rearrange apps: Press, hold and drag on app icons"
+                + " • Rearrange apps: Press, hold and drag on app icons\n\n"
+                + "Bottom Dock:\n"
+                + " - Displayed at the bottom of the app drawer\n"
+                + " - Collapsible by swiping up and down\n\n"
+                + "Integrated Dock:\n"
+                + " - Displayed at the top of the app drawer or at the bottom when it's inverted\n"
+                + ' - Works more like a "Favorites" section than a usual dock\n'
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
                 id: enableDrawerDock
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2584,13 +2587,26 @@ StyledItem {
                     value: shell.settings.enableDrawerDock
                 }
             }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDrawerDock
+                text: i18n.tr("Dock type")
+                model: [
+                    i18n.tr("Bottom Dock"),
+                    i18n.tr("Integrated Dock")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.drawerDockType
+                onSelectedIndexChanged: shell.settings.drawerDockType = selectedIndex
+            }
         }
     }
     Component {
         id: pullDownPage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Swipe down from the upper half of the leftmost or rightmost edge to pull down the shell to a more reachable state."
@@ -2598,9 +2614,15 @@ StyledItem {
                 + " • Pull Down: Swipe down and release\n"
                 + " • Reset: Swipe up and release"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
                 id: enablePullDownGesture
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2617,7 +2639,7 @@ StyledItem {
         id: indicatorOpenPage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Swipe from the very bottom of left/right edge to open the application menu/indicator panel\n\n"
@@ -2625,9 +2647,15 @@ StyledItem {
                 + " • Direct Access (Only for indicators): Swipe and drag to select a specific predefined indicator. Release to select. "
                 + "Quick short swipe will open the Notifications/Messages Indicator"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
                 id: indicatorGesture
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2649,7 +2677,7 @@ StyledItem {
         id: directAccessPage
         
         LPSettingsPage {
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: specificIndicatorGesture
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2725,7 +2753,7 @@ StyledItem {
         id: dynamicCovePage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Enables different functions inside the lockscreen circle\n"
@@ -2733,9 +2761,15 @@ StyledItem {
                 + "Press and drag on the dotted cirlce to select a function\n"
                 + "Short swipe up from bottom to hide or show"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
                 id: enableDynamicCove
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2746,40 +2780,27 @@ StyledItem {
                     value: shell.settings.enableDynamicCove
                 }
             }
-            QQC2.ItemDelegate {
-                id: dynamicCoveSelectionDelayItem
-
-                Layout.fillWidth: true
-                visible: shell.settings.enableDynamicCove
-                text: "Selection delay"
-                indicator: QQC2.SpinBox {
-                    id: dynamicCoveSelectionDelay
-                    anchors {
-                        right: parent.right
-                        rightMargin: units.gu(2)
-                        verticalCenter: parent.verticalCenter
-                    }
-                    from: 0
-                    to: 1000
-                    stepSize: 50
-                    onValueChanged: shell.settings.dynamicCoveSelectionDelay = value
-                    Binding {
-                        target: dynamicCoveSelectionDelay
-                        property: "value"
-                        value: shell.settings.dynamicCoveSelectionDelay
-                    }
-                }
-            }
-            QQC2.Label {
+            LPSettingsSlider {
+                id: dynamicCoveSelectionDelay
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                text: "Entering the lockscreen will always show the clock\n"
-                + "Otherwise, the last selected will be shown"
-                wrapMode: Text.WordWrap
-                visible: dcShowClockWhenLockscreen.visible
-                Suru.textLevel: Suru.Caption
+                visible: shell.settings.enableDynamicCove
+                title: "Selection delay"
+                minimumValue: 0
+                maximumValue: 1000
+                stepSize: 50
+                resetValue: 100
+                live: false
+                roundValue: true
+                unitsLabel: "ms"
+                onValueChanged: shell.settings.dynamicCoveSelectionDelay = value
+                Binding {
+                    target: dynamicCoveSelectionDelay
+                    property: "value"
+                    value: shell.settings.dynamicCoveSelectionDelay
+                }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: dcShowClockWhenLockscreen
                 Layout.fillWidth: true
                 text: "Always prefer to show clock"
@@ -2791,15 +2812,19 @@ StyledItem {
                     value: shell.settings.dcShowClockWhenLockscreen
                 }
             }
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                text: "Press and hold to toggle disco mode"
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Entering the lockscreen will always show the clock\n"
+                + "Otherwise, the last selected will be shown"
                 wrapMode: Text.WordWrap
-                visible: enableCDPlayerDiscoCheck.visible
-                Suru.textLevel: Suru.Caption
+                visible: dcShowClockWhenLockscreen.visible
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            LPSettingsSwitch {
                 id: enableCDPlayerDiscoCheck
                 Layout.fillWidth: true
                 text: "Enable Disco mode in media controls"
@@ -2811,20 +2836,37 @@ StyledItem {
                     value: shell.settings.enableCDPlayerDisco
                 }
             }
-            QQC2.Label {
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Press and hold to toggle disco mode"
+                wrapMode: Text.WordWrap
+                visible: enableCDPlayerDiscoCheck.visible
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 visible: shell.settings.enableDynamicCove
                 text: "For playlists to work, create a symlink of the music app's database files\n"
                 + "Source: /home/phablet/.local/share/music.ubports/Databases/\n"
-                + "Destination: /home/phablet/.local/share/Canonical/lomiri/QML/OfflineStorage/Databases/\n"
+                + "Destination: /home/phablet/.local/share/UBports/lomiri/QML/OfflineStorage/Databases/\n"
                 + "Files:"
                 + " - 2be3974e34f63282a99a37e9e2077ee4.sqlite\n"
                 + " - 2be3974e34f63282a99a37e9e2077ee4.ini\n"
                 + " - d332dbaaf4b3a1a7909b1d623eb1d02b.sqlite\n"
                 + " - d332dbaaf4b3a1a7909b1d623eb1d02b.ini"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
         }
     }
@@ -2832,7 +2874,7 @@ StyledItem {
         id: quickTogglesPage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Located at the bottom of Top Panel pages\n"
@@ -2842,9 +2884,15 @@ StyledItem {
                 + "Press and hold on empty space: Enter/Exit edit mode\n"
                 + "Press and hold then drag to rearrange items"
                 wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
+                font.italic: true
+                textSize: Label.Small
             }
-            QQC2.CheckDelegate {
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
                 id: quickTogglesTopPanel
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2855,7 +2903,7 @@ StyledItem {
                     value: shell.settings.enableQuickToggles
                 }
             }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: autoCollapseQuickToggles
                 Layout.fillWidth: true
                 visible: shell.settings.enableQuickToggles
@@ -2867,16 +2915,7 @@ StyledItem {
                     value: shell.settings.autoCollapseQuickToggles
                 }
             }
-            QQC2.Label {
-                Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                visible: gestureMediaControls.visible
-                text: "Single click: Play/Pause\n"
-                + "Swipe left/right: Play next/previous song"
-                wrapMode: Text.WordWrap
-                Suru.textLevel: Suru.Caption
-            }
-            QQC2.CheckDelegate {
+            LPSettingsCheckBox {
                 id: gestureMediaControls
                 Layout.fillWidth: true
                 text: "Gesture-mode media controls"
@@ -2888,17 +2927,31 @@ StyledItem {
                     value: shell.settings.gestureMediaControls
                 }
             }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: gestureMediaControls.visible
+                text: "Single click: Play/Pause\n"
+                            + "Swipe left/right: Play next/previous song"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
         }
     }
     Component {
         id: devicePage
         
         LPSettingsPage {
-            QQC2.Label {
+            Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Most configuration only takes effect when your device doesn't have pre-configuration"
+                font.italic: true
                 wrapMode: Text.WordWrap
+                textSize: Label.Small
             }
             Rectangle {
                 Layout.fillWidth: true
@@ -2925,54 +2978,23 @@ StyledItem {
                 id: notchpage
                 
                 LPSettingsPage {
-                    QQC2.ItemDelegate {
+                    OptionSelector {
                         id: notchPositionItem
                         readonly property bool notchEnabled: shell.settings.notchPosition > 0
                         Layout.fillWidth: true
-                        text: "Notch Position"
-                        indicator: QQC2.SpinBox {
-                            id: notchPosition
-                            anchors {
-                                right: parent.right
-                                rightMargin: units.gu(2)
-                                verticalCenter: parent.verticalCenter
-                            }
-                            from: 0
-                            to: 3
-                            stepSize: 1
-                            textFromValue: function(value, locale) {
-                                                switch (value) {
-                                                    case 0:
-                                                        return "None"
-                                                    case 1:
-                                                        return "Middle"
-                                                    case 2:
-                                                        return "Left"
-                                                    case 3:
-                                                        return "Right"
-                                                }
-                                           }
-                            valueFromText: function(text, locale) {
-                                                switch (text) {
-                                                    case "None":
-                                                        return 0
-                                                    case "Middle":
-                                                        return 1
-                                                    case "Left":
-                                                        return 2
-                                                    case "Right":
-                                                        return 3
-                                                }
-                                           }
-                            onValueChanged: shell.settings.notchPosition = value
-                            Binding {
-                                target: notchPosition
-                                property: "value"
-                                value: shell.settings.notchPosition
-                            }
-                        }
+                        Layout.margins: units.gu(2)
+                        text: i18n.tr("Notch Position")
+                        model: [
+                            i18n.tr("None")
+                            ,i18n.tr("Middle")
+                            ,i18n.tr("Left")
+                            ,i18n.tr("Right")
+                        ]
+                        containerHeight: itemHeight * 6
+                        selectedIndex: shell.settings.notchPosition
+                        onSelectedIndexChanged: shell.settings.notchPosition = selectedIndex
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: showMiddleNotchHint
                         Layout.fillWidth: true
                         visible: shell.settings.notchPosition == 1
@@ -2984,7 +3006,7 @@ StyledItem {
                             value: shell.settings.showMiddleNotchHint
                         }
                     }
-                    QQC2.CheckDelegate {
+                    LPSettingsCheckBox {
                         id: fullyHideNotchInNative
                         Layout.fillWidth: true
                         visible: notchPositionItem.notchEnabled
@@ -2996,23 +3018,20 @@ StyledItem {
                             value: shell.settings.fullyHideNotchInNative
                         }
                     }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        verticalAlignment: QQC2.Label.AlignVCenter
-                        visible: notchPositionItem.notchEnabled
-                        text: "Notch Top Margin"
-                    }
-                    QQC2.SpinBox {
+                    LPSettingsSlider {
                         id: notchHeightMargin
                         Layout.fillWidth: true
-                        Layout.topMargin: 0
                         Layout.margins: units.gu(2)
                         visible: notchPositionItem.notchEnabled
-                        editable: true
-                        from: 0
-                        to: 400
-                        stepSize: 10
+                        title: "Notch Top Margin"
+                        enableFineControls: true
+                        minimumValue: 0
+                        maximumValue: 400
+                        stepSize: 1
+                        resetValue: 0
+                        live: true
+                        roundValue: true
+                        unitsLabel: "px"
                         onValueChanged: shell.settings.notchHeightMargin = value
                         Binding {
                             target: notchHeightMargin
@@ -3020,29 +3039,20 @@ StyledItem {
                             value: shell.settings.notchHeightMargin
                         }
                     }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: units.dp(1)
-                        color: Suru.neutralColor
-                        visible: notchPositionItem.notchEnabled
-                    }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        verticalAlignment: QQC2.Label.AlignVCenter
-                        visible: notchPositionItem.notchEnabled
-                        text: "Notch Width Margin"
-                    }
-                    QQC2.SpinBox {
+                    LPSettingsSlider {
                         id: notchWidthMargin
                         Layout.fillWidth: true
-                        Layout.topMargin: 0
                         Layout.margins: units.gu(2)
                         visible: notchPositionItem.notchEnabled
-                        editable: true
-                        from: 0
-                        to: 400
-                        stepSize: 10
+                        title: "Notch Width Margin"
+                        enableFineControls: true
+                        minimumValue: 0
+                        maximumValue: 400
+                        stepSize: 1
+                        resetValue: 0
+                        live: true
+                        roundValue: true
+                        unitsLabel: "px"
                         onValueChanged: shell.settings.notchWidthMargin = value
                         Binding {
                             target: notchWidthMargin
@@ -3056,21 +3066,19 @@ StyledItem {
                 id: punchPage
                 
                 LPSettingsPage {
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        verticalAlignment: QQC2.Label.AlignVCenter
-                        text: "Exact Punchhole Width"
-                    }
-                    QQC2.SpinBox {
+                    LPSettingsSlider {
                         id: punchHoleWidth
                         Layout.fillWidth: true
-                        Layout.topMargin: 0
                         Layout.margins: units.gu(2)
-                        editable: true
-                        from: 0
-                        to: 300
-                        stepSize: 10
+                        title: "Exact Punchhole Width"
+                        enableFineControls: true
+                        minimumValue: 0
+                        maximumValue: 300
+                        stepSize: 1
+                        resetValue: 0
+                        live: true
+                        roundValue: true
+                        unitsLabel: "px"
                         onValueChanged: shell.settings.punchHoleWidth = value
                         Binding {
                             target: punchHoleWidth
@@ -3078,26 +3086,19 @@ StyledItem {
                             value: shell.settings.punchHoleWidth
                         }
                     }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: units.dp(1)
-                        color: Suru.neutralColor
-                    }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        verticalAlignment: QQC2.Label.AlignVCenter
-                        text: "Punchhole Height From Top"
-                    }
-                    QQC2.SpinBox {
+                    LPSettingsSlider {
                         id: punchHoleHeightFromTop
                         Layout.fillWidth: true
-                        Layout.topMargin: 0
                         Layout.margins: units.gu(2)
-                        editable: true
-                        from: 0
-                        to: 200
-                        stepSize: 5
+                        title: "Punchhole Height From Top"
+                        enableFineControls: true
+                        minimumValue: 0
+                        maximumValue: 200
+                        stepSize: 1
+                        resetValue: 0
+                        unitsLabel: "px"
+                        live: true
+                        roundValue: true
                         onValueChanged: shell.settings.punchHoleHeightFromTop = value
                         Binding {
                             target: punchHoleHeightFromTop
@@ -3105,39 +3106,45 @@ StyledItem {
                             value: shell.settings.punchHoleHeightFromTop
                         }
                     }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: units.dp(1)
-                        color: Suru.neutralColor
-                    }
                 }
             }
             Component {
                 id: cornerPage
                 
                 LPSettingsPage {
-                    QQC2.Label {
+                    LPSettingsSlider {
+                        id: roundedCornerMargin
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
-                        text: "Only necessary or has effects when a notch/punchhole is configured"
-                        wrapMode: Text.WordWrap
-                        Suru.textLevel: Suru.Caption
+                        title: "Corner Margin"
+                        enableFineControls: true
+                        minimumValue: 0
+                        maximumValue: 200
+                        stepSize: 1
+                        resetValue: 0
+                        live: true
+                        roundValue: true
+                        unitsLabel: "px"
+                        onValueChanged: shell.settings.roundedCornerMargin = value
+                        Binding {
+                            target: roundedCornerMargin
+                            property: "value"
+                            value: shell.settings.roundedCornerMargin
+                        }
                     }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        verticalAlignment: QQC2.Label.AlignVCenter
-                        text: "Corner Radius"
-                    }
-                    QQC2.SpinBox {
+                    LPSettingsSlider {
                         id: roundedCornerRadius
                         Layout.fillWidth: true
-                        Layout.topMargin: 0
                         Layout.margins: units.gu(2)
-                        editable: true
-                        from: 0
-                        to: 500
-                        stepSize: 10
+                        title: "Corner Radius"
+                        enableFineControls: true
+                        minimumValue: 0
+                        maximumValue: 500
+                        stepSize: 1
+                        resetValue: 0
+                        live: true
+                        roundValue: true
+                        unitsLabel: "px"
                         onValueChanged: shell.settings.roundedCornerRadius = value
                         Binding {
                             target: roundedCornerRadius
@@ -3145,32 +3152,15 @@ StyledItem {
                             value: shell.settings.roundedCornerRadius
                         }
                     }
-                    Rectangle {
+                    Label {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: units.dp(1)
-                        color: Suru.neutralColor
-                    }
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        verticalAlignment: QQC2.Label.AlignVCenter
-                        text: "Corner Margin"
-                    }
-                    QQC2.SpinBox {
-                        id: roundedCornerMargin
-                        Layout.fillWidth: true
-                        Layout.topMargin: 0
-                        Layout.margins: units.gu(2)
-                        editable: true
-                        from: 0
-                        to: 200
-                        stepSize: 5
-                        onValueChanged: shell.settings.roundedCornerMargin = value
-                        Binding {
-                            target: roundedCornerMargin
-                            property: "value"
-                            value: shell.settings.roundedCornerMargin
-                        }
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Only necessary or has effects when a notch/punchhole is configured"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
                     }
                 }
             }
@@ -3827,6 +3817,7 @@ StyledItem {
             // ENH032 - Infographics Outer Wilds
             enableOW: lp_settings.enableOW
             alternateOW: lp_settings.ow_theme == 0
+            dlcOW: lp_settings.ow_theme == 2
             eyeOpened: eyeBlinkLoader.item ? eyeBlinkLoader.item.eyeOpened : false
             blinkComplete: eyeBlinkLoader.item ? eyeBlinkLoader.item.blinkComplete : false
             // ENH032 - End

@@ -18,7 +18,6 @@ MouseArea {
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     onClicked: {
         if (mouse.button == Qt.LeftButton) {
-    onClicked: applicationSelected(appId)
             applicationSelected(appId)
             mouse.accepted = true
         } else {
@@ -27,6 +26,19 @@ MouseArea {
         }
     }
     onPressAndHold: applicationContextMenu(appId)
+
+    Keys.onPressed: {
+        switch(event.key) {
+            case Qt.Key_Enter:
+            case Qt.Key_Return:
+                applicationSelected(appId)
+            break
+            case Qt.Key_Control:
+            case Qt.Key_Menu:
+                applicationContextMenu(appId)
+            break
+        }
+    }
 
     z: loader.active ? 1 : 0
 

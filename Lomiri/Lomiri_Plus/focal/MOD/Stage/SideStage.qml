@@ -97,8 +97,8 @@ Showable {
                 if (shown) floatButtonTimer.restart();
             }
             icon.name: root.floating ? "lock" : "lock-broken"
-            icon.width: units.gu(6)
-            icon.height: units.gu(6)
+            icon.width: units.gu(3)
+            icon.height: units.gu(3)
 
             Behavior on opacity { LomiriNumberAnimation {} }
         }

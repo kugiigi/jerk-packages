@@ -5,16 +5,17 @@ import Lomiri.Components 1.3
 Image {
 	id: scout
 	
-	readonly property real startWidth: units.gu(1)
-	readonly property real endWidth: units.gu(3)
+	readonly property real startScale: 1
+	readonly property real endScale: 3
     property real wallpaperWidth
     property real wallpaperHeight
 	
 	asynchronous: true
 	source: "graphics/scout.png"
-	width: startWidth
+	width: units.gu(1)
 	height: width
 	fillMode: Image.PreserveAspectFit
+    sourceSize: Qt.size(units.gu(3), units.gu(3))
 	
 	PathAnimation {
 		id: flyByAnim
@@ -39,9 +40,9 @@ Image {
 		running: scout.visible
 		loops: Animation.Infinite
 		target: scout
-		property: "width"
-		from: scout.startWidth
-		to: scout.endWidth
+		property: "scale"
+		from: scout.startScale
+		to: scout.endScale
 		duration: flyByAnim.duration
 	}
 	

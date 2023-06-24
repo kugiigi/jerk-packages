@@ -73,7 +73,7 @@ Item {
         verticalCenterOffset: verticalOrbitOffset
     }
 
-    z: orbitingObject ? orbitingObject.width < objectWidth ? -zSystem
+    z: orbitingObject ? orbitingObject.scale < 1 ? -zSystem
                                             : zSystem
                 : 0
     height: width
@@ -100,7 +100,8 @@ Item {
         if (orbit.rotationDuration > 0) {
             rotateAnim.stop()
         }
-        orbitingObject.width = orbit.objectWidth * (orbit.currentPosValues ? orbit.currentPosValues.sizes[3] : 1)
+
+        orbitingObject.scale = orbit.currentPosValues ? orbit.currentPosValues.sizes[3] : 1
         orbitingObject.rotation = 0
     }
         
@@ -126,26 +127,26 @@ Item {
 
         NumberAnimation {
             target: orbitingObject
-            property: "width"
-            to: orbit.objectWidth * orbit.currentPosValues.sizes[0]
+            property: "scale"
+            to: orbit.currentPosValues.sizes[0]
             duration: orbitPathAnim.duration / 4
         }
         NumberAnimation {
             target: orbitingObject
-            property: "width"
-            to: orbit.objectWidth * orbit.currentPosValues.sizes[1]
+            property: "scale"
+            to: orbit.currentPosValues.sizes[1]
             duration: orbitPathAnim.duration / 4
         }
         NumberAnimation {
             target: orbitingObject
-            property: "width"
-            to: orbit.objectWidth * orbit.currentPosValues.sizes[2]
+            property: "scale"
+            to: orbit.currentPosValues.sizes[2]
             duration: orbitPathAnim.duration / 4
         }
         NumberAnimation {
             target: orbitingObject
-            property: "width"
-            to: orbit.objectWidth * orbit.currentPosValues.sizes[3]
+            property: "scale"
+            to: orbit.currentPosValues.sizes[3]
             duration: orbitPathAnim.duration / 4
         }
     }
@@ -178,7 +179,8 @@ Item {
         sourceComponent: orbit.customDelegate
         active: orbit.customDelegate ? true : false
         asynchronous: true
-        width: orbit.objectWidth * orbit.currentPosValues.sizes[3]
+        width: orbit.objectWidth
+        scale: orbit.currentPosValues.sizes[3]
         height: width
         onLoaded: {
             orbitPathAnim.target = item
@@ -189,11 +191,15 @@ Item {
 
     Image {
         id: object
-        
+
+        readonly property real sourceSizeWidth: orbit.objectWidth * 1.5 //  Since 1.5 is max scale
+
         asynchronous: true
-        width: orbit.objectWidth * orbit.currentPosValues.sizes[3]
+        width: orbit.objectWidth
+        scale: orbit.currentPosValues.sizes[3]
         height: width
         fillMode: Image.PreserveAspectFit
+        sourceSize: Qt.size(sourceSizeWidth, sourceSizeWidth)
 
         Rectangle {
             id: quantumMoon

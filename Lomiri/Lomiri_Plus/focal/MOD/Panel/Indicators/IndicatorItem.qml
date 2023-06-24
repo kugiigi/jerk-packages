@@ -108,8 +108,26 @@ IndicatorDelegate {
             // ENH097 - Battery Indicator options
             // width: iconRow.width > 0 ? iconRow.width + units.gu(1) : 0
             width: visible && iconRow.width > 0 ? iconRow.width + units.gu(1) : 0
-            visible: shell.settings.hideBatteryIndicatorIcon ? root.identifier !== "ayatana-indicator-power" || (root.identifier == "ayatana-indicator-power" && root.expanded)
-                        : true
+            // ENH098 - Time date indicator options
+            visible: {
+                switch(root.identifier) {
+                    case "ayatana-indicator-power":
+                        if (shell.settings.hideBatteryIndicatorIcon && !root.expanded) {
+                            return false
+                        }
+                    break
+                    case "indicator-datetime":
+                    case "ayatana-indicator-datetime":
+                        if (shell.settings.hideTimeIndicatorAlarmIcon && !root.expanded) {
+                            return false
+                        }
+                    break
+                }
+
+                return true
+            }
+                        
+            // ENH098 - End
             // ENH097 - End
             anchors {
                 left: leftLabelItem.right
