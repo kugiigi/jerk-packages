@@ -16,6 +16,7 @@ ColumnLayout {
     property bool showCurrentValue: true
     property bool percentageValue: false
     property bool roundValue: true
+    property int roundDecimal: 0
     property real resetValue: -1
 
     Label {
@@ -43,7 +44,7 @@ ColumnLayout {
                         return ("%1 %").arg(Math.round(v * 100))
                     } else {
                         if (sliderItem.roundValue) {
-                            return Math.round(v);
+                            return parseFloat(v.toFixed(sliderItem.roundDecimal))
                         } else  {
                             return v;
                         }

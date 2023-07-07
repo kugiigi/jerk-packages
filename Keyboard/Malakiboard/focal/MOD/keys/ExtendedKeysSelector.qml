@@ -27,7 +27,10 @@ KeyPopover {
     enabled: false
 
     property variant extendedKeysModel
-    property alias keys: rowOfKeys.children
+    // ENH119 - Extended selector language key
+    // property alias keys: rowOfKeys.children
+    property alias keys: rowOfKeys.visibleChildren
+    // ENH119 - End
     property alias rowX: rowOfKeys.x
     property alias rowY: rowOfKeys.y
     property int fontSize: 0
@@ -119,6 +122,9 @@ KeyPopover {
         Repeater {
             id: keyRepeater
             model: extendedKeysModel
+            // ENH119 - Extended selector language key
+            visible: false // So it won't be counted in the list of keys
+            // ENH119 - End
 
             Item {
                 id: key
