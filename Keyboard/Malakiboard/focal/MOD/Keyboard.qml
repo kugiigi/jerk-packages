@@ -48,6 +48,9 @@ import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Suru 2.2
 // ENH070 - End
+// ENH118 - Float in external display
+import QtQuick.Window 2.12
+// ENH118 - End
 // ENH082 - Custom theme
 import "MKColorpicker"
 // ENH082 - End
@@ -67,7 +70,8 @@ Item {
     readonly property bool keyboardLandscape: landscape && !oneHanded
     // ENH008 - Keyboard enhancements
     // Replacement for proper usageMode settings
-    property string usageMode: "Full"
+    //property string usageMode: "Full"
+    readonly property string usageMode: fullScreenItem.settings.usageMode
     onUsageModeChanged: {
         keyboardSurface.state = keyboardSurface.settingsToState(usageMode)
         if (usageMode == "Floating") {
@@ -98,6 +102,9 @@ Item {
     // property int cursorSwipeDuration: 5000
     property int cursorSwipeDuration: fullScreenItem.settings.cursorMoverTimeout
     // ENH088 - End
+    // ENH120 - Saved Texts
+    property alias savedTexts: savedTextsObj
+    // ENH120 - End
     // ENH089 - Quick actions
     property alias swipeHaptic : swipeEffect
     property alias allQuickActions: actionsFactory.allActions
@@ -155,6 +162,7 @@ Item {
         property alias bottomGesturehint: settingsObj.bottomGesturehint
         property alias useCustomFont: settingsObj.useCustomFont
         property alias customFont: settingsObj.customFont
+        property alias usageMode: settingsObj.usageMode
         
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
@@ -167,16 +175,29 @@ Item {
         property alias verticalSwipeCursorSensitivity: settingsObj.verticalSwipeCursorSensitivity
         property alias cursorMoverWorkaround: settingsObj.cursorMoverWorkaround
         property alias cursorMoverTimeout: settingsObj.cursorMoverTimeout
+        property alias redesignedLanguageKey: settingsObj.redesignedLanguageKey
 
         // Quick actions
         property alias enableQuickActions: settingsObj.enableQuickActions
         property alias quickActions: settingsObj.quickActions
+        property alias quickActionsHeight: settingsObj.quickActionsHeight
 
         // Saved data
         property alias savedPalettes: settingsObj.savedPalettes
 
+        // Saved Texts
+        property alias enableSavedTexts: settingsObj.enableSavedTexts
+        property alias savedTexts: settingsObj.savedTexts
+        property alias savedTextsLimit: settingsObj.savedTextsLimit
+        property alias savedTextsAutoCopy: settingsObj.savedTextsAutoCopy
+        property alias savedTextsAutoCut: settingsObj.savedTextsAutoCut
+
         // Session data
         property string textClipboard: ""
+
+        // Constant values
+        readonly property string settingsIcon: "⛭"
+        readonly property string mkSettingsIconText: "MK"
 
         // ENH079 - Live theme change
         onFollowSystemThemeChanged: {
@@ -296,6 +317,14 @@ Item {
             property bool bottomGesturehint: true
             property bool useCustomFont: false
             property string customFont: "Ubuntu"
+            property string usageMode: "Full"
+            property real quickActionsHeight: 3 // Inches
+            property bool redesignedLanguageKey: false
+            property bool enableSavedTexts: false
+            property var savedTexts: []
+            property int savedTextsLimit: 20
+            property bool savedTextsAutoCopy: true
+            property bool savedTextsAutoCut: true
 
         }
     }
@@ -362,6 +391,15 @@ Item {
         }
         return arr;
     }
+
+    // ENH120 - Saved Texts
+    function showSavedTexts() {
+        savedTextsArea.show()
+    }
+    function hideSavedTexts() {
+        savedTextsArea.hide()
+    }
+    // ENH120 - End
 
     // ENH070 - Keyboard settings
     Loader {
@@ -820,6 +858,24 @@ Item {
                 text: "Cursor Mode"
                 onClicked: settingsLoader.item.stack.push(cursorModePage, {"title": text})
             }
+            /*
+            MKSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Notebook"
+                onClicked: settingsLoader.item.stack.push(savedTextsPage, {"title": text})
+            }
+            */
+            QQC2.CheckDelegate {
+                id: redesignedLanguageKey
+                Layout.fillWidth: true
+                text: "Redesigned language key/switcher"
+                onCheckedChanged: fullScreenItem.settings.redesignedLanguageKey = checked
+                Binding {
+                    target: redesignedLanguageKey
+                    property: "checked"
+                    value: fullScreenItem.settings.redesignedLanguageKey
+                }
+            }
             MKSliderItem {
                 id: hapticsDuration
 
@@ -883,9 +939,86 @@ Item {
                 visible: fullScreenItem.settings.enableQuickActions
                 text: "Right Quick Actions"
                 onClicked: settingsLoader.item.stack.push(rightQuickActionsPage, {"title": text})
+                }
+            MKSliderItem {
+                id: quickActionsHeight
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: fullScreenItem.settings.enableQuickActions
+                title: "Max height (inch)"
+                minimumValue: 1
+                maximumValue: 5
+                resetValue: 3
+                stepSize: 0.5
+                roundDecimal: 2
+                onValueChanged: fullScreenItem.settings.quickActionsHeight = value
+                Binding {
+                    target: quickActionsHeight
+                    property: "value"
+                    value: fullScreenItem.settings.quickActionsHeight
+                }
             }
         }
     }
+    Component {
+        id: savedTextsPage
+        
+        MKSettingsPage {
+            QQC2.CheckDelegate {
+                id: enableSavedTexts
+                Layout.fillWidth: true
+                text: "Enable saved texts"
+                onCheckedChanged: fullScreenItem.settings.enableSavedTexts = checked
+                Binding {
+                    target: enableSavedTexts
+                    property: "checked"
+                    value: fullScreenItem.settings.enableSavedTexts
+                }
+            }
+            MKSliderItem {
+                id: savedTextsLimit
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: fullScreenItem.settings.enableSavedTexts
+                title: "Max saved texts"
+                minimumValue: 0
+                maximumValue: 100
+                resetValue: 20
+                stepSize: 5
+                onValueChanged: fullScreenItem.settings.savedTextsLimit = value
+                Binding {
+                    target: savedTextsLimit
+                    property: "value"
+                    value: fullScreenItem.settings.savedTextsLimit
+                }
+            }
+            QQC2.CheckDelegate {
+                id: savedTextsAutoCopy
+                Layout.fillWidth: true
+                visible: fullScreenItem.settings.enableSavedTexts
+                text: 'Automatically save with "Copy"'
+                onCheckedChanged: fullScreenItem.settings.savedTextsAutoCopy = checked
+                Binding {
+                    target: savedTextsAutoCopy
+                    property: "checked"
+                    value: fullScreenItem.settings.savedTextsAutoCopy
+                }
+            }
+            QQC2.CheckDelegate {
+                id: savedTextsAutoCut
+                Layout.fillWidth: true
+                visible: fullScreenItem.settings.enableSavedTexts
+                text: 'Automatically save with "Cut"'
+                onCheckedChanged: fullScreenItem.settings.savedTextsAutoCut = checked
+                Binding {
+                    target: savedTextsAutoCut
+                    property: "checked"
+                    value: fullScreenItem.settings.savedTextsAutoCut
+                }
+            }
+        }
+    }
+    
     Component {
         id: leftQuickActionsPage
         
@@ -1047,6 +1180,26 @@ Item {
                 Layout.fillWidth: true
                 text: "Theming"
                 onClicked: settingsLoader.item.stack.push(themePage, {"title": text})
+            }
+            OptionSelector {
+                readonly property var usageModeValues: [
+                    { "label": "Full", "value": "Full" }
+                    , { "label": "One-handed Left", "value": "One-handed-left" }
+                    , { "label": "One-handed Right", "value": "One-handed-right" }
+                    , { "label": "Floating", "value": "Floating" }
+                ]
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Mode")
+                model: [
+                    "Full"
+                    , "One-handed Left"
+                    , "One-handed Right"
+                    , "Floating"
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: model.indexOf(internal.findFromArray(usageModeValues, "value", fullScreenItem.settings.usageMode).label)
+                onSelectedIndexChanged: fullScreenItem.settings.usageMode = internal.findFromArray(usageModeValues, "label", model[selectedIndex]).value
             }
             QQC2.CheckDelegate {
                 id: showNumberRow
@@ -1965,7 +2118,7 @@ Item {
 
             onStateChanged: {
                 fullScreenItem.reportKeyboardVisibleRect()
-                fullScreenItem.usageMode = stateToSettings(state)
+                //fullScreenItem.usageMode = stateToSettings(state)
                 if (state == "FLOATING") {
                     inactivityTimer.restart()
                 }
@@ -2247,7 +2400,7 @@ Item {
                         onPressed: {
                             if (!dragActive && !fullScreenItem.keyboardFloating) {
                                 keyboardSurface.floatInitialX = keyboardSurface.x
-                                keyboardSurface.state = "FLOATING"
+                                fullScreenItem.settings.usageMode = "Floating"
                             }
                         }
                     }
@@ -2267,7 +2420,7 @@ Item {
                                 keyboardSurface.x = canvas.width - keyboardSurface.width
                                 keyboardSurface.positionedToLeft = false
                             } else {
-                                keyboardSurface.state = "ONE-HANDED-RIGHT"
+                                fullScreenItem.settings.usageMode = "One-handed-right"
                             }
                         }
                     }
@@ -2287,7 +2440,7 @@ Item {
                                 keyboardSurface.x = 0
                                 keyboardSurface.positionedToLeft = true
                             } else {
-                                keyboardSurface.state = "ONE-HANDED-LEFT"
+                                fullScreenItem.settings.usageMode = "One-handed-left"
                             }
                         }
                     }
@@ -2314,7 +2467,7 @@ Item {
                         visible: keyboardSurface.state !== "FULL"
 
                         onClicked: {
-                            keyboardSurface.state = "FULL"
+                            fullScreenItem.settings.usageMode = "Full"
                         }
                     }
                 }
@@ -2431,6 +2584,30 @@ Item {
                     left: keyboardComp.left
                     right: keyboardComp.right
                 }
+                // ENH120 - Saved Texts
+                /*
+                readonly property var defaultLeadingActions: [                
+                    Action { text: i18n.tr("Select All"); iconName: "edit-select-all"; onTriggered: fullScreenItem.selectAll(); },
+                    Action { text: i18n.tr("Redo"); iconName: "redo"; onTriggered: fullScreenItem.redo();},
+                    Action { text: i18n.tr("Undo"); iconName: "undo"; onTriggered: fullScreenItem.undo();},
+                    Action { text: i18n.tr("Notebook"); iconName: "notebook"; onTriggered: fullScreenItem.showSavedTexts(); }
+                ]
+                readonly property var defaultTrailingActions: [
+                    Action { text: i18n.tr("Paste"); iconName: "edit-paste"; onTriggered: fullScreenItem.paste(); },
+                    Action { text: i18n.tr("Copy"); iconName: "edit-copy"; onTriggered: {fullScreenItem.copy(); fullScreenItem.sendLeftKey();} },
+                    Action { text: i18n.tr("Cut"); iconName: "edit-cut"; onTriggered: fullScreenItem.cut(); }
+                ]
+                readonly property var savedTextsLeadingActions: [                
+                    Action { text: i18n.tr("Back"); iconName: "back"; onTriggered: fullScreenItem.hideSavedTexts(); }
+                ]
+                readonly property var savedTextsTrailingActions: [
+                    Action { text: i18n.tr("Clear"); iconName: "delete"; onTriggered: {fullScreenItem.copy(); fullScreenItem.sendLeftKey();} },
+                    Action { text: i18n.tr("Add"); iconName: "add"; onTriggered: fullScreenItem.savedTexts.addItem(); }
+                ]
+                leadingActions: savedTextsArea.visible ? savedTextsLeadingActions : defaultLeadingActions
+                trailingActions: savedTextsArea.visible ? savedTextsTrailingActions : defaultTrailingActions
+                */
+                // ENH120 - End
             }
                 
 
@@ -2589,6 +2766,25 @@ Item {
                     lastRelease = Qt.point(0, 0)
                 }
             }
+            // ENH120 - Saved Texts
+            Loader {
+                id: savedTextsArea
+                
+                active: fullScreenItem.settings.enableSavedTexts
+                asynchronous: true
+                visible: false
+                function show() {
+                    visible = true
+                }
+                function hide() {
+                    visible = false
+                }
+                anchors.fill: cursorSwipeArea
+                sourceComponent: Rectangle {
+                    color: fullScreenItem.theme.backgroundColor
+                }
+            }
+            // ENH120 - End
 
             // ENH089 - Quick actions
             RowLayout {
@@ -2653,10 +2849,10 @@ Item {
                             if (draggingCustom && touchPosition.y >= 0) {
                                 switch (keyboardSurface.state) {
                                     case "ONE-HANDED-RIGHT":
-                                        keyboardSurface.state = "FULL"
+                                        fullScreenItem.settings.usageMode = "Full"
                                         break
                                     case "FULL":
-                                        keyboardSurface.state = "ONE-HANDED-LEFT"
+                                        fullScreenItem.settings.usageMode = "One-handed-left"
                                         break
                                     case "FLOATING":
                                         keyboardSurface.x = 0
@@ -2686,10 +2882,10 @@ Item {
                             if (draggingCustom && touchPosition.y >= 0) {
                                 switch (keyboardSurface.state) {
                                     case "ONE-HANDED-LEFT":
-                                        keyboardSurface.state = "FULL"
+                                        fullScreenItem.settings.usageMode = "Full"
                                         break
                                     case "FULL":
-                                        keyboardSurface.state = "ONE-HANDED-RIGHT"
+                                        fullScreenItem.settings.usageMode = "One-handed-right"
                                         break
                                     case "FLOATING":
                                         keyboardSurface.x = canvas.width - keyboardSurface.width
@@ -2846,6 +3042,11 @@ Item {
                     noActivity: false
                 }
                 onCompleted: {
+                    // ENH118 - Float in external display
+                    if (Screen.name !== Qt.application.screens[0].name) {
+                        fullScreenItem.settings.usageMode = "Floating"
+                    }
+                    // ENH118 - End
                     if (canvas.firstShow) {
                         keyboardSurface.state = keyboardSurface.settingsToState(fullScreenItem.usageMode)
                     }
@@ -2942,6 +3143,9 @@ Item {
             , { "id": "tab", "title": i18n.tr("Tab"), "component": actionTab }
             , { "id": "settings", "title": i18n.tr("Keyboard settings"), "component": actionSettings }
             , { "id": "mkSettings", "title": i18n.tr("Malakiboard settings"), "component": actionMKSettings }
+            , { "id": "ohLeft", "title": i18n.tr("One-handed Left"), "component": actionOHLeft }
+            , { "id": "ohRight", "title": i18n.tr("One-handed Right"), "component": actionOHRight }
+            , { "id": "ohTurnOff", "title": i18n.tr("Turn off one-handed"), "component": actionTurnOffOH }
         ]
 
         function getActionsModel(actionIDsList) {
@@ -3105,6 +3309,28 @@ Item {
             iconName: "settings"
             text: i18n.tr("Malakiboard settings")
             onTrigger: fullScreenItem.showSettings()
+        }
+
+        MKBaseAction {
+            id: actionOHLeft
+            iconName: "go-first"
+            text: i18n.tr("One-handed left")
+            visible: fullScreenItem.settings.usageMode !== "One-handed-left"
+            onTrigger: fullScreenItem.settings.usageMode = "One-handed-left"
+        }
+        MKBaseAction {
+            id: actionOHRight
+            iconName: "go-last"
+            text: i18n.tr("One-handed right")
+            visible: fullScreenItem.settings.usageMode !== "One-handed-right"
+            onTrigger: fullScreenItem.settings.usageMode = "One-handed-right"
+        }
+        MKBaseAction {
+            id: actionTurnOffOH
+            iconName: "reset"
+            visible: fullScreenItem.settings.usageMode !== "Full"
+            text: i18n.tr("Return to full layout")
+            onTrigger: fullScreenItem.settings.usageMode = "Full"
         }
     }
     // ENH089 - End
@@ -3375,7 +3601,9 @@ Item {
     function selectAll() {
         commitPreedit();
         event_handler.onKeyReleased("SelectAll", "keysequence");
-        cursorSwipeArea.selectionMode = true
+        if (fullScreenItem.cursorSwipe) {
+            cursorSwipeArea.selectionMode = true
+        }
     }
     function moveToStartOfLine() {
         commitPreedit();
@@ -3538,5 +3766,37 @@ Item {
             prevSwipePositionY = positionY
         }
     }
+
+    // ENH070 - Keyboard settings
+    QtObject {
+        id: internal
+        function findFromArray(arr, prop, value) {
+            return arr.find(item => item[prop] == value)
+        }
+    }
+    // ENH070 - End
+    // ENH120 - Saved Texts
+    QtObject {
+        id: savedTextsObj
+        function addItem(_text) {
+            let tempArr = fullScreenItem.setting.savedTexts.slice()
+            tempArr.unshift( { "text": _text } )
+            fullScreenItem.setting.savedTexts = tempArr.slice()
+            cleanup()
+        }
+        function deleteItem(_index) {
+            let tempArr = fullScreenItem.setting.savedTexts.slice()
+            tempArr.splice(_index, 1)
+            fullScreenItem.setting.savedTexts = tempArr.slice()
+        }
+        function cleanup() {
+            if (fullScreenItem.setting.savedTextsLimit > 0) {
+                if (fullScreenItem.setting.savedTexts.length > fullScreenItem.setting.savedTextsLimit) {
+                    fullScreenItem.setting.savedTexts = fullScreenItem.setting.savedTexts.slice(0, fullScreenItem.setting.savedTextsLimit);
+                }
+            }
+        }
+    }
+    // ENH120 - End
 
 } // fullScreenItem

@@ -36,7 +36,39 @@ ActionKey {
     padding: 0
 
     width: panel.keyWidth
-    overridePressArea: true
+    // ENH119 - Extended selector language key
+    id: languageKey
+
+    Component.onCompleted: setExtendedKeys()
+
+    function setExtendedKeys() {
+        let tempArr = maliit_input_method.enabledLanguages.slice()
+        tempArr.splice(tempArr.indexOf(maliit_input_method.activeLanguage), 1)
+        extended = [...tempArr, fullScreenItem.settings.settingsIcon, fullScreenItem.settings.mkSettingsIconText]
+    }
+
+    Connections {
+        target: maliit_input_method
+        onEnabledLanguagesChanged: {
+            if (fullScreenItem.settings.redesignedLanguageKey) {
+                languageKey.setExtendedKeys()
+            }
+        }
+    }
+    // overridePressArea: true
+    overridePressArea: !fullScreenItem.settings.redesignedLanguageKey
+
+    overrideExtendedKeySelection: fullScreenItem.settings.redesignedLanguageKey
+    onExtendedKeySelected: {
+        if (sig_selectedKey == fullScreenItem.settings.settingsIcon) {
+            Qt.openUrlExternally("settings:///system/language")
+        } else if (sig_selectedKey == fullScreenItem.settings.mkSettingsIconText) {
+            fullScreenItem.showSettings()
+        } else {
+            maliit_input_method.activeLanguage = sig_selectedKey
+        }
+    }
+    // ENH119 - End
 
     action: "language"
 
@@ -51,16 +83,20 @@ ActionKey {
     }
 
     onReleased: {
-        panel.switchBack = false;
-        if (held) {
-            return;
-        }
+        // ENH119 - Extended selector language key
+        if (!extendedKeysShown) {
+            panel.switchBack = false;
+            if (held) {
+                return;
+            }
 
-        if (maliit_input_method.previousLanguage && maliit_input_method.previousLanguage != maliit_input_method.activeLanguage) {
-            maliit_input_method.activeLanguage = maliit_input_method.previousLanguage
-        } else {
-            canvas.languageMenuShown = true
+            if (maliit_input_method.previousLanguage && maliit_input_method.previousLanguage != maliit_input_method.activeLanguage) {
+                maliit_input_method.activeLanguage = maliit_input_method.previousLanguage
+            } else {
+                canvas.languageMenuShown = true
+            }
         }
+        // ENH119 - End
     }
 
     onPressAndHold: {

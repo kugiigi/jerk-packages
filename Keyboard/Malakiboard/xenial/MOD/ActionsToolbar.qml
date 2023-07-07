@@ -6,7 +6,10 @@ import "keys/"
 
 Rectangle{
     id: actionsToolbar
-	
+	// ENH120 - Saved Texts
+    property alias leadingActions: leadingActionBar.actions
+    property alias trailingActions: trailingActionBar.actions
+	// ENH120 - End
     color: fullScreenItem.theme.backgroundColor
     
     anchors {

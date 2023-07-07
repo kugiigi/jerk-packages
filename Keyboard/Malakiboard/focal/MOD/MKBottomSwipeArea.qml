@@ -38,7 +38,7 @@ SwipeArea {
     property bool triggerSignalOnQuickSwipe: false
 
     property real distanceThreshold: (Screen.pixelDensity * 25.4) * 0.2 // 0.2 inch
-    property real maxThresholdLength: (Screen.pixelDensity * 25.4) * 3 // 3 inches //units.gu(50)
+    property real maxThresholdLength: (Screen.pixelDensity * 25.4) * fullScreenItem.settings.quickActionsHeight // Inches
     property real availableHeight: maxThresholdLength
     property real availableWidth: maxThresholdLength
 

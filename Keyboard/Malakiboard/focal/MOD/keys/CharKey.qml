@@ -110,6 +110,11 @@ Item {
     // accidentally selecting something other than the default extended key
     property bool swipeReady: false
 
+    // ENH119 - Extended selector language key
+    property bool overrideExtendedKeySelection: false
+    signal extendedKeySelected(string sig_selectedKey)
+    // ENH119 - End
+
     signal pressed()
     signal released()
     signal pressAndHold()
@@ -225,8 +230,13 @@ Item {
                 keypad.extendedKeysSelector.extendedKeysModel = activeExtendedModel
                 keypad.extendedKeysSelector.currentlyAssignedKey = key
                 var extendedKeys = keypad.extendedKeysSelector.keys;
-                var middleKey = extendedKeys.length > 1 ? Math.floor(extendedKeys.length / 2) - 1 : 0;
-                extendedKeys[middleKey].highlight = true;
+                // ENH119 - Extended selector language key
+                // var middleKey = extendedKeys.length > 1 ? Math.floor(extendedKeys.length / 2) - 1 : 0;
+                var middleKey = extendedKeys.length > 1 ? Math.floor((extendedKeys.length - 1) / 2) : 0;
+                if (extendedKeys[middleKey]) {
+                    extendedKeys[middleKey].highlight = true;
+                }
+                // ENH119 - End
                 currentExtendedKey = extendedKeys[middleKey];
             }
         }
@@ -246,12 +256,23 @@ Item {
             }
             if (extendedKeysShown) {
                 if (currentExtendedKey) {
-                    currentExtendedKey.commit();
-                    currentExtendedKey = null;
+                    // ENH119 - Extended selector language key
+                    if (key.overrideExtendedKeySelection) {
+                        key.extendedKeySelected(currentExtendedKey.commitStr)
+                        currentExtendedKey = null;
+                        keypad.extendedKeysSelector.closePopover();
+                    } else {
+                        currentExtendedKey.commit();
+                        currentExtendedKey = null;
+                    }
+                    // ENH119 - End
                 } else {
                     keypad.extendedKeysSelector.closePopover();
                 }
-            } else if(!swipedOut) {
+            // ENH119 - Extended selector language key
+            // } else if(!swipedOut) {
+            } else if(!swipedOut && key.action !== "language") {
+            // ENH119 - End
                 // Read this prior to altering autocaps
                 var keyToSend = valueToSubmit;
                 if (keypad.magnifier.currentlyAssignedKey == key) {
