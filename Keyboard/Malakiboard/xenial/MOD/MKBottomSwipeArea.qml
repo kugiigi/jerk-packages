@@ -19,7 +19,7 @@ SwipeArea {
     readonly property bool partialLength: thresholdLength == maxThresholdLength
     // Custom determining if dragging or not
     readonly property bool draggingCustom: distance >= distanceThreshold
-    readonly property real thresholdLength: Math.min(availableHeight, maxThresholdLength)
+    readonly property real thresholdLength: Math.min(availableHeight - distanceThreshold, maxThresholdLength)
     readonly property int stagesCount: model.length
     readonly property real stageWidth: thresholdLength / stagesCount
     readonly property bool fineControl: enableQuickActions && stagesCount > 0
@@ -27,7 +27,7 @@ SwipeArea {
                             ? quickActionsLoader.item.childAt(quickActionsLoader.item.width / 2
                                                               , quickActionsLoader.item.height
                                                                       - distance
-                                                                      + (partialLength ? distanceThreshold : 0)
+                                                                      + distanceThreshold
                                                               )
                             : null
 
@@ -119,7 +119,7 @@ SwipeArea {
             leftMargin: (Screen.pixelDensity * 25.4) * 0.5
             rightMargin: (Screen.pixelDensity * 25.4) * 0.5
             bottom: parent.bottom
-            bottomMargin: bottomSwipeArea.partialLength ? bottomSwipeArea.distanceThreshold : 0
+            bottomMargin: bottomSwipeArea.distanceThreshold
         }
 
         function triggerFirstItem() {
@@ -222,19 +222,6 @@ SwipeArea {
                                         color: fullScreenItem.theme.keyBorderEnabled ? fullScreenItem.theme.charKeyBorderColor : "transparent"
                                     }
                                 }
-
-                                DropShadow {
-                                    readonly property color shadowColor: Suru.neutralColor
-
-                                    anchors.fill: source
-                                    cached: true
-                                    horizontalOffset: 3
-                                    verticalOffset: 3
-                                    radius: 8.0
-                                    samples: 16
-                                    color: Qt.hsla(shadowColor.hslHue, shadowColor.hslSaturation, shadowColor.hslLightness, 0.5)
-                                    source: textBg
-                                }
                             }
 
                             Timer {
@@ -255,7 +242,7 @@ SwipeArea {
 
                         Item {
                             readonly property real preferredSize: (quickActionsLoader.height / quickActionsLoader.visibleCount) - units.gu(0.5)
-                            readonly property real maximumSize: units.gu(5)
+                            readonly property real maximumSize: units.gu(6)
 
                             Layout.alignment: Qt.AlignVCenter
                             Layout.preferredWidth: preferredSize
@@ -278,19 +265,6 @@ SwipeArea {
                                     color: fullScreenItem.theme.keyBorderEnabled ? fullScreenItem.theme.charKeyBorderColor : "transparent"
                                 }
                                 Behavior on color { ColorAnimation { duration: UbuntuAnimation.FastDuration } }
-                            }
-
-                            DropShadow {
-                                readonly property color shadowColor: Suru.neutralColor
-
-                                anchors.fill: source
-                                cached: true
-                                horizontalOffset: 3
-                                verticalOffset: 3
-                                radius: 8.0
-                                samples: 16
-                                color: Qt.hsla(shadowColor.hslHue, shadowColor.hslSaturation, shadowColor.hslLightness, 0.5)
-                                source: bgRec
                             }
 
                             Icon {
