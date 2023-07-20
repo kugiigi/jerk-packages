@@ -67,8 +67,8 @@ Rectangle{
             
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-            
-            delegate: ActionsToolbarButton{fullLayout: keyboardSurface.width > units.gu(45)}
+
+            delegate: ActionsToolbarButton{fullLayout: keyboardSurface.width > units.gu(80)}
             
             // TODO: Disabled dynamic visibility of copy and cut buttons until input_method.hasSelection is working properly in QtWebEngine
             // ubports/ubuntu-touch#1157 <https://github.com/ubports/ubuntu-touch/issues/1157>

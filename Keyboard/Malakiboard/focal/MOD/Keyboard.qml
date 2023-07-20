@@ -83,7 +83,7 @@ Item {
     GSettings {
         id: oskSettings
         objectName: "oskSettings"
-        schema.id: "com.canonical.keyboard.maliit"
+        schema.id: "com.lomiri.keyboard.maliit"
     }
     Connections {
         target: oskSettings
@@ -163,6 +163,7 @@ Item {
         property alias useCustomFont: settingsObj.useCustomFont
         property alias customFont: settingsObj.customFont
         property alias usageMode: settingsObj.usageMode
+        property alias keyboardHeightAnimation: settingsObj.keyboardHeightAnimation
         
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
@@ -325,7 +326,7 @@ Item {
             property int savedTextsLimit: 20
             property bool savedTextsAutoCopy: true
             property bool savedTextsAutoCut: true
-
+            property bool keyboardHeightAnimation: true
         }
     }
 
@@ -1202,6 +1203,17 @@ Item {
                 onSelectedIndexChanged: fullScreenItem.settings.usageMode = internal.findFromArray(usageModeValues, "label", model[selectedIndex]).value
             }
             QQC2.CheckDelegate {
+                id: keyboardHeightAnimation
+                Layout.fillWidth: true
+                text: "Height change when swiping down"
+                onCheckedChanged: fullScreenItem.settings.keyboardHeightAnimation = checked
+                Binding {
+                    target: keyboardHeightAnimation
+                    property: "checked"
+                    value: fullScreenItem.settings.keyboardHeightAnimation
+                }
+            }
+            QQC2.CheckDelegate {
                 id: showNumberRow
                 Layout.fillWidth: true
                 text: "Always show a number row"
@@ -1969,7 +1981,7 @@ Item {
     // ENH070 - End
     
 
-    Item {
+    Rectangle {
         id: canvas
         objectName: "lomiriKeyboard" // Allow us to specify a specific keyboard within autopilot.
 
@@ -2020,6 +2032,9 @@ Item {
         height: keyboardHeight
 
         visible: true
+        color: fullScreenItem.settings.keyboardHeightAnimation || fullScreenItem.keyboardFloating ? "transparent" : fullScreenItem.theme.backgroundColor
+        opacity: fullScreenItem.keyboardFloating && maliit_input_method.opacity == 1
+                        && (dragButton.pressed || keyboardSurface.noActivity) ? maliit_input_method.opacity / 2 : maliit_input_method.opacity
 
         property bool wordribbon_visible: maliit_word_engine.enabled
         onWordribbon_visibleChanged: fullScreenItem.reportKeyboardVisibleRect();
@@ -2104,8 +2119,15 @@ Item {
             width: parent.width
             height: canvas.keyboardHeight
             
-            opacity: fullScreenItem.keyboardFloating && maliit_input_method.opacity == 1 
-                        && (dragButton.pressed || noActivity) ? maliit_input_method.opacity / 2 : maliit_input_method.opacity
+            // ENH121 - Option to disable height animation when showing/hiding
+            opacity: fullScreenItem.settings.keyboardHeightAnimation || fullScreenItem.keyboardFloating ? 1
+                                : keyboardSurface.y > swipeArea.jumpBackThreshold ? 0.5 : 1
+            Behavior on opacity {
+                enabled: fullScreenItem.settings.keyboardHeightAnimation
+                LomiriNumberAnimation {}
+            }
+            
+            // ENH121 - End
             // ENH093 - Fix layer of keybaord surface
             // layer.enabled: dragButton.pressed || noActivity
             layer.enabled: fullScreenItem.keyboardFloating && (dragButton.pressed || noActivity)
@@ -3519,12 +3541,17 @@ Item {
             var vy = 0;
             var vwidth = keyboardSurface.width;
             var vheight = keyboardComp.height + wordRibbon.height;
+            var obj;
 
-            var obj = mapFromItem(keyboardSurface, vx, vy, vwidth, vheight);
-            // Report visible height of the keyboard to support anchorToKeyboard
-            if (!fullScreenItem.keyboardFloating) {
-                obj.height = fullScreenItem.height - obj.y;
+            // ENH121 - Option to disable height animation when showing/hiding
+            if (fullScreenItem.settings.keyboardHeightAnimation || fullScreenItem.keyboardFloating) {
+                obj = mapFromItem(keyboardSurface, vx, vy, vwidth, vheight);
+            } else {
+                obj = mapFromItem(canvas, vx, vy, vwidth, vheight);
             }
+            // ENH121 - End
+            // Report visible height of the keyboard to support anchorToKeyboard
+            obj.height = fullScreenItem.height - obj.y;
 
             // Work around QT bug: https://bugreports.qt-project.org/browse/QTBUG-20435
             // which results in a 0 height being reported incorrectly immediately prior
