@@ -174,6 +174,20 @@ FocusScope {
         }
     }
 
+    onVisibleChanged: {
+        if (visible && shell.settings.resetAppDrawerWhenClosed) {
+            if (mainFlickable.isEnabled) {
+                if (inverted) {
+                    mainFlickable.contentY = mainFlickable.contentHeight - mainFlickable.height
+                } else {
+                    mainFlickable.contentY = 0
+                }
+            } else {
+                gridView.positionViewAtBeginning()
+            }
+        }
+    }
+
     Flickable {
         id: mainFlickable
 

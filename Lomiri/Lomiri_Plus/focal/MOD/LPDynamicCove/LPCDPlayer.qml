@@ -104,7 +104,7 @@ LPDynamicCoveItem {
 
         Image {
             id: img
-            property bool rounded: true
+            property bool rounded: !shaderEffectSource.enabled
             property bool noAlbumArt: source == "file:///usr/share/icons/suru/apps/scalable/music-app-symbolic.svg"
             property string nextAlbumArt: {
                 if (cdPlayer.mediaPlayerObj) {
@@ -160,6 +160,37 @@ LPDynamicCoveItem {
                 duration: LomiriAnimation.SleepyDuration
                 from: 0
                 to: 1
+            }
+        }
+
+        ShaderEffectSource {
+            id: shaderEffectSource
+            sourceItem: shell.settings.dcBlurredAlbumArt ? img : null
+            hideSource: true
+            sourceRect: Qt.rect(0,0,0,0)
+            live: true
+            enabled: sourceItem != null
+        }
+        FastBlur {
+            id: fastBlur
+            anchors.fill: parent
+            source: shaderEffectSource
+            radius: units.gu(2)
+            cached: false
+            visible: shaderEffectSource.sourceItem != null
+            enabled: visible
+            layer.enabled: true
+            layer.effect: OpacityMask {
+                maskSource: Item {
+                        width: fastBlur.width
+                        height: fastBlur.height
+                        Rectangle {
+                                anchors.centerIn: parent
+                                width: fastBlur.width
+                                height: fastBlur.height
+                                radius: Math.min(width, height)
+                        }
+                }
             }
         }
         

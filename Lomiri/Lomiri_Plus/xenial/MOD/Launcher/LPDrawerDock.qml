@@ -160,7 +160,10 @@ Item {
             right: parent.right
         }
 
-        Behavior on height { UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration } }
+        Behavior on height {
+            enabled: !bottomDock.isIntegratedDock
+            UbuntuNumberAnimation { duration: UbuntuAnimation.FastDuration }
+        }
 
         onClicked: mouse.accepted = true
 
