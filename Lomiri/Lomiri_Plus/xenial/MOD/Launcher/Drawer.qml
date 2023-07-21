@@ -407,7 +407,8 @@ FocusScope {
                     onApplicationSelected: appList.applicationSelected(appId)
                     onApplicationContextMenu: appList.applicationContextMenu(appId, this, false)
                 }
-                showDock: keyboardRec.height == 0 && searchField.text == ""
+
+                showDock: searchField.text == ""
                 // ENH105 - End
                 onDraggingVerticallyChanged: {
                     if (draggingVertically) {

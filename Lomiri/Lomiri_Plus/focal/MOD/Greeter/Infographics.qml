@@ -592,7 +592,9 @@ Item {
             objectName: "dots"
             // ENH064 - Dynamic Cove
             // model: infographic.model.firstMonth
-            model: !dynamicCove.isClock && !dynamicCove.isTimer ? infographic.model.firstMonth : 12
+            model: dynamicCove.isCDPlayer &&  dynamicCove.item
+                        && dynamicCove.item.playBackObj && dynamicCove.item.playBackObj.canPlay ? 0
+                                : !dynamicCove.isClock && !dynamicCove.isTimer ? infographic.model.firstMonth : 12
             onModelChanged: {
                 infographic.startHideAnimation()
                 infographic.startShowAnimation()

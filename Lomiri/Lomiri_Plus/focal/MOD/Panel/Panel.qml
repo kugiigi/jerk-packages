@@ -77,6 +77,10 @@ Item {
     property real leftMarginBlur
     property real topMarginBlur
     // ENH002 - End
+    // ENH122 - Option to transparent top bar when in spread
+    property bool transparentTopBar: false
+    property real topBarOpacityOverride: 0
+    // ENH122 - End
 
     property var blurSource : null
 
@@ -219,7 +223,11 @@ Item {
             }
             height: minimizedPanelHeight
             // ENH046 - Lomiri Plus Settings
-            opacity: shell.settings.topPanelOpacity / 100
+            // ENH122 - Option to transparent top bar when in spread
+            //opacity: shell.settings.topPanelOpacity / 100
+            opacity: transparentTopBar ? topBarOpacityOverride : shell.settings.topPanelOpacity / 100
+            Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
+            // ENH122 - End
             // ENH046 - End
 
             Behavior on color { ColorAnimation { duration: LomiriAnimation.FastDuration } }

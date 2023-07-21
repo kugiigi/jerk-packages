@@ -303,7 +303,13 @@ Showable {
                     if (expanded || editMode) {
                         return gridLayout.height + rowMargins
                     } else {
-                        return rowHeight + rowMargins
+                        if (shell.settings.quickTogglesCollapsedRowCount > 1 && root.height > units.gu(60)) {
+                            let _availableRows = Math.floor(gridLayout.height / rowHeight)
+                            let _multiplier = Math.min(_availableRows - 1, shell.settings.quickTogglesCollapsedRowCount) // Do not allow full rows as collapsed rows
+                            return (rowHeight * _multiplier) + rowMargins
+                        } else {
+                            return rowHeight + rowMargins
+                        }
                     }
                 } else {
                     return 0

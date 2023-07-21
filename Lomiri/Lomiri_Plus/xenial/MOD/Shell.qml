@@ -415,6 +415,7 @@ StyledItem {
         property alias bigDrawerSearchField: settingsObj.bigDrawerSearchField
         property alias showBottomHintDrawer: settingsObj.showBottomHintDrawer
         property alias enableDrawerBottomSwipe: settingsObj.enableDrawerBottomSwipe
+        property alias resetAppDrawerWhenClosed: settingsObj.resetAppDrawerWhenClosed
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
@@ -448,12 +449,14 @@ StyledItem {
         property alias onlyShowNotificationsIndicatorWhenGreen: settingsObj.onlyShowNotificationsIndicatorWhenGreen
         property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
         property alias hideTimeIndicatorAlarmIcon: settingsObj.hideTimeIndicatorAlarmIcon
+        property alias transparentTopBarOnSpread: settingsObj.transparentTopBarOnSpread
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
         property alias quickToggles: settingsObj.quickToggles
         property alias gestureMediaControls: settingsObj.gestureMediaControls
         property alias autoCollapseQuickToggles: settingsObj.autoCollapseQuickToggles
+        property alias quickTogglesCollapsedRowCount: settingsObj.quickTogglesCollapsedRowCount
 
         // Lockscreen
         property alias useCustomLockscreen: settingsObj.useCustomLockscreen
@@ -490,6 +493,7 @@ StyledItem {
         property alias enableCDPlayer: settingsObj.enableCDPlayer
         property alias enableCDPlayerDisco: settingsObj.enableCDPlayerDisco
         property alias dynamicCoveSelectionDelay: settingsObj.dynamicCoveSelectionDelay
+        property alias dcBlurredAlbumArt: settingsObj.dcBlurredAlbumArt
         
         // Stopwatch Data
         property alias dcStopwatchTimeMS: settingsObj.dcStopwatchTimeMS
@@ -695,6 +699,10 @@ StyledItem {
                 1 - Integrated Dock
             */
             property bool enableDrawerBottomSwipe: false
+            property bool resetAppDrawerWhenClosed: false
+            property bool dcBlurredAlbumArt: false
+            property bool transparentTopBarOnSpread: false
+            property int quickTogglesCollapsedRowCount: 1
         }
     }
 
@@ -1636,7 +1644,7 @@ StyledItem {
                     }
                     QQC2.ItemDelegate {
                         Layout.fillWidth: true
-                        text: "Top Panel Opacity"
+                        text: "Top Bar Opacity"
                         indicator: QQC2.SpinBox {
                             id: topPanelOpacity
                             anchors {
@@ -1653,6 +1661,17 @@ StyledItem {
                                 property: "value"
                                 value: shell.settings.topPanelOpacity
                             }
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: transparentTopBarOnSpread
+                        Layout.fillWidth: true
+                        text: "Top bar transparent in App Spread"
+                        onCheckedChanged: shell.settings.transparentTopBarOnSpread = checked
+                        Binding {
+                            target: transparentTopBarOnSpread
+                            property: "checked"
+                            value: shell.settings.transparentTopBarOnSpread
                         }
                     }
                     QQC2.CheckDelegate {
@@ -2027,6 +2046,17 @@ StyledItem {
                             target: invertedDrawer
                             property: "checked"
                             value: shell.settings.invertedDrawer
+                        }
+                    }
+                    QQC2.CheckDelegate {
+                        id: resetAppDrawerWhenClosed
+                        Layout.fillWidth: true
+                        text: "Reset view upon opening"
+                        onCheckedChanged: shell.settings.resetAppDrawerWhenClosed = checked
+                        Binding {
+                            target: resetAppDrawerWhenClosed
+                            property: "checked"
+                            value: shell.settings.resetAppDrawerWhenClosed
                         }
                     }
                     QQC2.CheckDelegate {
@@ -2556,6 +2586,18 @@ StyledItem {
                     value: shell.settings.dcShowClockWhenLockscreen
                 }
             }
+            QQC2.CheckDelegate {
+                id: dcBlurredAlbumArt
+                Layout.fillWidth: true
+                text: "Blurred album art"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.dcBlurredAlbumArt = checked
+                Binding {
+                    target: dcBlurredAlbumArt
+                    property: "checked"
+                    value: shell.settings.dcBlurredAlbumArt
+                }
+            }
             QQC2.Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
@@ -2618,6 +2660,28 @@ StyledItem {
                     target: quickTogglesTopPanel
                     property: "checked"
                     value: shell.settings.enableQuickToggles
+                }
+            
+            }
+            QQC2.ItemDelegate {
+                Layout.fillWidth: true
+                text: "Collapsed Row Count"
+                indicator: QQC2.SpinBox {
+                    id: quickTogglesCollapsedRowCount
+                    anchors {
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                        verticalCenter: parent.verticalCenter
+                    }
+                    from: 1
+                    to: 5
+                    stepSize: 1
+                    onValueChanged: shell.settings.quickTogglesCollapsedRowCount = value
+                    Binding {
+                        target: quickTogglesCollapsedRowCount
+                        property: "value"
+                        value: shell.settings.quickTogglesCollapsedRowCount
+                    }
                 }
             }
             QQC2.CheckDelegate {
@@ -4128,6 +4192,11 @@ StyledItem {
             batteryCircleEnabled : batteryCircle.visible
             batteryCircleBorder: batteryCircle.borderWidth
             // ENH036 - End
+            // ENH122 - Option to transparent top bar when in spread
+            transparentTopBar: shell.settings.transparentTopBarOnSpread
+                                    && (stage.spreadShown || stage.rightEdgeDragProgress > 0 || stage.rightEdgePushProgress > 0)
+            topBarOpacityOverride: stage.spreadShown ? 0 : 1 - (stage.rightEdgeDragProgress * 2)
+            // ENH122 - End
 
             indicators {
                 hides: [launcher]

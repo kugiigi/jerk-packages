@@ -160,7 +160,10 @@ Item {
             right: parent.right
         }
 
-        Behavior on height { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
+        Behavior on height {
+            enabled: !bottomDock.isIntegratedDock
+            LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
+        }
 
         onClicked: mouse.accepted = true
 
