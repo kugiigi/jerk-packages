@@ -100,3 +100,17 @@ var actionBarWidth = 5; //gu
 
 /* for UITK Components */
 var toolkitTheme = "Lomiri.Components.Themes.Ambiance" 
+
+// ENH125 - Flick layout
+/* ActionKey layout */
+var undoFontSize = 2;
+
+/* FlickCharKey layout */
+var annotationFontSize = 1.5; // gu
+var annotationMargins = 0.3; // gu
+
+/* FlickPop layout */
+var flickMargin = 1.5 // gu
+var flickBorderWidth = 0.1 // gu
+var flickBorderColor = "#999999"
+// ENH125 - End

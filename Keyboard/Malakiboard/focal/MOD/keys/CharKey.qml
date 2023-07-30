@@ -25,6 +25,9 @@ Item {
     id: key
 
     property int padding: 0
+    // ENH125 - Flick layout
+    property int visHeight: keypad.keyHeight
+    // ENH125 - End
 
     width: leftSide || rightSide ? keypad.keyWidth * 2 : keypad.keyWidth
     height: keypad.keyHeight
@@ -139,7 +142,10 @@ Item {
     // maintaining the same visual appearance.
     Item {
         anchors.top: parent.top
-        height: keypad.keyHeight
+        // ENH125 - Flick layout
+        // height: keypad.keyHeight
+        height: key.visHeight
+        // ENH125 - End
         width: parent.width
 
         Rectangle {

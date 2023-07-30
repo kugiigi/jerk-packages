@@ -38,6 +38,21 @@ Item {
 
     property Item lastKeyPressed // Used for determining double click validity in PressArea
 
+    // ENH081 - Number row
+    readonly property bool forceHideNumberRow: {
+        if (fullScreenItem.settings.hideNumberRowOnShortHeight
+                    && fullScreenItem.height < units.gu(80)) {
+            return true
+        }
+
+        return false
+    }
+    // ENH081 - End
+    // ENH125 - Flick layout
+    readonly property bool flickIsEnabled: fullScreenItem.settings.enableFlickLayout
+                                                && maliit_input_method.activeLanguage == fullScreenItem.settings.flickReplacedLanguage
+    // ENH125 - End
+
     state: "CHARACTERS"
 
     function closeExtendedKeys()
@@ -71,11 +86,15 @@ Item {
     Row {
         id: numberRow
 
-        visible: fullScreenItem.settings.showNumberRow && keypad.state == "CHARACTERS"
+        visible: fullScreenItem.settings.showNumberRow && !panel.forceHideNumberRow
+                    && keypad.state == "CHARACTERS"
                     && maliit_input_method.activeLanguage !== "emoji"
                     && maliit_input_method.activeLanguage !== "ja"
                     && canvas.layoutId !== "number"
                     && canvas.layoutId !== "telephone"
+                    // ENH125 - Flick layout
+                    && !panel.flickIsEnabled
+                    // ENH125 - End
         anchors {
             top: parent.top
             horizontalCenter: parent.horizontalCenter
@@ -158,6 +177,13 @@ Item {
                 canvas.layoutId = "telephone";
                 return "languages/Keyboard_telephone.qml";
             }
+
+            // ENH125 - Flick layout
+            if (fullScreenItem.settings.enableFlickLayout
+                    && language == fullScreenItem.settings.flickReplacedLanguage) {
+                return "languages/Keyboard_flick.qml";
+            }
+            // ENH125 - End 
 
             // EmailContentType
             if (contentType === 3) {

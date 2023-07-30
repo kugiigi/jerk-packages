@@ -49,7 +49,7 @@ KeyPad {
 
         // ENH081 - Number row
         Row {
-            visible: fullScreenItem.settings.showNumberRow
+            visible: fullScreenItem.settings.showNumberRow && !keypad.forceHideNumberRow
             anchors.horizontalCenter: parent.horizontalCenter;
             anchors.margins: 50;
             height: visible ? implicitHeight : 0
