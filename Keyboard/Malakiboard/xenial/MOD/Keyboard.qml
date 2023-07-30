@@ -74,7 +74,10 @@ Item {
     readonly property string usageMode: fullScreenItem.settings.usageMode
     onUsageModeChanged: {
         keyboardSurface.state = keyboardSurface.settingsToState(usageMode)
-        if (usageMode == "Floating") {
+        // ENH124 - Disable height toggle
+        //if (usageMode == "Floating") {
+        if (usageMode == "Floating" || fullScreenItem.settings.disableKeyboardHeight) {
+        // ENH124 - End
             oskSettings.disableHeight = true
         } else {
             oskSettings.disableHeight = false
@@ -88,7 +91,11 @@ Item {
     Connections {
         target: oskSettings
         onDisableHeightChanged: {
-            if (usageMode == "Floating" && !oskSettings.disableHeight) {
+            // ENH124 - Disable height toggle
+            //if (usageMode == "Floating" && !oskSettings.disableHeight) {
+            if ((usageMode == "Floating" || fullScreenItem.settings.disableKeyboardHeight)
+                    && !oskSettings.disableHeight) {
+            // ENH124 - End
                 oskSettings.disableHeight = true
             }
         }
@@ -128,6 +135,13 @@ Item {
     property variant input_method: maliit_input_method
     property variant event_handler: maliit_event_handler
 
+    // ENH123 - Toggle for proper transparency
+    opacity: settingsLoader.active ? 1
+                        : fullScreenItem.keyboardFloating && maliit_input_method.opacity == 1 
+                                && (dragButton.pressed || keyboardSurface.noActivity) ? maliit_input_method.opacity / 2 : maliit_input_method.opacity
+    layer.enabled: opacity < 1 && (fullScreenItem.settings.properOpacity || (fullScreenItem.keyboardFloating && (dragButton.pressed || keyboardSurface.noActivity)))
+    // ENH123 - End
+
     onXChanged: fullScreenItem.reportKeyboardVisibleRect();
     onYChanged: fullScreenItem.reportKeyboardVisibleRect();
     onWidthChanged: fullScreenItem.reportKeyboardVisibleRect();
@@ -164,6 +178,11 @@ Item {
         property alias customFont: settingsObj.customFont
         property alias usageMode: settingsObj.usageMode
         property alias keyboardHeightAnimation: settingsObj.keyboardHeightAnimation
+        property alias properOpacity: settingsObj.properOpacity
+        property alias disableKeyboardHeight: settingsObj.disableKeyboardHeight
+        property alias hideNumberRowOnShortHeight: settingsObj.hideNumberRowOnShortHeight
+        property alias enableFlickLayout: settingsObj.enableFlickLayout
+        property alias flickReplacedLanguage: settingsObj.flickReplacedLanguage
         
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
@@ -238,6 +257,15 @@ Item {
             }
         }
         // ENH082 - End
+        // ENH124 - Disable height toggle
+        onDisableKeyboardHeightChanged: {
+            if (fullScreenItem.settings.disableKeyboardHeight) {
+                oskSettings.disableHeight = true
+            } else {
+                oskSettings.disableHeight = false
+            }
+        }
+        // ENH124 - End
 
         Settings {
             id: settingsObj
@@ -327,6 +355,11 @@ Item {
             property bool savedTextsAutoCopy: true
             property bool savedTextsAutoCut: true
             property bool keyboardHeightAnimation: true
+            property bool properOpacity: false
+            property bool disableKeyboardHeight: false
+            property bool hideNumberRowOnShortHeight: false
+            property bool enableFlickLayout: false
+            property string flickReplacedLanguage: "en"
         }
     }
 
@@ -867,6 +900,17 @@ Item {
             }
             */
             QQC2.CheckDelegate {
+                id: disableKeyboardHeight
+                Layout.fillWidth: true
+                text: "Disable keyboard height"
+                onCheckedChanged: fullScreenItem.settings.disableKeyboardHeight = checked
+                Binding {
+                    target: disableKeyboardHeight
+                    property: "checked"
+                    value: fullScreenItem.settings.disableKeyboardHeight
+                }
+            }
+            QQC2.CheckDelegate {
                 id: redesignedLanguageKey
 
                 Layout.fillWidth: true
@@ -1209,6 +1253,53 @@ Item {
                 selectedIndex: model.indexOf(internal.findFromArray(usageModeValues, "value", fullScreenItem.settings.usageMode).label)
                 onSelectedIndexChanged: fullScreenItem.settings.usageMode = internal.findFromArray(usageModeValues, "label", model[selectedIndex]).value
             }
+            QQC2.SwitchDelegate {
+                id: enableFlickLayout
+                Layout.fillWidth: true
+                text: "Tobiyo's Flick Layout"
+                onCheckedChanged: fullScreenItem.settings.enableFlickLayout = checked
+                Binding {
+                    target: enableFlickLayout
+                    property: "checked"
+                    value: fullScreenItem.settings.enableFlickLayout
+                }
+            }
+            OptionSelector {
+                visible: fullScreenItem.settings.enableFlickLayout
+
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                Layout.leftMargin: units.gu(4)
+                text: i18n.tr("Replaced language")
+                model: maliit_input_method.enabledLanguages
+                containerHeight: itemHeight * 6
+                selectedIndex: model.indexOf(fullScreenItem.settings.flickReplacedLanguage)
+                onSelectedIndexChanged: fullScreenItem.settings.flickReplacedLanguage = model[selectedIndex]
+            }
+            QQC2.SwitchDelegate {
+                id: showNumberRow
+                Layout.fillWidth: true
+                text: "Number row"
+                onCheckedChanged: fullScreenItem.settings.showNumberRow = checked
+                Binding {
+                    target: showNumberRow
+                    property: "checked"
+                    value: fullScreenItem.settings.showNumberRow
+                }
+            }
+            QQC2.CheckDelegate {
+                id: hideNumberRowOnShortHeight
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: fullScreenItem.settings.showNumberRow
+                text: "Hide when not enough height"
+                onCheckedChanged: fullScreenItem.settings.hideNumberRowOnShortHeight = checked
+                Binding {
+                    target: hideNumberRowOnShortHeight
+                    property: "checked"
+                    value: fullScreenItem.settings.hideNumberRowOnShortHeight
+                }
+            }
             QQC2.CheckDelegate {
                 id: keyboardHeightAnimation
                 Layout.fillWidth: true
@@ -1221,14 +1312,14 @@ Item {
                 }
             }
             QQC2.CheckDelegate {
-                id: showNumberRow
+                id: properOpacity
                 Layout.fillWidth: true
-                text: "Always show a number row"
-                onCheckedChanged: fullScreenItem.settings.showNumberRow = checked
+                text: "Proper opacity (impacts performance)"
+                onCheckedChanged: fullScreenItem.settings.properOpacity = checked
                 Binding {
-                    target: showNumberRow
+                    target: properOpacity
                     property: "checked"
-                    value: fullScreenItem.settings.showNumberRow
+                    value: fullScreenItem.settings.properOpacity
                 }
             }
             QQC2.CheckDelegate {
@@ -2039,8 +2130,6 @@ Item {
 
         visible: true
         color: fullScreenItem.settings.keyboardHeightAnimation || fullScreenItem.keyboardFloating ? "transparent" : fullScreenItem.theme.backgroundColor
-        opacity: fullScreenItem.keyboardFloating && maliit_input_method.opacity == 1 
-                        && (dragButton.pressed || keyboardSurface.noActivity) ? maliit_input_method.opacity / 2 : maliit_input_method.opacity
 
         property bool wordribbon_visible: maliit_word_engine.enabled
         onWordribbon_visibleChanged: fullScreenItem.reportKeyboardVisibleRect();
@@ -2133,11 +2222,6 @@ Item {
                 UbuntuNumberAnimation {}
             }
             // ENH121 - End
-
-            // ENH093 - Fix layer of keybaord surface
-            // layer.enabled: dragButton.pressed || noActivity
-            layer.enabled: fullScreenItem.keyboardFloating && (dragButton.pressed || noActivity)
-            // ENH093 - End
 
             onXChanged: fullScreenItem.reportKeyboardVisibleRect();
             onYChanged: fullScreenItem.reportKeyboardVisibleRect();
@@ -3560,7 +3644,8 @@ Item {
             var obj;
 
             // ENH121 - Option to disable height animation when showing/hiding
-            if (fullScreenItem.settings.keyboardHeightAnimation || fullScreenItem.keyboardFloating) {
+            if (fullScreenItem.settings.keyboardHeightAnimation || fullScreenItem.keyboardFloating
+                    || canvas.hidingComplete) {
                 obj = mapFromItem(keyboardSurface, vx, vy, vwidth, vheight);
             } else {
                 obj = mapFromItem(canvas, vx, vy, vwidth, vheight);
