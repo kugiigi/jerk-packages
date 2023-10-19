@@ -748,7 +748,9 @@ FocusScope {
             PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
             // ENH032 - Infographics Outer Wilds
             // PropertyChanges { target: wallpaper; visible: false }
-            PropertyChanges { target: wallpaperItem; visible: false }
+            // For some reason, when side stage is disabled, wallpaper completely hides
+            // but not when it is enabled? Weird
+            //PropertyChanges { target: wallpaperItem; visible: false }
             // ENH032 - End
             PropertyChanges { target: screensAndWorkspaces; opacity: 1 }
         },
@@ -784,7 +786,10 @@ FocusScope {
         },
         State {
             name: "staged"; when: root.mode === "staged"
-            PropertyChanges { target: wallpaper; visible: !priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0 }
+            // ENH135 - Show Desktop
+            // PropertyChanges { target: wallpaper; visible: !priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0 }
+            PropertyChanges { target: wallpaper; visible: (!priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0) || appContainer.showDesktop }
+            // ENH135 - End
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
         },
