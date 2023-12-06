@@ -36,27 +36,16 @@ Showable {
     property alias background: greeterBackground.source
     property alias backgroundSourceSize: greeterBackground.sourceSize
     property alias hasCustomBackground: backgroundShade.visible
+    property alias backgroundShadeOpacity: backgroundShade.opacity
     property real panelHeight
     property var infographicModel
     property bool draggable: true
 
-    // ENH108 - Temporary GreeterView merge
-    property alias backgroundShadeOpacity: backgroundShade.opacity
-    // property alias infographics: infographics
-    property alias showInfographic: infographicsLoader.active
+    property bool showInfographic: false
     property real infographicsLeftMargin: 0
     property real infographicsTopMargin: 0
     property real infographicsRightMargin: 0
     property real infographicsBottomMargin: 0
-    // ENH108 - End
-
-    property alias blurAreaHeight: loginBoxEffects.height
-    property alias blurAreaWidth: loginBoxEffects.width
-    property alias blurAreaX: loginBoxEffects.x
-    property alias blurAreaY: loginBoxEffects.y
-    // ENH108 - Temporary GreeterView merge
-    property alias blurRadius: loginBoxBlur.radius
-    // ENH108 - End
 
     readonly property real showProgress: MathUtils.clamp((width - Math.abs(x + launcherOffset)) / width, 0, 1)
 
@@ -244,43 +233,12 @@ Showable {
         // ENH034 - End
     }
 
-    Rectangle {
-        id: loginBoxEffects
-        color: "transparent"
-    }
-
-    ShaderEffectSource {
-        id: effectSource
-
-        sourceItem: greeterBackground
-        anchors.centerIn: loginBoxEffects
-        width: loginBoxEffects.width
-        height: loginBoxEffects.height
-        sourceRect: Qt.rect(x,y, width, height)
-    }
-
-    FastBlur {
-        // ENH108 - Temporary GreeterView merge
-        id: loginBoxBlur
-        // ENH108 - End
-        visible: !draggable
-        anchors.fill: effectSource
-        source: effectSource
-        // ENH108 - Temporary GreeterView merge
-        // radius: 64
-        // ENH108 - End
-        transparentBorder: true
-    }
-
     // Darkens wallpaper so that we can read text on it and see infographic
     Rectangle {
         id: backgroundShade
         objectName: "backgroundShade"
         anchors.fill: parent
         color: "black"
-        // ENH108 - Temporary GreeterView merge
-        // opacity: 0.4
-        // ENH108 - End
         visible: false
     }
 
@@ -346,20 +304,6 @@ Showable {
     }
 
     // ENH032 - End
-
-    // ENH108 - Temporary GreeterView merge
-    // Infographics {
-    //     id: infographics
-    //     objectName: "infographics"
-    //     model: root.infographicModel
-    //     clip: true // clip large data bubbles
-    //     anchors {
-    //         topMargin: root.panelHeight
-    //         top: parent.top
-    //         bottom: parent.bottom
-    //         left: parent.left
-    //         right: parent.right
-    //     }
 
     Item {
         id: infographicsArea

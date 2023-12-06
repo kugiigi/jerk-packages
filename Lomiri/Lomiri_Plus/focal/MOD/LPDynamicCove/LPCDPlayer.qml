@@ -13,6 +13,9 @@ LPDynamicCoveItem {
     readonly property bool playing: playBackObj && playBackObj.playing ? true : false
     readonly property alias spinAnimation: spinAnimation
 
+    property bool isSimpleMode: true
+    property real cdPlayerOpacity: 1
+
     Connections {
         target: mouseArea
         onClicked: {
@@ -95,10 +98,17 @@ LPDynamicCoveItem {
         width: parent.width
         height: parent.height
         radius: width / 2
-        color: img.noAlbumArt ? "#716e6d" : "transparent"
+        color: {
+            if (cdPlayer.isSimpleMode) {
+                return cdPlayer.playBackObj && cdPlayer.playBackObj.playing ? "#716e6d" : "#080301"
+            }
+            
+            return img.noAlbumArt ? "#716e6d" : "transparent"
+        }
         opacity: openAnimationRec.width !== openAnimationRec.parent.width ? 0
-                        : cdPlayer.swipeArea.dragging ? Math.max(currentDragOpacity, minimumDragOpacity) : 1
+                        : cdPlayer.swipeArea.dragging ? Math.max(currentDragOpacity, minimumDragOpacity) : cdPlayer.cdPlayerOpacity
 
+        Behavior on color { ColorAnimation { duration: LomiriAnimation.SlowDuration } }
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration } }
         Behavior on y { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
 
@@ -107,7 +117,7 @@ LPDynamicCoveItem {
             property bool rounded: !shaderEffectSource.enabled
             property bool noAlbumArt: source == "file:///usr/share/icons/suru/apps/scalable/music-app-symbolic.svg"
             property string nextAlbumArt: {
-                if (cdPlayer.mediaPlayerObj) {
+                if (cdPlayer.mediaPlayerObj && !cdPlayer.isSimpleMode) {
                     return cdPlayer.mediaPlayerObj.albumArt
                 }
 
@@ -233,7 +243,9 @@ LPDynamicCoveItem {
 
         loops: Animation.Infinite
         running: true
-        paused: cdRec.visible && cdPlayer.playBackObj && !cdPlayer.swipeArea.dragging && Powerd.status !== Powerd.Off ? !cdPlayer.playBackObj.playing : true
+        paused: cdRec.visible && cdPlayer.playBackObj && !cdPlayer.swipeArea.dragging
+                        && Powerd.status !== Powerd.Off
+                        && !cdPlayer.isSimpleMode ? !cdPlayer.playBackObj.playing : true
         target: cdRec
         duration: defaultDuration
         from: 0
@@ -299,90 +311,94 @@ LPDynamicCoveItem {
             }
         }
 
-        Label {
-            id: songTitle
+        ColumnLayout {
+            spacing: units.gu(0.2)
 
-            property string nextText: {
-                if (textContainer.toTransition) {
-                    if (cdPlayer.swipeArea.goingNegative) {
-                        if (cdPlayer.playBackObj.canGoPrevious) {
-                            return "Play previous song"
-                        } else {
-                            return "No previous song"
+            Label {
+                id: songTitle
+
+                property string nextText: {
+                    if (textContainer.toTransition) {
+                        if (cdPlayer.swipeArea.goingNegative) {
+                            if (cdPlayer.playBackObj.canGoPrevious) {
+                                return "Play previous song"
+                            } else {
+                                return "No previous song"
+                            }
+                        }
+                        if (cdPlayer.swipeArea.goingPositive) {
+                            if (cdPlayer.playBackObj.canGoNext) {
+                                return "Play next song"
+                            } else {
+                                return "No next song"
+                            }
+                        }
+                    } else {
+                        if (cdPlayer.mediaPlayerObj) {
+                            return cdPlayer.mediaPlayerObj.song ? cdPlayer.mediaPlayerObj.song
+                                                                : cdPlayer.mediaPlayerObj.albumArt && cdPlayer.mediaPlayerObj.albumArt.toString().search("thumbnailer") > -1
+                                                                                ? shell.getFilename(cdPlayer.mediaPlayerObj.albumArt.toString())
+                                                                                                   : "No Title"
                         }
                     }
-                    if (cdPlayer.swipeArea.goingPositive) {
-                        if (cdPlayer.playBackObj.canGoNext) {
-                            return "Play next song"
-                        } else {
-                            return "No next song"
-                        }
-                    }
-                } else {
-                    if (cdPlayer.mediaPlayerObj) {
-                        return cdPlayer.mediaPlayerObj.song ? cdPlayer.mediaPlayerObj.song
-                                                            : cdPlayer.mediaPlayerObj.albumArt && cdPlayer.mediaPlayerObj.albumArt.toString().search("thumbnailer") > -1
-                                                                            ? shell.getFilename(cdPlayer.mediaPlayerObj.albumArt.toString())
-                                                                                               : "No Title"
-                    }
+
+                    return ""
                 }
 
-                return ""
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                textSize: Label.Large
+                color: textContainer.toTransition ? theme.palette.normal.activity : "white"
+                font.weight: textContainer.toTransition ? Font.Normal : Font.Medium
+
+                onNextTextChanged: {
+                    hideAnimiation.restart()
+                }
             }
 
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignVCenter
-            wrapMode: Text.Wrap
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            textSize: Label.Medium
-            color: textContainer.toTransition ? theme.palette.normal.activity : "white"
-            font.weight: textContainer.toTransition ? Font.Normal : Font.DemiBold
+            Label {
+                id: artistName
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignBottom
 
-            onNextTextChanged: {
-                hideAnimiation.restart()
+                visible: text !== ""
+                opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
+                text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.artist : ""
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+                textSize: Label.Small
+                color: theme.palette.normal.backgroundText
+                Behavior on opacity {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+                Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
+                Behavior on Layout.preferredHeight {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
             }
-        }
 
-        Label {
-            id: artistName
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignBottom
+            Label {
+                id: albumTitle
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignBottom
 
-            visible: text !== ""
-            opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
-            text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.artist : ""
-            wrapMode: Text.Wrap
-            horizontalAlignment: Text.AlignHCenter
-            textSize: Label.Small
-            color: theme.palette.normal.backgroundText
-            Behavior on opacity {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-            }
-            Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
-            Behavior on Layout.preferredHeight {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-            }
-        }
-
-        Label {
-            id: albumTitle
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignBottom
-
-            visible: text !== ""
-            opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
-            text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.album : ""
-            textSize: Label.XSmall
-            wrapMode: Text.Wrap
-            horizontalAlignment: Text.AlignHCenter
-            color: theme.palette.normal.backgroundText
-            Behavior on opacity {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-            }
-            Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
-            Behavior on Layout.preferredHeight {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                visible: text !== ""
+                opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
+                text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.album : ""
+                textSize: Label.XSmall
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+                color: theme.palette.normal.backgroundText
+                Behavior on opacity {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+                Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
+                Behavior on Layout.preferredHeight {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
             }
         }
 

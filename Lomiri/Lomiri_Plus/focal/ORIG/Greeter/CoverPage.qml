@@ -29,16 +29,16 @@ Showable {
     property alias background: greeterBackground.source
     property alias backgroundSourceSize: greeterBackground.sourceSize
     property alias hasCustomBackground: backgroundShade.visible
+    property alias backgroundShadeOpacity: backgroundShade.opacity
     property real panelHeight
     property var infographicModel
     property bool draggable: true
 
-    property alias infographics: infographics
-
-    property alias blurAreaHeight: loginBoxEffects.height
-    property alias blurAreaWidth: loginBoxEffects.width
-    property alias blurAreaX: loginBoxEffects.x
-    property alias blurAreaY: loginBoxEffects.y
+    property bool showInfographic: false
+    property real infographicsLeftMargin: 0
+    property real infographicsTopMargin: 0
+    property real infographicsRightMargin: 0
+    property real infographicsBottomMargin: 0
 
     readonly property real showProgress: MathUtils.clamp((width - Math.abs(x + launcherOffset)) / width, 0, 1)
 
@@ -99,51 +99,41 @@ Showable {
         }
     }
 
-    Rectangle {
-        id: loginBoxEffects
-        color: "transparent"
-    }
-
-    ShaderEffectSource {
-        id: effectSource
-
-        sourceItem: greeterBackground
-        anchors.centerIn: loginBoxEffects
-        width: loginBoxEffects.width
-        height: loginBoxEffects.height
-        sourceRect: Qt.rect(x,y, width, height)
-    }
-
-    FastBlur {
-        visible: !draggable
-        anchors.fill: effectSource
-        source: effectSource
-        radius: 64
-        transparentBorder: true
-    }
-
     // Darkens wallpaper so that we can read text on it and see infographic
     Rectangle {
         id: backgroundShade
         objectName: "backgroundShade"
         anchors.fill: parent
         color: "black"
-        opacity: 0.4
         visible: false
     }
 
-    Infographics {
-        id: infographics
-        objectName: "infographics"
-        model: root.infographicModel
-        clip: true // clip large data bubbles
+    Item {
+        id: infographicsArea
 
         anchors {
-            topMargin: root.panelHeight
+            leftMargin: root.infographicsLeftMargin
+            topMargin: root.infographicsTopMargin ? root.infographicsTopMargin : root.panelHeight
+            rightMargin: root.infographicsRightMargin
+            bottomMargin: root.infographicsBottomMargin
             top: parent.top
             bottom: parent.bottom
             left: parent.left
             right: parent.right
+        }
+    }
+
+    Loader {
+        id: infographicsLoader
+        objectName: "infographicsLoader"
+        active: root.showInfographic && infographicsArea.width > units.gu(32)
+        anchors.fill: infographicsArea
+
+        sourceComponent:Infographics {
+            id: infographics
+            objectName: "infographics"
+            model: root.infographicModel
+            clip: true // clip large data bubbles
         }
     }
 

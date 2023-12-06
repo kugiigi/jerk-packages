@@ -18,6 +18,7 @@ ColumnLayout {
     property bool percentageValue: false
     property bool valueIsPercentage: false
     property bool roundValue: true
+    property int roundingDecimal: 0
     property bool enableFineControls: false
     property real resetValue: -1
     property string unitsLabel: percentageValue ? "%" : ""
@@ -31,7 +32,7 @@ ColumnLayout {
             }
         } else {
             if (sliderItem.roundValue) {
-                return ("%1 %2").arg(Math.round(v)).arg(sliderItem.unitsLabel)
+                return ("%1 %2").arg(parseFloat(v.toFixed(sliderItem.roundingDecimal))).arg(sliderItem.unitsLabel)
             } else  {
                 return ("%1 %2").arg(v).arg(sliderItem.unitsLabel)
             }

@@ -28,6 +28,9 @@ import QtGraphicalEffects 1.0
 import Lomiri.Components.Popups 1.3
 import QtQuick.Layouts 1.12
 // ENH105 - End
+// ENH139 - System Direct Actions
+import ".." as Root
+// ENH139 - End
 
 FocusScope {
     id: root
@@ -35,7 +38,12 @@ FocusScope {
     property int panelWidth: 0
     readonly property bool moving: (appList && appList.moving) ? true : false
     readonly property Item searchTextField: searchField
-    readonly property real delegateWidth: units.gu(10)
+    // ENH132 - App drawer icon size settings
+    // readonly property real delegateWidth: units.gu(10)
+    readonly property real delegateWidth: units.gu(10) * delegateSizeMultiplier
+    readonly property real delegateHeight: units.gu(11)
+    readonly property real delegateSizeMultiplier: shell.settings.drawerIconSizeMultiplier
+    // ENH132 - End
     property url background
     visible: x > -width
     property var fullyOpen: x === 0
@@ -46,6 +54,15 @@ FocusScope {
     // ENH059 - Redesigned drawer search field
     property bool searchMode: false
     // ENH059 - End
+    // ENH131 - Extend drawer to behind top panel
+    property real topPanelHeight: 0
+    // ENH131 - End
+    // ENH105 - Custom app drawer
+    property bool launcherInverted: false
+    // ENH105 - End
+    // ENH139 - System Direct Actions
+    property alias appModel: appDrawerModel
+    // ENH139 - End
 
     signal applicationSelected(string appId)
 
@@ -259,6 +276,16 @@ FocusScope {
                         anchors.bottom: parent.bottom
                         anchors.top: searchFieldContainer.bottom
                     }
+                    // ENH131 - Extend drawer to behind top panel
+                    PropertyChanges {
+                        target: searchFieldContainer
+                        anchors.topMargin: (launcherInverted ? root.topPanelHeight : 0) + units.gu(1)
+                    }
+                    PropertyChanges {
+                        target: appList
+                        anchors.topMargin: 0
+                    }
+                    // ENH131 - End
                 }
                 ,State {
                     name: "Inverted"
@@ -272,12 +299,25 @@ FocusScope {
                         anchors.bottom: searchFieldContainer.top
                         anchors.top: parent.top
                     }
+                    // ENH131 - Extend drawer to behind top panel
+                    PropertyChanges {
+                        target: searchFieldContainer
+                        anchors.topMargin: units.gu(1)
+                    }
+                    PropertyChanges {
+                        target: appList
+                        anchors.topMargin: root.topPanelHeight + units.gu(1)
+                    }
+                    // ENH131 - End
                 }
             ]
             // ENH007 - End
 
             Item {
                 id: searchFieldContainer
+                // ENH105 - Custom app drawer
+                readonly property bool fullyShown: height == searchField.height
+                // ENH105 - End
                 // ENH007 - Bottom search in drawer
                 // height: units.gu(4)
                 // anchors { left: parent.left; top: parent.top; right: parent.right; margins: units.gu(1) }
@@ -355,8 +395,13 @@ FocusScope {
 
                 model: sortProxyModel
                 delegateWidth: root.delegateWidth
-                delegateHeight: units.gu(11)
+                // ENH132 - App drawer icon size settings
+                // delegateHeight: units.gu(11)
+                delegateHeight: root.delegateHeight
+                delegateSizeMultiplier: root.delegateSizeMultiplier
+                // ENH132 - End
                 // ENH105 - Custom app drawer
+                viewMargin: searchFieldContainer.fullyShown ? units.gu(2) : 0
                 rawModel: appDrawerModel
                 onApplicationSelected: root.applicationSelected(appId)
                 onApplicationContextMenu: {
@@ -372,12 +417,18 @@ FocusScope {
                     focused: (index === GridView.view.currentIndex && GridView.view.activeFocus)
                                         || (appList.contextMenuItem && appList.contextMenuItem.appId == model.appId && !appList.contextMenuItem.fromDocked)
                     width: GridView.view.cellWidth
-                    height: units.gu(11)
+                    // ENH132 - App drawer icon size settings
+                    // height: units.gu(11)
+                    height: GridView.view.cellHeight
+                    // ENH132 - End
                     objectName: "drawerItem_" + model.appId
                     delegateWidth: root.delegateWidth
                     appId: model.appId
                     appName: model.name
                     iconSource: model.icon
+                    // ENH132 - App drawer icon size settings
+                    delegateSizeMultiplier: root.delegateSizeMultiplier
+                    // ENH132 - End
 
                     onApplicationSelected: appList.applicationSelected(appId)
                     onApplicationContextMenu: appList.applicationContextMenu(appId, this, false)
@@ -458,7 +509,7 @@ FocusScope {
 
                 grabDismissAreaEvents: true
                 automaticOrientation: false
-                actions: [ openStoreAction, addToDockAction, pinToLauncherAction, editDockAction ]
+                actions: [ openStoreAction, addToDockAction, pinToLauncherAction, addToDirectActionsAction, editDockAction ]
 
                 function findFromPinnedApps(model, _appId) {
                     for (var i = 0; i < model.rowCount(); ++i) {
@@ -518,6 +569,25 @@ FocusScope {
                             appList.removeFromDock(_appId)
                         } else {
                             appList.addToDock(_appId)
+                        }
+                    }
+                }
+                Action {
+                    id: addToDirectActionsAction
+
+                    readonly property bool isInDirectActions: contextMenu.appId ? shell.settings.directActionList.findIndex(
+                                                                         (element) => (element.actionId == contextMenu.appId && element.type == Root.LPDirectActions.Type.App)) > -1
+                                                            : false
+
+                    text: isInDirectActions ? "Remove from Direct Actions" : "Add to Direct Actions"
+                    iconName: isInDirectActions ? "list-remove" : "add"
+                    visible: shell.settings.enableDirectActions
+                    onTriggered: {
+                        let _appId = contextMenu.appId
+                        if (isInDirectActions) {
+                            appList.removeFromDirectActions(_appId)
+                        } else {
+                            appList.addToDirectActions(_appId)
                         }
                     }
                 }

@@ -65,6 +65,9 @@ PageStack {
     property var mediaPlayer
     property var playbackItem
     // ENH064 - End
+    // ENH046 - Lomiri Plus Settings
+    property real topPanelMargin: 0
+    // ENH046 - End
 
     Connections {
         id: dynamicChanges
@@ -116,7 +119,10 @@ PageStack {
             property bool isSubmenu: false
 
             function reset() {
-                listView.positionViewAtBeginning();
+                // ENH046 - Lomiri Plus Settings
+                // listView.positionViewAtBeginning();
+                panelFlickable.contentY = 0
+                // ENH046 - End
             }
 
             property QtObject factory: root.factory.createObject(page, { menuModel: page.menuModel } )
@@ -151,43 +157,75 @@ PageStack {
             }
             
             // ENH028 - Open indicators via gesture
-            Rectangle {
+            LPHeader {
                 id: labelHeader
-                
+                    
                 readonly property real maximumHeightWhenInverted: units.gu(50)
 
                 z: page.header.z + 1
-                color: "transparent"
-                height: root.inverted && root.height >= maximumHeightWhenInverted + units.gu(10) ? root.height - maximumHeightWhenInverted : 0
+                expandable: root.height >= maxHeight * 1.5 && (shell.settings.enablePanelHeaderExpand || root.inverted)
+                defaultHeight: root.inverted ? root.topPanelMargin : 0
+                maxHeight: root.inverted ? units.gu(40) : units.gu(30)
+
                 anchors {
                     top: parent.top
                     left: parent.left
                     right: parent.right
                 }
 
-                Label {
-                    id: timeDateLabel
+                Connections {
+                    target: root
+                    onInvertedChanged: {
+                        labelHeader.collapse()
 
-                    visible: labelHeader.height > units.gu(10)
-                    textSize: Label.XLarge
-                    anchors.fill: parent
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    text: root.titleText
+                        if (target.inverted && labelHeader.expandable) {
+                            labelHeader.expand()
+                        } else {
+                            labelHeader.collapse()
+                        }
+                    }
                 }
 
-                ListItems.ThinDivider {
-                    anchors {
-                        bottom: parent.bottom
-                        left: parent.left
-                        right: parent.right
+                Rectangle {
+                    color: "transparent"
+                    anchors.fill: parent
+
+                    Label {
+                        id: timeDateLabel
+
+                        textSize: Label.XLarge
+                        anchors.fill: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        text: root.titleText
+                        opacity: labelHeader.height - labelHeader.defaultHeight < labelHeader.maxHeight * 0.2 ? 0
+                                            : 1 - ((labelHeader.maxHeight - labelHeader.height) / ((labelHeader.maxHeight * 0.8) - labelHeader.defaultHeight))
+                        visible: opacity > 0
+                        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+                    }
+
+                    ListItems.ThinDivider {
+                        anchors {
+                            bottom: parent.bottom
+                            left: parent.left
+                            right: parent.right
+                        }
                     }
                 }
             }
             // ENH028 - End
 
             // ENH046 - Lomiri Plus Settings
-            Flickable {
+            LPCollapseHeaderSwipeArea {
+                pageHeader: labelHeader
+                z: panelFlickable.z + 1
+                anchors.fill: parent
+            }
+
+            LPFlickable {
+                id: panelFlickable
+
+                pageHeader: labelHeader
                 clip: true
                 anchors {
                     top: page.isSubmenu ? backLabel.bottom : labelHeader.bottom
@@ -208,7 +246,7 @@ PageStack {
                     listView.positionViewAtIndex(listView.currentIndex, ListView.End)
                 }
 
-                interactive: contentHeight > height
+                interactive: labelHeader.expandable ? true : contentHeight > height
                 contentHeight: customMenuItems.height + listView.height
                 contentWidth: parent.width
 
@@ -247,6 +285,7 @@ PageStack {
                                 Layout.fillWidth: true
 
                                 visible: shell.focusedAppName !== ""  && shell.settings.enableAppSuspensionToggleIndicator
+                                                && !shell.isWindowedMode
                                 text: "Do not suspend"
                                 iconSource: shell.focusedAppIcon
                                 highlightWhenPressed: false
@@ -349,6 +388,26 @@ PageStack {
                                     value: shell.themeSettings.isDarkMode
                                 }
                             }
+                            // ENH136 - Separate desktop mode per screen
+                            Menus.SwitchMenu {
+                                id: desktopModeSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.haveMultipleScreens
+                                text: "Desktop mode"
+                                iconSource: "image://theme/computer-symbolic"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: shell.isDesktopMode = checked
+
+                                Binding {
+                                    target: desktopModeSwitch
+                                    property: "checked"
+                                    value: shell.isDesktopMode
+                                }
+                            }
+                            // ENH136 - End
                             // ENH116 - End
                             Menus.BaseLayoutMenu {
                                 property QtObject menuData: null

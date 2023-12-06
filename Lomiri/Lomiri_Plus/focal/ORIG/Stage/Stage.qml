@@ -27,6 +27,7 @@ import GlobalShortcut 1.0
 import GSettings 1.0
 import "Spread"
 import "Spread/MathUtils.js" as MathUtils
+import ProcessControl 0.1
 import WindowManager 1.0
 
 FocusScope {
@@ -158,7 +159,7 @@ FocusScope {
         dialog: normal
     }
 
-    property Item itemConfiningMouseCursor: !spreadShown && priv.focusedAppDelegate && priv.focusedAppDelegate.window.confinesMousePointer ?
+    property Item itemConfiningMouseCursor: !spreadShown && priv.focusedAppDelegate && priv.focusedAppDelegate.window && priv.focusedAppDelegate.window.confinesMousePointer ?
                               priv.focusedAppDelegate.clientAreaItem : null;
 
     signal itemSnapshotRequested(Item item)
@@ -512,29 +513,34 @@ FocusScope {
     Instantiator {
         model: root.applicationManager
         delegate: QtObject {
+            id: applicationDelegate
+            // TODO: figure out some lifecycle policy, like suspending minimized apps
+            //       or something if running windowed.
+            // TODO: If the device has a dozen suspended apps because it was running
+            //       in staged mode, when it switches to Windowed mode it will suddenly
+            //       resume all those apps at once. We might want to avoid that.
+            property var requestedState: root.mode === "windowed"
+                   || (!root.suspended && model.application && priv.focusedAppDelegate &&
+                       (priv.focusedAppDelegate.appId === model.application.appId ||
+                        priv.mainStageAppId === model.application.appId ||
+                        priv.sideStageAppId === model.application.appId))
+                   ? ApplicationInfoInterface.RequestedRunning
+                   : ApplicationInfoInterface.RequestedSuspended
+            property bool temporaryAwaken: ProcessControl.awakenProcesses.indexOf(model.application.appId) >= 0
+
             property var stateBinding: Binding {
                 target: model.application
                 property: "requestedState"
-
-                // TODO: figure out some lifecycle policy, like suspending minimized apps
-                //       or something if running windowed.
-                // TODO: If the device has a dozen suspended apps because it was running
-                //       in staged mode, when it switches to Windowed mode it will suddenly
-                //       resume all those apps at once. We might want to avoid that.
-                value: root.mode === "windowed"
-                       || (!root.suspended && model.application && priv.focusedAppDelegate &&
-                           (priv.focusedAppDelegate.appId === model.application.appId ||
-                            priv.mainStageAppId === model.application.appId ||
-                            priv.sideStageAppId === model.application.appId))
-                       ? ApplicationInfoInterface.RequestedRunning
-                       : ApplicationInfoInterface.RequestedSuspended
+                value: applicationDelegate.requestedState
             }
 
             property var lifecycleBinding: Binding {
                 target: model.application
                 property: "exemptFromLifecycle"
                 value: model.application
-                            ? (!model.application.isTouchApp || isExemptFromLifecycle(model.application.appId))
+                            ? (!model.application.isTouchApp ||
+                               isExemptFromLifecycle(model.application.appId) ||
+                               applicationDelegate.temporaryAwaken)
                             : false
             }
 
@@ -644,10 +650,12 @@ FocusScope {
                 ScriptAction {
                     script: {
                         var item = appRepeater.itemAt(Math.max(0, spreadItem.highlightedIndex));
-                        if (item.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
-                            sideStage.show();
+                        if (item) {
+                            if (item.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
+                                sideStage.show();
+                            }
+                            item.playFocusAnimation();
                         }
-                        item.playFocusAnimation();
                     }
                 }
                 PropertyAction { target: spreadItem; property: "highlightedIndex"; value: -1 }
@@ -1189,6 +1197,9 @@ FocusScope {
                 function claimFocus() {
                     if (root.state == "spread") {
                         spreadItem.highlightedIndex = index
+                        // force pendingActivation so that when switching to staged mode, topLevelSurfaceList focus won't got to previous app ( case when apps are launched from outside )
+                        topLevelSurfaceList.pendingActivation();
+                        priv.goneToSpread = false;
                     }
                     if (root.mode == "stagedWithSideStage") {
                         if (appDelegate.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {

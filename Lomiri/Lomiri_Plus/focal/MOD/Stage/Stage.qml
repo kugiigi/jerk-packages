@@ -27,6 +27,7 @@ import GlobalShortcut 1.0
 import GSettings 1.0
 import "Spread"
 import "Spread/MathUtils.js" as MathUtils
+import ProcessControl 0.1
 import WindowManager 1.0
 // ENH032 - Infographics Outer Wilds
 import "../OuterWilds"
@@ -131,7 +132,8 @@ FocusScope {
                     sideStage.hide()
                     sideStageTempHidden = true
                 } else {
-                    if (sideStageTempHidden && !sideStage.shown) {
+                    if (sideStageTempHidden && !sideStage.shown
+                            && priv.sideStageEnabled) {
                         sideStage.show()
                         priv.updateMainAndSideStageIndexes()
                     }
@@ -141,6 +143,24 @@ FocusScope {
         }
     }
     // ENH041 - End
+
+    // ENH135 - Show Desktop
+    function disableShowDesktop() {
+        appContainer.showDesktop = false
+    }
+    // ENH135 - End
+    // ENH139 - System Direct Actions
+    function screenShotApp() {
+        if (priv.focusedAppDelegate) {
+            itemSnapshotRequested(priv.focusedAppDelegate)
+        }
+    }
+    function closeCurrentApp() {
+        if (priv.focusedAppDelegate) {
+            priv.focusedAppDelegate.close();
+        }
+    }
+    // ENH139 - End
 
     Binding {
         target: topLevelSurfaceList
@@ -193,7 +213,7 @@ FocusScope {
         dialog: normal
     }
 
-    property Item itemConfiningMouseCursor: !spreadShown && priv.focusedAppDelegate && priv.focusedAppDelegate.window.confinesMousePointer ?
+    property Item itemConfiningMouseCursor: !spreadShown && priv.focusedAppDelegate && priv.focusedAppDelegate.window && priv.focusedAppDelegate.window.confinesMousePointer ?
                               priv.focusedAppDelegate.clientAreaItem : null;
 
     signal itemSnapshotRequested(Item item)
@@ -218,6 +238,24 @@ FocusScope {
             priv.goneToSpread = true
         }
     }
+
+    // ENH133 - Hot corners
+    function toggleSpread() {
+        if (root.spreadEnabled) {
+            if (!spreadShown) {
+                priv.goneToSpread = true
+            } else {
+                closeSpread()
+            }
+        }
+    }
+
+    function showDesktop() {
+        // Use custom show desktop for now
+        appContainer.toggleShowDesktop()
+        //priv.minimizeAllWindows()
+    }
+    // ENH133 - End
 
     GSettings {
         id: lifecycleExceptions
@@ -285,8 +323,19 @@ FocusScope {
         id: minimizeAllShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
         onTriggered: priv.minimizeAllWindows()
-        active: root.state == "windowed"
+        // ENH135 - Show Desktop
+        // active: root.state == "windowed"
+        active: false // Disable for now since minimize all is broken
+        // ENH135 - End
     }
+    // ENH135 - Show Desktop
+    GlobalShortcut {
+        id: showDesktopShortcut
+        shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
+        onTriggered: appContainer.toggleShowDesktop()
+        active: true
+    }
+    // ENH135 - End
 
     GlobalShortcut {
         id: maximizeWindowShortcut
@@ -467,6 +516,14 @@ FocusScope {
             priv.updateMainAndSideStageIndexes();
         }
 
+        // ENH135 - Show Desktop
+        onGoneToSpreadChanged: {
+            if (goneToSpread) {
+                root.disableShowDesktop()
+            }
+        }
+        // ENH135 - End
+
         property var mainStageDelegate: null
         property var sideStageDelegate: null
         property int mainStageItemId: 0
@@ -625,29 +682,34 @@ FocusScope {
     Instantiator {
         model: root.applicationManager
         delegate: QtObject {
+            id: applicationDelegate
+            // TODO: figure out some lifecycle policy, like suspending minimized apps
+            //       or something if running windowed.
+            // TODO: If the device has a dozen suspended apps because it was running
+            //       in staged mode, when it switches to Windowed mode it will suddenly
+            //       resume all those apps at once. We might want to avoid that.
+            property var requestedState: root.mode === "windowed"
+                   || (!root.suspended && model.application && priv.focusedAppDelegate &&
+                       (priv.focusedAppDelegate.appId === model.application.appId ||
+                        priv.mainStageAppId === model.application.appId ||
+                        priv.sideStageAppId === model.application.appId))
+                   ? ApplicationInfoInterface.RequestedRunning
+                   : ApplicationInfoInterface.RequestedSuspended
+            property bool temporaryAwaken: ProcessControl.awakenProcesses.indexOf(model.application.appId) >= 0
             property var stateBinding: Binding {
                 target: model.application
                 property: "requestedState"
 
-                // TODO: figure out some lifecycle policy, like suspending minimized apps
-                //       or something if running windowed.
-                // TODO: If the device has a dozen suspended apps because it was running
-                //       in staged mode, when it switches to Windowed mode it will suddenly
-                //       resume all those apps at once. We might want to avoid that.
-                value: root.mode === "windowed"
-                       || (!root.suspended && model.application && priv.focusedAppDelegate &&
-                           (priv.focusedAppDelegate.appId === model.application.appId ||
-                            priv.mainStageAppId === model.application.appId ||
-                            priv.sideStageAppId === model.application.appId))
-                       ? ApplicationInfoInterface.RequestedRunning
-                       : ApplicationInfoInterface.RequestedSuspended
+                value: applicationDelegate.requestedState
             }
 
             property var lifecycleBinding: Binding {
                 target: model.application
                 property: "exemptFromLifecycle"
                 value: model.application
-                            ? (!model.application.isTouchApp || isExemptFromLifecycle(model.application.appId))
+                            ? (!model.application.isTouchApp ||
+                               isExemptFromLifecycle(model.application.appId) ||
+                               applicationDelegate.temporaryAwaken)
                             : false
             }
 
@@ -686,7 +748,9 @@ FocusScope {
             PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
             // ENH032 - Infographics Outer Wilds
             // PropertyChanges { target: wallpaper; visible: false }
-            PropertyChanges { target: wallpaperItem; visible: false }
+            // For some reason, when side stage is disabled, wallpaper completely hides
+            // but not when it is enabled? Weird
+            //PropertyChanges { target: wallpaperItem; visible: false }
             // ENH032 - End
             PropertyChanges { target: screensAndWorkspaces; opacity: 1 }
         },
@@ -722,7 +786,10 @@ FocusScope {
         },
         State {
             name: "staged"; when: root.mode === "staged"
-            PropertyChanges { target: wallpaper; visible: !priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0 }
+            // ENH135 - Show Desktop
+            // PropertyChanges { target: wallpaper; visible: !priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0 }
+            PropertyChanges { target: wallpaper; visible: (!priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0) || appContainer.showDesktop }
+            // ENH135 - End
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
         },
@@ -763,10 +830,12 @@ FocusScope {
                 ScriptAction {
                     script: {
                         var item = appRepeater.itemAt(Math.max(0, spreadItem.highlightedIndex));
-                        if (item.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
-                            sideStage.show();
+                        if (item) {
+                            if (item.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
+                                sideStage.show();
+                            }
+                            item.playFocusAnimation();
                         }
-                        item.playFocusAnimation();
                     }
                 }
                 PropertyAction { target: spreadItem; property: "highlightedIndex"; value: -1 }
@@ -850,6 +919,9 @@ FocusScope {
                     running: shouldRun
                     paused: shouldRun && ((priv.focusedAppDelegate && priv.focusedAppDelegate == priv.mainStageDelegate)
                                             || (priv.focusedAppDelegate == priv.sideStageDelegate && sideStage.shown))
+                                            // ENH135 - Show Desktop
+                                            && !appContainer.showDesktop
+                                            // ENH135 - End
                     onStopped: if (shouldRun) restart()
                     onStarted: if (movingItems.item) movingItems.item.probe.resetAnimation()
                     PropertyAction {
@@ -1114,6 +1186,31 @@ FocusScope {
                 appRepeater.itemAt(highlightedIndex).close();
             }
 
+            // ENH135 - Show Desktop
+            SwipeArea {
+                visible: enabled
+                enabled: (priv.goneToSpread && shell.settings.enableShowDesktop)
+                                || appContainer.showDesktop
+                direction: SwipeArea.Upwards
+                z: 999
+                height: units.gu(2)
+                anchors {
+                    bottom: parent.bottom
+                    left: parent.left
+                    right: parent.right
+                }
+
+                onDraggingChanged: {
+                    shell.haptics.play()
+
+                    if (dragging) {
+                        appContainer.toggleShowDesktop()
+                        spreadItem.leaveSpread()
+                    }
+                }
+            }
+            // ENH135 - End
+
             FloatingFlickable {
                 id: floatingFlickable
                 objectName: "spreadFlickable"
@@ -1244,6 +1341,9 @@ FocusScope {
             // ENH013 - PR#377
             showHint: !priv.sideStageDelegate
             // ENH013 - End
+            // ENH135 - Show Desktop
+            opacity: appContainer.appDelegateOpacity
+            // ENH135 - End
             visible: false
             Behavior on opacity { LomiriNumberAnimation {} }
             z: {
@@ -1337,7 +1437,13 @@ FocusScope {
 
             z: 1000
         }
-
+        // ENH135 - Show Desktop
+        property bool showDesktop: false
+        readonly property real appDelegateOpacity: appContainer.showDesktop ? 0 : 1
+        function toggleShowDesktop() {
+            showDesktop = !showDesktop
+        }
+        // ENH135 - End
         Repeater {
             id: appRepeater
             model: topLevelSurfaceList
@@ -1365,8 +1471,11 @@ FocusScope {
                     }
                 }
                 z: normalZ
-
-                opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : 1
+                // ENH135 - Show Desktop
+                enabled: !appContainer.showDesktop
+                // opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : 1
+                opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : appContainer.appDelegateOpacity
+                // ENH135 - End
                 Behavior on opacity { LomiriNumberAnimation {} }
 
                 // Set these as propertyes as they wont update otherwise
@@ -1589,6 +1698,9 @@ FocusScope {
                 function claimFocus() {
                     if (root.state == "spread") {
                         spreadItem.highlightedIndex = index
+                        // force pendingActivation so that when switching to staged mode, topLevelSurfaceList focus won't got to previous app ( case when apps are launched from outside )
+                        topLevelSurfaceList.pendingActivation();
+                        priv.goneToSpread = false;
                     }
                     if (root.mode == "stagedWithSideStage") {
                         if (appDelegate.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
@@ -1744,14 +1856,20 @@ FocusScope {
                         priv.updateMainAndSideStageIndexes();
                     }
                 }
-
-                visible: (
+                // ENH135 - Show Desktop
+                // visible: (
+                visible: ( (
+                // ENH135 - End
                           !visuallyMinimized
                           && !greeter.fullyShown
                           && (priv.foregroundMaximizedAppDelegate === null || priv.foregroundMaximizedAppDelegate.normalZ <= z)
                          )
                          || appDelegate.fullscreen
                          || focusAnimation.running || rightEdgeFocusAnimation.running || hidingAnimation.running
+                         )
+                         // ENH135 - Show Desktop
+                         && !appContainer.showDesktop
+                         // ENH135 - End
 
                 function close() {
                     model.window.close();
@@ -1877,7 +1995,10 @@ FocusScope {
                 ParallelAnimation {
                     id: hidingAnimation
                     LomiriNumberAnimation { target: appDelegate; property: "opacity"; to: 0; duration: priv.animationDuration }
-                    onStopped: appDelegate.opacity = 1
+                    // ENH135 - Show Desktop
+                    // onStopped: appDelegate.opacity = 1
+                    onStopped: appDelegate.opacity = Qt.binding( function() { return appContainer.appDelegateOpacity } )
+                    // ENH135 - End
                 }
 
                 SpreadMaths {
@@ -2035,7 +2156,10 @@ FocusScope {
                         }
                         PropertyChanges {
                             target: opacityEffect;
-                            opacityValue: windowedRightEdgeMaths.opacityMask
+                            // ENH135 - Show Desktop
+                            // opacityValue: windowedRightEdgeMaths.opacityMask
+                            opacityValue: appContainer.showDesktop ? 0 : windowedRightEdgeMaths.opacityMask
+                            // ENH135 - End
                             sourceItem: windowedRightEdgeMaths.opacityMask < 1 ? decoratedWindow : null
                         }
                     },
@@ -2109,14 +2233,21 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate;
                             requestedX: root.availableDesktopArea.x;
-                            requestedY: 0;
+                            // ENH002 - Notch/Punch hole fix
+                            // requestedY: 0;
+                            requestedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
+                                                                 : 0;
+                            // ENH002 - End
                             visuallyMinimized: false;
                             visuallyMaximized: true
                         }
                         PropertyChanges {
                             target: appDelegate
                             requestedWidth: root.availableDesktopArea.width;
-                            requestedHeight: appContainer.height;
+                            // ENH002 - Notch/Punch hole fix
+                            // requestedHeight: appContainer.height;
+                            requestedHeight: appContainer.height - requestedY;
+                            // ENH002 - End
                             restoreEntryValues: false
                         }
                         PropertyChanges { target: touchControls; enabled: true }
@@ -2696,6 +2827,9 @@ FocusScope {
                 gesturePoints = [];
                 cancelled = false;
                 draggedProgress = 0;
+                // ENH135 - Show Desktop
+                appContainer.showDesktop = false
+                // ENH135 - End
             } else {
                 // Ok. The user released. Did he drag far enough to go to full spread?
                 if (gesturePoints[gesturePoints.length - 1] < -spreadItem.rightEdgeBreakPoint * spreadItem.width ) {

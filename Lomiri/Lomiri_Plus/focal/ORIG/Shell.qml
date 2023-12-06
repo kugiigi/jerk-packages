@@ -94,7 +94,7 @@ StyledItem {
 
     readonly property bool orientationChangesEnabled: panel.indicators.fullyClosed
             && stage.orientationChangesEnabled
-            && (!greeter || !greeter.animating)
+            && (!greeter.animating)
 
     readonly property bool showingGreeter: greeter && greeter.shown
 
@@ -105,7 +105,7 @@ StyledItem {
         if (startingUp) {
             // Ensure we don't rotate during start up
             return Qt.PrimaryOrientation;
-        } else if (showingGreeter || notifications.topmostIsFullscreen) {
+        } else if (notifications.topmostIsFullscreen) {
             return Qt.PrimaryOrientation;
         } else {
             return shell.orientations ? shell.orientations.map(stage.supportedOrientations) : Qt.PrimaryOrientation;
@@ -225,7 +225,6 @@ StyledItem {
             ApplicationManager.startApplication(appId);
         }
         ApplicationManager.requestFocusApplication(appId);
-        stage.closeSpread();
     }
 
     function startLockedApp(app) {
@@ -295,7 +294,7 @@ StyledItem {
         id: availableDesktopAreaItem
         anchors.fill: parent
         anchors.topMargin: panel.fullscreenMode ? 0 : panel.minimizedPanelHeight
-        anchors.leftMargin: launcher.lockedVisible ? launcher.panelWidth : 0
+        anchors.leftMargin: (launcher.lockedByUser && launcher.lockAllowed) ? launcher.panelWidth : 0
     }
 
     GSettings {
@@ -442,6 +441,8 @@ StyledItem {
             enabled: panel.indicators.fullyClosed // hides OSK when panel is open
             hides: [launcher, panel.indicators, panel.applicationMenus]
             tabletMode: shell.usageScenario != "phone"
+            usageMode: shell.usageScenario
+            orientation: shell.orientation
             forcedUnlock: wizard.active || shell.mode === "full-shell"
             background: wallpaperResolver.background
             backgroundSourceSize: shell.largestScreenDimension

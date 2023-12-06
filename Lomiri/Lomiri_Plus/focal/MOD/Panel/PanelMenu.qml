@@ -60,6 +60,8 @@ Showable {
     property int initialIndexOnInverted: -1
     // ENH028 - End
     // ENH056 - Quick toggles
+    property string wifiIcon: "network-wifi-symbolic"
+    property string bluetoothIcon: "bluetooth-active"
     property bool enableQuickToggles: false
     property var rotationToggle
     property var flashlightToggle
@@ -82,6 +84,9 @@ Showable {
     property var dateItem
     property var lockItem
     // ENH028 - End
+    // ENH139 - System Direct Actions
+    readonly property alias quickToggleItems: quickToggles.toggleItems
+    // ENH139 - End
 
     property var blurSource : null
     property rect blurRect : Qt.rect(0, 0, 0, 0)
@@ -161,8 +166,9 @@ Showable {
             // ENH056 - End
         }
     }
-    function openAsInverted(indicatorIndex) {
-        inverted = true
+
+    function openAsInverted(indicatorIndex, openInverted = true) {
+        inverted = openInverted
 
         if (indicatorIndex == -1) {
             if (initialIndexOnInverted > -1) {
@@ -227,58 +233,69 @@ Showable {
             property bool expanded: false
 
             readonly property var toggleItems: [
-                /* Rotation */          {"type": 0, "controlType": "toggle", "slot": 1, "toggleObj": root.rotationToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Rotation */          {"identifier": "rotation", "text": "Screen Rotation", "type": 0, "controlType": "toggle", "slot": 1, "toggleObj": root.rotationToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "orientation-lock", "iconOff": "view-rotate"}                                 
-                /* Flashlight */        , {"type": 1, "controlType": "toggle", "slot": 1, "toggleObj": root.flashlightToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Flashlight */        , {"identifier": "flashlight", "text": "Flashlight", "type": 1, "controlType": "toggle", "slot": 1, "toggleObj": root.flashlightToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "torch-on", "iconOff": "torch-off"}                                     
                 // ENH116 - Standalone Dark mode toggle
-                // /* Dark mode */         , {"type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
-                /* Dark mode */         , {"type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle ? root.darkModeToggle : darkModeToggle
+                // /* Dark mode */         , {"identifier": "test", "text": "test", "type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Dark mode */         , {"identifier": "darkmode", "text": "Dark Mode", "type": 2, "controlType": "toggle", "slot": 1, "toggleObj": root.darkModeToggle ? root.darkModeToggle : darkModeToggle
                                         , "holdActionType": "indicator", "holdActionUrl": ""
                 // ENH116 - End
-                                        , "iconOn": "weather-clear-night-symbolic", "iconOff": "night-mode"}                   
-                /* Desktop mode */      , {"type": 3, "controlType": "toggle", "slot": 1, "toggleObj": root.desktopModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "weather-clear-night-symbolic", "iconOff": "night-mode"}
+                                        // ENH136 - Separate desktop mode per screen             
+                /* Desktop mode */      //, {"identifier": "test", "text": "test", "type": 3, "controlType": "toggle", "slot": 1, "toggleObj": root.desktopModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Desktop mode */      , {"identifier": "desktopmode", "text": "Desktop Mode", "type": 3, "controlType": "toggle", "slot": 1, "toggleObj": shell.haveMultipleScreens ? shellDesktopModeToggle : root.desktopModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        // ENH136 - End
                                         , "iconOn": "computer-symbolic", "iconOff": "phone-smartphone-symbolic"}        
-                /* Silent mode */       , {"type": 4, "controlType": "toggle", "slot": 1, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Silent mode */       , {"identifier": "silentmode", "text": "Silent Mode", "type": 4, "controlType": "toggle", "slot": 1, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "audio-speakers-muted-symbolic", "iconOff": "audio-speakers-symbolic"} 
-                /* Flight mode */       , {"type": 5, "controlType": "toggle", "slot": 1, "toggleObj": root.flightModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Flight mode */       , {"identifier": "flightmode", "text": "Flight Mode", "type": 5, "controlType": "toggle", "slot": 1, "toggleObj": root.flightModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "airplane-mode", "iconOff": "airplane-mode-disabled"}                  
-                /* Mobile data */       , {"type": 6, "controlType": "toggle", "slot": 1, "toggleObj": root.mobileDataToggle, "holdActionType": "external"
+                /* Mobile data */       , {"identifier": "mobiledata", "text": "Mobile Data", "type": 6, "controlType": "toggle", "slot": 1, "toggleObj": root.mobileDataToggle, "holdActionType": "external"
                                         , "holdActionUrl": "settings:///system/cellular"
                                         , "iconOn": "transfer-progress", "iconOff": "transfer-none"}                       
-                /* Wifi */              , {"type": 7, "controlType": "toggle", "slot": 1, "toggleObj": root.wifiToggle, "holdActionType": "indicator", "holdActionUrl": ""
-                                        , "iconOn": "network-wifi-symbolic", "iconOff": "wifi-none"}                                
-                /* Bluetooth */         , {"type": 8, "controlType": "toggle", "slot": 1, "toggleObj": root.bluetoothToggle, "holdActionType": "external"
+                /* Wifi */              , {"identifier": "wifi", "text": "Wi-Fi", "type": 7, "controlType": "toggle", "slot": 1, "toggleObj": root.wifiToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": root.wifiIcon, "iconOff": "wifi-none"}                                
+                /* Bluetooth */         , {"identifier": "bluetooth", "text": "Bluetooth", "type": 8, "controlType": "toggle", "slot": 1, "toggleObj": root.bluetoothToggle, "holdActionType": "external"
                                         , "holdActionUrl": "settings:///system/bluetooth"
-                                        , "iconOn": "bluetooth-active", "iconOff": "bluetooth-disabled"}
-                /* Location */          , {"type": 9, "controlType": "toggle", "slot": 1, "toggleObj": root.locationToggle, "holdActionType": "external"
+                                        , "iconOn": root.bluetoothIcon, "iconOff": "bluetooth-disabled"}
+                /* Location */          , {"identifier": "location", "text": "Location", "type": 9, "controlType": "toggle", "slot": 1, "toggleObj": root.locationToggle, "holdActionType": "external"
                                         , "holdActionUrl": "settings:///system/location"
                                         , "iconOn": "location-idle", "iconOff": "location-disabled"}
                 // ENH115 - Standalone Immersive mode
-                // /* Immersive */         , {"type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle, "holdActionType": "indicator", "holdActionUrl": ""
-                /* Immersive */         , {"type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle ? root.immersiveToggle : immersiveModeToggle
+                // /* Immersive */         , {"identifier": "test", "text": "test", "type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Immersive */         , {"identifier": "immersive", "text": "Immersive Mode", "type": 10, "controlType": "toggle", "slot": 1, "toggleObj": root.immersiveToggle ? root.immersiveToggle : immersiveModeToggle
                 // ENH115 - End
                                         , "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "media-record", "iconOff": "media-optical-symbolic"}
-                /* Hotspot */           , {"type": 11, "controlType": "toggle", "slot": 1, "toggleObj": root.hotspotToggle, "holdActionType": "external"
+                /* Hotspot */           , {"identifier": "hotspot", "text": "Hotspot", "type": 11, "controlType": "toggle", "slot": 1, "toggleObj": root.hotspotToggle, "holdActionType": "external"
                                         , "holdActionUrl": "settings:///system/hotspot"
                                         , "iconOn": "hotspot-connected", "iconOff": "hotspot-disabled"}     
-                /* Auto brightness */   , {"type": 12, "controlType": "toggle", "slot": 1, "toggleObj": root.autoBrightnessToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Auto brightness */   , {"identifier": "auto-brightness", "text": "Auto-Brightness", "type": 12, "controlType": "toggle", "slot": 1, "toggleObj": root.autoBrightnessToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "display-brightness-symbolic", "iconOff": "display-brightness-min"}
                 // ENH116 - Standalone Dark mode toggle
-                // /* Auto Dark mode */    , {"type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
-                /* Auto Dark mode */    , {"type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle ? root.autoDarkModeToggle : autoDarkModeToggle
+                // /* Auto Dark mode */    , {"identifier": "test", "text": "test", "type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Auto Dark mode */    , {"identifier": "autodarkmode", "text": "Auto Dark Mode", "type": 13, "controlType": "toggle", "slot": 1, "toggleObj": root.autoDarkModeToggle ? root.autoDarkModeToggle : autoDarkModeToggle
                                         , "holdActionType": "indicator", "holdActionUrl": ""
                 // ENH116 - End
                                         , "iconOn": "weather-few-clouds-night-symbolic", "iconOff": "weather-few-clouds-night-symbolic"}            
-                /* Media Player */      , {"type": 14, "controlType": "media", "slot": 0, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Media Player */      , {"identifier": "mediaplayer", "text": "Media Player", "type": 14, "controlType": "media", "slot": 0, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "", "iconOff": ""} 
-                /* Brightness */        , {"type": 15, "controlType": "slider", "slot": 0, "toggleObj": root.brightnessSlider, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Brightness */        , {"identifier": "brightness", "text": "Brightness", "type": 15, "controlType": "slider", "slot": 0, "toggleObj": root.brightnessSlider, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "", "iconOff": ""} 
-                /* Volume */            , {"type": 16, "controlType": "slider", "slot": 0, "toggleObj": root.volumeSlider, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Volume */            , {"identifier": "volume", "text": "Volume", "type": 16, "controlType": "slider", "slot": 0, "toggleObj": root.volumeSlider, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "", "iconOff": ""} 
-                /* Active Screen */     , {"type": 17, "controlType": "toggle", "slot": 1, "toggleObj": activeScreenToggle, "holdActionType": "indicator", "holdActionUrl": ""
-                                        , "iconOn": "preferences-desktop-display-symbolic", "iconOff": "video-display-symbolic"} 
+                /* Active Screen */     , {"identifier": "activescreen", "text": "Active Screen", "type": 17, "controlType": "toggle", "slot": 1, "toggleObj": activeScreenToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "preferences-desktop-display-symbolic", "iconOff": "video-display-symbolic"}
+                // ENH128 - OSK Quick toggle
+                /* OSK */               , {"identifier": "osk", "text": "On-screen Keyboard", "type": 18, "controlType": "toggle", "slot": 1, "toggleObj": oskToggle, "holdActionType": "external", "holdActionUrl": "settings:///system/language"
+                                        , "iconOn": "input-keyboard-symbolic", "iconOff": "input-keyboard-symbolic"} 
+                // ENH128 - End
+                // ENH129 - Color overlay
+                /* Color Overlay */     , {"identifier": "coloroverlay", "text": "Color Overlay", "type": 19, "controlType": "toggle", "slot": 1, "toggleObj": colorOverlayToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                                        , "iconOn": "preferences-color-symbolic", "iconOff": "preferences-color-symbolic"} 
+                // ENH129 - End
             ]
 
             z: 2
@@ -348,7 +365,7 @@ Showable {
                 }
             }
 
-            GridLayout  {
+            GridLayout {
                 id: gridLayout
 
                 columns: Math.floor((width - (anchors.margins * 2)) / (quickToggles.toggleHeight + units.gu(2)))
@@ -452,6 +469,34 @@ Showable {
                     onClicked: shell.isScreenActive = !shell.isScreenActive
                 }
 
+                // ENH128 - OSK Quick toggle
+                Item {
+                    id: oskToggle
+
+                    readonly property bool checked: lomiriSettings.alwaysShowOsk
+                    readonly property bool enabled: true
+                    readonly property string parentMenuIndex: "ayatana-indicator-keyboard"
+
+                    signal clicked
+
+                    onClicked: lomiriSettings.alwaysShowOsk = !lomiriSettings.alwaysShowOsk
+                }
+                // ENH128 - End
+
+                // ENH129 - Color overlay
+                Item {
+                    id: colorOverlayToggle
+
+                    readonly property bool checked: shell.settings.enableColorOverlay
+                    readonly property bool enabled: true
+                    readonly property string parentMenuIndex: "ayatana-indicator-session"
+
+                    signal clicked
+
+                    onClicked: shell.settings.enableColorOverlay = !shell.settings.enableColorOverlay
+                }
+                // ENH129 - End
+
                 // ENH115 - Standalone Immersive mode
                 Item {
                     id: immersiveModeToggle
@@ -490,6 +535,20 @@ Showable {
                     onClicked: shell.settings.enableAutoDarkMode = !shell.settings.enableAutoDarkMode
                 }
                 // ENH116 - End
+
+                // ENH136 - Separate desktop mode per screen
+                Item {
+                    id: shellDesktopModeToggle
+
+                    readonly property bool checked: shell.isDesktopMode
+                    readonly property bool enabled: true
+                    readonly property string parentMenuIndex: "ayatana-indicator-session"
+
+                    signal clicked
+
+                    onClicked: shell.isDesktopMode = !shell.isDesktopMode
+                }
+                // ENH136 - End
 
                 Component {
                     id: quickToggleComponent

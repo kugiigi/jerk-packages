@@ -93,6 +93,7 @@ Item {
 
             "org.ayatana.indicator.calendar": calendarMenu,
             "org.ayatana.indicator.location": timezoneMenu,
+            "org.ayatana.indicator.level"   : levelMenu,
         },
         "indicator-session": {
             "indicator.user-menu-item": Platform.isPC ? userMenuItem : null,
@@ -107,7 +108,10 @@ Item {
             "org.ayatana.indicator.guest-menu-item": Platform.isPC ? userMenuItem : null,
             // ENH047 - Always show desktop mode toggle
             // "org.ayatana.indicator.switch": Math.min(Screen.width, Screen.height) > units.gu(60) ? switchMenu : null // Desktop mode switch
-            "org.ayatana.indicator.switch": switchMenu
+            // ENH136 - Separate desktop mode per screen
+            //"org.ayatana.indicator.switch": switchMenu
+            "org.ayatana.indicator.switch": shell.haveMultipleScreens ? null : switchMenu
+            // ENH136 - Separate desktop mode per screen
             // ENH047 - End
         },
         "ayatana-indicator-messages": {
@@ -328,6 +332,36 @@ Item {
             iconSource: menuData && menuData.icon || ""
             value : menuData && menuData.actionState || 0.0
             enabled: menuData && menuData.sensitive || false
+        }
+    }
+
+    Component {
+        id: levelMenu;
+
+        /* Use the same UI as progressMenu for now. */
+        Menus.ProgressValueMenu {
+            objectName: "levelMenu"
+            property QtObject menuData: null
+            property var menuModel: menuFactory.menuModel
+            property int menuIndex: -1
+            property var extendedData: menuData && menuData.ext || undefined
+
+            text: menuData && menuData.label || ""
+            iconSource: menuData && menuData.icon || ""
+            value : extendedData && extendedData.xAyatanaLevel || 0.0
+            enabled: menuData && menuData.sensitive || false
+
+            onMenuModelChanged: {
+                loadAttributes();
+            }
+            onMenuIndexChanged: {
+                loadAttributes();
+            }
+
+            function loadAttributes() {
+                if (!menuModel || menuIndex == -1) return;
+                menuModel.loadExtendedAttributes(menuIndex, {'x-ayatana-level': 'uint16'});
+            }
         }
     }
 
