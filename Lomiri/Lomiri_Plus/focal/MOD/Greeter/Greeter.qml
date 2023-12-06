@@ -59,10 +59,7 @@ Showable {
     readonly property bool locked: LightDMService.greeter.active && !LightDMService.greeter.authenticated && !forcedUnlock
 
     property bool tabletMode
-    // ENH108 - Temporary GreeterView merge
     property string usageMode
-    property int orientation
-    // ENH108 - End
     property url viewSource // only used for testing
 
     property int failedLoginsDelayAttempts: 7 // number of failed logins
@@ -75,6 +72,7 @@ Showable {
     property rect inputMethodRect
 
     property bool hasKeyboard: false
+    property int orientation
 
     signal tease()
     signal sessionStarted()
@@ -370,11 +368,7 @@ Showable {
         anchors.fill: parent
 
         active: root.required
-        source: root.viewSource.toString() ? root.viewSource :
-                // ENH108 - Temporary GreeterView merge
-                // (d.multiUser || root.tabletMode) ? "WideView.qml" : "NarrowView.qml"
-                "GreeterView.qml"
-                // ENH108 - End
+        source: root.viewSource.toString() ? root.viewSource : "GreeterView.qml"
 
         onLoaded: {
             root.lockedApp = "";
@@ -545,7 +539,7 @@ Showable {
             property: "hasKeyboard"
             value: root.hasKeyboard
         }
-        // ENH108 - Temporary GreeterView merge
+
         Binding {
             target: loader.item
             property: "usageMode"
@@ -563,7 +557,6 @@ Showable {
             property: "orientation"
             value: root.orientation
         }
-        // ENH108 - End
     }
 
     // ENH032 - Infographics Outer Wilds

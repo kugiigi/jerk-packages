@@ -20,6 +20,11 @@ Item {
     property real delegateWidth: units.gu(10)
     property var rawModel
     property var contextMenuItem: null
+    property bool hideLabel: false
+    property alias columns: gridLayout.columns
+    // ENH132 - App drawer icon size settings
+    property real delegateSizeMultiplier: 1
+    // ENH132 - End
 
     signal applicationSelected(string appId)
     signal applicationContextMenu(string appId, var caller, bool fromDocked)
@@ -186,7 +191,6 @@ Item {
         GridLayout  {
             id: gridLayout
 
-            columns: Math.floor(gridView.width / gridView.cellWidth)
             columnSpacing: 0
             rowSpacing: 0
             LayoutMirroring.enabled: rotation == 180
@@ -214,13 +218,17 @@ Item {
 
                     Layout.fillWidth: true
                     Layout.preferredHeight: dockedAppGrid.rowHeight
+                    // Very slow when rotating and toggling
+                    //Layout.preferredHeight: bottomDock.hideLabel && bottomDock.isIntegratedDock ? width : dockedAppGrid.rowHeight
+                    // Slightly slow when rotating and toggling but not sure if it's actually square
+                    //Layout.preferredHeight: bottomDock.hideLabel && bottomDock.isIntegratedDock ? bottomDock.delegateWidth : dockedAppGrid.rowHeight
 
                     rotation: gridLayout.rotation
 
                     Connections {
                         target: bottomDock.rawModel
                         onRefreshingChanged: {
-                            if (!refreshing) {
+                            if (!target.refreshing) {
                                 itemContainer.appData = Qt.binding( function() { return itemContainer.appId ? bottomDock.getAppItem(itemContainer.appId) : null } )
                             }
                         }
@@ -240,6 +248,10 @@ Item {
                         width: parent.width
                         height: parent.height
                         editMode: bottomDock.editMode
+                        hideLabel: bottomDock.hideLabel
+                        // ENH132 - App drawer icon size settings
+                        delegateSizeMultiplier: bottomDock.delegateSizeMultiplier
+                        // ENH132 - End
 
                         states: [
                             State {

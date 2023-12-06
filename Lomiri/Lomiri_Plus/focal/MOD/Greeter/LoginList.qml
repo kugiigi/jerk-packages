@@ -130,9 +130,7 @@ StyledItem {
             moveTimer.start();
         }
 
-        // ENH108 - Temporary GreeterView merge
         onCountChanged: if (root.currentIndex >= count) root.selected(0)
-        // ENH108 - End
 
         delegate: Item {
             width: userList.width
@@ -142,10 +140,7 @@ StyledItem {
             readonly property bool aboveCurrent: (userList.currentIndex > 0 && index < 0) || (userList.currentIndex >= 0 && index < userList.currentIndex)
             readonly property int belowOffset: root.highlightedHeight - root.cellHeight
             readonly property string userSession: session
-            // ENH108 - Temporary GreeterView merge
-            // readonly property string username: name
             readonly property string username: name ? name : ""
-            // ENH108 - End
 
             opacity: {
                 // The goal here is to make names less and less opaque as they
@@ -206,10 +201,7 @@ StyledItem {
                         text: userList.currentIndex === index
                               && name === "*other"
                               && LightDMService.greeter.authenticationUser !== ""
-                              // ENH108 - Temporary GreeterView merge
-                              // ?  LightDMService.greeter.authenticationUser : realName
                               ?  LightDMService.greeter.authenticationUser : realName ? realName : ""
-                              // ENH108 - End
                         color: userList.currentIndex !== index ? theme.palette.normal.raised
                                                                : theme.palette.normal.raisedSecondaryText
                         font.weight: userList.currentIndex === index ? Font.Normal : Font.Light

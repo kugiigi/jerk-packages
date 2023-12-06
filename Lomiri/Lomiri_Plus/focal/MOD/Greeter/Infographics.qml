@@ -287,6 +287,8 @@ Item {
             DynamicCove.LPCDPlayer {
                 id: cdPlayer
 
+                isSimpleMode: shell.settings.dcCDPlayerSimpleMode
+                cdPlayerOpacity: shell.settings.dcCDPlayerOpacity
                 swipeArea: nextPrevSwipe
                 mouseArea: circleMouseArea
             }

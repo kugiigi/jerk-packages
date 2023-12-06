@@ -86,6 +86,10 @@ StyledItem {
     
     readonly property bool isBuiltInScreen: Screen.name == Qt.application.screens[0].name
     // ENH002 - End
+    // ENH136 - Separate desktop mode per screen
+    readonly property bool haveMultipleScreens: Screens.count > 1 && shell.settings && shell.settings.externalDisplayBehavior == 1
+    property bool isDesktopMode: false
+    // ENH136 - End
     // ENH037 - Manual screen rotation button
     readonly property bool isFullScreen: panel.focusedSurfaceIsFullscreen
     // ENH037 - End
@@ -114,7 +118,7 @@ StyledItem {
                                                         && shell.deviceConfiguration.notchHeightMargin > 0 && shell.deviceConfiguration.notchWidthMargin > 0
     // ENH095 - End
     // ENH048 - Always hide panel mode
-    readonly property bool hideTopPanel: shell.settings.alwaysHideTopPanel
+    readonly property bool hideTopPanel: isBuiltInScreen && shell.settings.alwaysHideTopPanel
                                                 && (
                                                         (shell.settings.onlyHideTopPanelonLandscape
                                                             && (shell.orientation == Qt.LandscapeOrientation
@@ -186,10 +190,7 @@ StyledItem {
 
     readonly property bool orientationChangesEnabled: panel.indicators.fullyClosed
             && stage.orientationChangesEnabled
-            // ENH108 - Temporary GreeterView merge
-            // && (!greeter || !greeter.animating)
             && (!greeter.animating)
-            // ENH108 - End
 
     readonly property bool showingGreeter: greeter && greeter.shown
 
@@ -200,10 +201,7 @@ StyledItem {
         if (startingUp) {
             // Ensure we don't rotate during start up
             return Qt.PrimaryOrientation;
-        // ENH108 - Temporary GreeterView merge
-        // } else if (showingGreeter || notifications.topmostIsFullscreen) {
         } else if (notifications.topmostIsFullscreen) {
-        // ENH108 - End
             return Qt.PrimaryOrientation;
         } else {
             return shell.orientations ? shell.orientations.map(stage.supportedOrientations) : Qt.PrimaryOrientation;
@@ -304,8 +302,134 @@ StyledItem {
         ,{"identifier": "indicator-location", "name": "Location", "icon": "location", "indicatorIndex": locationToggleIndex}
         ,{"identifier": "ayatana-indicator-bluetooth", "name": "Bluetooth", "icon": "bluetooth-active", "indicatorIndex": bluetoothToggleIndex}
         ,{"identifier": "kugiigi-indicator-darkmode", "name": "Dark Mode", "icon": "night-mode", "indicatorIndex": darkModeToggleIndex}
+        ,{"identifier": "ayatana-indicator-messages", "name": "Notifications", "icon": panel.hasNotifications ? "indicator-messages-new" : "indicator-messages", "indicatorIndex": 0}
     ]
     // ENH028 - End
+    // ENH139 - System Direct Actions
+    property alias appModel: launcher.appModel
+
+    function getAppData(_appId) {
+        for (var i = 0; i < appModel.rowCount(); ++i) {
+            let _modelIndex = appModel.index(i, 0)
+            let _currentAppId = appModel.data(_modelIndex, 0)
+
+            if (_currentAppId == _appId) {
+                let _currentAppName = appModel.data(_modelIndex, 1)
+                let _currentAppIcon = appModel.data(_modelIndex, 2)
+
+                return {"name": _currentAppName, "icon": _currentAppIcon }
+            }
+        }
+        return null
+    }
+
+    readonly property alias quickToggleItems: panel.quickToggleItems
+    readonly property var settingsPages: [
+        { "identifier": "about", "url": "about", "iconName": "info", "name": "About" }
+        , { "identifier": "background", "url": "background", "iconName": "preferences-desktop-wallpaper-symbolic", "name": "Background & Appearance" }
+        , { "identifier": "battery", "url": "battery", "iconName": "battery-080", "name": "Battery" }
+        , { "identifier": "bluetooth", "url": "bluetooth", "iconName": "bluetooth-active", "name": "Bluetooth" }
+        , { "identifier": "brightness", "url": "brightness", "iconName": "display-brightness-symbolic", "name": "Brightness" }
+        , { "identifier": "gestures", "url": "gestures", "iconName": "gestures", "name": "Gestures" }
+        , { "identifier": "hotspot", "url": "hotspot", "iconName": "preferences-network-hotspot-symbolic", "name": "Hotspot" }
+        , { "identifier": "language", "url": "language", "iconName": "preferences-desktop-locale-symbolic", "name": "Language & Text" }
+        , { "identifier": "launcher", "url": "launcher", "iconName": "preferences-desktop-launcher-symbolic", "name": "Desktop & Launcher" }
+        , { "identifier": "mouse", "url": "mouse", "iconName": "input-mouse-symbolic", "name": "Mouse & Touchpad" }
+        , { "identifier": "nfc", "url": "nfc", "iconName": "nfc", "name": "NFC" }
+        , { "identifier": "notifications", "url": "notifications", "iconName": "preferences-desktop-notifications-symbolic", "name": "Notifications" }
+        , { "identifier": "sound", "url": "sound", "iconName": "preferences-desktop-sounds-symbolic", "name": "Sound" }
+        , { "identifier": "time-date", "url": "time-date", "iconName": "preferences-system-time-symbolic", "name": "Time and Date" }
+        , { "identifier": "vpn", "url": "vpn", "iconName": "network-vpn", "name": "VPN" }
+        , { "identifier": "wifi", "url": "wifi", "iconName": "wifi-high", "name": "Wi-Fi" }
+    ]
+
+    function openIndicatorByIndex(index) {
+        panel.indicators.openAsInverted(index)
+    }
+
+    // Custom actions
+    readonly property var customDirectActions: [
+        lockScreenAction, lomiriPlusAction, powerDialogAction, screenshotAction, rotateAction, appScreenshotAction
+        , closeAppAction, showDesktopAction, appSuspensionAction
+    ]
+    Action {
+        id: lockScreenAction
+        name: "lockscreen"
+        text: "Lock screen"
+        iconName: "lock"
+        onTriggered: DBusLomiriSessionService.PromptLock();
+    }
+    Action {
+        id: powerDialogAction
+        name: "powerDialog"
+        text: "Power Dialog"
+        iconName: "system-devices-panel"
+        onTriggered: dialogs.showPowerDialog()
+    }
+    Action {
+        id: appScreenshotAction
+        enabled: stage.focusedAppId ? true : false
+        name: "appscreenshot"
+        text: "App Screenshot"
+        iconName: "stock_application"
+        onTriggered: stage.screenShotApp()
+    }
+    Action {
+        id: screenshotAction
+        name: "screenshot"
+        text: "Screenshot"
+        iconName: "camera-app-symbolic"
+        onTriggered: delayScreenshot.restart()
+    }
+    Timer {
+        id: delayScreenshot
+        interval: 100
+        onTriggered: itemGrabber.capture(shell);
+    }
+    Action {
+        id: closeAppAction
+        enabled: stage.focusedAppId ? true : false
+        name: "closeapp"
+        text: "Close App"
+        iconName: "close"
+        onTriggered: stage.closeCurrentApp()
+    }
+    Action {
+        id: appSuspensionAction
+        enabled: stage.focusedAppId && !shell.isWindowedMode ? true : false
+        name: "appsuspension"
+        text: "App Suspension"
+        iconName: "system-suspend"
+        onTriggered: {
+            if (shell.focusedAppIsExemptFromLifecycle) {
+                shell.removeExemptFromLifecycle(shell.focusedAppId)
+            } else {
+                shell.exemptFromLifecycle(shell.focusedAppId)
+            }
+        }
+    }
+    Action {
+        id: showDesktopAction
+        name: "showdesktop"
+        text: "Show Desktop"
+        iconName: "preferences-desktop-launcher-symbolic"
+        onTriggered: stage.showDesktop()
+    }
+    Action {
+        id: rotateAction
+        name: "rotate"
+        text: "Rotate Screen"
+        iconName: "view-rotate"
+        onTriggered: toggleRotation()
+    }
+    Action {
+        id: lomiriPlusAction
+        name: "lomiriplus"
+        text: "LomiriPlus Settings"
+        iconName: "properties"
+        onTriggered: showSettings()
+    }
+    // ENH139 - End
 
     // ENH056 - Quick toggles
     function findFromArray(_arr, _itemProp, _itemValue) {
@@ -500,6 +624,13 @@ StyledItem {
         property alias disableRightEdgeMousePush: settingsObj.disableRightEdgeMousePush
         property alias externalDisplayBehavior: settingsObj.externalDisplayBehavior
         property alias enablePullDownGesture: settingsObj.enablePullDownGesture
+        property alias pullDownHeight: settingsObj.pullDownHeight
+        property alias enableColorOverlay: settingsObj.enableColorOverlay
+        property alias overlayColor: settingsObj.overlayColor
+        property alias colorOverlayOpacity: settingsObj.colorOverlayOpacity
+        property alias enableShowDesktop: settingsObj.enableShowDesktop
+        property alias enableCustomBlurRadius: settingsObj.enableCustomBlurRadius
+        property alias customBlurRadius: settingsObj.customBlurRadius
 
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
@@ -531,11 +662,17 @@ StyledItem {
         property alias showBottomHintDrawer: settingsObj.showBottomHintDrawer
         property alias enableDrawerBottomSwipe: settingsObj.enableDrawerBottomSwipe
         property alias resetAppDrawerWhenClosed: settingsObj.resetAppDrawerWhenClosed
+        property alias enableDirectAppInLauncher: settingsObj.enableDirectAppInLauncher
+        property alias fasterFlickDrawer: settingsObj.fasterFlickDrawer
+        property alias dimWhenLauncherShow: settingsObj.dimWhenLauncherShow
+        property alias drawerIconSizeMultiplier: settingsObj.drawerIconSizeMultiplier
+        property alias showLauncherAtDesktop: settingsObj.showLauncherAtDesktop
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
         property alias drawerDockType: settingsObj.drawerDockType
         property alias drawerDockApps: settingsObj.drawerDockApps
+        property alias drawerDockHideLabels: settingsObj.drawerDockHideLabels
         
         // Indicators/Top Panel
         property alias indicatorBlur: settingsObj.indicatorBlur
@@ -573,6 +710,7 @@ StyledItem {
         property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
         property alias hideTimeIndicatorAlarmIcon: settingsObj.hideTimeIndicatorAlarmIcon
         property alias transparentTopBarOnSpread: settingsObj.transparentTopBarOnSpread
+        property alias enablePanelHeaderExpand: settingsObj.enablePanelHeaderExpand
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -580,6 +718,15 @@ StyledItem {
         property alias gestureMediaControls: settingsObj.gestureMediaControls
         property alias autoCollapseQuickToggles: settingsObj.autoCollapseQuickToggles
         property alias quickTogglesCollapsedRowCount: settingsObj.quickTogglesCollapsedRowCount
+
+        // Direct Actions
+        property alias enableDirectActions: settingsObj.enableDirectActions
+        property alias directActionList: settingsObj.directActionList
+        property alias directActionsSwipeAreaHeight: settingsObj.directActionsSwipeAreaHeight
+        property alias directActionsMaxWidth: settingsObj.directActionsMaxWidth
+        property alias directActionsMaxColumn: settingsObj.directActionsMaxColumn
+        property alias directActionsSideMargins: settingsObj.directActionsSideMargins
+        property alias directActionsEnableHint: settingsObj.directActionsEnableHint
 
         // Lockscreen
         property alias useCustomLockscreen: settingsObj.useCustomLockscreen
@@ -617,6 +764,12 @@ StyledItem {
         property alias enableCDPlayerDisco: settingsObj.enableCDPlayerDisco
         property alias dynamicCoveSelectionDelay: settingsObj.dynamicCoveSelectionDelay
         property alias dcBlurredAlbumArt: settingsObj.dcBlurredAlbumArt
+        property alias dcCDPlayerSimpleMode: settingsObj.dcCDPlayerSimpleMode
+        property alias dcCDPlayerOpacity: settingsObj.dcCDPlayerOpacity
+
+        // Hot Corners
+        property alias enableHotCorners: settingsObj.enableHotCorners
+        property alias enableHotCornersVisualFeedback: settingsObj.enableHotCornersVisualFeedback
         
         // Stopwatch Data
         property alias dcStopwatchTimeMS: settingsObj.dcStopwatchTimeMS
@@ -641,11 +794,15 @@ StyledItem {
                 shell.haptics.enabled = Qt.binding( function() { return enableHaptics } )
 
                 // Add new Quick Toggles in don't exists yet
-                let _foundItem = shell.findFromArray(quickToggles, "type", 17)
-                if (!_foundItem) {
-                    let _tempArr = settingsObj.quickToggles.slice()
-                    _tempArr.push({"type": 17, "enabled": false})
-                    settingsObj.quickToggles = _tempArr.slice()
+                let _newItems = [17, 18, 19]
+                for (let i = 0; i < _newItems.length; i++) {
+                    let _newItem = _newItems[i]
+                    let _foundItem = shell.findFromArray(quickToggles, "type", _newItem)
+                    if (!_foundItem) {
+                        let _tempArr = settingsObj.quickToggles.slice()
+                        _tempArr.push({"type": _newItem, "enabled": false})
+                        settingsObj.quickToggles = _tempArr.slice()
+                    }
                 }
             }
             // ENH056 - End
@@ -731,6 +888,8 @@ StyledItem {
                 , {"type": 5, "enabled": false}
                 , {"type": 3, "enabled": false}
                 , {"type": 10, "enabled": false}
+                , {"type": 18, "enabled": false}
+                , {"type": 19, "enabled": false}
                 , {"type": 15, "enabled": false}
                 , {"type": 16, "enabled": false}
             ]
@@ -841,6 +1000,42 @@ StyledItem {
             property bool dcBlurredAlbumArt: false
             property bool transparentTopBarOnSpread: false
             property int quickTogglesCollapsedRowCount: 1
+            property bool enableDirectAppInLauncher: false
+            property bool fasterFlickDrawer: false
+            property bool enableColorOverlay: false
+            property string overlayColor: "red"
+            property real colorOverlayOpacity: 0.1
+            property real pullDownHeight: 3 // In inches
+            property bool drawerDockHideLabels: false
+            property bool dimWhenLauncherShow: false
+            property real drawerIconSizeMultiplier: 1
+            property bool enableHotCorners: false
+            property bool enableHotCornersVisualFeedback: true
+            property bool dcCDPlayerSimpleMode: false
+            property real dcCDPlayerOpacity: 1
+            property bool enablePanelHeaderExpand: true
+            property bool showLauncherAtDesktop: true
+            property bool enableShowDesktop: false
+            property bool enableCustomBlurRadius: false
+            property real customBlurRadius: 4 // in GU
+            property bool enableDirectActions: false
+            property var directActionList: [
+                { actionId: "ayatana-indicator-messages", type: LPDirectActions.Type.Indicator }
+                , { actionId: "ayatana-indicator-session", type: LPDirectActions.Type.Indicator }
+                , { actionId: "ayatana-indicator-datetime", type: LPDirectActions.Type.Indicator }
+                , { actionId: "indicator-network", type: LPDirectActions.Type.Indicator }
+                , { actionId: "battery", type: LPDirectActions.Type.Settings }
+                , { actionId: "flashlight", type: LPDirectActions.Type.Toggle }
+                , { actionId: "screenshot", type: LPDirectActions.Type.Custom }
+                , { actionId: "lockscreen", type: LPDirectActions.Type.Custom }
+                , { actionId: "powerDialog", type: LPDirectActions.Type.Custom }
+                , { actionId: "lomiriplus", type: LPDirectActions.Type.Custom }
+            ]
+            property real directActionsSwipeAreaHeight: 0.3 // In inches
+            property real directActionsMaxWidth: 3 // In inches
+            property int directActionsMaxColumn: 0 // 0 = not limited
+            property real directActionsSideMargins: 0.2 // In inches
+            property bool directActionsEnableHint: true
         }
     }
 
@@ -902,6 +1097,8 @@ StyledItem {
                 id: colorPickerContainer
 
                 property alias colorValue: colorPicker.colorValue
+                opacity: dragButton.dragActive ? 0.4 : 1
+                Behavior on opacity { LomiriNumberAnimation {} }
 
                 function setColor(colorToSet) {
                     colorPicker.setColorValue(colorToSet)
@@ -1095,6 +1292,8 @@ StyledItem {
                 color: Suru.backgroundColor
                 x: shell.width / 2 - width / 2
                 y: shell.height - height
+                opacity: settingsDragButton.dragActive ? 0.4 : 1
+                Behavior on opacity { LomiriNumberAnimation {} }
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -1230,6 +1429,11 @@ StyledItem {
         id: generalPage
         
         LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Key Shortcuts"
+                onClicked: settingsLoader.item.stack.push(keyShortcutsPage, {"title": text})
+            }
             LPSettingsCheckBox {
                 id: onlyShowLomiriSettingsWhenUnlocked
                 Layout.fillWidth: true
@@ -1262,6 +1466,50 @@ StyledItem {
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableCustomBlurRadius
+                Layout.fillWidth: true
+                text: "Enable custom blur radius"
+                onCheckedChanged: shell.settings.enableCustomBlurRadius = checked
+                Binding {
+                    target: enableCustomBlurRadius
+                    property: "checked"
+                    value: shell.settings.enableCustomBlurRadius
+                }
+            }
+            LPSettingsSlider {
+                id: customBlurRadius
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableCustomBlurRadius
+                title: "Blur Radius (Grid Unit)"
+                minimumValue: 0.1
+                maximumValue: 10
+                stepSize: 0.1
+                resetValue: 4
+                live: false
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                unitsLabel: "gu"
+                onValueChanged: shell.settings.customBlurRadius = value
+                Binding {
+                    target: customBlurRadius
+                    property: "value"
+                    value: shell.settings.customBlurRadius
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableShowDesktop
+                Layout.fillWidth: true
+                text: "Show desktop in App Spread (Swipe Up)"
+                onCheckedChanged: shell.settings.enableShowDesktop = checked
+                Binding {
+                    target: enableShowDesktop
+                    property: "checked"
+                    value: shell.settings.enableShowDesktop
+                }
             }
             LPSettingsCheckBox {
                 id: enableSlimVolume
@@ -1296,6 +1544,17 @@ StyledItem {
                     value: shell.settings.disableRightEdgeMousePush
                 }
             }
+            LPSettingsCheckBox {
+                id: forceEnableWorkspace
+                Layout.fillWidth: true
+                text: "Enable workspaces in Staged mode"
+                onCheckedChanged: lomiriSettings.forceEnableWorkspace = checked
+                Binding {
+                    target: forceEnableWorkspace
+                    property: "checked"
+                    value: lomiriSettings.forceEnableWorkspace
+                }
+            }
             OptionSelector {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
@@ -1308,11 +1567,6 @@ StyledItem {
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.externalDisplayBehavior
                 onSelectedIndexChanged: shell.settings.externalDisplayBehavior = selectedIndex
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Key Shortcuts"
-                onClicked: settingsLoader.item.stack.push(keyShortcutsPage, {"title": text})
             }
         }
     }
@@ -1775,6 +2029,17 @@ StyledItem {
                         }
                     }
                     LPSettingsCheckBox {
+                        id: enablePanelHeaderExpand
+                        Layout.fillWidth: true
+                        text: "Indicator panel header expands"
+                        onCheckedChanged: shell.settings.enablePanelHeaderExpand = checked
+                        Binding {
+                            target: enablePanelHeaderExpand
+                            property: "checked"
+                            value: shell.settings.enablePanelHeaderExpand
+                        }
+                    }
+                    LPSettingsCheckBox {
                         id: transparentTopBarOnSpread
                         Layout.fillWidth: true
                         text: "Top bar transparent in App Spread"
@@ -2210,6 +2475,17 @@ StyledItem {
                         }
                     }
                     LPSettingsCheckBox {
+                        id: fasterFlickDrawer
+                        Layout.fillWidth: true
+                        text: "Faster flick velocity"
+                        onCheckedChanged: shell.settings.fasterFlickDrawer = checked
+                        Binding {
+                            target: fasterFlickDrawer
+                            property: "checked"
+                            value: shell.settings.fasterFlickDrawer
+                        }
+                    }
+                    LPSettingsCheckBox {
                         id: resetAppDrawerWhenClosed
                         Layout.fillWidth: true
                         text: "Reset view upon opening"
@@ -2275,6 +2551,27 @@ StyledItem {
                             value: shell.settings.bigDrawerSearchField
                         }
                     }
+                    LPSettingsSlider {
+                        id: drawerIconSizeMultiplier
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        title: "Icon size multiplier"
+                        minimumValue: 0.5
+                        maximumValue: 2
+                        stepSize: 0.05
+                        resetValue: 1
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: false
+                        enableFineControls: true
+                        roundValue: true
+                        onValueChanged: shell.settings.drawerIconSizeMultiplier = value
+                        Binding {
+                            target: drawerIconSizeMultiplier
+                            property: "value"
+                            value: shell.settings.drawerIconSizeMultiplier
+                        }
+                    }
                 }
             }
             Component {
@@ -2308,6 +2605,28 @@ StyledItem {
                 id: launcherPage
                 
                 LPSettingsPage {
+                    LPSettingsCheckBox {
+                        id: showLauncherAtDesktop
+                        Layout.fillWidth: true
+                        text: "Show Launcher when no app is running"
+                        onCheckedChanged: shell.settings.showLauncherAtDesktop = checked
+                        Binding {
+                            target: showLauncherAtDesktop
+                            property: "checked"
+                            value: shell.settings.showLauncherAtDesktop
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: dimWhenLauncherShow
+                        Layout.fillWidth: true
+                        text: "Dim screen when fully open"
+                        onCheckedChanged: shell.settings.dimWhenLauncherShow = checked
+                        Binding {
+                            target: dimWhenLauncherShow
+                            property: "checked"
+                            value: shell.settings.dimWhenLauncherShow
+                        }
+                    }
                     LPSettingsCheckBox {
                         id: roundedBFB
                         Layout.fillWidth: true
@@ -2452,13 +2771,28 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Direct Actions"
+                onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Indicator Open Gesture"
                 onClicked: settingsLoader.item.stack.push(indicatorOpenPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Launcher Direct Select"
+                onClicked: settingsLoader.item.stack.push(directSelectPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "App Drawer Dock"
                 onClicked: settingsLoader.item.stack.push(drawerDockPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Color Overlay"
+                onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -2469,6 +2803,11 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Abot Kamay"
                 onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Hot Corners"
+                onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
             }
             LPSettingsSwitch {
                 id: enableSideStage
@@ -2512,6 +2851,72 @@ StyledItem {
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+        }
+    }
+    Component {
+        id: colorOverlayPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Overlays a color on the whole shell\n"
+                + "Cheap work around to simulate night mode, redshift, or color temperature\n"
+                + "Also available from quick toggles"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: enableColorOverlay
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableColorOverlay = checked
+                Binding {
+                    target: enableColorOverlay
+                    property: "checked"
+                    value: shell.settings.enableColorOverlay
+                }
+            }
+            LPColorField {
+                id: overlayColor
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableColorOverlay
+                onTextChanged: shell.settings.overlayColor = text
+                onColorPicker: colorPickerLoader.open(overlayColor)
+                Binding {
+                    target: overlayColor
+                    property: "text"
+                    value: shell.settings.overlayColor
+                }
+            }
+            LPSettingsSlider {
+                id: colorOverlayOpacity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableColorOverlay
+                title: "Opacity"
+                minimumValue: 0.05
+                maximumValue: 0.6
+                stepSize: 0.05
+                resetValue: 0.1
+                live: true
+                percentageValue: true
+                valueIsPercentage: false
+                roundValue: true
+                onValueChanged: shell.settings.colorOverlayOpacity = value
+                Binding {
+                    target: colorOverlayOpacity
+                    property: "value"
+                    value: shell.settings.colorOverlayOpacity
+                }
             }
         }
     }
@@ -2630,6 +3035,96 @@ StyledItem {
                 selectedIndex: shell.settings.drawerDockType
                 onSelectedIndexChanged: shell.settings.drawerDockType = selectedIndex
             }
+            LPSettingsCheckBox {
+                id: drawerDockHideLabels
+                Layout.fillWidth: true
+                text: "Hide app labels"
+                visible: shell.settings.enableDrawerDock
+                onCheckedChanged: shell.settings.drawerDockHideLabels = checked
+                Binding {
+                    target: drawerDockHideLabels
+                    property: "checked"
+                    value: shell.settings.drawerDockHideLabels
+                }
+            }
+        }
+    }
+    Component {
+        id: directSelectPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Select an app from the Launcher by simply swiping, no need for swipe and tap \n"
+                + " • While swiping to reveal the Launcher/Drawer, swipe vertically to select between apps in the Launcher\n"
+                + " • Activate the selection by lifting the swipe"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: enableDirectAppInLauncher
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableDirectAppInLauncher = checked
+                Binding {
+                    target: enableDirectAppInLauncher
+                    property: "checked"
+                    value: shell.settings.enableDirectAppInLauncher
+                }
+            }
+        }
+    }
+    Component {
+        id: hotcornersPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Disables the left and right edge mouse push and instead enable mouse push functions in 4 corners \n"
+                + " • Top Left: Open App Drawer\n"
+                + " • Bottom Left: Show desktop\n"
+                + " • Top Right: Open Indicator panels\n"
+                + " • Bottom Right: Open App Spread"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: enableHotCorners
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableHotCorners = checked
+                Binding {
+                    target: enableHotCorners
+                    property: "checked"
+                    value: shell.settings.enableHotCorners
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableHotCornersVisualFeedback
+                Layout.fillWidth: true
+                text: "Show visual feedback when triggering"
+                visible: shell.settings.enableHotCorners
+                onCheckedChanged: shell.settings.enableHotCornersVisualFeedback = checked
+                Binding {
+                    target: enableHotCornersVisualFeedback
+                    property: "checked"
+                    value: shell.settings.enableHotCornersVisualFeedback
+                }
+            }
         }
     }
     Component {
@@ -2640,7 +3135,8 @@ StyledItem {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "Swipe down from the upper half of the leftmost or rightmost edge to pull down the shell to a more reachable state."
-                + " Swipe area is the same width as the swipe area for the side gestures.\n\n"
+                + " Swipe area is the same width as the swipe area for the side gestures."
+                + " It gets disabled when the shell height is not far from the set height\n\n"
                 + " • Pull Down: Swipe down and release\n"
                 + " • Reset: Swipe up and release"
                 wrapMode: Text.WordWrap
@@ -2661,6 +3157,444 @@ StyledItem {
                     target: enablePullDownGesture
                     property: "checked"
                     value: shell.settings.enablePullDownGesture
+                }
+            }
+            LPSettingsSlider {
+                id: pullDownHeight
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enablePullDownGesture
+                title: "Target Height"
+                minimumValue: 2
+                maximumValue: 5
+                stepSize: 0.25
+                resetValue: 3
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                unitsLabel: "inch"
+                onValueChanged: shell.settings.pullDownHeight = value
+                Binding {
+                    target: pullDownHeight
+                    property: "value"
+                    value: shell.settings.pullDownHeight
+                }
+            }
+        }
+    }
+    Component {
+        id: directActionsPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Swipe from the very bottom of left/right edge to open a floating menu that contains customizable actions\n"
+                + "Lifting the swipe will trigger the currently selected action"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: enableDirectActions
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableDirectActions = checked
+                Binding {
+                    target: enableDirectActions
+                    property: "checked"
+                    value: shell.settings.enableDirectActions
+                }
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Actions List"
+                onClicked: settingsLoader.item.stack.push(directActionsListPage, {"title": text})
+            }
+            LPSettingsCheckBox {
+                id: directActionsEnableHint
+                Layout.fillWidth: true
+                text: "Show visual hint"
+                visible: shell.settings.enableDirectActions
+                onCheckedChanged: shell.settings.directActionsEnableHint = checked
+                Binding {
+                    target: directActionsEnableHint
+                    property: "checked"
+                    value: shell.settings.directActionsEnableHint
+                }
+            }
+            LPSettingsSlider {
+                id: directActionsSwipeAreaHeight
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                title: "Swipe Area Height"
+                minimumValue: 0.1
+                maximumValue: 1
+                stepSize: 0.1
+                resetValue: 0.3
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "inch"
+                enableFineControls: true
+                onValueChanged: shell.settings.directActionsSwipeAreaHeight = value
+                Binding {
+                    target: directActionsSwipeAreaHeight
+                    property: "value"
+                    value: shell.settings.directActionsSwipeAreaHeight
+                }
+            }
+            LPSettingsSlider {
+                id: directActionsMaxWidth
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                title: "Max Width"
+                minimumValue: 1
+                maximumValue: 5
+                stepSize: 0.1
+                resetValue: 3
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "inch"
+                enableFineControls: true
+                onValueChanged: shell.settings.directActionsMaxWidth = value
+                Binding {
+                    target: directActionsMaxWidth
+                    property: "value"
+                    value: shell.settings.directActionsMaxWidth
+                }
+            }
+            LPSettingsSlider {
+                id: directActionsSideMargins
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                title: "Side margins"
+                minimumValue: 0.05
+                maximumValue: 2
+                stepSize: 0.05
+                resetValue: 0.2
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 2
+                unitsLabel: "inch"
+                enableFineControls: true
+                onValueChanged: shell.settings.directActionsSideMargins = value
+                Binding {
+                    target: directActionsSideMargins
+                    property: "value"
+                    value: shell.settings.directActionsSideMargins
+                }
+            }
+            LPSettingsSlider {
+                id: directActionsMaxColumn
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                title: "Max Column Count"
+                minimumValue: 0
+                maximumValue: 20
+                stepSize: 1
+                resetValue: 0
+                live: false
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 0
+                enableFineControls: true
+                onValueChanged: shell.settings.directActionsMaxColumn = value
+                Binding {
+                    target: directActionsMaxColumn
+                    property: "value"
+                    value: shell.settings.directActionsMaxColumn
+                }
+            }
+        }
+    }
+    Component {
+        id: directActionsListPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: units.gu(2)
+                Layout.leftMargin: units.gu(2)
+                text: "Action Types:\n\n"
+                + " • Indicator: Opens a specific indicator\n"
+                + " • App: Opens a specific app\n"
+                + " • Settings: Opens the settings app with a specific page\n"
+                + " • Toggle: Toggles an item from the Quick Toggles\n"
+                + " • Custom: Custom actions that performs specific actions"
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: "Add Action"
+                color: theme.palette.normal.positive
+                onClicked: PopupUtils.open(addDirectActionDialog)
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: directActionsListView.ViewItems.dragMode ? "Exit Rearrange" : "Rearrange"
+                onClicked: directActionsListView.ViewItems.dragMode = !directActionsListView.ViewItems.dragMode
+            }
+            ListView {
+                id: directActionsListView
+
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentHeight
+
+                interactive: false
+                model: shell.settings.directActionList
+
+                ViewItems.dragMode: false
+                ViewItems.selectMode: false
+                ViewItems.onDragUpdated: {
+                    if (event.status == ListItemDrag.Started) {
+                        if (model[event.from] == "Immutable")
+                            event.accept = false;
+                        return;
+                    }
+                    if (model[event.to] == "Immutable") {
+                        event.accept = false;
+                        return;
+                    }
+                    // No instantaneous updates
+                    if (event.status == ListItemDrag.Moving) {
+                        event.accept = false;
+                        return;
+                    }
+                    if (event.status == ListItemDrag.Dropped) {
+                        var fromItem = model[event.from];
+                        var list = model;
+                        list.splice(event.from, 1);
+                        list.splice(event.to, 0, fromItem);
+                        shell.settings.directActionList = list;
+                    }
+                }
+                delegate: ListItem {
+                    id: listItem
+
+                    property string actionId: modelData.actionId
+                    property int actionType: modelData.type
+                    readonly property var foundData: {
+                        let _found
+
+                        switch(actionType) {
+                            case LPDirectActions.Type.Indicator:
+                                _found = shell.indicatorsModel.find((element) => element.identifier == actionId);
+                                break
+                            case LPDirectActions.Type.App:
+                                _found = !shell.appModel.refreshing ? shell.getAppData(actionId) : null;
+                                break
+                            case LPDirectActions.Type.Settings:
+                                _found = shell.settingsPages.find((element) => element.identifier == actionId);
+                                break
+                            case LPDirectActions.Type.Toggle:
+                                _found = shell.quickToggleItems.find((element) => element.identifier == actionId);
+                                break
+                            case LPDirectActions.Type.Custom:
+                                _found = shell.customDirectActions.find((element) => element.name == actionId);
+                                break
+
+                            return _found
+                        }
+                    }
+                    readonly property string itemTitle: {
+                        if (foundData) {
+                            switch(actionType) {
+                                case LPDirectActions.Type.Indicator:
+                                    return foundData.name
+                                case LPDirectActions.Type.App:
+                                    return foundData.name
+                                case LPDirectActions.Type.Settings:
+                                    return foundData.name
+                                case LPDirectActions.Type.Toggle:
+                                    return foundData.text
+                                case LPDirectActions.Type.Custom:
+                                    return foundData.text
+                            }
+                        }
+
+                        return "Unknown"
+                    }
+                    readonly property string itemTypeLabel: {
+                        switch(actionType) {
+                            case LPDirectActions.Type.Indicator:
+                                return "Indicator"
+                            case LPDirectActions.Type.App:
+                                return "App"
+                            case LPDirectActions.Type.Settings:
+                                return "Settings"
+                            case LPDirectActions.Type.Toggle:
+                                return "Toggle"
+                            case LPDirectActions.Type.Custom:
+                                return "Custom"
+                        }
+
+                        return "Unknown"
+                    }
+
+                    height: layout.height + (divider.visible ? divider.height : 0)
+                    color: dragging ? theme.palette.selected.base : "transparent"
+
+                    ListItemLayout {
+                        id: layout
+                        title.text: "[%1] %2".arg(listItem.itemTypeLabel).arg(listItem.itemTitle)
+                        title.wrapMode: Text.WordWrap
+                    }
+                    
+                    leadingActions: ListItemActions {
+                        actions: [
+                            Action {
+                                iconName: "delete"
+                                onTriggered: {
+                                    let _arrNewValues = shell.settings.directActionList.slice()
+                                    let _indexToDelete = _arrNewValues.findIndex((element) => (element.actionId == listItem.actionId && element.type == listItem.actionType));
+                                    _arrNewValues.splice(_indexToDelete, 1)
+                                    shell.settings.directActionList = _arrNewValues
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                Component {
+                    id: addDirectActionDialog
+                    Dialog {
+                        id: dialogue
+
+                        property string actionId: {
+                            if (actionType == LPDirectActions.Type.App) {
+                                let _modelIndex = shell.appModel.index(actionIdSelector.selectedIndex, 0)
+                                let _appId = shell.appModel.data(_modelIndex, 0)
+                                return _appId ? _appId : ""
+                            }
+
+                            let _selectedItem = actionIdSelector.model[actionIdSelector.selectedIndex]
+                            if (actionType == LPDirectActions.Type.Custom) {
+                                return _selectedItem && _selectedItem.name ? _selectedItem.name : ""
+                            }
+
+                            return _selectedItem && _selectedItem.identifier ? _selectedItem.identifier : ""
+                        }
+                        property int actionType: actionTypeSelector.model[actionTypeSelector.selectedIndex].value
+
+                         OptionSelector {
+                             id: actionTypeSelector
+
+                            text: i18n.tr("Action Type")
+                            model: [
+                                { "name": "Indicator", "value": LPDirectActions.Type.Indicator },
+                                { "name": "App", "value": LPDirectActions.Type.App },
+                                { "name": "Settings", "value": LPDirectActions.Type.Settings },
+                                { "name": "Toggle", "value": LPDirectActions.Type.Toggle },
+                                { "name": "Custom", "value": LPDirectActions.Type.Custom },
+                            ]
+                            containerHeight: itemHeight * 6
+                            selectedIndex: LPDirectActions.Type.Indicator
+                            delegate: selectorDelegate
+                        }
+                        Component {
+                            id: selectorDelegate
+                            OptionSelectorDelegate { text: modelData.name }
+                        }
+                         OptionSelector {
+                             id: actionIdSelector
+
+                            text: i18n.tr("Action")
+                            model: {
+                                let _model
+
+                                switch(dialogue.actionType) {
+                                    case LPDirectActions.Type.Indicator:
+                                        _model = shell.indicatorsModel;
+                                        break
+                                    case LPDirectActions.Type.App:
+                                        _model = shell.appModel;
+                                        break
+                                    case LPDirectActions.Type.Settings:
+                                        _model = shell.settingsPages;
+                                        break
+                                    case LPDirectActions.Type.Toggle:
+                                        _model = shell.quickToggleItems;
+                                        break
+                                    case LPDirectActions.Type.Custom:
+                                        _model = shell.customDirectActions;
+                                        break
+
+                                    return _model
+                                }
+                            }
+                            containerHeight: itemHeight * 6
+                            selectedIndex: 0
+                            delegate: actionSselectorDelegate
+                        }
+                        Component {
+                            id: actionSselectorDelegate
+                            OptionSelectorDelegate {
+                                text: {
+                                    switch(dialogue.actionType) {
+                                        case LPDirectActions.Type.Indicator:
+                                            return modelData.name
+                                        case LPDirectActions.Type.App:
+                                            return model.name
+                                        case LPDirectActions.Type.Settings:
+                                            return modelData.name
+                                        case LPDirectActions.Type.Toggle:
+                                            return modelData.text
+                                        case LPDirectActions.Type.Custom:
+                                            return modelData.text
+                                        default:
+                                            return "unknown"
+                                    }
+                                }
+                            }
+                        }
+                        Button {
+                             text: "Add"
+                             color: theme.palette.normal.positive
+                             onClicked: {
+                                 let _arrNewValues = shell.settings.directActionList.slice()
+                                let _properties = { actionId: dialogue.actionId, type: dialogue.actionType }
+                                _arrNewValues.push(_properties)
+                                shell.settings.directActionList = _arrNewValues
+                                PopupUtils.close(dialogue)
+                             }
+                         }
+                         Button {
+                             text: "Cancel"
+                             onClicked: PopupUtils.close(dialogue)
+                         }
+                     }
                 }
             }
         }
@@ -2840,6 +3774,39 @@ StyledItem {
                     target: dcShowClockWhenLockscreen
                     property: "checked"
                     value: shell.settings.dcShowClockWhenLockscreen
+                }
+            }
+            LPSettingsCheckBox {
+                id: dcCDPlayerSimpleMode
+                Layout.fillWidth: true
+                text: "Simple Mode CD Player"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.dcCDPlayerSimpleMode = checked
+                Binding {
+                    target: dcCDPlayerSimpleMode
+                    property: "checked"
+                    value: shell.settings.dcCDPlayerSimpleMode
+                }
+            }
+            LPSettingsSlider {
+                id: dcCDPlayerOpacity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDynamicCove
+                title: "CD Player Opacity"
+                minimumValue: 0.1
+                maximumValue: 1
+                stepSize: 0.1
+                resetValue: 1
+                live: false
+                percentageValue: true
+                roundValue: true
+                enableFineControls: true
+                onValueChanged: shell.settings.dcCDPlayerOpacity = value
+                Binding {
+                    target: dcCDPlayerOpacity
+                    property: "value"
+                    value: shell.settings.dcCDPlayerOpacity
                 }
             }
             LPSettingsCheckBox {
@@ -3737,6 +4704,9 @@ StyledItem {
             startApp(appId);
         }
         stage.focus = true;
+        // ENH135 - Show Desktop
+        stage.disableShowDesktop()
+        // ENH135 - End
     }
 
     function activateURL(url) {
@@ -3750,7 +4720,6 @@ StyledItem {
             ApplicationManager.startApplication(appId);
         }
         ApplicationManager.requestFocusApplication(appId);
-        stage.closeSpread();
     }
 
     function startLockedApp(app) {
@@ -3845,8 +4814,14 @@ StyledItem {
         // ENH048 - End
                                     : deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin + panel.minimizedPanelHeight
                                                     : panel.minimizedPanelHeight// in portrait, there's a top margin even in fullscreen mode
-        anchors.leftMargin: (launcher.lockedVisible ? launcher.panelWidth : 0) + shell.shellLeftMargin
-        anchors.rightMargin: shell.shellRightMargin
+        // `x` (= anchors.leftMargin) property is used for the left margin
+        // and `width` for the available width in Stage
+        // Because of this, we can't add shellLeftMargin to the leftMargin as it will be calculated twice in Stage
+        // when availableDesktopAreaItem.x is used
+        // And because of that, the width of this item doesn't correctly represent the actual available width for apps, etc
+        // Use rightMargin to correct the calculated width for use in Stage
+        anchors.leftMargin: launcher.lockedByUser && !greeter.locked && launcher.lockAllowed ? launcher.panelWidth : 0
+        anchors.rightMargin: shell.shellLeftMargin > 0 ? shell.shellRightMargin + shell.shellLeftMargin : shell.shellRightMargin
         anchors.bottomMargin: shell.shellBottomMargin
         // ENH002 - End
     }
@@ -3864,18 +4839,21 @@ StyledItem {
     Item {
         id: stages
         objectName: "stages"
-        width: parent.width
-        height: parent.height
+        // ENH002 - Notch/Punch hole fix
+        // width: parent.width
+        // height: parent.height
+        anchors {
+            fill: parent
+            leftMargin: shell.shellLeftMargin
+            rightMargin: shell.shellRightMargin
+            bottomMargin: shell.shellBottomMargin
+        }
+        // ENH002 - End
 
         Stage {
             id: stage
             objectName: "stage"
             anchors.fill: parent
-            // ENH002 - Notch/Punch hole fix
-            anchors.leftMargin: shell.shellLeftMargin
-            anchors.rightMargin: shell.shellRightMargin
-            anchors.bottomMargin: shell.shellBottomMargin
-            // ENH002 - End
             // ENH032 - Infographics Outer Wilds
             enableOW: lp_settings.enableOW
             alternateOW: lp_settings.ow_theme == 0
@@ -3970,11 +4948,29 @@ StyledItem {
         }
     }
 
+    // ENH139 - System Direct Actions
+    Loader {
+        active: shell.settings.enableDirectActions
+        asynchronous: true
+        anchors.fill: parent
+        z: settingsLoader.z + 1
+        sourceComponent: LPDirectActions {
+            enabled: !shell.immersiveMode
+            swipeAreaHeight: shell.convertFromInch(shell.settings.directActionsSwipeAreaHeight)
+            swipeAreaWidth: shell.edgeSize
+            maximumWidth: shell.convertFromInch(shell.settings.directActionsMaxWidth)
+            sideMargins: shell.convertFromInch(shell.settings.directActionsSideMargins)
+            maximumColumn: shell.settings.directActionsMaxColumn
+            enableVisualHint: shell.settings.directActionsEnableHint
+        }
+    }
+    // ENH139 - End
+
     // ENH028 - Open indicators via gesture
     Loader {
         id: indicatorSwipeLoader
 
-        active: shell.settings.indicatorGesture
+        active: shell.settings.indicatorGesture && !shell.settings.enableDirectActions
         asynchronous: true
         height: shell.convertFromInch(0.3) // 0.3 inch
         width: shell.edgeSize
@@ -4061,6 +5057,7 @@ StyledItem {
         property int enabledCount: 0
 
         active: shell.settings.indicatorGesture && shell.settings.specificIndicatorGesture
+                    && !shell.settings.enableDirectActions
         asynchronous: true
         z: overlay.z + 1
         anchors {
@@ -4149,7 +5146,25 @@ StyledItem {
                     scale: highlighted ? 1.3 : 1
                     Behavior on scale { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
 
-                    onHighlightedChanged: if (highlighted) shell.haptics.playSubtle()
+                    onHighlightedChanged: {
+                        if (highlighted) {
+                            delayHaptics.restart()
+                        } else {
+                            delayHaptics.stop()
+                        }
+                    }
+
+                    Timer {
+                        id: delayHaptics
+
+                        running: false
+                        interval: 100
+                        onTriggered: {
+                            if (indicatorItem.highlighted) {
+                                shell.haptics.playSubtle()
+                            }
+                        }
+                    }
 
                     Rectangle {
                         id: bgRec
@@ -4278,10 +5293,8 @@ StyledItem {
             enabled: panel.indicators.fullyClosed // hides OSK when panel is open
             hides: [launcher, panel.indicators, panel.applicationMenus]
             tabletMode: shell.usageScenario != "phone"
-            // ENH108 - Temporary GreeterView merge
             usageMode: shell.usageScenario
             orientation: shell.orientation
-            // ENH108 - End
             forcedUnlock: wizard.active || shell.mode === "full-shell"
             background: wallpaperResolver.background
             backgroundSourceSize: shell.largestScreenDimension
@@ -4444,6 +5457,10 @@ StyledItem {
                                     && (stage.spreadShown || stage.rightEdgeDragProgress > 0 || stage.rightEdgePushProgress > 0)
             topBarOpacityOverride: stage.spreadShown ? 0 : 1 - (stage.rightEdgeDragProgress * 2)
             // ENH122 - End
+            // ENH046 - Lomiri Plus Settings
+            topPanelMargin: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
+                                        ? shell.shellMargin : 0
+            // ENH046 - End
 
             indicators {
                 hides: [launcher]
@@ -4511,7 +5528,10 @@ StyledItem {
             panelWidth: units.gu(settings.launcherWidth)
             // ENH014 - Always hide launcher in lock screen
             // lockedVisible: (lockedByUser || shell.atDesktop) && lockAllowed
-            lockedVisible: ((lockedByUser && !greeter.locked) || shell.atDesktop) && lockAllowed
+            // ENH134 - Option to hide Launcher in desktop
+            //lockedVisible: ((lockedByUser && !greeter.locked) || shell.atDesktop) && lockAllowed
+            lockedVisible: ((lockedByUser && !greeter.locked) || (shell.atDesktop && shell.settings.showLauncherAtDesktop)) && lockAllowed
+            // ENH134 - End
             // ENH014 - End
             // ENH002 - Notch/Punch hole fix
             leftMarginBlur: overlay.anchors.leftMargin
@@ -4707,7 +5727,10 @@ StyledItem {
             id: rightEdgeBarrier
             // ENH104 - Mouse edge push settings
             // enabled: !greeter.shown
-            enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
+            // ENH133 - Hot corners
+            //enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
+            enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush && !shell.settings.enableHotCorners
+            // ENH133 - End
             // ENH104 - End
 
             // NB: it does its own positioning according to the specified edge
@@ -4732,6 +5755,55 @@ StyledItem {
                 }
             }
         }
+
+        // ENH133 - Hot corners
+        LPHotCorner {
+            id: topRightHotCorner
+
+            enabled: shell.settings.enableHotCorners
+            edge: LPHotCorner.Edge.TopRight
+            enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
+            onTrigger: {
+                if (panel.indicators.fullyClosed) {
+                    panel.indicators.openAsInverted(-1, false)
+                } else {
+                    panel.indicators.hide()
+                }
+            }
+        }
+
+        LPHotCorner {
+            id: bottomRightHotCorner
+
+            enabled: shell.settings.enableHotCorners && stage.spreadEnabled
+                            && panel.indicators.fullyClosed
+            edge: LPHotCorner.Edge.BottomRight
+            enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
+            onTrigger: stage.toggleSpread()
+        }
+        
+        LPHotCorner {
+            id: topLeftHotCorner
+
+            enabled: shell.settings.enableHotCorners && launcher.drawerEnabled
+                            && panel.indicators.fullyClosed
+            edge: LPHotCorner.Edge.TopLeft
+            enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
+            onTrigger: launcher.toggleDrawer(false, false, true)
+        }
+
+        LPHotCorner {
+            id: bottomLeftHotCorner
+
+            enabled: shell.settings.enableHotCorners
+                            // We use custom show desktop for now which works in staged mode
+                            //&& shell.isWindowedMode
+                            && panel.indicators.fullyClosed && !shell.atDesktop
+            edge: LPHotCorner.Edge.BottomLeft
+            enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
+            onTrigger: stage.showDesktop()
+        }
+        // ENH133 - End
     }
 
     Dialogs {

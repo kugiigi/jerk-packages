@@ -93,6 +93,7 @@ Item {
 
             "org.ayatana.indicator.calendar": calendarMenu,
             "org.ayatana.indicator.location": timezoneMenu,
+            "org.ayatana.indicator.level"   : levelMenu,
         },
         "indicator-session": {
             "indicator.user-menu-item": Platform.isPC ? userMenuItem : null,
@@ -322,6 +323,36 @@ Item {
             iconSource: menuData && menuData.icon || ""
             value : menuData && menuData.actionState || 0.0
             enabled: menuData && menuData.sensitive || false
+        }
+    }
+
+    Component {
+        id: levelMenu;
+
+        /* Use the same UI as progressMenu for now. */
+        Menus.ProgressValueMenu {
+            objectName: "levelMenu"
+            property QtObject menuData: null
+            property var menuModel: menuFactory.menuModel
+            property int menuIndex: -1
+            property var extendedData: menuData && menuData.ext || undefined
+
+            text: menuData && menuData.label || ""
+            iconSource: menuData && menuData.icon || ""
+            value : extendedData && extendedData.xAyatanaLevel || 0.0
+            enabled: menuData && menuData.sensitive || false
+
+            onMenuModelChanged: {
+                loadAttributes();
+            }
+            onMenuIndexChanged: {
+                loadAttributes();
+            }
+
+            function loadAttributes() {
+                if (!menuModel || menuIndex == -1) return;
+                menuModel.loadExtendedAttributes(menuIndex, {'x-ayatana-level': 'uint16'});
+            }
         }
     }
 

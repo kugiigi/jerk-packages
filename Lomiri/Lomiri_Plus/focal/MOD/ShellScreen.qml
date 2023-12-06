@@ -87,7 +87,10 @@ ScreenWindow {
             visible: true
 
             deviceConfiguration {
-                overrideName: Screens.count > 1 ? "desktop" : false
+                // ENH136 - Separate desktop mode per screen
+                // overrideName: Screens.count > 1 ? "desktop" : false
+                overrideName: Screens.count > 1 && !screenWindow.primary ? "desktop" : false
+                // ENH136 - End
             }
         }
     }

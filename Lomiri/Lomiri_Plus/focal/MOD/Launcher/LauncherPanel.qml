@@ -22,6 +22,12 @@ import Lomiri.Components.Popups 1.3
 import Utils 0.1
 import "../Components"
 
+// ENH126 - Old school Launcher selection
+import QtQuick.Controls 2.12 as QQC2
+import QtQuick.Layouts 1.12
+import QtQuick.Window 2.2
+// ENH126 - End
+
 Rectangle {
     id: root
     color: "#F2111111"
@@ -41,6 +47,15 @@ Rectangle {
     property bool shortcutHintsShown: false
     readonly property bool quickListOpen: quickList.state === "open"
     readonly property bool dragging: launcherListView.dragging || dndArea.dragging
+
+    // ENH126 - Old school Launcher selection
+    readonly property real inchInPixel: Screen.pixelDensity * 25.4
+    readonly property alias listview: launcherListView
+    property real availableWidth: 0
+    property real availableHeight: 0
+    property real topPanelHeight: 0
+    property real bfbHeight: bfb.height
+    // ENH126 - End
 
     signal applicationSelected(string appId)
     signal showDashHome()
@@ -1000,11 +1015,117 @@ Rectangle {
         }
     }
 
+    // ENH126 - Old school Launcher selection
+    Rectangle {
+        id: selectHoverTooltip
+
+        readonly property int itemCenter: !root.hoveredItem ? 0 : root.mapFromItem(root.hoveredItem, 0, 0).y + (root.hoveredItem.height / 2) + root.hoveredItem.offset
+        readonly property real invertedYLimit: root.availableHeight - height - root.topPanelHeight
+        readonly property real normalYLimit: 0
+
+        visible: opacity > 0
+        opacity: root.hoveredItem ? 1 : 0
+        y: {
+            let _newY = root.inverted ? itemCenter + (height * 0.5) : itemCenter - (height * 1.5)
+            if (root.inverted) {
+                return _newY + root.topPanelHeight > invertedYLimit ? invertedYLimit : _newY
+            } else {
+                return _newY < normalYLimit ? normalYLimit : _newY
+            }
+        }
+
+        rotation: root.rotation
+        color: theme.palette.normal.foreground
+        radius: height / 4
+        implicitHeight: columnLayout.height
+        implicitWidth: columnLayout.width
+
+        anchors {
+            margins: units.gu(1)
+            leftMargin: units.gu(3)
+            rightMargin: anchors.leftMargin
+        }
+        
+        states: [
+            State {
+                name: "normal"
+                when: !root.inverted
+                AnchorChanges {
+                    target: selectHoverTooltip
+                    anchors.left: parent.right
+                    anchors.right: undefined
+                }
+            }
+            , State {
+                name: "inverted"
+                when: root.inverted
+                AnchorChanges {
+                    target: selectHoverTooltip
+                    anchors.left: undefined
+                    anchors.right: parent.left
+                }
+            }
+        ]
+
+        Behavior on y {
+            enabled: selectHoverTooltip.visible
+            LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration }
+        }
+
+        ColumnLayout {
+            id: columnLayout
+
+            RowLayout {
+                id: rowLayout
+
+                Layout.preferredWidth: root.availableWidth - root.width - Layout.margins - selectHoverTooltip.anchors.leftMargin - units.gu(3)
+                Layout.margins: units.gu(1)
+                Layout.maximumWidth: units.gu(40)
+                Layout.fillHeight: false
+                Layout.fillWidth: false
+
+                Label {
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.fillWidth: true
+                    Layout.leftMargin: root.inchInPixel * 0.3
+
+                    text: root.hoveredItem ? root.hoveredItem.name : ""
+                    wrapMode: Text.WordWrap
+                    color: theme.palette.normal.foregroundText
+                    textSize: Label.Large
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignRight
+                }
+
+                ProportionalShape {
+                    id: selectorIconShape
+
+                    Layout.alignment: Qt.AlignVCenter
+
+                    implicitWidth: units.gu(6)
+                    implicitHeight: implicitWidth
+
+                    aspect: LomiriShape.DropShadow
+                    source: Image {
+                        sourceSize.width: selectorIconShape.width
+                        sourceSize.height: selectorIconShape.height
+                        source: root.hoveredItem ? root.hoveredItem.iconName : ""
+                        cache: false // see lpbug#1543290 why no cache
+                    }
+                }
+            }
+        }
+    }
+    // ENH126 - End
+
     Tooltip {
         id: tooltipShape
         objectName: "tooltipShape"
 
-        visible: tooltipShownState.active
+        // ENH126 - Old school Launcher selection
+        // visible: tooltipShownState.active
+        visible: false
+        // ENH126 - End
         rotation: root.rotation
         y: itemCenter - (height / 2)
 

@@ -59,6 +59,7 @@ Showable {
     readonly property bool locked: LightDMService.greeter.active && !LightDMService.greeter.authenticated && !forcedUnlock
 
     property bool tabletMode
+    property string usageMode
     property url viewSource // only used for testing
 
     property int failedLoginsDelayAttempts: 7 // number of failed logins
@@ -71,6 +72,7 @@ Showable {
     property rect inputMethodRect
 
     property bool hasKeyboard: false
+    property int orientation
 
     signal tease()
     signal sessionStarted()
@@ -358,8 +360,7 @@ Showable {
         anchors.fill: parent
 
         active: root.required
-        source: root.viewSource.toString() ? root.viewSource :
-                (d.multiUser || root.tabletMode) ? "WideView.qml" : "NarrowView.qml"
+        source: root.viewSource.toString() ? root.viewSource : "GreeterView.qml"
 
         onLoaded: {
             root.lockedApp = "";
@@ -477,6 +478,24 @@ Showable {
             target: loader.item
             property: "hasKeyboard"
             value: root.hasKeyboard
+        }
+
+        Binding {
+            target: loader.item
+            property: "usageMode"
+            value: root.usageMode
+        }
+
+        Binding {
+            target: loader.item
+            property: "multiUser"
+            value: d.multiUser
+        }
+
+        Binding {
+            target: loader.item
+            property: "orientation"
+            value: root.orientation
         }
     }
 

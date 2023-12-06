@@ -497,6 +497,19 @@ Item {
     
     // ENH037 - End
 
+    // ENH129 - Color overlay
+    Loader {
+        active: shell.settings.enableColorOverlay
+        asynchronous: true
+        z: shell.z + 1
+        anchors.fill: parent
+        sourceComponent: Rectangle {
+            color: shell.settings.overlayColor
+            opacity: shell.settings.colorOverlayOpacity
+        }
+    }
+    // ENH129 - End
+
     Shell {
         id: shell
         objectName: "shell"
@@ -512,7 +525,10 @@ Item {
         hasTouchscreen: touchScreensModel.count > 0
         supportsMultiColorLed: deviceConfiguration.supportsMultiColorLed
         lightIndicators: root.lightIndicators
-        oskEnabled: (!hasKeyboard && Screens.count === 1) ||
+        // ENH137 - Enable OSK based on form factor
+        // oskEnabled: (!hasKeyboard && Screens.count === 1) ||
+        oskEnabled: (!hasKeyboard && (Screens.count === 1 || screen.formFactor === Screen.Phone || screen.formFactor === Screen.Tablet)) ||
+        // ENH137 - End
                     lomiriSettings.alwaysShowOsk || forceOSKEnabled
 
         // Multiscreen support: in addition to judging by the device type, go by the screen type.
@@ -522,7 +538,10 @@ Item {
         // - tablet + external monitor: dual-screen desktop
         // - desktop: Has all the bells and whistles of a fully fledged PC/laptop shell
         usageScenario: {
-            if (lomiriSettings.usageMode === "Windowed") {
+            // ENH136 - Separate desktop mode per screen
+            // if (lomiriSettings.usageMode === "Windowed") {
+            if ((haveMultipleScreens && isDesktopMode) || (!haveMultipleScreens && lomiriSettings.usageMode === "Windowed")) {
+            // ENH136 - End
                 return "desktop";
             } else if (deviceConfiguration.category === "phone") {
                 return "phone";
@@ -558,22 +577,25 @@ Item {
         onToggleRotation: root.toggleRotation()
         // ENH100 - End
         // ENH117 - Shell reachability
+        readonly property real pullDownHeight: shell.convertFromInch(shell.settings.pullDownHeight)
+        readonly property bool pullDownEnabled: shell.height >= pullDownHeight * 1.2
         property bool pulledDown: false
 
         onPulledDownChanged: {
             if (pulledDown) {
+                let _newPos = nativeHeight - pullDownHeight
                 switch(Math.abs(transformRotationAngle)) {
                     case 0:
-                        y += nativeHeight / 3
+                        y += _newPos
                     break
                     case 90:
-                        x -= (nativeWidth / 3)
+                        x -= _newPos
                     break
                     case 180:
-                        y -= (nativeHeight / 3)
+                        y -= _newPos
                     break
                     case 270:
-                        x += (nativeWidth / 3)
+                        x += _newPos
                     break
                 }
             } else {
@@ -594,7 +616,7 @@ Item {
         }
 
         onTransformRotationAngleChanged: pulledDown = false
-        
+
         Loader {
             active: shell.settings.enablePullDownGesture
             asynchronous: true
@@ -622,6 +644,7 @@ Item {
                     pullDownState: shell.pulledDown
                     usePhysicalUnit: true
                     width: shell.edgeSize
+                    enabled: shell.pullDownEnabled
                     anchors {
                         top: parent.top
                         bottom: parent.bottom
@@ -652,6 +675,7 @@ Item {
                     pullDownState: shell.pulledDown
                     usePhysicalUnit: true
                     width: shell.edgeSize
+                    enabled: shell.pullDownEnabled
                     anchors {
                         top: parent.top
                         bottom: parent.bottom

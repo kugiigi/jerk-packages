@@ -18,6 +18,9 @@
 import QtQuick 2.12
 import Lomiri.Components 1.3
 import "../Components"
+// ENH139 - System Direct Actions
+import ".." as Root
+// ENH139 - End
 
 FocusScope {
     id: root
@@ -33,11 +36,15 @@ FocusScope {
     property alias header: gridView.header
     property alias topMargin: gridView.topMargin
     property alias bottomMargin: gridView.bottomMargin
+    // ENH132 - App drawer icon size settings
+    property real delegateSizeMultiplier: 1
+    // ENH132 - End
     // ENH007 - Bottom search in drawer
     property alias verticalLayoutDirection: gridView.verticalLayoutDirection
     // ENH007 - End
     // ENH105 - Custom app drawer
     readonly property bool inverted: gridView.verticalLayoutDirection == GridView.BottomToTop
+    property real viewMargin: 0
     property var contextMenuItem: null
     property var rawModel
     property bool showDock: false
@@ -46,7 +53,11 @@ FocusScope {
     signal applicationContextMenu(string appId, var caller, bool fromDocked)
     // ENH105 - End
 
-    readonly property int columns: Math.floor(width / delegateWidth)
+    // ENH105 - Custom app drawer
+    // readonly property int columns: Math.floor(width / delegateWidth)
+    readonly property int columns: showDock ? Math.floor((width - (gridView.anchors.leftMargin + gridView.anchors.rightMargin)) / delegateWidth)
+                                            : Math.floor(width / delegateWidth)
+    // ENH105 - End
     readonly property int rows: Math.ceil(gridView.model.count / root.columns)
 
     property alias refreshing: pullToRefresh.refreshing
@@ -109,6 +120,16 @@ FocusScope {
             }
         }
         , State {
+            name: "normal-integrated-dock"
+            extend: "normal"
+            when: !root.inverted && shell.settings.enableDrawerDock && root.isIntegratedDock
+            PropertyChanges {
+                target: gridView
+
+                anchors.topMargin: units.gu(2)
+            }
+        }
+        , State {
             name: "inverted"
             when: root.inverted
             AnchorChanges {
@@ -124,13 +145,23 @@ FocusScope {
             PropertyChanges {
                 target: gridView
 
-                bottomMargin: 0
-                anchors.bottomMargin: units.gu(2)
+                bottomMargin: root.viewMargin
+                anchors.bottomMargin: 0
             }
             PropertyChanges {
                 target: bottomDockLoader
 
                 anchors.bottomMargin: 0
+            }
+        }
+        , State {
+            name: "inverted-integrated-dock"
+            extend: "inverted"
+            when: root.inverted && shell.settings.enableDrawerDock && root.isIntegratedDock
+            PropertyChanges {
+                target: gridView
+
+                anchors.topMargin: 0
             }
         }
     ]
@@ -147,6 +178,25 @@ FocusScope {
             let _tempArr = shell.settings.drawerDockApps.slice()
             _tempArr.splice(_tempArr.indexOf(_appId), 1)
             shell.settings.drawerDockApps = _tempArr.slice()
+        }
+    }
+
+    function addToDirectActions(_appId) {
+        if (shell.settings.directActionList.findIndex(
+                                (element) => (element.actionId == _appId && element.type == Root.LPDirectActions.Type.App)) == -1
+                ) {
+            let _arrNewValues = shell.settings.directActionList.slice()
+            let _properties = { actionId: _appId, type: Root.LPDirectActions.Type.App }
+            _arrNewValues.push(_properties)
+            shell.settings.directActionList = _arrNewValues
+        }
+    }
+    function removeFromDirectActions(_appId) {
+        let _foundIndex = shell.settings.directActionList.findIndex((element) => (element.actionId == _appId && element.type == Root.LPDirectActions.Type.App))
+        if (_foundIndex > -1) {
+            let _tempArr = shell.settings.directActionList.slice()
+            _tempArr.splice(_foundIndex, 1)
+            shell.settings.directActionList = _tempArr.slice()
         }
     }
     
@@ -183,7 +233,11 @@ FocusScope {
                     mainFlickable.contentY = 0
                 }
             } else {
-                gridView.positionViewAtBeginning()
+                if (inverted) {
+                    gridView.positionViewAtBeginning()
+                } else {
+                    gridView.contentY = 0 - gridView.topMargin
+                }
             }
         }
     }
@@ -207,6 +261,9 @@ FocusScope {
                                 : height
         contentWidth: parent.width
         interactive: isEnabled && bottomDockLoader.item && !bottomDockLoader.item.editMode
+        // ENH127 - Increase max flick velocity
+        maximumFlickVelocity: shell.settings.fasterFlickDrawer ? units.gu(600) : units.gu(312.5)
+        // ENH127 - End
         
         function positionToEnd() {
             contentY = contentHeight - height
@@ -233,19 +290,25 @@ FocusScope {
             // anchors.fill: parent
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.topMargin: units.gu(2)
 
             anchors.leftMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.leftMargin : 0
             anchors.rightMargin: bottomDockLoader.item ? bottomDockLoader.item.horizontalPadding + bottomDockLoader.anchors.rightMargin  : 0
-            topMargin: anchors.topMargin
+            topMargin: root.viewMargin
             // ENH105 - End
             focus: true
 
-            readonly property int overflow: width - (root.columns * root.delegateWidth)
-            readonly property real spacing: Math.floor(overflow / root.columns)
+            // ENH105 - Custom app drawer
+            readonly property real overflow: width - (root.columns * root.delegateWidth)
+            readonly property real spacing: overflow / root.columns
 
-            cellWidth: root.delegateWidth + spacing
+            // Causing GridView height binding loop
+            // cellWidth: root.delegateWidth + spacing
+            cellWidth: root.delegateWidth
+            // ENH105 - End
             cellHeight: root.delegateHeight
+            // ENH127 - Increase max flick velocity
+            maximumFlickVelocity: shell.settings.fasterFlickDrawer ? units.gu(600) : units.gu(312.5)
+            // ENH127 - End
             // ENH105 - Custom app drawer
             interactive: !mainFlickable.isEnabled
             height: interactive ? implicitHeight : contentHeight
@@ -307,6 +370,10 @@ FocusScope {
             }
             onLoaded: if (mainFlickable.isEnabled) mainFlickable.delayedPositionToEnd()
             sourceComponent: LPDrawerDock {
+                // ENH132 - App drawer icon size settings
+                delegateSizeMultiplier: root.delegateSizeMultiplier
+                // ENH132 - End
+                columns: root.columns
                 shown: root.showDock && !gridView.activeFocus
                 isIntegratedDock: root.isIntegratedDock
                 inverted: root.inverted
@@ -314,6 +381,7 @@ FocusScope {
                 delegateWidth: root.delegateWidth
                 rawModel: root.rawModel
                 contextMenuItem: root.contextMenuItem
+                hideLabel: shell.settings.drawerDockHideLabels
 
                 onShownChanged: if (root.inverted) mainFlickable.delayedPositionToEnd()
 

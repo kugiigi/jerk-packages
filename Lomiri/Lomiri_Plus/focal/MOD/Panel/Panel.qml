@@ -59,6 +59,7 @@ Item {
     property bool supportsMultiColorLed: true
     // ENH028 - Open indicators via gesture
     property string dateTimeString
+    property bool hasNotifications: false
     // ENH028 - End
     // ENH036 - Use punchole as battery indicator
     property bool batteryCircleEnabled
@@ -81,6 +82,9 @@ Item {
     property bool transparentTopBar: false
     property real topBarOpacityOverride: 0
     // ENH122 - End
+    // ENH139 - System Direct Actions
+    readonly property alias quickToggleItems: __indicators.quickToggleItems
+    // ENH139 - End
 
     property var blurSource : null
 
@@ -92,6 +96,9 @@ Item {
                                  )
                                  && width >= units.gu(60)
     // ENH066 - End
+    // ENH046 - Lomiri Plus Settings
+    property real topPanelMargin: 0
+    // ENH046 - End
 
     property string mode: "staged"
     property PanelState panelState
@@ -145,6 +152,16 @@ Item {
         property bool enableTouchMenus: showTouchMenu &&
                                         applicationMenus.available &&
                                         applicationMenus.model
+        // ENH056 - Quick toggles
+        function extractIconName(_iconSource) {
+            const _prefix = "image://theme/"
+            const _suffix = ","
+            const _start = _iconSource.search(_prefix) + _prefix.length
+            const _end = _iconSource.search(_suffix)
+
+            return _iconSource.substring(_start, _end)
+        }
+        // ENH056 - End
     }
 
     // ENH028 - Open indicators via gesture
@@ -414,6 +431,9 @@ Item {
                 inverted: __applicationMenus.inverted
                 titleText: __applicationMenus.currentTitle//root.dateTimeString
                 // ENH028 - End
+                // ENH046 - Lomiri Plus Settings
+                topPanelMargin: root.topPanelMargin
+                // ENH046 - End
 
                 menuModel: __applicationMenus.model
                 submenuIndex: modelIndex
@@ -597,7 +617,7 @@ Item {
             topMarginBlur: root.topMarginBlur
             // ENH002 - End
             blurSource: root.blurSource
-            blurRect: Qt.rect(x,
+            blurRect: Qt.rect(x - leftMarginBlur,
                               0,
                               root.width,
                               root.height)
@@ -696,6 +716,24 @@ Item {
                             }
                         }
                     }
+                    // ENH056 - Quick toggles
+                    if (identifier == "indicator-network") {
+                        if (icons) {
+                            const _iconFound = icons.find((element) => element.search("nm-") > -1);
+                            if (_iconFound) {
+                                __indicators.wifiIcon = d.extractIconName(_iconFound)
+                            }
+                        }
+                    }
+                    if (identifier == "indicator-bluetooth" || identifier == "ayatana-indicator-bluetooth") {
+                        if (icons) {
+                            const _iconFound = icons.find((element) => element.search("bluetooth-") > -1);
+                            if (_iconFound) {
+                                __indicators.bluetoothIcon = d.extractIconName(_iconFound)
+                            }
+                        }
+                    }
+                    // ENH056 - End
                     // ENH060 - Show/Hide Indicators Settings
                     if (identifier == "ayatana-indicator-messages") {
                         if (icons) {
@@ -718,6 +756,7 @@ Item {
                     // ENH060 - End
                 }
                 // ENH036 - End
+
                 // ENH095 - Middle notch support
                 readonly property bool actuallyHidden: width == 0
 
@@ -811,6 +850,9 @@ Item {
                 onDateItemChanged: __indicators.dateItem = dateItem
                 onLockItemChanged: __indicators.lockItem = lockItem
                 // ENH028 - End
+                // ENH046 - Lomiri Plus Settings
+                topPanelMargin: root.topPanelMargin
+                // ENH046 - End
 
                 menuModel: delegate.menuModel
                 // ENH028 - Open indicators via gesture
@@ -821,8 +863,10 @@ Item {
                     if (modelData.identifier == "ayatana-indicator-messages") {
                         if (count > 0) {
                             __indicators.initialIndexOnInverted = 0
+                            root.hasNotifications = true
                         } else {
                             __indicators.initialIndexOnInverted = -1
+                            root.hasNotifications = false
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 // ENH105 - Custom app drawer
 import QtQuick 2.12
 import Lomiri.Components 1.3
+import QtQuick.Layouts 1.12
 
 MouseArea {
     id: drawerDelegate
@@ -11,6 +12,10 @@ MouseArea {
     property bool editMode: false
     property alias iconSource: sourceImage.source
     property alias appName: label.text
+    property bool hideLabel: false
+    // ENH132 - App drawer icon size settings
+    property real delegateSizeMultiplier: 1
+    // ENH132 - End
 
     signal applicationSelected(string appId)
     signal applicationContextMenu(string appId)
@@ -43,17 +48,26 @@ MouseArea {
 
     z: loader.active ? 1 : 0
 
-    Column {
-        width: units.gu(9)
-        anchors.horizontalCenter: parent.horizontalCenter
-        height: childrenRect.height
+    ColumnLayout {
+        anchors {
+            fill: parent
+            topMargin: drawerDelegate.hideLabel ? units.gu(0.5) : units.gu(0.3)
+            bottomMargin: anchors.topMargin
+            leftMargin: units.gu(0.5)
+            rightMargin: anchors.leftMargin
+        }
+
         spacing: units.gu(1)
 
         LomiriShape {
             id: appIcon
-            width: units.gu(6)
-            height: 7.5 / 8 * width
-            anchors.horizontalCenter: parent.horizontalCenter
+
+            Layout.alignment: Qt.AlignCenter
+            // ENH132 - App drawer icon size settings
+            Layout.preferredWidth: units.gu(6) * root.delegateSizeMultiplier
+            // ENH132 - End
+            Layout.preferredHeight: 7.5 / 8 * width
+
             radius: "medium"
             borderSource: 'undefined'
             source: Image {
@@ -75,13 +89,15 @@ MouseArea {
 
         Label {
             id: label
-            width: parent.width
-            anchors.horizontalCenter: parent.horizontalCenter
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
             horizontalAlignment: Text.AlignHCenter
             fontSize: "small"
             wrapMode: Text.WordWrap
             maximumLineCount: 2
             elide: Text.ElideRight
+            visible: !drawerDelegate.hideLabel
 
             Loader {
                 id: loader

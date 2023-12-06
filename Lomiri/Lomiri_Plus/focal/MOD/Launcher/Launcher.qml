@@ -57,6 +57,12 @@ FocusScope {
     property real leftMarginBlur
     property real topMarginBlur
     // ENH002 - End
+    // ENH130 - Launcher dim
+    readonly property bool fullyShown: panel.x == 0
+    // ENH130 - End
+    // ENH139 - System Direct Actions
+    property alias appModel: drawer.appModel
+    // ENH139 - End
 
     // emitted when an application is selected
     signal launcherApplicationSelected(string appId)
@@ -392,8 +398,8 @@ FocusScope {
             // ENH002 - Notch/Punch hole fix
             // blurRect: Qt.rect(0,
             //                   root.topPanelHeight,
-            blurRect: Qt.rect(0 + root.leftMarginBlur,
-                              root.topPanelHeight + root.topMarginBlur,
+            blurRect: Qt.rect(0,
+                              (root.inverted ? 0 : root.topPanelHeight) + root.topMarginBlur,
             // ENH002 - End
                               drawer.width,
                               drawer.height)
@@ -401,15 +407,42 @@ FocusScope {
         }
     }
 
+    // ENH130 - Launcher dim
+    Loader {
+        active: shell.settings.dimWhenLauncherShow
+        asynchronous: true
+        anchors {
+            top: parent.top
+            bottom: parent.bottom
+            right: parent.right
+            left: drawer.right
+        }
+        visible: opacity > 0
+        opacity: root.fullyShown && !root.lockedVisible
+                        && !panel.preventHiding 
+                        && !shell.isWindowedMode ? 0.6 : 0
+        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
+
+        sourceComponent: Rectangle {
+            color: "black"
+        }
+    }
+    // ENH130 - End
+
     Drawer {
         id: drawer
         objectName: "drawer"
         anchors {
             top: parent.top
-            topMargin: root.inverted ? root.topPanelHeight : 0
+            // ENH131 - Extend drawer to behind top panel
+            // topMargin: root.inverted ? root.topPanelHeight : 0
+            // ENH131 - End
             bottom: parent.bottom
             right: parent.left
         }
+        // ENH131 - Extend drawer to behind top panel
+        topPanelHeight: root.topPanelHeight
+        // ENH131 - End
         background: root.background
         width: Math.min(root.width, units.gu(81))
         panelWidth: panel.width
@@ -420,6 +453,9 @@ FocusScope {
         inverted: shell.settings.invertedDrawer && root.inverted
         // ENH046 - End
         // ENH007 - End
+        // ENH105 - Custom app drawer
+        launcherInverted: root.inverted
+        // ENH105 - End
 
         onApplicationSelected: {
             root.launcherApplicationSelected(appId)
@@ -457,12 +493,109 @@ FocusScope {
         visible: root.x > 0 || x > -width || dragArea.pressed
         model: LauncherModel
 
+        // ENH126 - Old school Launcher selection
+        property var hoveredItem
+        property bool isReadyForDirectSelect: {
+            let _dragGlobalMapped = dragArea.mapToItem(shell, dragArea.touchPosition.x, dragArea.touchPosition.y)
+            let _panelGlobalMapped = panel.mapToItem(shell, 0, 0)
+            let _panelMappedX = root.inverted ? _panelGlobalMapped.x : panel.width
+
+            if (dragArea.dragging && _dragGlobalMapped.x > panel.width && _dragGlobalMapped.x < _panelMappedX + panel.width + (panel.inchInPixel * 0.2)) {
+                return true
+            }
+
+            return false
+        }
+        property bool isActuallyReady: false
+
+        availableWidth: root.width
+        availableHeight: root.height
+        topPanelHeight: root.topPanelHeight
+        
+        onIsReadyForDirectSelectChanged: {
+            delayAppSelect.setAppSelectReady(isReadyForDirectSelect)
+        }
+
+        onHoveredItemChanged: {
+            if (hoveredItem) {
+                delayHaptics.startDelay(hoveredItem)
+                //console.log("HOVERED!!!! " + hoveredItem.name)
+            }
+        }
+        
+        Timer {
+            id: delayHaptics
+            
+            property var plannedHoveredItem
+
+            running: false
+            interval: 100
+            onTriggered: {
+                if (plannedHoveredItem == panel.hoveredItem) {
+                    shell.haptics.playSubtle()
+                }
+            }
+
+            function startDelay(_item) {
+                stop()
+                plannedHoveredItem = _item
+                restart()
+            }
+        }
+
+        Timer {
+            id: delayAppSelect
+
+            property bool plannedIsSelectReady
+
+            running: false
+            interval: 100
+            onTriggered: {
+                if (panel.isReadyForDirectSelect == plannedIsSelectReady) {
+                    panel.isActuallyReady = plannedIsSelectReady
+                }
+            }
+
+            function setAppSelectReady(_isReady) {
+                stop()
+                plannedIsSelectReady = _isReady
+                restart()
+            }
+        }
+
+        Connections {
+            target: dragArea
+            enabled: shell.settings.enableDirectAppInLauncher
+
+            onTouchPositionChanged: {
+                if (panel.isActuallyReady) {
+                    let _mappedY = root.inverted ? panel.height - target.touchPosition.y - panel.bfbHeight : target.touchPosition.y - panel.bfbHeight
+                    let _hoveredItem = panel.listview.itemAt(panel.width / 2, _mappedY + panel.listview.realContentY)
+
+                    if (_hoveredItem !== panel.hoveredItem) {
+                        panel.hoveredItem = _hoveredItem
+                    }
+                } else {
+                    panel.hoveredItem = null
+                }
+            }
+
+            onDraggingChanged: {
+                if (!target.dragging && panel.hoveredItem) {
+                    panel.applicationSelected(panel.hoveredItem.appId)
+                    panel.hoveredItem = null
+                    shell.haptics.play()
+                }
+            }
+        }
+        // ENH126 - End
+
         property var dismissTimer: Timer { interval: 500 }
         Connections {
             target: panel.dismissTimer
             onTriggered: {
-                if (root.autohideEnabled && !root.lockedVisible) {
-                    if (!edgeBarrier.containsMouse && !panel.preventHiding && root.state != "drawer") {
+                if (root.state !== "drawer" && root.autohideEnabled && !root.lockedVisible) {
+                    if (!edgeBarrier.containsMouse && !panel.preventHiding) {
                         root.state = ""
                     } else {
                         panel.dismissTimer.restart()
@@ -519,7 +652,10 @@ FocusScope {
         target: parent
         // ENH104 - Mouse edge push settings
         // enabled: root.available
-        enabled: root.available && !shell.settings.disableLeftEdgeMousePush
+        // ENH133 - Hot corners
+        //enabled: root.available && !shell.settings.disableLeftEdgeMousePush
+        enabled: root.available && !shell.settings.disableLeftEdgeMousePush && !shell.settings.enableHotCorners
+        // ENH133 - End
         // ENH104 - End
         onProgressChanged: {
             if (progress > .5 && root.state != "visibleTemporary" && root.state != "drawer" && root.state != "visible") {
@@ -653,6 +789,11 @@ FocusScope {
                 restoreEntryValues: false
                 anchors.rightMargin: 0
                 focus: false
+            }
+            PropertyChanges {
+                target: root
+                restoreEntryValues: false
+                autohideEnabled: false
             }
         },
         State {
