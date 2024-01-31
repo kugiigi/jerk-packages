@@ -753,6 +753,7 @@ StyledItem {
             margin: units.gu(1)
             hasMouse: shell.hasMouse
             background: wallpaperResolver.background
+            privacyMode: greeter.locked && AccountsService.hideNotificationContentWhileLocked
 
             y: topmostIsFullscreen ? 0 : panel.panelHeight
             height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)

@@ -35,6 +35,7 @@ Item {
     property bool owDLCThemed: false
     property bool largeMode: false
     property bool gradientTimeText: false
+    property bool gradientDateText: false
     // ENH032 - End
     // ENH064 - Dynamic Cove
     property bool dateOnly: false
@@ -199,12 +200,13 @@ Item {
                 id: dateLabel
                 objectName: "dateLabel"
 
+                property bool solidColor: !clock.gradientDateText
                 // fontSize: "medium"
                 // ENH067 - Custom Lockscreen Clock Color
                 // color: "white"
                 color: {
-                    if (clock.owThemed && clock.owDLCThemed) {
-                        return "#52f7bd"
+                    if (clock.owThemed && solidColor) {
+                        return "#30eadf"
                     } else if (shell.settings.useCustomLSClockColor) {
                         return shell.settings.customLSClockColor
                     }
@@ -247,15 +249,16 @@ Item {
 
             Loader {
                 id: dateGradientLoader
-                active: clock.owThemed && !dateDLCGradientLoader.active
+                active: clock.owThemed && !dateLabel.solidColor && !dateDLCGradientLoader.active
                 asynchronous: true
                 anchors.fill: dateLabel
                 sourceComponent: Component {
                     LinearGradient  {
                         source: dateLabel
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#0e0e18" }
-                            GradientStop { position: 1.0; color: "#2cfefd" }
+                            GradientStop { position: 0.0; color: "#11a38c" }
+                            GradientStop { position: 0.2; color: "#14b9a8" }
+                            GradientStop { position: 1.0; color: "#30eadf" }
                         }
                     }
                 }

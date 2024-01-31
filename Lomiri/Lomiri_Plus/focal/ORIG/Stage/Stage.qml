@@ -612,7 +612,6 @@ FocusScope {
         },
         State {
             name: "staged"; when: root.mode === "staged"
-            PropertyChanges { target: wallpaper; visible: !priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0 }
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
         },

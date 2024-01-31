@@ -52,7 +52,8 @@ Item {
 
     // Eater mouse events
     MouseArea {
-        enabled: leftSwipeArea.dragging || rightSwipeArea.dragging
+        enabled: swipeAreas.isDragging
+        visible: enabled
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.AllButtons

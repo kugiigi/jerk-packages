@@ -91,7 +91,11 @@ FocusScope {
     }
 
     function hide() {
-        lockscreen.hide();
+        if (coverPage.visible) {
+            lockscreen.hideNow();
+        } else {
+            lockscreen.hide();
+        }
         coverPage.hide();
     }
 
@@ -118,12 +122,6 @@ FocusScope {
     Keys.onReturnPressed: coverPage.hide();
     Keys.onEnterPressed: coverPage.hide();
 
-    Rectangle {
-        anchors.fill: parent
-        color: "black"
-        opacity: lockscreen.showProgress * 0.8
-    }
-
     CoverPage {
         id: lockscreen
         objectName: "lockscreen"
@@ -145,7 +143,10 @@ FocusScope {
         opacity: 0
 
         showAnimation: StandardAnimation { property: "opacity"; to: 1 }
-        hideAnimation: StandardAnimation { property: "opacity"; to: 0 }
+        hideAnimation:  SequentialAnimation {
+            StandardAnimation { target: loginList; property: "opacity"; to: 0 }
+            StandardAnimation { property: "opacity"; to: 0.5 }
+        }
 
         infographicsTopMargin: parent.height * 0.125
         infographicsBottomMargin: parent.height * 0.125

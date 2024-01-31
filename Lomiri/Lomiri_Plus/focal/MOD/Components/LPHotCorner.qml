@@ -1,3 +1,4 @@
+// ENH133 - Hot corners
 import QtQuick 2.12
 import Lomiri.Components 1.3
 
@@ -13,6 +14,8 @@ Item {
 
     property int edge: LPHotCorner.Edge.TopLeft
     property bool enableVisualFeedback: true
+    property int actionType: 0
+    property int actionValue: -1
 
     signal trigger
 

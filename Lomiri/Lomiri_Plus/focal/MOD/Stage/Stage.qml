@@ -161,6 +161,15 @@ FocusScope {
         }
     }
     // ENH139 - End
+    // ENH133 - Hot corners
+    function switchToPreviousApp() {
+        if (appRepeater.count > 1) {
+            appRepeater.itemAt(1).activate();
+        } else if (appRepeater.count > 0) {
+            appRepeater.itemAt(0).activate(); // quick alt-tab to the only (minimized) window should still activate it
+        }
+    }
+    // ENH133 - End
 
     Binding {
         target: topLevelSurfaceList
@@ -786,10 +795,6 @@ FocusScope {
         },
         State {
             name: "staged"; when: root.mode === "staged"
-            // ENH135 - Show Desktop
-            // PropertyChanges { target: wallpaper; visible: !priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0 }
-            PropertyChanges { target: wallpaper; visible: (!priv.focusedAppDelegate || priv.focusedAppDelegate.x !== 0) || appContainer.showDesktop }
-            // ENH135 - End
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
         },
@@ -1176,7 +1181,10 @@ FocusScope {
             leftMargin: root.availableDesktopArea.x
             model: root.topLevelSurfaceList
             spreadFlickable: floatingFlickable
-            z: 10
+            // ENH143 - Fix spread many apps issue
+            // z: 10
+            z: root.topLevelSurfaceList.count
+            // ENH143 - End
 
             onLeaveSpread: {
                 priv.goneToSpread = false;

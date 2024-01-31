@@ -51,9 +51,16 @@ Item {
 
     QtObject {
         id: whiteTheme
-        property color main: "white"
-        property color start: "white"
-        property color end: "white"
+        // ENH140 - Infographics circle color
+        readonly property color circleColor: shell.settings.useCustomInfographicCircleColor ? shell.settings.customInfographicsCircleColor
+                                                            : "white"
+        // property color main: "white"
+        // property color start: "white"
+        // property color end: "white"
+        property color main: circleColor
+        property color start: circleColor
+        property color end: circleColor
+        // ENH140 - End
     }
 
     Connections {
@@ -630,6 +637,9 @@ Item {
                     opacity: 0.0
                     smooth: true
                     state: index < currentDay ? "filled" : index == currentDay ? "pointer" : "unfilled"
+                    // ENH142 - Custom infographics dots color
+                    color: shell.settings.useCustomDotsColor ? shell.settings.customDotsColor: "white"
+                    // ENH142 - End
 
                     PropertyAnimation {
                         id: dotUnlockAnim

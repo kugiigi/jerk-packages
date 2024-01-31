@@ -20,6 +20,9 @@ import QtGraphicalEffects 1.12
 import Lomiri.Components 1.3
 import Lomiri.Gestures 0.1
 import "../Components"
+
+import BatteryMonitor 1.0
+import GSettings 1.0
 // ENH032 - Infographics Outer Wilds
 import "../OuterWilds"
 // ENH032 - End
@@ -83,6 +86,11 @@ Showable {
         id: d
         property bool forceRightOnNextHideAnimation: false
         property string errorMessage
+    }
+
+    GSettings {
+        id: gsettings
+        schema.id: "com.lomiri.touch.system"
     }
 
     prepareToHide: function () {
@@ -349,6 +357,47 @@ Showable {
     }
 
     Label {
+        id: chargingHint
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: units.gu(5)
+        text: {
+            var hourText = "";
+            var minuteText = "";
+            var seconds = BatteryMonitor.timeToFull;
+            if (seconds == BatteryMonitor.NO_BATTERY) return ""
+            else if (seconds == BatteryMonitor.NO_TIMETOFULL) {
+                var isFullyCharged = BatteryMonitor.fullyCharged;
+                if (isFullyCharged) return i18n.tr("Fully charged")
+                else return ""
+            }
+
+            var minutes = Math.floor(seconds / 60 % 60);
+            var hours = Math.floor(seconds / 60 / 60);
+
+            if (hours > 0) {
+                hourText = i18n.tr("%1 hour", "%1 hours", hours).arg(hours)
+            }
+            if (minutes > 0) {
+                minuteText = i18n.tr("%1 minute", "%1 minutes", minutes).arg(minutes)
+            }
+            if (hours == 0 && minutes == 0) {
+                return ""
+            }
+            if (hourText != "" && minuteText != "") {
+                // Translators: String like "1 hour, 2 minutes until full"
+                return i18n.tr("%1, %2 until full").arg(hourText).arg(minuteText);
+            } else if (hourText == "" || minuteText == "") {
+                // Translators: String like "32 minutes until full" or "3 hours until full"
+                return i18n.tr("%1 until full").arg((hourText != "" ? hourText : minuteText))
+            }
+        }
+        color: "white"
+        font.weight: Font.Light
+        visible: gsettings.showChargingInformationWhileLocked && (BatteryMonitor.charging || BatteryMonitor.fullyCharged)
+    }
+
+    Label {
         id: swipeHint
         objectName: "swipeHint"
         property real baseOpacity: 0.5
@@ -359,6 +408,7 @@ Showable {
         text: "《    " + (d.errorMessage ? d.errorMessage : i18n.tr("Unlock")) + "    》"
         color: "white"
         font.weight: Font.Light
+        visible: !chargingHint.visible
 
         readonly property var opacityAnimation: showLabelAnimation // for testing
 
