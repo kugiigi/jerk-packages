@@ -15,6 +15,7 @@
  */
 
 import QtQuick 2.12
+import QtGraphicalEffects 1.12
 import Powerd 0.1
 import Lomiri.Components 1.3
 import Lomiri.Components.ListItems 1.3 as ListItem
@@ -41,6 +42,11 @@ StyledItem {
                                   notification.notification.fullscreen : false // fullscreen prop only exists in the mock
     property int maxHeight
     property int margins: units.gu(1)
+    property bool privacyMode: false
+    property bool hideContent: notification.privacyMode &&
+                               notification.notification.urgency !== Notification.Critical &&
+                               (notification.type === Notification.Ephemeral || notification.type === Notification.Interactive)
+
 
     readonly property real defaultOpacity: 1.0
     property bool hasMouse
@@ -276,21 +282,52 @@ StyledItem {
                     right: parent.right
                 }
 
-                ShapedIcon {
-                    id: icon
-
-                    objectName: "icon"
+                Item {
+                    id: iconWrapper
                     width: units.gu(6)
                     height: width
-                    shaped: notification.hints["x-lomiri-non-shaped-icon"] !== "true"
                     visible: iconSource !== "" && type !== Notification.Confirmation
+                    ShapedIcon {
+                        id: icon
+
+                        objectName: "icon"
+                        anchors.fill: parent
+                        shaped: notification.hints["x-lomiri-non-shaped-icon"] !== "true"
+                        visible: iconSource !== "" && !blurEffect.visible
+                    }
+
+                    FastBlur {
+                        id: blurEffect
+                        objectName: "blurEffect"
+                        visible: notification.hideContent
+                        anchors.fill: icon
+                        source: icon
+                        transparentBorder: true
+                        radius: 64
+                    }
+                }
+
+                Label {
+                    objectName: "privacySummaryLabel"
+                    width: secondaryIcon.visible ? parent.width - x - units.gu(3) : parent.width - x
+                    height: units.gu(6)
+                    anchors.verticalCenter: iconWrapper.verticalCenter
+                    verticalAlignment: Text.AlignVCenter
+                    visible: notification.hideContent
+                    fontSize: "medium"
+                    font.weight: Font.Light
+                    color: theme.palette.normal.backgroundSecondaryText
+                    elide: Text.ElideRight
+                    textFormat: Text.PlainText
+                    text: i18n.tr("New message")
                 }
 
                 Column {
                     id: labelColumn
                     width: secondaryIcon.visible ? parent.width - x - units.gu(3) : parent.width - x
-                    anchors.verticalCenter: (icon.visible && !bodyLabel.visible) ? icon.verticalCenter : undefined
+                    anchors.verticalCenter: (icon.visible && !bodyLabel.visible) ? iconWrapper.verticalCenter : undefined
                     spacing: units.gu(.4)
+                    visible: type !== Notification.Confirmation && !notification.hideContent
 
                     Label {
                         id: summaryLabel
@@ -300,7 +337,6 @@ StyledItem {
                             left: parent.left
                             right: parent.right
                         }
-                        visible: type !== Notification.Confirmation
                         fontSize: "medium"
                         font.weight: Font.Light
                         color: theme.palette.normal.backgroundSecondaryText
@@ -316,7 +352,7 @@ StyledItem {
                             left: parent.left
                             right: parent.right
                         }
-                        visible: body != "" && type !== Notification.Confirmation
+                        visible: body != ""
                         fontSize: "small"
                         font.weight: Font.Light
                         color: theme.palette.normal.backgroundTertiaryText

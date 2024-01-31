@@ -69,6 +69,17 @@ import Lomiri.Indicators 0.1 as Indicators
 StyledItem {
     id: shell
 
+    // ENH133 - Hot corners
+    enum HotCorner {
+        Drawer
+        , SearchDrawer
+        , ToggleDesktop
+        , Indicator
+        , ToggleSpread
+        , PreviousApp
+    }
+    // ENH133 - End
+
     theme.name: "Lomiri.Components.Themes.SuruDark"
 
     // ENH002 - Notch/Punch hole fix
@@ -305,6 +316,11 @@ StyledItem {
         ,{"identifier": "ayatana-indicator-messages", "name": "Notifications", "icon": panel.hasNotifications ? "indicator-messages-new" : "indicator-messages", "indicatorIndex": 0}
     ]
     // ENH028 - End
+    // ENH133 - Hot corners
+    readonly property var hotcornersIndicatorsModel: {
+        return [{ "identifier": "last-opened-indicator", "name": "Last Opened", "icon": "system-devices-panel", "indicatorIndex": -1 }].concat(shell.indicatorsModel)
+    }
+    // ENH133 - End
     // ENH139 - System Direct Actions
     property alias appModel: launcher.appModel
 
@@ -736,6 +752,10 @@ StyledItem {
         property alias customLSClockColor: settingsObj.customLSClockColor
         property alias useCustomLSClockFont: settingsObj.useCustomLSClockFont
         property alias customLSClockFont: settingsObj.customLSClockFont
+        property alias useCustomInfographicCircleColor: settingsObj.useCustomInfographicCircleColor
+        property alias customInfographicsCircleColor: settingsObj.customInfographicsCircleColor
+        property alias useCustomDotsColor: settingsObj.useCustomDotsColor
+        property alias customDotsColor: settingsObj.customDotsColor
 
         // Pro1-X
         property alias pro1_OSKOrientation: settingsObj.pro1_OSKOrientation
@@ -748,6 +768,7 @@ StyledItem {
         // Outer Wilds
         property alias ow_ColoredClock: settingsObj.ow_ColoredClock
         property alias ow_GradientColoredTime: settingsObj.ow_GradientColoredTime
+        property alias ow_GradientColoredDate: settingsObj.ow_GradientColoredDate
         property alias ow_bfbLogo: settingsObj.ow_bfbLogo
         property alias enableAlternateOW: settingsObj.ow_enableAlternateOW
         property alias ow_theme: settingsObj.ow_theme
@@ -767,10 +788,31 @@ StyledItem {
         property alias dcCDPlayerSimpleMode: settingsObj.dcCDPlayerSimpleMode
         property alias dcCDPlayerOpacity: settingsObj.dcCDPlayerOpacity
 
+        // Air Mouse
+        property alias enableAirMouse: settingsObj.enableAirMouse
+        property alias airMouseAlwaysActive: settingsObj.airMouseAlwaysActive
+        property alias airMouseSensitivity: settingsObj.airMouseSensitivity
+        property alias invertSideMouseScroll: settingsObj.invertSideMouseScroll
+        property alias sideMouseScrollSensitivity: settingsObj.sideMouseScrollSensitivity
+        property alias sideMouseScrollPosition: settingsObj.sideMouseScrollPosition
+        property alias enableSideMouseScrollHaptics: settingsObj.enableSideMouseScrollHaptics
+
         // Hot Corners
         property alias enableHotCorners: settingsObj.enableHotCorners
         property alias enableHotCornersVisualFeedback: settingsObj.enableHotCornersVisualFeedback
-        
+        property alias enableTopLeftHotCorner: settingsObj.enableTopLeftHotCorner
+        property alias enableTopRightHotCorner: settingsObj.enableTopRightHotCorner
+        property alias enableBottomRightHotCorner: settingsObj.enableBottomRightHotCorner
+        property alias enableBottomLeftHotCorner: settingsObj.enableBottomLeftHotCorner
+        property alias actionTypeTopLeftHotCorner: settingsObj.actionTypeTopLeftHotCorner
+        property alias actionTypeTopRightHotCorner: settingsObj.actionTypeTopRightHotCorner
+        property alias actionTypeBottomRightHotCorner: settingsObj.actionTypeBottomRightHotCorner
+        property alias actionTypeBottomLeftHotCorner: settingsObj.actionTypeBottomLeftHotCorner
+        property alias actionTopLeftHotCorner: settingsObj.actionTopLeftHotCorner
+        property alias actionTopRightHotCorner: settingsObj.actionTopRightHotCorner
+        property alias actionBottomRightHotCorner: settingsObj.actionBottomRightHotCorner
+        property alias actionBottomLeftHotCorner: settingsObj.actionBottomLeftHotCorner
+
         // Stopwatch Data
         property alias dcStopwatchTimeMS: settingsObj.dcStopwatchTimeMS
         property alias dcStopwatchLastEpoch: settingsObj.dcStopwatchLastEpoch
@@ -1036,6 +1078,35 @@ StyledItem {
             property int directActionsMaxColumn: 0 // 0 = not limited
             property real directActionsSideMargins: 0.2 // In inches
             property bool directActionsEnableHint: true
+            property string customInfographicsCircleColor: "white" // HTML format
+            property bool useCustomInfographicCircleColor: false
+            property bool ow_GradientColoredDate: false
+
+            property bool enableAirMouse: true
+            property real airMouseSensitivity: 1 // Multiplier so higher means higher sensitivity
+            property bool invertSideMouseScroll: false
+            property real sideMouseScrollSensitivity: 1 // Multiplier so higher means higher sensitivity
+            property int sideMouseScrollPosition: 0
+            /*
+            0 - Right
+            1 - Left
+            */
+            property bool enableSideMouseScrollHaptics: true
+            property bool useCustomDotsColor: false
+            property string customDotsColor: "white"
+            property bool enableTopLeftHotCorner: true
+            property bool enableTopRightHotCorner: true
+            property bool enableBottomRightHotCorner: true
+            property bool enableBottomLeftHotCorner: true
+            property int actionTypeTopLeftHotCorner: Shell.HotCorner.Drawer
+            property int actionTypeTopRightHotCorner: Shell.HotCorner.Indicator
+            property int actionTypeBottomRightHotCorner: Shell.HotCorner.ToggleSpread
+            property int actionTypeBottomLeftHotCorner: Shell.HotCorner.ToggleDesktop
+            property int actionTopLeftHotCorner: 0
+            property int actionTopRightHotCorner: 0
+            property int actionBottomRightHotCorner: 0
+            property int actionBottomLeftHotCorner: 0
+            property bool airMouseAlwaysActive: true
         }
     }
 
@@ -1393,6 +1464,17 @@ StyledItem {
         LPSettingsPage {
             title: "Lomiri Plus Settings"
 
+            LPSettingsCheckBox {
+                id: onlyShowLomiriSettingsWhenUnlocked
+                Layout.fillWidth: true
+                text: "Lock Settings when locked"
+                onCheckedChanged: shell.settings.onlyShowLomiriSettingsWhenUnlocked = checked
+                Binding {
+                    target: onlyShowLomiriSettingsWhenUnlocked
+                    property: "checked"
+                    value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
+                }
+            }
             LPSettingsNavItem {
                 Layout.fillWidth: true
                 text: "Outer Wilds"
@@ -1400,18 +1482,23 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "General"
-                onClicked: settingsLoader.item.stack.push(generalPage, {"title": text})
+                text: "Appearance"
+                onClicked: settingsLoader.item.stack.push(appearancePage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Customizations"
-                onClicked: settingsLoader.item.stack.push(customizationsPage, {"title": text})
+                text: "Accessibility"
+                onClicked: settingsLoader.item.stack.push(accessibilityPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Features"
-                onClicked: settingsLoader.item.stack.push(featuresPage, {"title": text})
+                text: "Convergence"
+                onClicked: settingsLoader.item.stack.push(convergencePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Components"
+                onClicked: settingsLoader.item.stack.push(componentsPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -1426,47 +1513,9 @@ StyledItem {
         }
     }
     Component {
-        id: generalPage
+        id: appearancePage
         
         LPSettingsPage {
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Key Shortcuts"
-                onClicked: settingsLoader.item.stack.push(keyShortcutsPage, {"title": text})
-            }
-            LPSettingsCheckBox {
-                id: onlyShowLomiriSettingsWhenUnlocked
-                Layout.fillWidth: true
-                text: "LP settings only available when unlocked"
-                onCheckedChanged: shell.settings.onlyShowLomiriSettingsWhenUnlocked = checked
-                Binding {
-                    target: onlyShowLomiriSettingsWhenUnlocked
-                    property: "checked"
-                    value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
-                }
-            }
-            LPSettingsSwitch {
-                id: enableHaptics
-                Layout.fillWidth: true
-                text: "Enable haptics"
-                onCheckedChanged: shell.settings.enableHaptics = checked
-                Binding {
-                    target: enableHaptics
-                    property: "checked"
-                    value: shell.settings.enableHaptics
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                Layout.leftMargin: units.gu(4)
-                Layout.rightMargin: units.gu(2)
-                Layout.bottomMargin: units.gu(2)
-                text: "Haptics feedback for button presses and swipe gestures\n"
-                + "Only applies to some controls and not all"
-                wrapMode: Text.WordWrap
-                font.italic: true
-                textSize: Label.Small
-            }
             LPSettingsSwitch {
                 id: enableCustomBlurRadius
                 Layout.fillWidth: true
@@ -1477,6 +1526,16 @@ StyledItem {
                     property: "checked"
                     value: shell.settings.enableCustomBlurRadius
                 }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Applies to all background blur settings"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
             LPSettingsSlider {
                 id: customBlurRadius
@@ -1501,17 +1560,6 @@ StyledItem {
                 }
             }
             LPSettingsCheckBox {
-                id: enableShowDesktop
-                Layout.fillWidth: true
-                text: "Show desktop in App Spread (Swipe Up)"
-                onCheckedChanged: shell.settings.enableShowDesktop = checked
-                Binding {
-                    target: enableShowDesktop
-                    property: "checked"
-                    value: shell.settings.enableShowDesktop
-                }
-            }
-            LPSettingsCheckBox {
                 id: enableSlimVolume
                 Layout.fillWidth: true
                 text: "Slim slider notification bubble"
@@ -1522,6 +1570,171 @@ StyledItem {
                     value: shell.settings.enableSlimVolume
                 }
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Auto Dark Mode"
+                onClicked: settingsLoader.item.stack.push(autoDarkModePage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: accessibilityPage
+        
+        LPSettingsPage {
+            LPSettingsSwitch {
+                id: enableHaptics
+                Layout.fillWidth: true
+                text: "Enable haptics"
+                onCheckedChanged: shell.settings.enableHaptics = checked
+                Binding {
+                    target: enableHaptics
+                    property: "checked"
+                    value: shell.settings.enableHaptics
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Haptics feedback for button presses and swipe gestures\n"
+                + "Only applies to some controls and not all"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: enableShowDesktop
+                Layout.fillWidth: true
+                text: "Show desktop in App Spread (Swipe Up)"
+                onCheckedChanged: shell.settings.enableShowDesktop = checked
+                Binding {
+                    target: enableShowDesktop
+                    property: "checked"
+                    value: shell.settings.enableShowDesktop
+                }
+            }
+            LPSettingsSwitch {
+                id: orientationPrompt
+                Layout.fillWidth: true
+                text: "Screen Rotation Button"
+                onCheckedChanged: shell.settings.orientationPrompt = checked
+                Binding {
+                    target: orientationPrompt
+                    property: "checked"
+                    value: shell.settings.orientationPrompt
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Displays a button at the bottom right when rotating the screen while auto-rotation is disabled"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Abot Kamay"
+                onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Color Overlay"
+                onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Direct Actions"
+                onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: convergencePage
+        
+        LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Staged Mode"
+                onClicked: settingsLoader.item.stack.push(stagedModePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "External Display"
+                onClicked: settingsLoader.item.stack.push(externalDisplayPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Mouse"
+                onClicked: settingsLoader.item.stack.push(mousePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Key Shortcuts"
+                onClicked: settingsLoader.item.stack.push(keyShortcutsPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: stagedModePage
+        
+        LPSettingsPage {
+            LPSettingsSwitch {
+                id: enableSideStage
+                Layout.fillWidth: true
+                text: "Side-Stage"
+                onCheckedChanged: shell.settings.enableSideStage = checked
+                Binding {
+                    target: enableSideStage
+                    property: "checked"
+                    value: shell.settings.enableSideStage
+                }
+            }
+            LPSettingsCheckBox {
+                id: forceEnableWorkspace
+                Layout.fillWidth: true
+                text: "Enable workspaces in Staged mode"
+                onCheckedChanged: lomiriSettings.forceEnableWorkspace = checked
+                Binding {
+                    target: forceEnableWorkspace
+                    property: "checked"
+                    value: lomiriSettings.forceEnableWorkspace
+                }
+            }
+            
+        }
+    }
+    Component {
+        id: externalDisplayPage
+
+        LPSettingsPage {
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Behavior")
+                model: [
+                    i18n.tr("Virtual Touchpad"),
+                    i18n.tr("Multi-display")
+                    // i18n.tr("Mirrored")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.externalDisplayBehavior
+                onSelectedIndexChanged: shell.settings.externalDisplayBehavior = selectedIndex
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Air Mouse"
+                onClicked: settingsLoader.item.stack.push(airMousePage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: mousePage
+        
+        LPSettingsPage {
             LPSettingsCheckBox {
                 id: disableLeftEdgeMousePush
                 Layout.fillWidth: true
@@ -1544,29 +1757,10 @@ StyledItem {
                     value: shell.settings.disableRightEdgeMousePush
                 }
             }
-            LPSettingsCheckBox {
-                id: forceEnableWorkspace
+            LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Enable workspaces in Staged mode"
-                onCheckedChanged: lomiriSettings.forceEnableWorkspace = checked
-                Binding {
-                    target: forceEnableWorkspace
-                    property: "checked"
-                    value: lomiriSettings.forceEnableWorkspace
-                }
-            }
-            OptionSelector {
-                Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                text: i18n.tr("External display behavior")
-                model: [
-                    i18n.tr("Virtual Touchpad"),
-                    i18n.tr("Multi-display")
-                    // i18n.tr("Mirrored")
-                ]
-                containerHeight: itemHeight * 6
-                selectedIndex: shell.settings.externalDisplayBehavior
-                onSelectedIndexChanged: shell.settings.externalDisplayBehavior = selectedIndex
+                text: "Hot Corners"
+                onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
             }
         }
     }
@@ -1759,13 +1953,23 @@ StyledItem {
             LPSettingsCheckBox {
                 id: ow_GradientColoredTime
                 Layout.fillWidth: true
-                visible: shell.settings.ow_ColoredClock
                 text: "Gradient Time Text"
                 onCheckedChanged: shell.settings.ow_GradientColoredTime = checked
                 Binding {
                     target: ow_GradientColoredTime
                     property: "checked"
                     value: shell.settings.ow_GradientColoredTime
+                }
+            }
+            LPSettingsCheckBox {
+                id: ow_GradientColoredDate
+                Layout.fillWidth: true
+                text: "Gradient Date Text"
+                onCheckedChanged: shell.settings.ow_GradientColoredDate = checked
+                Binding {
+                    target: ow_GradientColoredDate
+                    property: "checked"
+                    value: shell.settings.ow_GradientColoredDate
                 }
             }
             LPSettingsCheckBox {
@@ -1854,7 +2058,7 @@ StyledItem {
         }
     }
     Component {
-        id: customizationsPage
+        id: componentsPage
         
         LPSettingsPage {
             LPSettingsNavItem {
@@ -1869,13 +2073,13 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Top Panel"
-                onClicked: settingsLoader.item.stack.push(topPanelpage, {"title": text})
+                text: "App Drawer"
+                onClicked: settingsLoader.item.stack.push(drawerpage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "App Drawer"
-                onClicked: settingsLoader.item.stack.push(drawerpage, {"title": text})
+                text: "Top Bar / Indicators"
+                onClicked: settingsLoader.item.stack.push(topPanelpage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -1885,8 +2089,23 @@ StyledItem {
 
             Component {
                 id: lockscreenPage
-                
+
                 LPSettingsPage {
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Clock"
+                        onClicked: settingsLoader.item.stack.push(clockPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Infographics"
+                        onClicked: settingsLoader.item.stack.push(infographicsPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Dynamic Cove"
+                        onClicked: settingsLoader.item.stack.push(dynamicCovePage, {"title": text})
+                    }
                     LPSettingsSwitch {
                         id: customLockscreenWP
                         Layout.fillWidth: true
@@ -1931,6 +2150,12 @@ StyledItem {
                         font.italic: true
                         textSize: Label.Small
                     }
+                }
+            }
+            Component {
+                id: clockPage
+
+                LPSettingsPage {
                     LPSettingsCheckBox {
                         id: hideLockscreenClock
                         Layout.fillWidth: true
@@ -1945,7 +2170,7 @@ StyledItem {
                     LPSettingsSwitch {
                         id: useCustomLSClockColor
                         Layout.fillWidth: true
-                        text: "Custom clock color"
+                        text: "Custom color"
                         onCheckedChanged: shell.settings.useCustomLSClockColor = checked
                         Binding {
                             target: useCustomLSClockColor
@@ -1969,7 +2194,7 @@ StyledItem {
                     LPSettingsSwitch {
                         id: useCustomLSClockFont
                         Layout.fillWidth: true
-                        text: "Custom clock font"
+                        text: "Custom font"
                         onCheckedChanged: shell.settings.useCustomLSClockFont = checked
                         Binding {
                             target: useCustomLSClockFont
@@ -1981,11 +2206,64 @@ StyledItem {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         visible: shell.settings.useCustomLSClockFont
-                        text: i18n.tr("Custom clock font")
                         model: Qt.fontFamilies()
                         containerHeight: itemHeight * 6
                         selectedIndex: model.indexOf(shell.settings.customLSClockFont)
                         onSelectedIndexChanged: shell.settings.customLSClockFont = model[selectedIndex]
+                    }
+                }
+            }
+            Component {
+                id: infographicsPage
+
+                LPSettingsPage {
+                    LPSettingsSwitch {
+                        id: useCustomInfographicCircleColor
+                        Layout.fillWidth: true
+                        text: i18n.tr("Custom circle color")
+                        onCheckedChanged: shell.settings.useCustomInfographicCircleColor = checked
+                        Binding {
+                            target: useCustomInfographicCircleColor
+                            property: "checked"
+                            value: shell.settings.useCustomInfographicCircleColor
+                        }
+                    }
+                    LPColorField {
+                        id: customInfographicsCircleColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomInfographicCircleColor
+                        onTextChanged: shell.settings.customInfographicsCircleColor = text
+                        onColorPicker: colorPickerLoader.open(customInfographicsCircleColor)
+                        Binding {
+                            target: customInfographicsCircleColor
+                            property: "text"
+                            value: shell.settings.customInfographicsCircleColor
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomDotsColor
+                        Layout.fillWidth: true
+                        text: i18n.tr("Custom dots color")
+                        onCheckedChanged: shell.settings.useCustomDotsColor = checked
+                        Binding {
+                            target: useCustomDotsColor
+                            property: "checked"
+                            value: shell.settings.useCustomDotsColor
+                        }
+                    }
+                    LPColorField {
+                        id: customDotsColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomDotsColor
+                        onTextChanged: shell.settings.customDotsColor = text
+                        onColorPicker: colorPickerLoader.open(customDotsColor)
+                        Binding {
+                            target: customDotsColor
+                            property: "text"
+                            value: shell.settings.customDotsColor
+                        }
                     }
                 }
             }
@@ -1995,9 +2273,30 @@ StyledItem {
                 LPSettingsPage {
                     LPSettingsNavItem {
                         Layout.fillWidth: true
+                        text: "Top Bar"
+                        onClicked: settingsLoader.item.stack.push(topBarpage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Indicator Panels"
+                        onClicked: settingsLoader.item.stack.push(indicatorsPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
                         text: "Indicator Options"
                         onClicked: settingsLoader.item.stack.push(indicatorOptionsPage, {"title": text})
                     }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Indicator Open Gesture"
+                        onClicked: settingsLoader.item.stack.push(indicatorOpenPage, {"title": text})
+                    }
+                }
+            }
+            Component {
+                id: topBarpage
+
+                LPSettingsPage {
                     LPSettingsNavItem {
                         Layout.fillWidth: true
                         text: "Always Hidden Icons"
@@ -2012,7 +2311,7 @@ StyledItem {
                         id: topPanelOpacity
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
-                        title: "Top Bar Opacity"
+                        title: "Opacity"
                         minimumValue: 0
                         maximumValue: 100
                         stepSize: 10
@@ -2029,74 +2328,9 @@ StyledItem {
                         }
                     }
                     LPSettingsCheckBox {
-                        id: enablePanelHeaderExpand
-                        Layout.fillWidth: true
-                        text: "Indicator panel header expands"
-                        onCheckedChanged: shell.settings.enablePanelHeaderExpand = checked
-                        Binding {
-                            target: enablePanelHeaderExpand
-                            property: "checked"
-                            value: shell.settings.enablePanelHeaderExpand
-                        }
-                    }
-                    LPSettingsCheckBox {
-                        id: transparentTopBarOnSpread
-                        Layout.fillWidth: true
-                        text: "Top bar transparent in App Spread"
-                        onCheckedChanged: shell.settings.transparentTopBarOnSpread = checked
-                        Binding {
-                            target: transparentTopBarOnSpread
-                            property: "checked"
-                            value: shell.settings.transparentTopBarOnSpread
-                        }
-                    }
-                    LPSettingsCheckBox {
-                        id: indicatorBlur
-                        Layout.fillWidth: true
-                        text: "Top Panel Pages Blur"
-                        onCheckedChanged: shell.settings.indicatorBlur = checked
-                        Binding {
-                            target: indicatorBlur
-                            property: "checked"
-                            value: shell.settings.indicatorBlur
-                        }
-                    }
-                    LPSettingsCheckBox {
-                        id: alwaysFullWidthTopPanel
-                        Layout.fillWidth: true
-                        text: "Always full width top panel menu"
-                        onCheckedChanged: shell.settings.alwaysFullWidthTopPanel = checked
-                        Binding {
-                            target: alwaysFullWidthTopPanel
-                            property: "checked"
-                            value: shell.settings.alwaysFullWidthTopPanel
-                        }
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: units.gu(4)
-                        Layout.rightMargin: units.gu(2)
-                        Layout.bottomMargin: units.gu(2)
-                        text: "Always displays the top panel menu in full width in portrait orientations"
-                        wrapMode: Text.WordWrap
-                        font.italic: true
-                        textSize: Label.Small
-                    }
-                    LPSettingsCheckBox {
-                        id: widerLandscapeTopPanel
-                        Layout.fillWidth: true
-                        text: "Wider top panel pages in landscape"
-                        onCheckedChanged: shell.settings.widerLandscapeTopPanel = checked
-                        Binding {
-                            target: widerLandscapeTopPanel
-                            property: "checked"
-                            value: shell.settings.widerLandscapeTopPanel
-                        }
-                    }
-                    LPSettingsCheckBox {
                         id: alwaysHideTopPanel
                         Layout.fillWidth: true
-                        text: "Always Hide Top Panel"
+                        text: "Always hide"
                         onCheckedChanged: shell.settings.alwaysHideTopPanel = checked
                         Binding {
                             target: alwaysHideTopPanel
@@ -2109,7 +2343,7 @@ StyledItem {
                         Layout.leftMargin: units.gu(4)
                         Layout.rightMargin: units.gu(2)
                         Layout.bottomMargin: units.gu(2)
-                        text: "Top panel will always be hidden unless in the greeter or app spread"
+                        text: "Top bar will always be hidden unless in the greeter or app spread"
                         wrapMode: Text.WordWrap
                         font.italic: true
                         textSize: Label.Small
@@ -2117,13 +2351,110 @@ StyledItem {
                     LPSettingsCheckBox {
                         id: onlyHideTopPanelonLandscape
                         Layout.fillWidth: true
-                        text: "Only Hide Top Panel on Landscape"
+                        text: "Only hide when in landscape"
                         visible: shell.settings.alwaysHideTopPanel
                         onCheckedChanged: shell.settings.onlyHideTopPanelonLandscape = checked
                         Binding {
                             target: onlyHideTopPanelonLandscape
                             property: "checked"
                             value: shell.settings.onlyHideTopPanelonLandscape
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: transparentTopBarOnSpread
+                        Layout.fillWidth: true
+                        text: "Transparent when in App Spread"
+                        onCheckedChanged: shell.settings.transparentTopBarOnSpread = checked
+                        Binding {
+                            target: transparentTopBarOnSpread
+                            property: "checked"
+                            value: shell.settings.transparentTopBarOnSpread
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: batteryCircleCheck
+                        Layout.fillWidth: true
+                        text: "Punchhole Battery Indicator"
+                        onCheckedChanged: shell.settings.batteryCircle = checked
+                        Binding {
+                            target: batteryCircleCheck
+                            property: "checked"
+                            value: shell.settings.batteryCircle
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Requires: Right punchholes, Notch Side Margin, Exact Punchhole Width, Punchhole Height From Top"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                }
+            }
+            Component {
+                id: indicatorsPage
+
+                LPSettingsPage {
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Quick toggles"
+                        onClicked: settingsLoader.item.stack.push(quickTogglesPage, {"title": text})
+                    }
+                    LPSettingsCheckBox {
+                        id: enablePanelHeaderExpand
+                        Layout.fillWidth: true
+                        text: "Expandable header"
+                        onCheckedChanged: shell.settings.enablePanelHeaderExpand = checked
+                        Binding {
+                            target: enablePanelHeaderExpand
+                            property: "checked"
+                            value: shell.settings.enablePanelHeaderExpand
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: indicatorBlur
+                        Layout.fillWidth: true
+                        text: "Background Blur"
+                        onCheckedChanged: shell.settings.indicatorBlur = checked
+                        Binding {
+                            target: indicatorBlur
+                            property: "checked"
+                            value: shell.settings.indicatorBlur
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: alwaysFullWidthTopPanel
+                        Layout.fillWidth: true
+                        text: "Always display in full width"
+                        onCheckedChanged: shell.settings.alwaysFullWidthTopPanel = checked
+                        Binding {
+                            target: alwaysFullWidthTopPanel
+                            property: "checked"
+                            value: shell.settings.alwaysFullWidthTopPanel
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Always displays the indicator panels in full width when in portrait"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
+                        id: widerLandscapeTopPanel
+                        Layout.fillWidth: true
+                        text: "Wider width when in landscape"
+                        onCheckedChanged: shell.settings.widerLandscapeTopPanel = checked
+                        Binding {
+                            target: widerLandscapeTopPanel
+                            property: "checked"
+                            value: shell.settings.widerLandscapeTopPanel
                         }
                     }
                 }
@@ -2452,10 +2783,15 @@ StyledItem {
                 id: drawerpage
                 
                 LPSettingsPage {
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Drawer Dock"
+                        onClicked: settingsLoader.item.stack.push(drawerDockPage, {"title": text})
+                    }
                     LPSettingsSwitch {
                         id: drawerBlur
                         Layout.fillWidth: true
-                        text: "Interactive Blur"
+                        text: "Background Blur"
                         onCheckedChanged: shell.settings.drawerBlur = checked
                         Binding {
                             target: drawerBlur
@@ -2466,7 +2802,7 @@ StyledItem {
                     LPSettingsCheckBox {
                         id: invertedDrawer
                         Layout.fillWidth: true
-                        text: "Inverted App Drawer"
+                        text: "Inverted"
                         onCheckedChanged: shell.settings.invertedDrawer = checked
                         Binding {
                             target: invertedDrawer
@@ -2605,6 +2941,16 @@ StyledItem {
                 id: launcherPage
                 
                 LPSettingsPage {
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Direct Select"
+                        onClicked: settingsLoader.item.stack.push(directSelectPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "BFB"
+                        onClicked: settingsLoader.item.stack.push(bfbPage, {"title": text})
+                    }
                     LPSettingsCheckBox {
                         id: showLauncherAtDesktop
                         Layout.fillWidth: true
@@ -2627,10 +2973,16 @@ StyledItem {
                             value: shell.settings.dimWhenLauncherShow
                         }
                     }
+                }
+            }
+            Component {
+                id: bfbPage
+                
+                LPSettingsPage {
                     LPSettingsCheckBox {
                         id: roundedBFB
                         Layout.fillWidth: true
-                        text: "Rounded Launcher Button"
+                        text: "Rounded Corners"
                         onCheckedChanged: shell.settings.roundedBFB = checked
                         Binding {
                             target: roundedBFB
@@ -2641,7 +2993,7 @@ StyledItem {
                     LPSettingsCheckBox {
                         id: useCustomBFBColor
                         Layout.fillWidth: true
-                        text: "Custom BFB Color"
+                        text: "Custom Background Color"
                         onCheckedChanged: shell.settings.useCustomBFBColor = checked
                         Binding {
                             target: useCustomBFBColor
@@ -2752,105 +3104,6 @@ StyledItem {
                         wrapMode: Text.WordWrap
                     }
                 }
-            }
-        }
-    }
-    Component {
-        id: featuresPage
-
-        LPSettingsPage {
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Quick toggles"
-                onClicked: settingsLoader.item.stack.push(quickTogglesPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Dynamic Cove"
-                onClicked: settingsLoader.item.stack.push(dynamicCovePage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Direct Actions"
-                onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Indicator Open Gesture"
-                onClicked: settingsLoader.item.stack.push(indicatorOpenPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Launcher Direct Select"
-                onClicked: settingsLoader.item.stack.push(directSelectPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "App Drawer Dock"
-                onClicked: settingsLoader.item.stack.push(drawerDockPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Color Overlay"
-                onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Auto Dark Mode"
-                onClicked: settingsLoader.item.stack.push(autoDarkModePage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Abot Kamay"
-                onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Hot Corners"
-                onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
-            }
-            LPSettingsSwitch {
-                id: enableSideStage
-                Layout.fillWidth: true
-                text: "Side-Stage"
-                onCheckedChanged: shell.settings.enableSideStage = checked
-                Binding {
-                    target: enableSideStage
-                    property: "checked"
-                    value: shell.settings.enableSideStage
-                }
-            }
-            LPSettingsSwitch {
-                id: orientationPrompt
-                Layout.fillWidth: true
-                text: "Screen Rotation Button"
-                onCheckedChanged: shell.settings.orientationPrompt = checked
-                Binding {
-                    target: orientationPrompt
-                    property: "checked"
-                    value: shell.settings.orientationPrompt
-                }
-            }
-            LPSettingsSwitch {
-                id: batteryCircleCheck
-                Layout.fillWidth: true
-                text: "Punchhole Battery Indicator"
-                onCheckedChanged: shell.settings.batteryCircle = checked
-                Binding {
-                    target: batteryCircleCheck
-                    property: "checked"
-                    value: shell.settings.batteryCircle
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                Layout.leftMargin: units.gu(4)
-                Layout.rightMargin: units.gu(2)
-                Layout.bottomMargin: units.gu(2)
-                text: "Requires: Right punchholes, Notch Side Margin, Exact Punchhole Width, Punchhole Height From Top"
-                wrapMode: Text.WordWrap
-                font.italic: true
-                textSize: Label.Small
             }
         }
     }
@@ -3123,6 +3376,289 @@ StyledItem {
                     target: enableHotCornersVisualFeedback
                     property: "checked"
                     value: shell.settings.enableHotCornersVisualFeedback
+                }
+            }
+            property var hotcornerActions: [
+                "Open Drawer"
+                , "Search Drawer"
+                , "Toggle Desktop"
+                , "Open Indicator"
+                , "Toggle Spread"
+                , "Switch to previous app"
+            ]
+            Component {
+                id: selectorDelegate
+                OptionSelectorDelegate { text: modelData.name }
+            }
+            LPSettingsSwitch {
+                id: enableTopLeftHotCorner
+                Layout.fillWidth: true
+                text: i18n.tr("Top Left")
+                onCheckedChanged: shell.settings.enableTopLeftHotCorner = checked
+                Binding {
+                    target: enableTopLeftHotCorner
+                    property: "checked"
+                    value: shell.settings.enableTopLeftHotCorner
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners && shell.settings.enableTopLeftHotCorner
+                model: hotcornerActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.actionTypeTopLeftHotCorner
+                onSelectedIndexChanged: shell.settings.actionTypeTopLeftHotCorner = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners
+                            && shell.settings.enableTopLeftHotCorner
+                            && shell.settings.actionTypeTopLeftHotCorner == Shell.HotCorner.Indicator
+                model: hotcornersIndicatorsModel
+                containerHeight: itemHeight * 6
+                delegate: selectorDelegate
+                selectedIndex: shell.settings.actionTopLeftHotCorner
+                onSelectedIndexChanged: shell.settings.actionTopLeftHotCorner = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableTopRightHotCorner
+                Layout.fillWidth: true
+                text: i18n.tr("Top Right")
+                onCheckedChanged: shell.settings.enableTopRightHotCorner = checked
+                Binding {
+                    target: enableTopRightHotCorner
+                    property: "checked"
+                    value: shell.settings.enableTopRightHotCorner
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners && shell.settings.enableTopRightHotCorner
+                model: hotcornerActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.actionTypeTopRightHotCorner
+                onSelectedIndexChanged: shell.settings.actionTypeTopRightHotCorner = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners
+                            && shell.settings.enableTopRightHotCorner
+                            && shell.settings.actionTypeTopRightHotCorner == Shell.HotCorner.Indicator
+                model: hotcornersIndicatorsModel
+                containerHeight: itemHeight * 6
+                delegate: selectorDelegate
+                selectedIndex: shell.settings.actionTopRightHotCorner
+                onSelectedIndexChanged: shell.settings.actionTopRightHotCorner = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableBottomRightHotCorner
+                Layout.fillWidth: true
+                text: i18n.tr("Bottom Right")
+                onCheckedChanged: shell.settings.enableBottomRightHotCorner = checked
+                Binding {
+                    target: enableBottomRightHotCorner
+                    property: "checked"
+                    value: shell.settings.enableBottomRightHotCorner
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners && shell.settings.enableBottomRightHotCorner
+                model: hotcornerActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.actionTypeBottomRightHotCorner
+                onSelectedIndexChanged: shell.settings.actionTypeBottomRightHotCorner = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners
+                            && shell.settings.enableBottomRightHotCorner
+                            && shell.settings.actionTypeBottomRightHotCorner == Shell.HotCorner.Indicator
+                model: hotcornersIndicatorsModel
+                containerHeight: itemHeight * 6
+                delegate: selectorDelegate
+                selectedIndex: shell.settings.actionBottomRightHotCorner
+                onSelectedIndexChanged: shell.settings.actionBottomRightHotCorner = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableBottomLeftHotCorner
+                Layout.fillWidth: true
+                text: i18n.tr("Bottom Left")
+                onCheckedChanged: shell.settings.enableBottomLeftHotCorner = checked
+                Binding {
+                    target: enableBottomLeftHotCorner
+                    property: "checked"
+                    value: shell.settings.enableBottomLeftHotCorner
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners && shell.settings.enableBottomLeftHotCorner
+                model: hotcornerActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.actionTypeBottomLeftHotCorner
+                onSelectedIndexChanged: shell.settings.actionTypeBottomLeftHotCorner = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners
+                            && shell.settings.enableBottomLeftHotCorner
+                            && shell.settings.actionTypeBottomLeftHotCorner == Shell.HotCorner.Indicator
+                model: hotcornersIndicatorsModel
+                containerHeight: itemHeight * 6
+                delegate: selectorDelegate
+                selectedIndex: shell.settings.actionBottomLeftHotCorner
+                onSelectedIndexChanged: shell.settings.actionBottomLeftHotCorner = selectedIndex
+            }
+        }
+    }
+    Component {
+        id: airMousePage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Use your device as an air mouse! Toggle by swiping from bottom of the Virtual Touchpad \n"
+                + " - Single tap to left click\n"
+                + " - Double tap to double click\n"
+                + " - Slight swipe down to right click\n"
+                + " - Slight swipe up without releasing to drag\n"
+                + " - Swipe on the side strip to scroll\n\n"
+                + "*** Some settings do not take effect immediately. A reconnect to the external display or Lomiri restart is required."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: enableAirMouse
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableAirMouse = checked
+                Binding {
+                    target: enableAirMouse
+                    property: "checked"
+                    value: shell.settings.enableAirMouse
+                }
+            }
+            LPSettingsCheckBox {
+                id: airMouseAlwaysActive
+                Layout.fillWidth: true
+                text: "Always active Gyro"
+                visible: shell.settings.enableAirMouse
+                onCheckedChanged: shell.settings.airMouseAlwaysActive = checked
+                Binding {
+                    target: airMouseAlwaysActive
+                    property: "checked"
+                    value: shell.settings.airMouseAlwaysActive
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "When set to always active, gyro sensor will always move the mouse, otherwise, you have to tap and hold the touchpad"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSlider {
+                id: airMouseSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAirMouse
+                title: "Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0.1
+                maximumValue: 2
+                stepSize: 0.1
+                resetValue: 1
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "x"
+                enableFineControls: true
+                onValueChanged: shell.settings.airMouseSensitivity = value
+                Binding {
+                    target: airMouseSensitivity
+                    property: "value"
+                    value: shell.settings.airMouseSensitivity
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAirMouse
+                text: i18n.tr("Mouse scroll position")
+                model: [
+                    i18n.tr("Right"),
+                    i18n.tr("Left")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.sideMouseScrollPosition
+                onSelectedIndexChanged: shell.settings.sideMouseScrollPosition = selectedIndex
+            }
+            LPSettingsSlider {
+                id: sideMouseScrollSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAirMouse
+                title: "Scroll Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0.1
+                maximumValue: 2
+                stepSize: 0.1
+                resetValue: 1
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "x"
+                enableFineControls: true
+                onValueChanged: shell.settings.sideMouseScrollSensitivity = value
+                Binding {
+                    target: sideMouseScrollSensitivity
+                    property: "value"
+                    value: shell.settings.sideMouseScrollSensitivity
+                }
+            }
+            LPSettingsCheckBox {
+                id: invertSideMouseScroll
+                Layout.fillWidth: true
+                text: "Invert mouse scroll"
+                visible: shell.settings.enableAirMouse
+                onCheckedChanged: shell.settings.invertSideMouseScroll = checked
+                Binding {
+                    target: invertSideMouseScroll
+                    property: "checked"
+                    value: shell.settings.invertSideMouseScroll
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableSideMouseScrollHaptics
+                Layout.fillWidth: true
+                text: "Enable haptics while scrolling"
+                visible: shell.settings.enableAirMouse
+                onCheckedChanged: shell.settings.enableSideMouseScrollHaptics = checked
+                Binding {
+                    target: enableSideMouseScrollHaptics
+                    property: "checked"
+                    value: shell.settings.enableSideMouseScrollHaptics
                 }
             }
         }
@@ -3508,7 +4044,7 @@ StyledItem {
                         }
                         property int actionType: actionTypeSelector.model[actionTypeSelector.selectedIndex].value
 
-                         OptionSelector {
+                        OptionSelector {
                              id: actionTypeSelector
 
                             text: i18n.tr("Action Type")
@@ -5511,7 +6047,7 @@ StyledItem {
             id: launcher
             objectName: "launcher"
             // ENH033 - Hide launcher under the top panel
-            z: panel.z - 1
+            // z: panel.z - 1
             // ENH033 - End
             anchors.top: parent.top
             anchors.topMargin: inverted ? 0 : panel.panelHeight
@@ -5696,6 +6232,7 @@ StyledItem {
             margin: units.gu(1)
             hasMouse: shell.hasMouse
             background: wallpaperResolver.background
+            privacyMode: greeter.locked && AccountsService.hideNotificationContentWhileLocked
 
             y: topmostIsFullscreen ? 0 : panel.panelHeight
             height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
@@ -5729,7 +6266,7 @@ StyledItem {
             // enabled: !greeter.shown
             // ENH133 - Hot corners
             //enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
-            enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush && !shell.settings.enableHotCorners
+            enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
             // ENH133 - End
             // ENH104 - End
 
@@ -5757,51 +6294,177 @@ StyledItem {
         }
 
         // ENH133 - Hot corners
+        readonly property bool drawerEnabled: launcher.drawerEnabled && panel.indicators.fullyClosed
+        readonly property bool spreadEnabled: stage.spreadEnabled && panel.indicators.fullyClosed
+        readonly property bool desktopEnabled: panel.indicators.fullyClosed && !shell.atDesktop && !shell.showingGreeter
+        readonly property bool previousAppEnabled: !shell.showingGreeter
+
+        function triggerHotCorner(__actionType, __action) {
+
+            switch (__actionType) {
+                case Shell.HotCorner.Drawer:
+                    launcher.toggleDrawer(false, false, true)
+                    break
+                case Shell.HotCorner.SearchDrawer:
+                    launcher.toggleDrawer(true, false, true)
+                    break
+                case Shell.HotCorner.ToggleDesktop:
+                    stage.showDesktop()
+                case Shell.HotCorner.PreviousApp:
+                    stage.switchToPreviousApp()
+                    break
+                case Shell.HotCorner.ToggleSpread:
+                    stage.toggleSpread()
+                    break
+                case Shell.HotCorner.Indicator:
+                    if (panel.indicators.fullyClosed) {
+                        let _index = shell.hotcornersIndicatorsModel[__action].indicatorIndex
+                        panel.indicators.openAsInverted(_index, false)
+                    } else {
+                        panel.indicators.hide()
+                    }
+                    break
+            }
+        }
+
+        LPHotCorner {
+            id: topLeftHotCorner
+
+            actionType: shell.settings.actionTypeTopLeftHotCorner
+            actionValue: shell.settings.actionTopLeftHotCorner
+            enabled: shell.settings.enableHotCorners
+                        && shell.settings.enableTopLeftHotCorner
+                        && (
+                            (
+                                (actionType == Shell.HotCorner.Drawer || actionType == Shell.HotCorner.SearchDrawer)
+                                && overlay.drawerEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleSpread
+                                && overlay.spreadEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleDesktop
+                                && overlay.desktopEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.PreviousApp
+                                && overlay.previousAppEnabled
+                            )
+                            ||
+                            actionType == Shell.HotCorner.Indicator
+                        )
+            edge: LPHotCorner.Edge.TopLeft
+            enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
+        }
+
         LPHotCorner {
             id: topRightHotCorner
 
+            actionType: shell.settings.actionTypeTopRightHotCorner
+            actionValue: shell.settings.actionTopRightHotCorner
             enabled: shell.settings.enableHotCorners
+                        && shell.settings.enableTopRightHotCorner
+                        && (
+                            (
+                                (actionType == Shell.HotCorner.Drawer || actionType == Shell.HotCorner.SearchDrawer)
+                                && overlay.drawerEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleSpread
+                                && overlay.spreadEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleDesktop
+                                && overlay.desktopEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.PreviousApp
+                                && overlay.previousAppEnabled
+                            )
+                            ||
+                            actionType == Shell.HotCorner.Indicator
+                        )
             edge: LPHotCorner.Edge.TopRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: {
-                if (panel.indicators.fullyClosed) {
-                    panel.indicators.openAsInverted(-1, false)
-                } else {
-                    panel.indicators.hide()
-                }
-            }
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
         }
 
         LPHotCorner {
             id: bottomRightHotCorner
 
-            enabled: shell.settings.enableHotCorners && stage.spreadEnabled
-                            && panel.indicators.fullyClosed
+            actionType: shell.settings.actionTypeBottomRightHotCorner
+            actionValue: shell.settings.actionBottomRightHotCorner
+            enabled: shell.settings.enableHotCorners
+                        && shell.settings.enableBottomRightHotCorner
+                        && (
+                            (
+                                (actionType == Shell.HotCorner.Drawer || actionType == Shell.HotCorner.SearchDrawer)
+                                && overlay.drawerEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleSpread
+                                && overlay.spreadEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleDesktop
+                                && overlay.desktopEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.PreviousApp
+                                && overlay.previousAppEnabled
+                            )
+                            ||
+                            actionType == Shell.HotCorner.Indicator
+                        )
             edge: LPHotCorner.Edge.BottomRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: stage.toggleSpread()
-        }
-        
-        LPHotCorner {
-            id: topLeftHotCorner
-
-            enabled: shell.settings.enableHotCorners && launcher.drawerEnabled
-                            && panel.indicators.fullyClosed
-            edge: LPHotCorner.Edge.TopLeft
-            enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: launcher.toggleDrawer(false, false, true)
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
         }
 
         LPHotCorner {
             id: bottomLeftHotCorner
 
+            actionType: shell.settings.actionTypeBottomLeftHotCorner
+            actionValue: shell.settings.actionBottomLeftHotCorner
             enabled: shell.settings.enableHotCorners
-                            // We use custom show desktop for now which works in staged mode
-                            //&& shell.isWindowedMode
-                            && panel.indicators.fullyClosed && !shell.atDesktop
+                        && shell.settings.enableBottomLeftHotCorner
+                        && (
+                            (
+                                (actionType == Shell.HotCorner.Drawer || actionType == Shell.HotCorner.SearchDrawer)
+                                && overlay.drawerEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleSpread
+                                && overlay.spreadEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.ToggleDesktop
+                                && overlay.desktopEnabled
+                            )
+                            ||
+                            (
+                                actionType == Shell.HotCorner.PreviousApp
+                                && overlay.previousAppEnabled
+                            )
+                            ||
+                            actionType == Shell.HotCorner.Indicator
+                        )
             edge: LPHotCorner.Edge.BottomLeft
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: stage.showDesktop()
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
         }
         // ENH133 - End
     }

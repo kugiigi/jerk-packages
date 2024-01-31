@@ -433,7 +433,23 @@ FocusScope {
                     onApplicationSelected: appList.applicationSelected(appId)
                     onApplicationContextMenu: appList.applicationContextMenu(appId, this, false)
                 }
-                showDock: searchField.text == ""
+                showDock: true
+                Connections {
+                    target: searchField
+                    // Delay showDock change to reduce UI stutter
+                    onTextChanged: delayHideDock.restart()
+                }
+                Timer {
+                    id: delayHideDock
+                    interval: 100
+                    onTriggered: {
+                        if (searchField.text == "") {
+                            appList.showDock = true
+                        } else {
+                            appList.showDock = false
+                        }
+                    }
+                }
                 // ENH105 - End
                 onDraggingVerticallyChanged: {
                     if (draggingVertically) {

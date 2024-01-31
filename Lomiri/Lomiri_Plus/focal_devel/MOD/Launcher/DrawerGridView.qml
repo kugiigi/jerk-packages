@@ -95,6 +95,16 @@ FocusScope {
             }
         }
         , State {
+            name: "normal-integrated-dock"
+            extend: "normal"
+            when: !root.inverted && shell.settings.enableDrawerDock && root.isIntegratedDock
+            PropertyChanges {
+                target: gridView
+
+                anchors.topMargin: root.showDock ? units.gu(2) : 0
+            }
+        }
+        , State {
             name: "normal"
             when: !root.inverted
             AnchorChanges {
@@ -120,13 +130,13 @@ FocusScope {
             }
         }
         , State {
-            name: "normal-integrated-dock"
-            extend: "normal"
-            when: !root.inverted && shell.settings.enableDrawerDock && root.isIntegratedDock
+            name: "inverted-integrated-dock"
+            extend: "inverted"
+            when: root.inverted && shell.settings.enableDrawerDock && root.isIntegratedDock
             PropertyChanges {
                 target: gridView
 
-                anchors.topMargin: units.gu(2)
+                anchors.topMargin: 0
             }
         }
         , State {
@@ -146,22 +156,12 @@ FocusScope {
                 target: gridView
 
                 bottomMargin: root.viewMargin
-                anchors.bottomMargin: 0
+                anchors.bottomMargin: root.showDock ? units.gu(2) : 0
             }
             PropertyChanges {
                 target: bottomDockLoader
 
                 anchors.bottomMargin: 0
-            }
-        }
-        , State {
-            name: "inverted-integrated-dock"
-            extend: "inverted"
-            when: root.inverted && shell.settings.enableDrawerDock && root.isIntegratedDock
-            PropertyChanges {
-                target: gridView
-
-                anchors.topMargin: 0
             }
         }
     ]
