@@ -22,6 +22,7 @@ ColumnLayout {
     property bool enableFineControls: false
     property real resetValue: -1
     property string unitsLabel: percentageValue ? "%" : ""
+    property bool locked: true
 
     function formatDisplayValue(v) {
         if (sliderItem.percentageValue) {
@@ -60,8 +61,8 @@ ColumnLayout {
     RowLayout {
         QQC2.ToolButton {
             Layout.fillHeight: true
-            visible: sliderItem.enableFineControls
-            enabled: slider.value > slider.minimumValue
+            visible: sliderItem.enableFineControls && !sliderItem.locked
+            enabled: slider.value > slider.minimumValue && !sliderItem.locked
             icon.width: units.gu(2)
             icon.height: units.gu(2)
             action: QQC2.Action {
@@ -74,6 +75,7 @@ ColumnLayout {
 
             Layout.fillWidth: true
 
+            enabled: !sliderItem.locked
             minimumValue: 0
             maximumValue: 100
             live: true
@@ -90,8 +92,8 @@ ColumnLayout {
         }
         QQC2.ToolButton {
             Layout.fillHeight: true
-            visible: sliderItem.enableFineControls
-            enabled: slider.value < slider.maximumValue
+            visible: sliderItem.enableFineControls && !sliderItem.locked
+            enabled: slider.value < slider.maximumValue && !sliderItem.locked
             icon.width: units.gu(2)
             icon.height: units.gu(2)
             action: QQC2.Action {
@@ -103,11 +105,20 @@ ColumnLayout {
             Layout.fillHeight: true
             icon.width: units.gu(2)
             icon.height: units.gu(2)
-            visible: sliderItem.resetValue > -1
-            enabled: sliderItem.resetValue !== slider.value
+            visible: sliderItem.resetValue > -1 && !sliderItem.locked
+            enabled: sliderItem.resetValue !== slider.value && !sliderItem.locked
             action: QQC2.Action {
                 icon.name:  "reset"
                 onTriggered: slider.value = sliderItem.resetValue
+            }
+        }
+        QQC2.ToolButton {
+            Layout.fillHeight: true
+            icon.width: units.gu(2)
+            icon.height: units.gu(2)
+            action: QQC2.Action {
+                icon.name:  sliderItem.locked ? "lock-broken" : "lock"
+                onTriggered: sliderItem.locked = !sliderItem.locked
             }
         }
     }

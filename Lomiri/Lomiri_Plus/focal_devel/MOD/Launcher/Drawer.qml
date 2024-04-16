@@ -401,13 +401,14 @@ FocusScope {
                 delegateSizeMultiplier: root.delegateSizeMultiplier
                 // ENH132 - End
                 // ENH105 - Custom app drawer
+                
                 viewMargin: searchFieldContainer.fullyShown ? units.gu(2) : 0
                 rawModel: appDrawerModel
                 onApplicationSelected: root.applicationSelected(appId)
                 onApplicationContextMenu: {
                     // PopupUtils is not used because it doesn't follow the orientation properly and not shown in screenshots
                     //contextMenuItem = PopupUtils.open(contextMenuComponent, caller, {"appId": appId, "fromDocked": fromDocked})
-                    contextMenuItem = contextMenuComponent.createObject(shell.popupParent, {"caller": caller, "appId": appId, "fromDocked": fromDocked});
+                    contextMenuItem = contextMenuComponent.createObject(shell.popupParent, { "caller": caller, "appId": appId, "fromDocked": fromDocked, "fromCustomAppGrid": fromCustomAppGrid });
                     contextMenuItem.z = Number.MAX_VALUE
                     contextMenuItem.show()
                     shell.haptics.playSubtle()
@@ -431,9 +432,11 @@ FocusScope {
                     // ENH132 - End
 
                     onApplicationSelected: appList.applicationSelected(appId)
-                    onApplicationContextMenu: appList.applicationContextMenu(appId, this, false)
+                    onApplicationContextMenu: appList.applicationContextMenu(appId, this, false, false)
                 }
                 showDock: true
+                showCustomAppGrids: shell.settings.enableCustomAppGrid
+                fullAppGridLast: shell.settings.placeFullAppGridToLast
                 Connections {
                     target: searchField
                     // Delay showDock change to reduce UI stutter
@@ -441,12 +444,21 @@ FocusScope {
                 }
                 Timer {
                     id: delayHideDock
+                    property int previousAppGridIndex: -1
                     interval: 100
                     onTriggered: {
                         if (searchField.text == "") {
                             appList.showDock = true
+                            if (previousAppGridIndex > -1) {
+                                appList.showAppGrid(previousAppGridIndex)
+                                previousAppGridIndex = -1
+                            }
                         } else {
                             appList.showDock = false
+                            if (previousAppGridIndex === -1) {
+                                previousAppGridIndex = appList.currentPageIndex
+                            }
+                            appList.showFullAppGrid()
                         }
                     }
                 }
@@ -515,6 +527,75 @@ FocusScope {
         }
         // ENH105 - Custom app drawer
         Component {
+            id: appGridsComponent
+
+            ActionSelectionPopover {
+                id: appGridMenu
+
+                property var appId
+                property bool skipCheckExists: false
+
+                actions: actionList
+                grabDismissAreaEvents: true
+                automaticOrientation: false
+                delegate: ListItem {
+                    onClicked: PopupUtils.close(appGridMenu)
+                    ListItemLayout {
+                       title.text: action.text
+                       Icon {
+                            name: action.iconName
+                            SlotsLayout.position: SlotsLayout.Leading;
+                            width: units.gu(3)
+                            color: theme.palette.normal.foregroundText
+                        }
+                   }
+                }
+
+                ActionList {
+                    id: actionList
+                }
+
+                Component.onCompleted: {
+                    let _appGridList = []
+                    let _hasCustomAppGrid = shell.settings.customAppGrids.length > 0
+                    if (appGridMenu.appId && _hasCustomAppGrid) {
+                        for (let i = 0; i < shell.settings.customAppGrids.length; i++) {
+                            let _foundItem = shell.settings.customAppGrids[i]
+                            if (_foundItem) {
+                                if (!_foundItem.apps.includes(appGridMenu.appId) || appGridMenu.skipCheckExists) {
+                                    let _gridItem = { "name": _foundItem.name, "iconName": _foundItem.icon, "itemIndex": shell.settings.customAppGrids.indexOf(_foundItem) }
+                                    _appGridList.push(_gridItem)
+                                }
+                            }
+                        }
+                    }
+
+                    appGridsRepeater.model = _appGridList.slice()
+                }
+
+                Instantiator {
+                    id: appGridsRepeater
+                    asynchronous: true
+                    delegate: Action {
+                        id: appGridAction
+
+                        text: modelData.name
+                        iconName: modelData.iconName ? modelData.iconName : ""
+                        onTriggered: {
+                            appList.addToAppGrid(modelData.itemIndex, appGridMenu.appId)
+                        }
+                    }
+
+                    onObjectAdded: {
+                        // For some reason an empty action is added
+                        if (object.text.trim() !== "") {
+                            actionList.addAction(object)
+                        }
+                    }
+                }
+            }
+        }
+        Component {
             id: contextMenuComponent
 
             ActionSelectionPopover {
@@ -522,10 +603,12 @@ FocusScope {
 
                 property string appId
                 property bool fromDocked: false
+                property bool fromCustomAppGrid: false
 
                 grabDismissAreaEvents: true
                 automaticOrientation: false
-                actions: [ openStoreAction, addToDockAction, pinToLauncherAction, addToDirectActionsAction, editDockAction ]
+                actions: [ openStoreAction, addToDockAction, addToAppGridAction, removeAppGridAction, pinToLauncherAction, addToDirectActionsAction, editDockAction, editAppGridAction, addAllToAppGridAction ]
+                callerMargin: units.gu(3)
 
                 function findFromPinnedApps(model, _appId) {
                     for (var i = 0; i < model.rowCount(); ++i) {
@@ -589,6 +672,79 @@ FocusScope {
                     }
                 }
                 Action {
+                    id: addToAppGridAction
+
+                    readonly property bool canStillBeAdded: {
+                        let _isCurrentlyInFullGrid = appList.currentCustomPageIndex === -1
+                        let _hasCustomAppGrid = shell.settings.customAppGrids.length > 0
+                        if (contextMenu.appId && _hasCustomAppGrid) {
+                            for (let i = 0; i < shell.settings.customAppGrids.length; i++) {
+                                let _foundItem = shell.settings.customAppGrids[i]
+                                if (_foundItem && !_foundItem.apps.includes(contextMenu.appId)) {
+                                    return true
+                                }
+                            }
+                        }
+
+                        return false
+                    }
+
+                    text: "Add to App Grid"
+                    iconName: "view-grid-symbolic"
+                    visible: shell.settings.enableCustomAppGrid && canStillBeAdded
+                    onTriggered: {
+                        let _appId = contextMenu.appId
+                        if (shell.settings.customAppGrids.length === 1) {
+                            appList.addToAppGrid(0, _appId)
+                        } else {
+                            let _appGridsMenuItem = appGridsComponent.createObject(shell.popupParent, { "caller": root, "appId": appId });
+                            _appGridsMenuItem.z = Number.MAX_VALUE
+                            _appGridsMenuItem.show()
+                        }
+                    }
+                }
+                Action {
+                    id: addAllToAppGridAction
+
+                    text: "Add Dock Apps to App Grid"
+                    iconName: "view-grid-symbolic"
+                    visible: shell.settings.enableCustomAppGrid && contextMenu.fromDocked
+                    onTriggered: {
+                        let _appId = contextMenu.appId
+                        if (shell.settings.customAppGrids.length === 1) {
+                            appList.addToAppGrid(0, shell.settings.drawerDockApps)
+                        } else {
+                            let _appGridsMenuItem = appGridsComponent.createObject(shell.popupParent, { "caller": root, "appId": shell.settings.drawerDockApps, "skipCheckExists": true });
+                            _appGridsMenuItem.z = Number.MAX_VALUE
+                            _appGridsMenuItem.show()
+                        }
+                    }
+                }
+                Action {
+                    id: removeAppGridAction
+
+                    readonly property bool canBeRemoved: {
+                        let _isCurrentlyInFullGrid = appList.currentCustomPageIndex === -1
+                        let _hasCustomAppGrid = shell.settings.customAppGrids.length > 0
+                        if (contextMenu.appId && appList.currentCustomPageIndex > -1 && _hasCustomAppGrid && !_isCurrentlyInFullGrid) {
+                            let _foundItem = shell.settings.customAppGrids[appList.currentCustomPageIndex]
+                            if (_foundItem) {
+                                return _foundItem.apps.includes(contextMenu.appId)
+                            }
+                        }
+
+                        return false
+                    }
+
+                    text: "Remove from this App Grid"
+                    iconName: "list-remove"
+                    visible: shell.settings.enableCustomAppGrid && canBeRemoved
+                    onTriggered: {
+                        let _appId = contextMenu.appId
+                        appList.removeFromAppGrid(appList.currentCustomPageIndex, _appId)
+                    }
+                }
+                Action {
                     id: addToDirectActionsAction
 
                     readonly property bool isInDirectActions: contextMenu.appId ? shell.settings.directActionList.findIndex(
@@ -615,6 +771,16 @@ FocusScope {
                     visible: contextMenu.fromDocked
                     onTriggered: {
                         appList.enterEditMode(contextMenu.appId)
+                    }
+                }
+                Action {
+                    id: editAppGridAction
+
+                    text: "Edit App Grid"
+                    iconName: "edit"
+                    visible: contextMenu.fromCustomAppGrid
+                    onTriggered: {
+                        appList.enterAppGridEditMode()
                     }
                 }
                 Action {

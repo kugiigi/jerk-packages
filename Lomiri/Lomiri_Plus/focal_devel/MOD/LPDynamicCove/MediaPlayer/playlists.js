@@ -112,10 +112,6 @@ function getPlaylistTracks(playlist) {
         return []
     }
 
-    if (erroneousTracks.length > 0) {  // reget data as indexes are out of sync
-        res = getPlaylistTracks(playlist)
-    }
-
     return res
 }
 

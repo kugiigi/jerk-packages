@@ -190,6 +190,7 @@ Item {
             onPressedChanged: {
                 if (pressed) {
                     pressedDelay.restart()
+                    shell.haptics.playSubtle()
                 } else {
                     delayedPressed = false
                     pressedDelay.stop()
@@ -201,7 +202,11 @@ Item {
 
                 interval: shell.settings.dynamicCoveSelectionDelay
                 running: false
-                onTriggered: circularMenuMouseArea.delayedPressed = true
+                onTriggered: {
+                    if (circularMenuMouseArea.pressed) {
+                        circularMenuMouseArea.delayedPressed = true
+                    }
+                }
             }
             /*
             Rectangle {

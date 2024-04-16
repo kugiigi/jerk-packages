@@ -3,7 +3,7 @@ import QtQuick 2.12
 Connections {
     property LPHeader pageHeader
 
-    enabled: pageHeader ? true : false
+    enabled: pageHeader && pageHeader.expandable ? true : false
     
     onVerticalOvershootChanged: {
         if (target.dragging) {

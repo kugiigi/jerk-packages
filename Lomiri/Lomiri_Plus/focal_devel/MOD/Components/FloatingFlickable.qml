@@ -56,7 +56,7 @@ Item {
         anchors.fill: parent
         direction: Direction.Horizontal
         // ENH144 - Spread flick behavior
-        immediateRecognition: flickable.moving
+        immediateRecognition: Math.abs(flickable.horizontalVelocity) > units.gu(5)
         // ENH144 - End
 
         onTouchPositionChanged: mouseEventGenerator.move(touchPosition);

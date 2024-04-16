@@ -21,6 +21,8 @@ Item {
     property real sideMargins: units.gu(2)
     property bool enableVisualHint: true
     property int maximumColumn: 0
+    property int swipeAreaSides: 0
+    property var actionsList: []
 
     QtObject {
         id: internal
@@ -93,6 +95,7 @@ Item {
             property bool isDragging: dragging && distance >= directActions.sideMargins
 
             enabled: directActions.enabled && !rightSwipeArea.dragging
+                        && (directActions.swipeAreaSides == 0 || directActions.swipeAreaSides == 1)
             direction: SwipeArea.Rightwards
             immediateRecognition: true
             width: directActions.swipeAreaWidth
@@ -110,7 +113,7 @@ Item {
             }
 
             Loader {
-                active: directActions.enableVisualHint
+                active: directActions.enableVisualHint && leftSwipeArea.enabled
                 asynchronous: true
                 sourceComponent: visualHintComponent
                 width: parent.width * 2
@@ -128,6 +131,7 @@ Item {
             property bool isDragging: dragging && distance >= directActions.sideMargins
 
             enabled: directActions.enabled && !leftSwipeArea.dragging
+                        && (directActions.swipeAreaSides == 0 || directActions.swipeAreaSides == 2)
             direction: SwipeArea.Leftwards
             immediateRecognition: true
             width: directActions.swipeAreaWidth
@@ -145,7 +149,7 @@ Item {
             }
 
             Loader {
-                active: directActions.enableVisualHint
+                active: directActions.enableVisualHint && rightSwipeArea.enabled
                 asynchronous: true
                 sourceComponent: visualHintComponent
                 width: parent.width * 2
@@ -291,7 +295,7 @@ Item {
             Repeater {
                 id: indicatorSwipeRepeater
 
-                model: shell.settings.directActionList
+                model: directActions.actionsList
 
                 delegate: LPDirectActionsDelegate {
                     id: itemDelegate

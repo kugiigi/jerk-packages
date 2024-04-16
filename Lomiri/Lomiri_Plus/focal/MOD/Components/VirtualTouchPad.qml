@@ -147,7 +147,7 @@ Item {
                 // Get the distance of the consolidated mouse movements from point 0
                 // to get the distance the mouse has traveled since pressing the touchpad
                 if (multiTouchArea.isClick &&
-                        root.calculatePointDistance(Qt.point(0, 0), relativeMousePos) > multiTouchArea.clickThreshold) {
+                        root.calculatePointDistance(Qt.point(0, 0), relativeMousePos) > internalGu * 2) {
                     multiTouchArea.isClick = false;
                     multiTouchArea.isDrag = true;
                 }

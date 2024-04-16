@@ -105,7 +105,11 @@ Rectangle {
             objectName: "buttonShowDashHome"
             width: parent.width
             // ENH022 - New ubuntu logo fun
-            height: width * .9
+            // ENH147 - Option to hide BFB
+            visible: !shell.settings.hideBFB
+            //height: width * .9
+            height: visible ? width * .9 : 0
+            // ENH147 - End
             //height: width * 1.3
             // ENH022 - End
             // ENH021 - BFB Design Changes
@@ -129,6 +133,12 @@ Rectangle {
             radius: shell.settings.roundedBFB ? units.gu(1) : 0
             // ENH050 - End
             readonly property bool highlighted: root.highlightIndex == -1;
+            // ENH149 - Clicking animations
+            scale: dashItem.pressed ? 0.9 : 1
+            Behavior on scale {
+                SpringAnimation { spring: 2; damping: 0.2 }
+            }
+            // ENH149 - End
 
             Icon {
                 objectName: "dashItem"
@@ -387,6 +397,12 @@ Rectangle {
                         z: -Math.abs(offset)
                         maxAngle: 55
                         property bool dragging: false
+                        // ENH149 - Clicking animations
+                        scale: dndArea.selectedItem == this && dndArea.pressed ? 0.8 : 1
+                        Behavior on scale {
+                            SpringAnimation { spring: 2; damping: 0.2 }
+                        }
+                        // ENH149 - End
 
                         SequentialAnimation {
                             id: peekingAnimation

@@ -927,6 +927,9 @@ Item {
         MessageMenuItemFactory {
             objectName: "messageItem"
             menuModel: menuFactory.menuModel
+            // ENH148 - Option to hide notification contents in lockscreen
+            hideBody: shell.settings.hideNotificationBodyWhenLocked ? shell.showingGreeter : false
+            // ENH148 - End
         }
     }
 
