@@ -500,7 +500,7 @@ FocusScope {
             let _panelGlobalMapped = panel.mapToItem(shell, 0, 0)
             let _panelMappedX = root.inverted ? _panelGlobalMapped.x : panel.width
 
-            if (dragArea.dragging && _dragGlobalMapped.x > panel.width && _dragGlobalMapped.x < _panelMappedX + panel.width + (panel.inchInPixel * 0.2)) {
+            if (dragArea.dragging && _dragGlobalMapped.x > panel.width && _dragGlobalMapped.x < _panelMappedX + panel.width + (panel.inchInPixel * 0.1)) {
                 return true
             }
 

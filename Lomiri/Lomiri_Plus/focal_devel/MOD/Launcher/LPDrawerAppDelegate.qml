@@ -80,11 +80,18 @@ MouseArea {
             StyledItem {
                 styleName: "FocusShape"
                 anchors.fill: parent
+                anchors.margins: units.gu(-0.3)
                 StyleHints {
                     visible: drawerDelegate.focused
                     radius: units.gu(2.55)
                 }
             }
+            // ENH149 - Clicking animations
+            scale: drawerDelegate.pressed ? 0.8 : 1
+            Behavior on scale {
+                SpringAnimation { spring: 2; damping: 0.2 }
+            }
+            // ENH149 - End
         }
 
         Label {
@@ -163,5 +170,31 @@ MouseArea {
         duration: LomiriAnimation.SnapDuration
         to: 0
         direction: RotationAnimation.Shortest
+    }
+
+    SequentialAnimation {
+        running: drawerDelegate.focused
+        loops: Animation.Infinite
+
+        LomiriNumberAnimation {
+            target: appIcon
+            property: "y"
+            duration: LomiriAnimation.BriskDuration
+            to: appIcon.y + units.gu(0.5)
+        }
+        LomiriNumberAnimation {
+            target: appIcon
+            property: "y"
+            duration: LomiriAnimation.SlowDuration
+            to: appIcon.y - units.gu(1)
+        }
+    }
+    
+    LomiriNumberAnimation {
+        running: !drawerDelegate.focused
+        target: appIcon
+        property: "y"
+        duration: LomiriAnimation.FastDuration
+        to: 0
     }
 }

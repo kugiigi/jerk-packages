@@ -443,6 +443,7 @@ StyledItem {
         name: "lomiriplus"
         text: "LomiriPlus Settings"
         iconName: "properties"
+        enabled: shell.settings.onlyShowLomiriSettingsWhenUnlocked ? !shell.showingGreeter : true
         onTriggered: showSettings()
     }
     // ENH139 - End
@@ -450,6 +451,16 @@ StyledItem {
     // ENH056 - Quick toggles
     function findFromArray(_arr, _itemProp, _itemValue) {
         return _arr.find(item => item[_itemProp] == _itemValue)
+    }
+
+    function countFromArray(_arr, _itemProp, _itemValue) {
+        let _counter = 0;
+        for (let i = 0; i < _arr.length; i++) {
+            if (_arr[i][_itemProp] == _itemValue) {
+                _counter++;
+            }
+        }
+        return _counter
     }
 
     property bool isScreenActive: false
@@ -581,6 +592,17 @@ StyledItem {
         return arr;
     }
 
+    function arrMove(arr, oldIndex, newIndex) {
+        if (newIndex >= arr.length) {
+            let i = newIndex - arr.length + 1;
+            while (i--) {
+                arr.push(undefined);
+            }
+        }
+        arr.splice(newIndex, 0, arr.splice(oldIndex, 1)[0]);
+        return arr;
+    }
+
     function indicatorLabel(identifier) {
         switch (identifier) {
             case "ayatana-indicator-messages":
@@ -648,6 +670,9 @@ StyledItem {
         property alias enableCustomBlurRadius: settingsObj.enableCustomBlurRadius
         property alias customBlurRadius: settingsObj.customBlurRadius
 
+        // Privacy
+        property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
+
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
         property alias notchHeightMargin: settingsObj.notchHeightMargin
@@ -666,6 +691,7 @@ StyledItem {
         property alias drawerBlurFullyOpen: settingsObj.drawerBlurFullyOpen
         property alias invertedDrawer: settingsObj.invertedDrawer
         property alias hideDrawerSearch: settingsObj.hideDrawerSearch
+        property alias hideBFB: settingsObj.hideBFB
         property alias useLomiriLogo: settingsObj.useLomiriLogo
         property alias useNewLogo: settingsObj.useNewLogo
         property alias useCustomLogo: settingsObj.useCustomLogo
@@ -683,6 +709,10 @@ StyledItem {
         property alias dimWhenLauncherShow: settingsObj.dimWhenLauncherShow
         property alias drawerIconSizeMultiplier: settingsObj.drawerIconSizeMultiplier
         property alias showLauncherAtDesktop: settingsObj.showLauncherAtDesktop
+        property alias enableCustomAppGrid: settingsObj.enableCustomAppGrid
+        property alias customAppGrids: settingsObj.customAppGrids
+        property alias placeFullAppGridToLast: settingsObj.placeFullAppGridToLast
+        property alias customAppGridsExpandable: settingsObj.customAppGridsExpandable
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
@@ -727,6 +757,7 @@ StyledItem {
         property alias hideTimeIndicatorAlarmIcon: settingsObj.hideTimeIndicatorAlarmIcon
         property alias transparentTopBarOnSpread: settingsObj.transparentTopBarOnSpread
         property alias enablePanelHeaderExpand: settingsObj.enablePanelHeaderExpand
+        property alias expandPanelHeaderWhenBottom: settingsObj.expandPanelHeaderWhenBottom
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -743,13 +774,16 @@ StyledItem {
         property alias directActionsMaxColumn: settingsObj.directActionsMaxColumn
         property alias directActionsSideMargins: settingsObj.directActionsSideMargins
         property alias directActionsEnableHint: settingsObj.directActionsEnableHint
+        property alias directActionsSides: settingsObj.directActionsSides
 
         // Lockscreen
         property alias useCustomLockscreen: settingsObj.useCustomLockscreen
         property alias useCustomCoverPage: settingsObj.useCustomCoverPage
         property alias hideLockscreenClock: settingsObj.hideLockscreenClock
         property alias useCustomLSClockColor: settingsObj.useCustomLSClockColor
+        property alias useCustomLSDateColor: settingsObj.useCustomLSDateColor
         property alias customLSClockColor: settingsObj.customLSClockColor
+        property alias customLSDateColor: settingsObj.customLSDateColor
         property alias useCustomLSClockFont: settingsObj.useCustomLSClockFont
         property alias customLSClockFont: settingsObj.customLSClockFont
         property alias useCustomInfographicCircleColor: settingsObj.useCustomInfographicCircleColor
@@ -1107,6 +1141,36 @@ StyledItem {
             property int actionBottomRightHotCorner: 0
             property int actionBottomLeftHotCorner: 0
             property bool airMouseAlwaysActive: true
+            property int directActionsSides: 0
+            /*
+            0 - Both
+            1 - Left Only
+            2 - Right Only
+            */
+            property bool hideBFB: false
+            property bool useCustomLSDateColor: false
+            property string customLSDateColor: "#000000"
+            property bool hideNotificationBodyWhenLocked: false
+            property bool enableCustomAppGrid: false
+            property var customAppGrids: [
+                {
+                    name: "Default"
+                    , icon: "starred"
+                    , apps: [
+                        "dialer-app"
+                        , "messaging-app"
+                        , "morph-browser"
+                        , "lomiri-system-settings"
+                        , "address-book-app"
+                        , "openstore.openstore-team_openstore"
+                        , "gallery.ubports_gallery"
+                        , "camera.ubports_camera"
+                    ]
+                }
+            ]
+            property bool placeFullAppGridToLast: false
+            property bool customAppGridsExpandable: false
+            property bool expandPanelHeaderWhenBottom: true
         }
     }
 
@@ -1464,16 +1528,10 @@ StyledItem {
         LPSettingsPage {
             title: "Lomiri Plus Settings"
 
-            LPSettingsCheckBox {
-                id: onlyShowLomiriSettingsWhenUnlocked
+            LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Lock Settings when locked"
-                onCheckedChanged: shell.settings.onlyShowLomiriSettingsWhenUnlocked = checked
-                Binding {
-                    target: onlyShowLomiriSettingsWhenUnlocked
-                    property: "checked"
-                    value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
-                }
+                text: "Security & Privacy"
+                onClicked: settingsLoader.item.stack.push(privacyPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -1509,6 +1567,34 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Device Specific Hacks"
                 onClicked: settingsLoader.item.stack.push(deviceSpecificPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: privacyPage
+        
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: onlyShowLomiriSettingsWhenUnlocked
+                Layout.fillWidth: true
+                text: "Lock Settings when locked"
+                onCheckedChanged: shell.settings.onlyShowLomiriSettingsWhenUnlocked = checked
+                Binding {
+                    target: onlyShowLomiriSettingsWhenUnlocked
+                    property: "checked"
+                    value: shell.settings.onlyShowLomiriSettingsWhenUnlocked
+                }
+            }
+            LPSettingsCheckBox {
+                id: hideNotificationBodyWhenLocked
+                Layout.fillWidth: true
+                text: "Hide notification content when locked"
+                onCheckedChanged: shell.settings.hideNotificationBodyWhenLocked = checked
+                Binding {
+                    target: hideNotificationBodyWhenLocked
+                    property: "checked"
+                    value: shell.settings.hideNotificationBodyWhenLocked
+                }
             }
         }
     }
@@ -2170,7 +2256,7 @@ StyledItem {
                     LPSettingsSwitch {
                         id: useCustomLSClockColor
                         Layout.fillWidth: true
-                        text: "Custom color"
+                        text: "Custom clock color"
                         onCheckedChanged: shell.settings.useCustomLSClockColor = checked
                         Binding {
                             target: useCustomLSClockColor
@@ -2189,6 +2275,31 @@ StyledItem {
                             target: customLSClockColor
                             property: "text"
                             value: shell.settings.customLSClockColor
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomLSDateColor
+                        Layout.fillWidth: true
+                        visible: shell.settings.useCustomLSClockColor
+                        text: "Custom date color"
+                        onCheckedChanged: shell.settings.useCustomLSDateColor = checked
+                        Binding {
+                            target: useCustomLSDateColor
+                            property: "checked"
+                            value: shell.settings.useCustomLSDateColor
+                        }
+                    }
+                    LPColorField {
+                        id: customLSDateColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLSDateColor && shell.settings.useCustomLSClockColor
+                        onTextChanged: shell.settings.customLSDateColor = text
+                        onColorPicker: colorPickerLoader.open(customLSDateColor)
+                        Binding {
+                            target: customLSDateColor
+                            property: "text"
+                            value: shell.settings.customLSDateColor
                         }
                     }
                     LPSettingsSwitch {
@@ -2412,6 +2523,18 @@ StyledItem {
                             target: enablePanelHeaderExpand
                             property: "checked"
                             value: shell.settings.enablePanelHeaderExpand
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: expandPanelHeaderWhenBottom
+                        Layout.fillWidth: true
+                        visible: shell.settings.enablePanelHeaderExpand
+                        text: "Automatically expand when from bottom gesture"
+                        onCheckedChanged: shell.settings.expandPanelHeaderWhenBottom = checked
+                        Binding {
+                            target: expandPanelHeaderWhenBottom
+                            property: "checked"
+                            value: shell.settings.expandPanelHeaderWhenBottom
                         }
                     }
                     LPSettingsCheckBox {
@@ -2788,6 +2911,11 @@ StyledItem {
                         text: "Drawer Dock"
                         onClicked: settingsLoader.item.stack.push(drawerDockPage, {"title": text})
                     }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "App Grids"
+                        onClicked: settingsLoader.item.stack.push(appGridsPage, {"title": text})
+                    }
                     LPSettingsSwitch {
                         id: drawerBlur
                         Layout.fillWidth: true
@@ -2911,6 +3039,61 @@ StyledItem {
                 }
             }
             Component {
+                id: appGridsPage
+                
+                LPSettingsPage {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "This adds custom page(s) in the App Drawer where you can place different apps and group them by page\n\n"
+                        + " • Toggle edit mode: Press and hold on empty space to enter/exit. Use context menu to enter. Click on app to exit.\n"
+                        + " • Rearrange apps: Press, hold and drag on app icons\n"
+                        + " • Manage App Grids: In edit mode, you can add, edit, delete and move App Grids. You can also add apps in bulk\n\n"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: units.dp(1)
+                        color: Suru.neutralColor
+                    }
+                    LPSettingsSwitch {
+                        id: enableCustomAppGrid
+                        Layout.fillWidth: true
+                        text: "Enable"
+                        onCheckedChanged: shell.settings.enableCustomAppGrid = checked
+                        Binding {
+                            target: enableCustomAppGrid
+                            property: "checked"
+                            value: shell.settings.enableCustomAppGrid
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: customAppGridsExpandable
+                        Layout.fillWidth: true
+                        text: "Expandable header"
+                        onCheckedChanged: shell.settings.customAppGridsExpandable = checked
+                        Binding {
+                            target: customAppGridsExpandable
+                            property: "checked"
+                            value: shell.settings.customAppGridsExpandable
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: placeFullAppGridToLast
+                        Layout.fillWidth: true
+                        text: "Move Full App Grid to last page"
+                        onCheckedChanged: shell.settings.placeFullAppGridToLast = checked
+                        Binding {
+                            target: placeFullAppGridToLast
+                            property: "checked"
+                            value: shell.settings.placeFullAppGridToLast
+                        }
+                    }
+                }
+            }
+            Component {
                 id: spreadPage
                 
                 LPSettingsPage {
@@ -2979,6 +3162,17 @@ StyledItem {
                 id: bfbPage
                 
                 LPSettingsPage {
+                    LPSettingsCheckBox {
+                        id: hideBFB
+                        Layout.fillWidth: true
+                        text: "Hide"
+                        onCheckedChanged: shell.settings.hideBFB = checked
+                        Binding {
+                            target: hideBFB
+                            property: "checked"
+                            value: shell.settings.hideBFB
+                        }
+                    }
                     LPSettingsCheckBox {
                         id: roundedBFB
                         Layout.fillWidth: true
@@ -3157,7 +3351,7 @@ StyledItem {
                 visible: shell.settings.enableColorOverlay
                 title: "Opacity"
                 minimumValue: 0.05
-                maximumValue: 0.6
+                maximumValue: 0.7
                 stepSize: 0.05
                 resetValue: 0.1
                 live: true
@@ -3252,9 +3446,6 @@ StyledItem {
                 + "Bottom Dock:\n"
                 + " - Displayed at the bottom of the app drawer\n"
                 + " - Collapsible by swiping up and down\n\n"
-                + "Integrated Dock:\n"
-                + " - Displayed at the top of the app drawer or at the bottom when it's inverted\n"
-                + ' - Works more like a "Favorites" section than a usual dock\n'
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
@@ -3274,19 +3465,6 @@ StyledItem {
                     property: "checked"
                     value: shell.settings.enableDrawerDock
                 }
-            }
-            OptionSelector {
-                Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                visible: shell.settings.enableDrawerDock
-                text: i18n.tr("Dock type")
-                model: [
-                    i18n.tr("Bottom Dock"),
-                    i18n.tr("Integrated Dock")
-                ]
-                containerHeight: itemHeight * 6
-                selectedIndex: shell.settings.drawerDockType
-                onSelectedIndexChanged: shell.settings.drawerDockType = selectedIndex
             }
             LPSettingsCheckBox {
                 id: drawerDockHideLabels
@@ -3752,6 +3930,20 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Actions List"
                 onClicked: settingsLoader.item.stack.push(directActionsListPage, {"title": text})
+            }
+            OptionSelector {
+                id: directActionsSidesItem
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Swipe Area Edge")
+                model: [
+                    i18n.tr("Both")
+                    ,i18n.tr("Left Only")
+                    ,i18n.tr("Right Only")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.directActionsSides
+                onSelectedIndexChanged: shell.settings.directActionsSides = selectedIndex
             }
             LPSettingsCheckBox {
                 id: directActionsEnableHint
@@ -5498,6 +5690,8 @@ StyledItem {
             sideMargins: shell.convertFromInch(shell.settings.directActionsSideMargins)
             maximumColumn: shell.settings.directActionsMaxColumn
             enableVisualHint: shell.settings.directActionsEnableHint
+            swipeAreaSides: shell.settings.directActionsSides
+            actionsList: shell.settings.directActionList
         }
     }
     // ENH139 - End
@@ -6092,6 +6286,9 @@ StyledItem {
             // The Launcher should absolutely not be locked visible under some
             // conditions
             readonly property bool lockAllowed: !collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
+            // ENH146 - Hide launcher when narrow
+                                                        && stages.width >= units.gu(60)
+            // ENH146 - End
 
             onShowDashHome: showHome()
             onLauncherApplicationSelected: {
@@ -6521,6 +6718,7 @@ StyledItem {
 
         z: itemGrabber.z - 1
         anchors.fill: parent
+        anchors.bottomMargin: Qt.inputMethod.visible ? (Qt.inputMethod.keyboardRectangle.height) : 0
     }
     // ENH114 - End
 

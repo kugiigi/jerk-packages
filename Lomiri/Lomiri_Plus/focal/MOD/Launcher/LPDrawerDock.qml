@@ -7,27 +7,32 @@ import QtQuick.Layouts 1.12
 Item {
     id: bottomDock
 
-    readonly property real verticalPadding: units.gu(4)
-    readonly property real horizontalPadding: isIntegratedDock ? 0 : units.gu(1)
+    property real verticalPadding: units.gu(4)
+    readonly property real horizontalPadding: isIntegratedDock ? 0 : units.gu(0.5)
     readonly property alias rowHeight: dockedAppGrid.rowHeight
     property bool shown: false
     property bool inverted: false
     property bool isIntegratedDock: false
     property bool editMode: false
+    property bool showThinDivider: false
+    readonly property bool appDragIsActive: editMode && gridArea.isDragActive
     property bool expanded: false
     property bool expandingFinished: false
     property real delegateHeight: units.gu(10)
     property real delegateWidth: units.gu(10)
     property var rawModel
+    property var appModel
     property var contextMenuItem: null
     property bool hideLabel: false
     property alias columns: gridLayout.columns
+    property int currentIndex: -1
     // ENH132 - App drawer icon size settings
     property real delegateSizeMultiplier: 1
     // ENH132 - End
 
     signal applicationSelected(string appId)
-    signal applicationContextMenu(string appId, var caller, bool fromDocked)
+    signal applicationContextMenu(string appId, var caller)
+    signal appOrderChanged(var newAppOrderArray)
 
     function getAppItem(_appId) {
         for (var i = 0; i < rawModel.rowCount(); ++i) {
@@ -44,7 +49,7 @@ Item {
         return null
     }
 
-    height: shown ? dockedAppGrid.height + verticalPadding : 0
+    height: shown ? dockedAppGrid.height : 0
     visible: shown
 
     onShownChanged: {
@@ -53,10 +58,9 @@ Item {
         }
     }
 
-    ListItems.ThinDivider {
-        id: divider
-
-        visible: bottomDock.isIntegratedDock
+    Loader {
+        active: showThinDivider
+        asynchronous: true
         height: units.dp(2)
         anchors {
             left: parent.left
@@ -64,27 +68,31 @@ Item {
             leftMargin: units.gu(2)
             rightMargin: units.gu(2)
         }
-        state: "normal"
-        states: [
-            State {
-                name: "normal"
-                when: !bottomDock.inverted
-                AnchorChanges {
-                    target: divider
-                    anchors.top: undefined
-                    anchors.bottom: parent.bottom
+        sourceComponent: ListItems.ThinDivider {
+            id: divider
+
+            state: "normal"
+            states: [
+                State {
+                    name: "normal"
+                    when: !bottomDock.inverted
+                    AnchorChanges {
+                        target: divider
+                        anchors.top: undefined
+                        anchors.bottom: parent.bottom
+                    }
                 }
-            }
-            , State {
-                name: "inverted"
-                when: bottomDock.inverted
-                AnchorChanges {
-                    target: divider
-                    anchors.top: parent.top
-                    anchors.bottom: undefined
+                , State {
+                    name: "inverted"
+                    when: bottomDock.inverted
+                    AnchorChanges {
+                        target: divider
+                        anchors.top: parent.top
+                        anchors.bottom: undefined
+                    }
                 }
-            }
-        ]
+            ]
+        }
     }
 
     Rectangle {
@@ -131,7 +139,7 @@ Item {
             wheel.accepted = true;
         }
     }
-    
+
     MouseArea {
         id: dockedAppGrid
 
@@ -147,9 +155,9 @@ Item {
 
         height: {
             if (bottomDock.isIntegratedDock || bottomDock.expanded || bottomDock.editMode) {
-                return gridLayout.height + rowMargins
+                return gridLayout.height + rowMargins + bottomDock.verticalPadding / 2
             } else {
-                return rowHeight + rowMargins
+                return rowHeight + rowMargins + bottomDock.verticalPadding / 2
             }
         }
         onHeightChanged: {
@@ -161,6 +169,7 @@ Item {
         }
         anchors {
             verticalCenter: parent.verticalCenter
+            verticalCenterOffset: -(bottomDock.verticalPadding / 4)
             left: parent.left
             right: parent.right
         }
@@ -198,6 +207,7 @@ Item {
 
             anchors {
                 top: parent.top
+                topMargin: bottomDock.verticalPadding / 2
                 left: parent.left
                 right: parent.right
                 leftMargin: bottomDock.horizontalPadding
@@ -207,7 +217,7 @@ Item {
             Repeater {
                 id: appsRepeater
 
-                model: shell.settings.drawerDockApps
+                model: bottomDock.appModel
 
                 delegate: Item {
                     id: itemContainer
@@ -237,7 +247,15 @@ Item {
                     LPDrawerAppDelegate {
                         id: toggleContainer
 
-                        focused: bottomDock.contextMenuItem && bottomDock.contextMenuItem.appId == itemContainer.appId && bottomDock.contextMenuItem.fromDocked
+                        focused: (bottomDock.contextMenuItem && bottomDock.contextMenuItem.appId == itemContainer.appId
+                                        && (
+                                                (!bottomDock.isIntegratedDock && bottomDock.contextMenuItem.fromDocked)
+                                                ||
+                                                (bottomDock.isIntegratedDock && bottomDock.contextMenuItem.fromCustomAppGrid)
+                                            )
+                                 )
+                                 ||
+                                 itemContainer.itemIndex == bottomDock.currentIndex
                         objectName: "drawerDockItem_" + itemContainer.appId
                         delegateWidth: bottomDock.delegateWidth
                         appId: itemContainer.appId
@@ -274,7 +292,8 @@ Item {
                                 bottomDock.editMode = false
                             }
                         }
-                        onApplicationContextMenu: bottomDock.applicationContextMenu(appId, this, true)
+
+                        onApplicationContextMenu: bottomDock.applicationContextMenu(appId, this)
                     }
                 }
             }
@@ -289,7 +308,7 @@ Item {
             property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
             property string activeId: "" // app Id of active item
             property int activeIndex: -1 //current position of active item
-            readonly property bool isDragActive: activeId > -1
+            readonly property bool isDragActive: activeId !== ""
 
             enabled: bottomDock.editMode
             anchors.fill: gridLayout
@@ -310,8 +329,8 @@ Item {
             onReleased: {
                 activeId = ""
                 activeIndex = -1
-                shell.settings.drawerDockApps = appsRepeater.model.slice()
-                appsRepeater.model = Qt.binding( function () { return shell.settings.drawerDockApps } )
+                bottomDock.appOrderChanged(appsRepeater.model)
+                appsRepeater.model = Qt.binding( function () { return bottomDock.appModel } )
             }
             onPositionChanged: {
                 if (activeId != "" && index != -1 && index != activeIndex) {

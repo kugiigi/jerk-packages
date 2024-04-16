@@ -161,11 +161,14 @@ PageStack {
                 id: labelHeader
                     
                 readonly property real maximumHeightWhenInverted: units.gu(50)
+                readonly property real idealRechableHeight: shell.convertFromInch(3.5)
+                readonly property real idealMaxHeight: shell.height - idealRechableHeight
+                readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 
                 z: page.header.z + 1
-                expandable: root.height >= maxHeight * 1.5 && (shell.settings.enablePanelHeaderExpand || root.inverted)
+                expandable: root.height >= idealExpandableHeight && (shell.settings.enablePanelHeaderExpand || root.inverted)
                 defaultHeight: root.inverted ? root.topPanelMargin : 0
-                maxHeight: root.inverted ? units.gu(40) : units.gu(30)
+                maxHeight: idealMaxHeight
 
                 anchors {
                     top: parent.top
@@ -179,7 +182,9 @@ PageStack {
                         labelHeader.collapse()
 
                         if (target.inverted && labelHeader.expandable) {
-                            labelHeader.expand()
+                            if (shell.settings.expandPanelHeaderWhenBottom) {
+                                labelHeader.expand()
+                            }
                         } else {
                             labelHeader.collapse()
                         }

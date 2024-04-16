@@ -118,14 +118,17 @@ LPDynamicCoveItem {
             property bool noAlbumArt: source == "file:///usr/share/icons/suru/apps/scalable/music-app-symbolic.svg"
             property string nextAlbumArt: {
                 if (cdPlayer.mediaPlayerObj && !cdPlayer.isSimpleMode) {
-                    return cdPlayer.mediaPlayerObj.albumArt
+                    if (cdPlayer.mediaPlayerObj.albumArt == "file:///usr/share/icons/suru/apps/scalable/music-app-symbolic.svg") {
+                        return Qt.resolvedUrl("../LPGraphics/music-app.svg")
+                    } else {
+                        return cdPlayer.mediaPlayerObj.albumArt
+                    }
                 }
-
                 return ""
             }
 
             cache: false
-            fillMode: Image.PreserveAspectFit
+            fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(width, height)
             anchors.fill: parent
 

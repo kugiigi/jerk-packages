@@ -58,7 +58,7 @@ LPQuickToggleButton {
 			songTitle.text = songTitle.nextText
 			artistName.text = artistName.nextText
 			albumTitle.text = albumTitle.nextText
-            albumArtShape.source = albumArtShape.nextAlbumArt
+            albumArtShape.sourceImage = albumArtShape.nextAlbumArt
 			showAnimation.restart()
 		}
 	}
@@ -96,14 +96,20 @@ LPQuickToggleButton {
 			Layout.preferredWidth: units.gu(5)
 			Layout.preferredHeight: units.gu(5)
 			Layout.alignment: Qt.AlignVCenter
-            
-            property alias source: albumArtImage.source
-            property string nextAlbumArt: mediaPlayer.albumArt
+
+            property alias sourceImage: albumArtImage.source
+            property string nextAlbumArt: {
+                if (mediaPlayer.albumArt == "file:///usr/share/icons/suru/apps/scalable/music-app-symbolic.svg") {
+                    return Qt.resolvedUrl("../LPGraphics/music-app.svg")
+                } else {
+                    return mediaPlayer.albumArt
+                }
+            }
 
 			visible: !mainLayout.narrowWidth || shell.settings.gestureMediaControls
-			image: Image {
+            sourceFillMode: LomiriShape.PreserveAspectCrop
+			source: Image {
 				id: albumArtImage
-				fillMode: Image.PreserveAspectFit
 				sourceSize: Qt.size(width, height)
 				anchors.fill: parent
 			}

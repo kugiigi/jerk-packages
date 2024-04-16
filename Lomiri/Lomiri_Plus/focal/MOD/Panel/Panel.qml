@@ -253,6 +253,9 @@ Item {
         MouseArea {
             id: decorationMouseArea
             objectName: "windowControlArea"
+            // ENH145 - Fix windows control in fullscreen
+            z: __applicationMenus.z + 1
+            // ENH145 - End
             anchors {
                 left: parent.left
                 right: parent.right

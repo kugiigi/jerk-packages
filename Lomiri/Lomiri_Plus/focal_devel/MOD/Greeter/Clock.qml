@@ -208,7 +208,11 @@ Item {
                     if (clock.owThemed && solidColor) {
                         return "#30eadf"
                     } else if (shell.settings.useCustomLSClockColor) {
-                        return shell.settings.customLSClockColor
+                        if (shell.settings.useCustomLSDateColor) {
+                            return shell.settings.customLSDateColor
+                        } else {
+                            return shell.settings.customLSClockColor
+                        }
                     }
 
                     return "white"

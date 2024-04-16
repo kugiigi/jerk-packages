@@ -526,8 +526,9 @@ Item {
         supportsMultiColorLed: deviceConfiguration.supportsMultiColorLed
         lightIndicators: root.lightIndicators
         // ENH137 - Enable OSK based on form factor
-        // oskEnabled: (!hasKeyboard && Screens.count === 1) ||
-        oskEnabled: (!hasKeyboard && (Screens.count === 1 || screen.formFactor === Screen.Phone || screen.formFactor === Screen.Tablet)) ||
+        // Disabled for now
+        oskEnabled: (!hasKeyboard && Screens.count === 1) ||
+        //oskEnabled: (!hasKeyboard && (Screens.count === 1 || screen.formFactor === Screen.Phone || screen.formFactor === Screen.Tablet)) ||
         // ENH137 - End
                     lomiriSettings.alwaysShowOsk || forceOSKEnabled
 
