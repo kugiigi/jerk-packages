@@ -166,7 +166,7 @@ PageStack {
                 readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 
                 z: page.header.z + 1
-                expandable: root.height >= idealExpandableHeight && (shell.settings.enablePanelHeaderExpand || root.inverted)
+                expandable: shell.height >= idealExpandableHeight && (shell.settings.enablePanelHeaderExpand || root.inverted)
                 defaultHeight: root.inverted ? root.topPanelMargin : 0
                 maxHeight: idealMaxHeight
 
@@ -222,6 +222,7 @@ PageStack {
 
             // ENH046 - Lomiri Plus Settings
             LPCollapseHeaderSwipeArea {
+                enabled: pageHeader.expandable && pageHeader.expanded
                 pageHeader: labelHeader
                 z: panelFlickable.z + 1
                 anchors.fill: parent
@@ -251,7 +252,7 @@ PageStack {
                     listView.positionViewAtIndex(listView.currentIndex, ListView.End)
                 }
 
-                interactive: labelHeader.expandable ? true : contentHeight > height
+                interactive: labelHeader.expandable ? !labelHeader.expanded : contentHeight > height
                 contentHeight: customMenuItems.height + listView.height
                 contentWidth: parent.width
 
