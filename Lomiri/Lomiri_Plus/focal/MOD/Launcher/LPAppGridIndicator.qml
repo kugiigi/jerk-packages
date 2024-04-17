@@ -57,6 +57,7 @@ Item {
             if (highlightedItem) {
                 delayShow.restart()
             } else {
+                delayShow.stop()
                 titleRec.show = false
             }
         }
@@ -99,7 +100,7 @@ Item {
     Rectangle {
         id: titleRec
 
-        property bool show
+        property bool show: false
         readonly property point mappedHighlightedItemPos: internal.highlightedItem ? internal.highlightedItem.mapToItem(appGridIndicator, 0, 0) : Qt.point(0, 0)
         readonly property real intendedX: internal.highlightedItem ? mappedHighlightedItemPos.x - (width / 2) + ((internal.highlightedItem.width * mainRowLayout.highlightScale) / 2) : 0
 

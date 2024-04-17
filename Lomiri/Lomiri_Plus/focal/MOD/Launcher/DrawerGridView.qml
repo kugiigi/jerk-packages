@@ -583,6 +583,7 @@ FocusScope {
                     Layout.fillHeight: true
                     verticalAlignment: Text.AlignVCenter
                     text: dialogue.currentIcon
+                    wrapMode: Text.WordWrap
                 }
             }
 
@@ -607,19 +608,32 @@ FocusScope {
             Component {
                 id: iconMenuComponent
 
-                Popover {
+                Rectangle {
                     id: iconMenu
 
                     readonly property string selectedIcon: iconGridView.model[iconGridView.currentIndex]
                     property string currentIcon
                     signal iconSelected(string iconName)
 
-                    grabDismissAreaEvents: true
-                    automaticOrientation: false
-                    contentHeight: parent.height * 0.7
-                    contentWidth: parent.width * 0.7
-                    
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width * 0.7, units.gu(60))
+                    height: Math.min(parent.height * 0.8, units.gu(90))
+                    z: 1000
+                    visible: false
+                    color: theme.palette.normal.base
+                    radius: units.gu(3)
+
+                    function show() {
+                        visible = true
+                    }
+
+                    function hide() {
+                        visible = false
+                        destroy()
+                    }
+
                     onSelectedIconChanged: iconSelected(selectedIcon)
+
                     Component.onCompleted: {
                         if (currentIcon) {
                             let _foundIndex = iconGridView.model.indexOf(currentIcon)
@@ -628,7 +642,13 @@ FocusScope {
                             }
                         }
                     }
-                    
+
+                    InverseMouseArea {
+                       anchors.fill: parent
+                       acceptedButtons: Qt.LeftButton
+                       onPressed: iconMenu.hide()
+                    }
+
                     GridView {
                         id: iconGridView
 
@@ -636,7 +656,9 @@ FocusScope {
                             left: parent.left
                             top: parent.top
                             right: parent.right
+                            bottom: parent.bottom
                         }
+                        clip: true
                         height: iconMenu.contentHeight
                         cellWidth: width / 6
                         cellHeight: cellWidth
@@ -653,7 +675,7 @@ FocusScope {
                             }
                             onClicked: {
                                 iconGridView.currentIndex = index
-                                PopupUtils.close(iconMenu)
+                                iconMenu.hide()
                             }
                         }
                     }
@@ -692,7 +714,8 @@ FocusScope {
 
     Component {
          id: addAppToAppGridDialogComponent
-         Dialog {
+
+        Rectangle {
             id: addAppToAppGridDialog
              
             property string gridName
@@ -701,12 +724,24 @@ FocusScope {
 
             signal confirm(var appsList)
 
-            onConfirm: PopupUtils.close(addAppToAppGridDialog)
+            anchors.centerIn: parent
+            width: Math.min(parent.width * 0.7, units.gu(60))
+            height: Math.min(parent.height * 0.8, units.gu(90))
+            z: 1000
+            visible: false
+            color: theme.palette.normal.base
+            radius: units.gu(3)
 
-            property bool reparentToRootItem: false
+            function show() {
+                visible = true
+            }
 
-            title: 'Add Apps to "%1"'.arg(gridName)
-            anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+            function hide() {
+                visible = false
+                destroy()
+            }
+
+            onConfirm: hide()
 
             Component.onCompleted: {
                 let _filteredModel = []
@@ -727,59 +762,98 @@ FocusScope {
                 appListView.model = _filteredModel.slice()
             }
 
-            Button {
-                text: "Add"
-                enabled: !noAppLabel.visible
-                color: theme.palette.normal.positive
-                onClicked: {
-                    if (addAppToAppGridDialog.selectApps.length > 0) {
-                        addAppToAppGridDialog.confirm(addAppToAppGridDialog.selectApps)
-                    }
-                }
+            InverseMouseArea {
+               anchors.fill: parent
+               acceptedButtons: Qt.LeftButton
+               onPressed: addAppToAppGridDialog.hide()
             }
-            Button {
-                text: "Cancel"
-                onClicked: PopupUtils.close(addAppToAppGridDialog)
+            
+            Rectangle {
+                parent: addAppToAppGridDialog.parent
+                z: addAppToAppGridDialog.z - 1
+                color: theme.palette.normal.background
+                opacity: 0.6
+                anchors.fill: parent
             }
-            RowLayout {
-                visible: !noAppLabel.visible
-                Button {
-                    Layout.fillWidth: true
-                    text: "Select All"
-                    onClicked: {
-                        addAppToAppGridDialog.selectAll = true
-                    }
-                }
-                Button {
-                    Layout.fillWidth: true
-                    text: "Deselect All"
-                    onClicked: {
-                        addAppToAppGridDialog.selectAll = false
-                    }
-                }
-            }
-
-            Label {
-                id: noAppLabel
-
+            
+            ColumnLayout {
+                id: columnLayout
                 anchors {
+                    margins: units.gu(2)
+                    top: parent.top
                     left: parent.left
                     right: parent.right
                 }
-                textSize: Label.Large
-                visible: appListView.count === 0
-                text: "No app to add"
-                height: units.gu(10)
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+                
+                Label {
+                    Layout.fillWidth: true
+                    textSize: Label.Large
+                    text: 'Add Apps to "%1"'.arg(addAppToAppGridDialog.gridName)
+                    height: units.gu(10)
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: "Add"
+                    enabled: !noAppLabel.visible
+                    color: theme.palette.normal.positive
+                    onClicked: {
+                        if (addAppToAppGridDialog.selectApps.length > 0) {
+                            addAppToAppGridDialog.confirm(addAppToAppGridDialog.selectApps)
+                        }
+                    }
+                }
+                Button {
+                    Layout.fillWidth: true
+                    text: "Cancel"
+                    onClicked: addAppToAppGridDialog.hide()
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !noAppLabel.visible
+                    Button {
+                        Layout.fillWidth: true
+                        text: "Select All"
+                        onClicked: {
+                            addAppToAppGridDialog.selectAll = true
+                        }
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: "Deselect All"
+                        onClicked: {
+                            addAppToAppGridDialog.selectAll = false
+                        }
+                    }
+                }
+
+                Label {
+                    id: noAppLabel
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: units.gu(15)
+                    textSize: Label.Large
+                    visible: appListView.count === 0
+                    text: "No app to add"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
 
             ListView {
                 id: appListView
 
-                height: contentHeight
-                interactive: false
                 clip: true
+                cacheBuffer: 100000
+                anchors {
+                    top: columnLayout.bottom
+                    left: parent.left
+                    right: parent.right
+                    bottom: parent.bottom
+                    margins: units.gu(2)
+                }
 
                 delegate: ListItem {
                     id: appListItem
@@ -921,7 +995,6 @@ FocusScope {
                         opacity: labelHeader.height - labelHeader.defaultHeight < labelHeader.maxHeight * 0.2 ? 0
                                             : 1 - ((labelHeader.maxHeight - labelHeader.height) / ((labelHeader.maxHeight * 0.8) - labelHeader.defaultHeight))
                         visible: opacity > 0
-                        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
 
                         Item {
                             Layout.fillWidth: true
@@ -982,6 +1055,7 @@ FocusScope {
                 topMargin: gridView.topMargin
                 bottomMargin: gridView.bottomMargin
                 interactive: !(customGridLoader.item && customGridLoader.item.appDragIsActive)
+                                && !labelHeader.expanded
                 focus: true
                 contentHeight: {
                     if (!customAppGridItem.editMode) {

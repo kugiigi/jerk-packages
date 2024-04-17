@@ -99,6 +99,7 @@ FocusScope {
         if (fullyClosed) {
             appList.collapseDock()
             appList.exitEditMode()
+            appList.exitAppGridEditMode()
         }
     }
     // ENH105 - End
@@ -109,7 +110,10 @@ FocusScope {
             hadFocus = searchField.focus;
             oldSelectionStart = searchField.selectionStart;
             oldSelectionEnd = searchField.selectionEnd;
-            searchField.focus = false;
+            // ENH105 - Custom app drawer
+            // Avoid lagging when the searchfield is at the bottom
+            // searchField.focus = false;
+            // ENH105 - End
         } else {
             if (x < -units.gu(10)) {
                 hideRequested();
@@ -153,6 +157,7 @@ FocusScope {
     }
 
     function focusInput() {
+        unFocusInput() // For some reason, it won't focus again after closing the OSK in focal so do this
         searchField.selectAll();
         searchField.forceActiveFocus();
     }
@@ -351,6 +356,7 @@ FocusScope {
                         bottom: parent.bottom
                     }
                     opacity: searchFieldContainer.height > 0 ? 1 : 0
+                    visible: opacity > 0
                     height: shell.settings.bigDrawerSearchField ? units.gu(5) : units.gu(4)
                     // ENH059 - End
                     placeholderText: i18n.tr("Search…")
@@ -506,21 +512,57 @@ FocusScope {
                 height: units.gu(3)
                 width: height
             }
+
             SwipeArea {
                 id: searchSwipeArea
-                enabled: shell.settings.hideDrawerSearch || shell.settings.enableDrawerBottomSwipe
+
+                readonly property real longSwipeThreshold: shell.convertFromInch(1)
+                readonly property real shortSwipeThreshold: shell.convertFromInch(0.5)
+                readonly property bool longSwipe: distance > longSwipeThreshold
+                readonly property bool shortSwipe: distance > shortSwipeThreshold
+
+                direction: SwipeArea.Upwards
                 height: units.gu(2)
+                enabled: shell.settings.hideDrawerSearch || shell.settings.enableDrawerBottomSwipe
                 anchors {
+                    bottom: parent.bottom
                     left: parent.left
                     right: parent.right
-                    bottom: parent.bottom
                 }
-                direction: SwipeArea.Upwards
-                onDraggingChanged: {
-                    if (dragging) {
-                        root.focusInput()
-                        shell.haptics.play()
+                onLongSwipeChanged: {
+                    if (longSwipe) {
+                        shell.haptics.playSubtle()
                     }
+                }
+                onDraggingChanged: {
+                    if (!dragging) {
+                        if (longSwipe) {
+                            root.focusInput()
+                            shell.haptics.play()
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                color: theme.palette.normal.foreground
+                radius: width / 2
+                height: units.gu(6)
+                width: height
+                visible: opacity > 0
+                opacity: searchSwipeArea.dragging && searchSwipeArea.longSwipe ? 1 : 0
+                Behavior on opacity { LomiriNumberAnimation {} }
+                anchors {
+                    bottom: searchSwipeArea.top
+                    bottomMargin: searchSwipeArea.longSwipeThreshold + height + units.gu(2)
+                    horizontalCenter: searchSwipeArea.horizontalCenter
+                }
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: units.gu(3)
+                    height: width
+                    name: "search"
+                    color: theme.palette.normal.foregroundText
                 }
             }
             // ENH059 - End

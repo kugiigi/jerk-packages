@@ -47,6 +47,7 @@ Item {
             if (highlightedItem) {
                 delayShow.restart()
             } else {
+                delayShow.stop()
                 titleRec.show = false
             }
         }
