@@ -161,7 +161,7 @@ PageStack {
                 id: labelHeader
                     
                 readonly property real maximumHeightWhenInverted: units.gu(50)
-                readonly property real idealRechableHeight: shell.convertFromInch(3.5)
+                readonly property real idealRechableHeight: shell.convertFromInch(shell.settings.pullDownHeight)
                 readonly property real idealMaxHeight: shell.height - idealRechableHeight
                 readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 

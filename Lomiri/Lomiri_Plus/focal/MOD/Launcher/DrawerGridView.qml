@@ -968,8 +968,7 @@ FocusScope {
             LPHeader {
                 id: labelHeader
 
-                // Ideally we have 4 inches from the bottom of the screen so top items are more reachable.
-                readonly property real idealRechableHeight: shell.convertFromInch(3.5)
+                readonly property real idealRechableHeight: shell.convertFromInch(shell.settings.pullDownHeight)
                 readonly property real idealMaxHeight: root.height - idealRechableHeight
                 readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 
