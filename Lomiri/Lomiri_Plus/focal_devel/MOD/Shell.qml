@@ -64,6 +64,9 @@ import QtSystemInfo 5.0
 // ENH116 - Standalone Dark mode toggle
 import Lomiri.Indicators 0.1 as Indicators
 // ENH116 - End
+// ENH150 - Sensor gestures
+import QtSensors 5.12
+// ENH150 - End
 
 
 StyledItem {
@@ -79,6 +82,18 @@ StyledItem {
         , PreviousApp
     }
     // ENH133 - End
+
+    // ENH150 - Sensor gestures
+    enum SensorGestures {
+        None
+        , ToggleMediaPlayback
+        , PauseMediaPlayback
+        , ToggleFlashlight
+        , ToggleOrientation
+        , LockScreen
+        , ShowDesktop
+    }
+    // ENH150 - End
 
     theme.name: "Lomiri.Components.Themes.SuruDark"
 
@@ -496,6 +511,81 @@ StyledItem {
             }
         }
     }
+    // ENH150 - Sensor gestures
+    function triggerSensorGesture(_actionType, _action) {
+        switch (_actionType) {
+            case Shell.SensorGestures.ToggleMediaPlayback:
+                if (shell.playbackItemIndicator) {
+                    shell.playbackItemIndicator.play(!shell.playbackItemIndicator.playing)
+                    shell.haptics.play()
+                }
+                break
+            case Shell.SensorGestures.PauseMediaPlayback:
+                if (shell.playbackItemIndicator && shell.playbackItemIndicator.playing) {
+                    shell.playbackItemIndicator.play(!shell.playbackItemIndicator.playing)
+                    shell.haptics.play()
+                }
+                break
+            case Shell.SensorGestures.ToggleFlashlight:
+                panel.indicators.flashlightToggle.clicked()
+                shell.haptics.play()
+                break
+            case Shell.SensorGestures.ToggleOrientation:
+                shell.toggleRotation()
+                shell.haptics.play()
+                break
+            case Shell.SensorGestures.LockScreen:
+                lockScreenAction.trigger()
+                shell.haptics.play()
+                break
+            case Shell.SensorGestures.ShowDesktop:
+                showDesktopAction.trigger()
+                shell.haptics.play()
+                break
+            default:
+                break
+        }
+    }
+
+    SensorGesture {
+        id: sensorGesture
+        enabled: shell.settings.enableSensorGestures
+        gestures : shell.settings.enabledSensorGestureList
+        onDetected:{
+            console.log("Sensor Gesture: " + gesture)
+            switch (gesture) {
+                case "cover":
+                    shell.triggerSensorGesture(shell.settings.coverGestureAction)
+                    break
+                case "shake":
+                    shell.triggerSensorGesture(shell.settings.shakeGestureAction)
+                    break
+                case "pickup":
+                    shell.triggerSensorGesture(shell.settings.pickupGestureAction)
+                    break
+                case "shakeLeft":
+                case "shakeRight":
+                case "shakeUp":
+                case "shakeDown":
+                    shell.triggerSensorGesture(shell.settings.shake2GestureAction)
+                    break
+                case "slam":
+                    shell.triggerSensorGesture(shell.settings.slamGestureAction)
+                    break
+                case "turnover":
+                    shell.triggerSensorGesture(shell.settings.turnoverGestureAction)
+                    break
+                case "twistLeft":
+                case "twistRight":
+                    shell.triggerSensorGesture(shell.settings.twistGestureAction)
+                    break
+                case "whip":
+                    shell.triggerSensorGesture(shell.settings.whipGestureAction)
+                    break
+            }
+        }
+    }
+    // ENH150 - End
 
     Item {
         id: themeSettings
@@ -790,6 +880,53 @@ StyledItem {
         property alias customInfographicsCircleColor: settingsObj.customInfographicsCircleColor
         property alias useCustomDotsColor: settingsObj.useCustomDotsColor
         property alias customDotsColor: settingsObj.customDotsColor
+        
+        // Sensor Gestures
+        property alias enableSensorGestures: settingsObj.enableSensorGestures
+        property alias enableCoverGesture: settingsObj.enableCoverGesture
+        property alias coverGestureAction: settingsObj.coverGestureAction
+        property alias enableShakeGesture: settingsObj.enableShakeGesture
+        property alias shakeGestureAction: settingsObj.shakeGestureAction
+        property alias enableShake2Gesture: settingsObj.enableShake2Gesture
+        property alias shake2GestureAction: settingsObj.shake2GestureAction
+        property alias enablePickupGesture: settingsObj.enablePickupGesture
+        property alias pickupGestureAction: settingsObj.pickupGestureAction
+        property alias enableSlamGesture: settingsObj.enableSlamGesture
+        property alias slamGestureAction: settingsObj.slamGestureAction
+        property alias enableTurnoverGesture: settingsObj.enableTurnoverGesture
+        property alias turnoverGestureAction: settingsObj.turnoverGestureAction
+        property alias enableTwistGesture: settingsObj.enableTwistGesture
+        property alias twistGestureAction: settingsObj.twistGestureAction
+        property alias enableWhipGesture: settingsObj.enableWhipGesture
+        property alias whipGestureAction: settingsObj.whipGestureAction
+        property var enabledSensorGestureList: []
+        
+        function toggleInSensorGestureList(_gesture, _toAdd=true) {
+            if (_gesture) {
+                sensorGesture.enabled = false
+                if (_toAdd) {
+                    let _tempArr = enabledSensorGestureList.slice()
+                    _tempArr.push(_gesture)
+                    enabledSensorGestureList = _tempArr.slice()
+                } else {
+                    if (enabledSensorGestureList.includes(_gesture)) {
+                        let _tempArr = enabledSensorGestureList.slice()
+                        _tempArr.splice(_tempArr.indexOf(_gesture), 1)
+                        enabledSensorGestureList = _tempArr.slice()
+                    }
+                }
+                sensorGesture.enabled = Qt.binding(function() { return shell.settings.enableSensorGestures })
+            }
+        }
+
+        onEnableCoverGestureChanged: toggleInSensorGestureList("QtSensors.cover", enableCoverGesture)
+        onEnableShakeGestureChanged: toggleInSensorGestureList("QtSensors.shake", enableShakeGesture)
+        onEnableShake2GestureChanged: toggleInSensorGestureList("QtSensors.shake2", enableShake2Gesture)
+        onEnablePickupGestureChanged: toggleInSensorGestureList("QtSensors.pickup", enablePickupGesture)
+        onEnableSlamGestureChanged: toggleInSensorGestureList("QtSensors.slam", enableSlamGesture)
+        onEnableTurnoverGestureChanged: toggleInSensorGestureList("QtSensors.turnover", enableTurnoverGesture)
+        onEnableTwistGestureChanged: toggleInSensorGestureList("QtSensors.twist", enableTwistGesture)
+        onEnableWhipGestureChanged: toggleInSensorGestureList("QtSensors.whip", enableWhipGesture)
 
         // Pro1-X
         property alias pro1_OSKOrientation: settingsObj.pro1_OSKOrientation
@@ -854,6 +991,10 @@ StyledItem {
         // Timer Data
         property alias dcRunningTimer: settingsObj.dcRunningTimer
         property alias dcLastTimeTimer: settingsObj.dcLastTimeTimer
+
+        // Others
+        property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
+        property alias enableVolumeButtonsLogic: settingsObj.enableVolumeButtonsLogic
 
         // Non-persistent settings
         property bool enableOW: false
@@ -1171,6 +1312,25 @@ StyledItem {
             property bool placeFullAppGridToLast: false
             property bool customAppGridsExpandable: false
             property bool expandPanelHeaderWhenBottom: true
+            property bool enableSensorGestures: false
+            property bool enableAppSpreadFlickMod: false
+            property bool enableCoverGesture: false
+            property int coverGestureAction: Shell.SensorGestures.ToggleMediaPlayback
+            property bool enableShakeGesture: false
+            property int shakeGestureAction: Shell.SensorGestures.None
+            property bool enableShake2Gesture: false
+            property int shake2GestureAction: Shell.SensorGestures.None
+            property bool enablePickupGesture: false
+            property int pickupGestureAction: Shell.SensorGestures.None
+            property bool enableSlamGesture: false
+            property int slamGestureAction: Shell.SensorGestures.None
+            property bool enableTurnoverGesture: false
+            property int turnoverGestureAction: Shell.SensorGestures.None
+            property bool enableTwistGesture: false
+            property int twistGestureAction: Shell.SensorGestures.None
+            property bool enableWhipGesture: false
+            property int whipGestureAction: Shell.SensorGestures.None
+            property bool enableVolumeButtonsLogic: false
         }
     }
 
@@ -1568,6 +1728,28 @@ StyledItem {
                 text: "Device Specific Hacks"
                 onClicked: settingsLoader.item.stack.push(deviceSpecificPage, {"title": text})
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Experimentals"
+                onClicked: settingsLoader.item.stack.push(experimentalsPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: experimentalsPage
+        
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: enableAppSpreadFlickMod
+                Layout.fillWidth: true
+                text: "App spread flick mod"
+                onCheckedChanged: shell.settings.enableAppSpreadFlickMod = checked
+                Binding {
+                    target: enableAppSpreadFlickMod
+                    property: "checked"
+                    value: shell.settings.enableAppSpreadFlickMod
+                }
+            }
         }
     }
     Component {
@@ -1700,6 +1882,27 @@ StyledItem {
                     value: shell.settings.enableShowDesktop
                 }
             }
+            LPSettingsCheckBox {
+                id: enableVolumeButtonsLogic
+                Layout.fillWidth: true
+                text: "Disable volume buttons when screen is off"
+                onCheckedChanged: shell.settings.enableVolumeButtonsLogic = checked
+                Binding {
+                    target: enableVolumeButtonsLogic
+                    property: "checked"
+                    value: shell.settings.enableVolumeButtonsLogic
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Volume buttons will be disabled when screen is off but they will still work if there's an ongoing call or a media is playing."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
             LPSettingsSwitch {
                 id: orientationPrompt
                 Layout.fillWidth: true
@@ -1736,6 +1939,11 @@ StyledItem {
                 text: "Direct Actions"
                 onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Sensor Gestures"
+                onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
+            }
         }
     }
     Component {
@@ -1761,6 +1969,212 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Key Shortcuts"
                 onClicked: settingsLoader.item.stack.push(keyShortcutsPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: sensorGesturesPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "CAUTION! These gestures may be unreliable, inconsistent and prone to accidental triggering and will also depend on your device\n\n"
+                + "Test each gesture first and see how well they work. Combination of gestures that involves physically moving your device may also cause conflicts when triggering.\n\n"
+                + "Some actions such as toggling the flashlight may be dangerous to your device if triggered unknowingly or accidentally.\n\n"
+                + "Description of each gesture can be found here: \n"
+                + "<a>https://doc.qt.io/qt-5/sensorgesture-plugins-topics.html#qt-sensor-gestures</a>"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableSensorGestures
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableSensorGestures = checked
+                Binding {
+                    target: enableSensorGestures
+                    property: "checked"
+                    value: shell.settings.enableSensorGestures
+                }
+            }
+            property var sensorGestureActions: [
+                "None"
+                , "Toggle Media Playback"
+                , "Pause Media Playback"
+                , "Toggle Flashlight"
+                , "Toggle Orientation"
+                , "Lock Screen"
+                , "Show Desktop"
+            ]
+            LPSettingsSwitch {
+                id: enableCoverGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Cover")
+                onCheckedChanged: shell.settings.enableCoverGesture = checked
+                Binding {
+                    target: enableCoverGesture
+                    property: "checked"
+                    value: shell.settings.enableCoverGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableCoverGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.coverGestureAction
+                onSelectedIndexChanged: shell.settings.coverGestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableShakeGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Shake")
+                onCheckedChanged: shell.settings.enableShakeGesture = checked
+                Binding {
+                    target: enableShakeGesture
+                    property: "checked"
+                    value: shell.settings.enableShakeGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableShakeGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.shakeGestureAction
+                onSelectedIndexChanged: shell.settings.shakeGestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableShake2Gesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Shake2")
+                onCheckedChanged: shell.settings.enableShake2Gesture = checked
+                Binding {
+                    target: enableShake2Gesture
+                    property: "checked"
+                    value: shell.settings.enableShake2Gesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableShake2Gesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.shake2GestureAction
+                onSelectedIndexChanged: shell.settings.shake2GestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enablePickupGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Pickup")
+                onCheckedChanged: shell.settings.enablePickupGesture = checked
+                Binding {
+                    target: enablePickupGesture
+                    property: "checked"
+                    value: shell.settings.enablePickupGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enablePickupGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.pickupGestureAction
+                onSelectedIndexChanged: shell.settings.pickupGestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableSlamGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Slam")
+                onCheckedChanged: shell.settings.enableSlamGesture = checked
+                Binding {
+                    target: enableSlamGesture
+                    property: "checked"
+                    value: shell.settings.enableSlamGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableSlamGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.slamGestureAction
+                onSelectedIndexChanged: shell.settings.slamGestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableTurnoverGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Turnover")
+                onCheckedChanged: shell.settings.enableTurnoverGesture = checked
+                Binding {
+                    target: enableTurnoverGesture
+                    property: "checked"
+                    value: shell.settings.enableTurnoverGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableTurnoverGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.turnoverGestureAction
+                onSelectedIndexChanged: shell.settings.turnoverGestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableTwistGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Twist")
+                onCheckedChanged: shell.settings.enableTwistGesture = checked
+                Binding {
+                    target: enableTwistGesture
+                    property: "checked"
+                    value: shell.settings.enableTwistGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableTwistGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.twistGestureAction
+                onSelectedIndexChanged: shell.settings.twistGestureAction = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableWhipGesture
+                Layout.fillWidth: true
+                visible: shell.settings.enableSensorGestures
+                text: i18n.tr("Whip")
+                onCheckedChanged: shell.settings.enableWhipGesture = checked
+                Binding {
+                    target: enableWhipGesture
+                    property: "checked"
+                    value: shell.settings.enableWhipGesture
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableSensorGestures && shell.settings.enableWhipGesture
+                model: sensorGestureActions
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.whipGestureAction
+                onSelectedIndexChanged: shell.settings.whipGestureAction = selectedIndex
             }
         }
     }
@@ -3877,16 +4291,17 @@ StyledItem {
                 id: pullDownHeight
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: shell.settings.enablePullDownGesture
                 title: "Target Height"
                 minimumValue: 2
                 maximumValue: 5
-                stepSize: 0.25
+                stepSize: 0.1
                 resetValue: 3
                 live: true
                 percentageValue: false
                 valueIsPercentage: false
                 roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
                 unitsLabel: "inch"
                 onValueChanged: shell.settings.pullDownHeight = value
                 Binding {
@@ -3894,6 +4309,14 @@ StyledItem {
                     property: "value"
                     value: shell.settings.pullDownHeight
                 }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "This also affects all expandable headers like App Grids and Indicator Panel pages"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
         }
     }
@@ -5478,8 +5901,20 @@ StyledItem {
         objectName: "physicalKeysMapper"
 
         onPowerKeyLongPressed: dialogs.showPowerDialog();
-        onVolumeDownTriggered: volumeControl.volumeDown();
-        onVolumeUpTriggered: volumeControl.volumeUp();
+        // ENH151 - Volume buttons when locked
+        // onVolumeDownTriggered: volumeControl.volumeDown();
+        // onVolumeUpTriggered: volumeControl.volumeUp();
+        onVolumeDownTriggered: {
+            if (!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls) {
+                volumeControl.volumeDown();
+            }
+        }
+        onVolumeUpTriggered: {
+            if (!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls) {
+                volumeControl.volumeUp();
+            }
+        }
+        // ENH151 - End
         onScreenshotTriggered: itemGrabber.capture(shell);
         // ENH100 - Camera button to toggle rotation and OSK
         onCameraTriggered: {
