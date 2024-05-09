@@ -129,7 +129,7 @@ WebView {
 
     Loader {
         id: contentPickerLoader
-        source: "../ContentPickerDialog.qml"
+        source: "ContentPickerDialog.qml"
         asynchronous: true
     }
 
