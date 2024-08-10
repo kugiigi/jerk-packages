@@ -55,6 +55,9 @@ FocusScope {
     property real rightEdgePushProgress: 0
     property Item availableDesktopArea
     property PanelState panelState
+    // ENH168 - Settings to use wallpaper as blur source
+    property alias wallpaperSurface: wallpaper
+    // ENH168 - End
     // ENH032 - Infographics Outer Wilds
     property bool enableOW: false
     property bool alternateOW: false
@@ -67,6 +70,9 @@ FocusScope {
     readonly property url focusedAppIcon: priv.focusedAppDelegate ? priv.focusedAppDelegate.application.icon : ""
     readonly property string focusedAppId: priv.focusedAppDelegate ? priv.focusedAppDelegate.appId : ""
     // ENH102 - End
+    // ENH174 - Top panel background based on current app
+    readonly property var focusedAppDelegate: priv.focusedAppDelegate // ? priv.focusedAppDelegate.focusedSurface : null
+    // ENH174 - End
 
     // Whether outside forces say that the Stage may have focus
     property bool allowInteractivity
@@ -122,6 +128,10 @@ FocusScope {
     }
 
     property int launcherLeftMargin : 0
+    // ENH185 - Workspace spread UI fixes
+    property bool launcherLockedVisible: false
+    property real topPanelHeight
+    // ENH185 - End
     // ENH041 - Hide side-stage when main app go fullscreen
     Connections {
         property bool sideStageTempHidden: false
@@ -144,7 +154,12 @@ FocusScope {
     }
     // ENH041 - End
 
+    // ENH185 - Workspace spread UI fixes
+    readonly property bool sideStageShown: sideStage.shown
+    readonly property real sideStageWidth: sideStage.panelWidth
+    // ENH185 - Emd
     // ENH135 - Show Desktop
+    readonly property bool desktopShown: appContainer.showDesktop
     function disableShowDesktop() {
         appContainer.showDesktop = false
     }
@@ -170,6 +185,27 @@ FocusScope {
         }
     }
     // ENH133 - End
+    // ENH154 - Workspace switcher gesture
+    function commitWorkspaceSwitch() {
+        workspaceSwitcher.actuallySelect()
+    }
+    function switchWorkspaceLeft() {
+        root.focus = true;
+        workspaceSwitcher.switchLeft()
+    }
+    function switchWorkspaceRight() {
+        root.focus = true;
+        workspaceSwitcher.switchRight()
+    }
+    function switchWorkspaceLeftMoveApp() {
+        root.focus = true;
+        workspaceSwitcher.switchLeftMoveApp(false, focusedAppDelegate.surface)
+    }
+    function switchWorkspaceRightMoveApp() {
+        root.focus = true;
+        workspaceSwitcher.switchRightMoveApp(false, focusedAppDelegate.surface)
+    }
+    // ENH154 - End
 
     Binding {
         target: topLevelSurfaceList
@@ -349,8 +385,83 @@ FocusScope {
     GlobalShortcut {
         id: maximizeWindowShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Up
-        onTriggered: priv.focusedAppDelegate.requestMaximize()
-        active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximized
+        // ENH156 - Advanced snapping keyboard shortcuts
+        // onTriggered: priv.focusedAppDelegate.requestMaximize()
+        // active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximized
+        readonly property bool willBeMaximized: priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximized
+        readonly property bool willBeRestored: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        ? priv.focusedAppDelegate && (priv.focusedAppDelegate.maximizedVertically
+                                                                                        || priv.focusedAppDelegate.minimized)
+                                                        : priv.focusedAppDelegate && priv.focusedAppDelegate.minimized
+        readonly property bool willBeMaximizedTopRight: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedRight && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedTopLeft: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedLeft && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedRight: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedBottomRight && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        readonly property bool willBeMaximizedLeft: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedBottomLeft && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        readonly property bool willBeMaximizedTop: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && !priv.focusedAppDelegate.anyMaximized && !priv.focusedAppDelegate.minimized
+        onTriggered: {
+            let _commitOnRelease = fakeRectangle.useForKeyboardShortcut
+            if (_commitOnRelease) {
+                root.focus = true;
+            }
+            if (shell.settings.enableAdvancedKeyboardSnapping) {
+                if (willBeMaximizedTopRight) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeTopRight()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeTopRight()
+                    }
+                } else if (willBeMaximizedTopLeft) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeTopLeft()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeTopLeft()
+                    }
+                } else if (willBeMaximizedRight) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeRight()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeRight()
+                    }
+                } else if (willBeMaximizedLeft) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeLeft()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeLeft()
+                    }
+                } else if (willBeMaximizedTop) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeTop()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeHorizontally()
+                    }
+                } else if (willBeRestored) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showRestore()
+                    } else {
+                        priv.focusedAppDelegate.requestRestore()
+                    }
+                } else {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximize()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximize()
+                    }
+                }
+            } else {
+                if (_commitOnRelease) {
+                    windowSnapper.showMaximize()
+                } else {
+                    priv.focusedAppDelegate.requestMaximize()
+                }
+            }
+        }
+        active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? root.state == "windowed" && priv.focusedAppDelegate
+                                && (willBeMaximizedTopRight || willBeMaximizedTopLeft || willBeMaximizedRight || willBeMaximizedLeft || willBeMaximized || willBeRestored
+                                        || willBeMaximizedTop || willBeMaximizedBottom)
+                        : root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximized)
+        // ENH156 - End
     }
 
     GlobalShortcut {
@@ -359,6 +470,23 @@ FocusScope {
         // ENH015 - Add shortcuts for side stage
         // onTriggered: priv.focusedAppDelegate.requestMaximizeLeft()
         // active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        // ENH156 - Advanced snapping keyboard shortcuts
+        readonly property bool willBeMaximizedTopLeft: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                            ? priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedHorizontally && priv.focusedAppDelegate.canBeCornerMaximized
+                                                            : priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedTopRight && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedBottomLeft: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                            ? priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedVertically && priv.focusedAppDelegate.canBeCornerMaximized
+                                                            : priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedBottomRight && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedLeft: priv.focusedAppDelegate && (priv.focusedAppDelegate.maximized || !priv.focusedAppDelegate.anyMaximized)
+                                                            && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        readonly property bool willBeMaximizedTop: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && priv.focusedAppDelegate.maximizedTopRight
+        readonly property bool willBeMaximizedBottom: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && priv.focusedAppDelegate.maximizedBottomRight
+        readonly property bool willBeRestored: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedRight
+        // ENH156 - End
         onTriggered: {
             switch (root.mode) {
                 case "stagedWithSideStage":
@@ -368,13 +496,75 @@ FocusScope {
                     }
                     break;
                 case "windowed":
-                    priv.focusedAppDelegate.requestMaximizeLeft()
+                    // ENH156 - Advanced snapping keyboard shortcuts
+                    //priv.focusedAppDelegate.requestMaximizeLeft()
+                    let _commitOnRelease = fakeRectangle.useForKeyboardShortcut
+                    if (_commitOnRelease) {
+                        root.focus = true;
+                    }
+                    if (shell.settings.enableAdvancedKeyboardSnapping) {
+                        if (willBeMaximizedTop) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeTop()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeHorizontally()
+                            }
+                        } else if (willBeMaximizedBottom) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeBottom()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeVertically()
+                            }
+                        } else if (willBeMaximizedTopLeft) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeTopLeft()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeTopLeft()
+                            }
+                        } else if (willBeMaximizedBottomLeft) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeBottomLeft()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeBottomLeft()
+                            }
+                        } else if (willBeMaximizedLeft) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeLeft()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeLeft()
+                            }
+                        } else if (willBeRestored) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showRestore()
+                            } else {
+                                priv.focusedAppDelegate.requestRestore()
+                            }
+                        }
+                    } else {
+                        if (_commitOnRelease) {
+                            windowSnapper.showMaximizeLeft()
+                        } else {
+                            priv.focusedAppDelegate.requestMaximizeLeft()
+                        }
+                    }
+
+                    // ENH156 - End
                     break;
             }
         }
+        // ENH156 - Advanced snapping keyboard shortcuts
+        /*
         active: (root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
                     ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate 
                                             && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage && priv.sideStageEnabled)
+        */
+        active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? (root.state == "windowed" && priv.focusedAppDelegate
+                        && (willBeMaximizedTopLeft || willBeMaximizedBottomLeft || willBeMaximizedLeft
+                                || willBeMaximizedTop || willBeMaximizedBottom || willBeRestored))
+                        ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate
+                                                && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage && priv.sideStageEnabled)
+                    : root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
+        // ENH156 - End
 		// ENH015 - End
     }
 
@@ -384,6 +574,23 @@ FocusScope {
         // ENH015 - Add shortcuts for side stage
         // onTriggered: priv.focusedAppDelegate.requestMaximizeRight()
         // active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        // ENH156 - Advanced snapping keyboard shortcuts
+        readonly property bool willBeMaximizedTopRight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                            ? priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedHorizontally && priv.focusedAppDelegate.canBeCornerMaximized
+                                                            : priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedTopLeft && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedBottomRight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                            ? priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedVertically && priv.focusedAppDelegate.canBeCornerMaximized
+                                                            : priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedBottomLeft && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedRight: priv.focusedAppDelegate && (priv.focusedAppDelegate.maximized || !priv.focusedAppDelegate.anyMaximized)
+                                                            && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        readonly property bool willBeMaximizedTop: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && priv.focusedAppDelegate.maximizedTopLeft
+        readonly property bool willBeMaximizedBottom: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && priv.focusedAppDelegate.maximizedBottomLeft
+        readonly property bool willBeRestored: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedLeft
+        // ENH156 - End
         onTriggered: {
             switch (root.mode) {
                 case "stagedWithSideStage":
@@ -395,19 +602,83 @@ FocusScope {
                     }
                     break;
                 case "windowed":
-                    priv.focusedAppDelegate.requestMaximizeRight()
+                    // ENH156 - Advanced snapping keyboard shortcuts
+                    //priv.focusedAppDelegate.requestMaximizeRight()
+                    let _commitOnRelease = fakeRectangle.useForKeyboardShortcut
+                    if (_commitOnRelease) {
+                        root.focus = true;
+                    }
+                    if (shell.settings.enableAdvancedKeyboardSnapping) {
+                        if (willBeMaximizedTop) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeTop()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeHorizontally()
+                            }
+                        } else if (willBeMaximizedBottom) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeBottom()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeVertically()
+                            }
+                        } else if (willBeMaximizedTopRight) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeTopRight()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeTopRight()
+                            }
+                        } else if (willBeMaximizedBottomRight) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeBottomRight()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeBottomRight()
+                            }
+                        } else if (willBeMaximizedRight) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showMaximizeRight()
+                            } else {
+                                priv.focusedAppDelegate.requestMaximizeRight()
+                            }
+                        } else if (willBeRestored) {
+                            if (_commitOnRelease) {
+                                windowSnapper.showRestore()
+                            } else {
+                                priv.focusedAppDelegate.requestRestore()
+                            }
+                        }
+                    } else {
+                        if (_commitOnRelease) {
+                            windowSnapper.showMaximizeRight()
+                        } else {
+                            priv.focusedAppDelegate.requestMaximizeRight()
+                        }
+                    }
+
+                    // ENH156 - End
                     break;
             }
         }
+        // ENH156 - Advanced snapping keyboard shortcuts
+        /*
         active: (root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
                     ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate
                                     && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && priv.sideStageEnabled)
+        */
+        active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? (root.state == "windowed" && priv.focusedAppDelegate
+                            && (willBeMaximizedTopRight || willBeMaximizedBottomRight || willBeMaximizedRight
+                                    || willBeMaximizedTop || willBeMaximizedBottom || willBeRestored))
+                        ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate
+                             && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && priv.sideStageEnabled)
+                    : root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
+        // ENH156 - End
         // ENH015 - End
     }
 
     GlobalShortcut {
         id: minimizeRestoreShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Down
+        // ENH156 - Advanced snapping keyboard shortcuts
+        /*
         onTriggered: {
             if (priv.focusedAppDelegate.anyMaximized) {
                 priv.focusedAppDelegate.requestRestore();
@@ -416,7 +687,122 @@ FocusScope {
             }
         }
         active: root.state == "windowed" && priv.focusedAppDelegate
+        */
+        readonly property bool willBeRestored: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        ? priv.focusedAppDelegate && (priv.focusedAppDelegate.maximizedHorizontally
+                                                                                        || priv.focusedAppDelegate.maximizedBottomRight
+                                                                                        || priv.focusedAppDelegate.maximizedBottomLeft)
+                                                        : priv.focusedAppDelegate
+                                                                && (priv.focusedAppDelegate.maximized || priv.focusedAppDelegate.maximizedBottomRight
+                                                                        || priv.focusedAppDelegate.maximizedBottomLeft)
+        readonly property bool willBeMinimized: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                    ? priv.focusedAppDelegate && (priv.focusedAppDelegate.maximizedVertically
+                                                                                    || !priv.focusedAppDelegate.anyMaximized)
+                                                    : priv.focusedAppDelegate && !priv.focusedAppDelegate.anyMaximized
+        readonly property bool willBeMaximizedBottomRight: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedRight && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedBottomLeft: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedLeft && priv.focusedAppDelegate.canBeCornerMaximized
+        readonly property bool willBeMaximizedRight: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedTopRight && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        readonly property bool willBeMaximizedLeft: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedTopLeft && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        readonly property bool willBeMaximizedTop: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && priv.focusedAppDelegate.maximized
+        readonly property bool willBeMaximizedBottom: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                        && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
+                                                        && !priv.focusedAppDelegate.anyMaximized
+        onTriggered: {
+            let _commitOnRelease = fakeRectangle.useForKeyboardShortcut
+            if (_commitOnRelease) {
+                root.focus = true;
+            }
+            if (shell.settings.enableAdvancedKeyboardSnapping) {
+                if (willBeMaximizedTop) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeTop()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeHorizontally()
+                    }
+                } else if (willBeMaximizedBottom) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeBottom()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeVertically()
+                    }
+                } else if (willBeMaximizedBottomRight) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeBottomRight()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeBottomRight()
+                    }
+                } else if (willBeMaximizedBottomLeft) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeBottomLeft()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeBottomLeft()
+                    }
+                } else if (willBeMaximizedRight) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeRight()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeRight()
+                    }
+                } else if (willBeMaximizedLeft) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMaximizeLeft()
+                    } else {
+                        priv.focusedAppDelegate.requestMaximizeLeft()
+                    }
+                } else if (willBeRestored) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showRestore()
+                    } else {
+                        priv.focusedAppDelegate.requestRestore();
+                    }
+                } else if (willBeMinimized) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMinimize()
+                    } else {
+                        priv.focusedAppDelegate.requestMinimize()
+                    }
+                }
+            } else {
+                if (priv.focusedAppDelegate.anyMaximized) {
+                    if (_commitOnRelease) {
+                        windowSnapper.showRestore()
+                    } else {
+                        priv.focusedAppDelegate.requestRestore();
+                    }
+                } else {
+                    if (_commitOnRelease) {
+                        windowSnapper.showMinimize()
+                    } else {
+                        priv.focusedAppDelegate.requestMinimize();
+                    }
+                }
+            }
+        }
+        active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? root.state == "windowed" && priv.focusedAppDelegate
+                            && (willBeMaximizedBottomRight || willBeMaximizedBottomLeft || willBeMaximizedRight || willBeMaximizedLeft || willBeRestored || willBeMinimized
+                                    || willBeMaximizedTop || willBeMaximizedBottom)
+                    : root.state == "windowed" && priv.focusedAppDelegate)
+        // ENH156 - End
     }
+    // ENH156 - Advanced snapping keyboard shortcuts
+    // Non visual that's only used to show snapping rectangle temporarily
+    LPWindowSnapper {
+        id: windowSnapper
+        enabled: shell.settings.onlyCommitOnReleaseWhenKeyboardSnapping
+        advancedSnapping: shell.settings.enableAdvancedKeyboardSnapping
+        enableTopBottom: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+        focusedAppDelegate: priv.focusedAppDelegate
+        target: fakeRectangle
+
+        onActiveChanged: {
+            if (!active) {
+                appContainer.focus = true;
+            }
+        }
+    }
+    // ENH156 - End
 
     GlobalShortcut {
         shortcut: Qt.AltModifier|Qt.Key_Print
@@ -472,6 +858,44 @@ FocusScope {
             workspaceSwitcher.showDown()
         }
     }
+    // ENH181 - Shortcut for moving app to another workspace
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutLeft
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Left
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutRight
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Right
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutUp
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Up
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showUpMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutDown
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Down
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showDownMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    // ENH181 - End
 
     QtObject {
         id: priv
@@ -624,6 +1048,25 @@ FocusScope {
         readonly property real virtualKeyboardHeight: root.inputMethodRect.height
 
         readonly property real windowDecorationHeight: units.gu(3)
+        // ENH187 - Fix for app window size when entering spread
+        // ENH002 - Notch/Punch hole fix
+        //readonly property real maximizedWindowHeight: appContainer.height
+        readonly property real maximizedWindowHeight: appContainer.height - (shell.shellTopMargin > 0 ? shell.shellTopMargin - priv.windowDecorationHeight : 0)
+        // ENH002 - End
+        readonly property real maximizedWindowWidth: root.availableDesktopArea.width
+        // ENH002 - Notch/Punch hole fix
+        //readonly property real maximizedWindowY: 0
+        readonly property real maximizedWindowY: shell.shellTopMargin > 0 ? shell.shellTopMargin - priv.windowDecorationHeight
+                                                                          : 0
+        // ENH002 - End
+        readonly property real maximizedHalfHorizontallyWindowWidth: root.availableDesktopArea.width / 2
+        readonly property real maximizedHalfHorizontallyWindowHeight: root.availableDesktopArea.height
+        readonly property real maximizedHalfVerticallyWindowHeight: root.availableDesktopArea.height / 2
+        readonly property real maximizedLeftWindowX: root.availableDesktopArea.x
+        readonly property real maximizedRightWindowX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+        readonly property real maximizedTopWindowY: root.availableDesktopArea.y
+        readonly property real maximizedBottomWindowY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+        // ENH187 - End
     }
 
     Component.onCompleted: priv.updateMainAndSideStageIndexes()
@@ -638,7 +1081,10 @@ FocusScope {
     Binding {
         target: panelState
         property: "decorationsVisible"
-        value: mode == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.maximized && !root.spreadShown
+        // ENH189 - Fix window buttons still show up in top panel after closing last maxmized app
+        // value: mode == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.maximized && !root.spreadShown
+        value: mode == "windowed" && priv.focusedAppDelegate !== null && priv.focusedAppDelegate.maximized && !root.spreadShown
+        // ENH189 - End
     }
 
     Binding {
@@ -692,12 +1138,52 @@ FocusScope {
         model: root.applicationManager
         delegate: QtObject {
             id: applicationDelegate
+            // ENH178 - Option to delay app suspension
+            readonly property bool appIsForeground: model.application && priv.focusedAppDelegate &&
+                                                   (priv.focusedAppDelegate.appId === model.application.appId ||
+                                                    priv.mainStageAppId === model.application.appId ||
+                                                    priv.sideStageAppId === model.application.appId)
+            property bool temporaryLifeCycleExemption: false
+            property Timer appStartsuspendDelay: Timer {
+                running: false
+                interval: shell.settings.delayedStartingAppSuspensionDuration * 1000
+                onTriggered: {
+                    temporaryLifeCycleExemption = false
+                }
+            }
+            property Timer suspendDelay: Timer {
+                running: false
+                interval: shell.settings.delayedAppSuspensionDuration * 1000
+                onTriggered: {
+                    temporaryLifeCycleExemption = false
+                }
+            }
+            Component.onCompleted: {
+                if (shell.settings.enableDelayedStartingAppSuspension) {
+                    temporaryLifeCycleExemption = true
+                    appStartsuspendDelay.restart()
+                }
+            }
+            onAppIsForegroundChanged: {
+                if (shell.settings.enableDelayedAppSuspension) {
+                    if (!appIsForeground) {
+                        temporaryLifeCycleExemption = true
+                        suspendDelay.restart()
+                    } else {
+                        suspendDelay.stop()
+                    }
+                }
+            }
+            // ENH178 - End
             // TODO: figure out some lifecycle policy, like suspending minimized apps
             //       or something if running windowed.
             // TODO: If the device has a dozen suspended apps because it was running
             //       in staged mode, when it switches to Windowed mode it will suddenly
             //       resume all those apps at once. We might want to avoid that.
             property var requestedState: root.mode === "windowed"
+            // ENH178 - Option to delay app suspension
+                || temporaryLifeCycleExemption
+            // ENH178 - End
                    || (!root.suspended && model.application && priv.focusedAppDelegate &&
                        (priv.focusedAppDelegate.appId === model.application.appId ||
                         priv.mainStageAppId === model.application.appId ||
@@ -725,6 +1211,12 @@ FocusScope {
             property var focusRequestedConnection: Connections {
                 target: model.application
 
+                // ENH178 - Option to delay app suspension
+                onStateChanged: {
+                    // For debugging only
+                    //console.log((target.state === ApplicationInfoInterface.Suspended ? "SUSPENDED" : "RUNNING") + " - " + target.appId)
+                }
+                // ENH178 - End
                 onFocusRequested: {
                     // Application emits focusRequested when it has no surface (i.e. their processes died).
                     // Find the topmost window for this application and activate it, after which the app
@@ -737,6 +1229,25 @@ FocusScope {
                             return;
                         }
                     }
+                    // ENH162 - Automatically switch to workspace when app gets focused
+                    let _screensCount = screensAndWorkspaces.screensProxy.count
+                    for (let i = 0; i < _screensCount; i++) {
+                        let _workspaces = screensAndWorkspaces.screensProxy.get(i).workspaces
+                        let _workspacesCount = _workspaces.count
+                        for (let h = 0; h < _workspacesCount; h++) {
+                            let _workspace = _workspaces.get(h)
+                            let _windows = _workspace.windowModel
+                            let _windowsCount = _windows.count
+                            for (let j = 0; j < _windowsCount; j++) {
+                                let _app = _windows.applicationAt(j)
+                                if (model.application.appId === _app.appId) {
+                                    _workspace.activate()
+                                    return
+                                }
+                            }
+                        }
+                    }
+                    // ENH162 - End
 
                     console.warn("Application requested te be focused but no window for it. What should we do?");
                 }
@@ -1014,7 +1525,7 @@ FocusScope {
 
             Loader {
                 id: movingItems
-                active: root.enableOW && root.alternateOW
+                active: root.enableOW && root.alternateOW && !root.suspended
                 anchors.fill: parent
                 asynchronous: true
                 z: wallpaper.z + 1
@@ -1078,11 +1589,6 @@ FocusScope {
                                         }
                                     }
                                 }
-                                onSuspendedChanged: {
-                                    if (target.suspended) {
-                                        quantumMoon.reset()
-                                    }
-                                }
                             }
                             ParallelAnimation {
                                 id: qmMoveAnimation
@@ -1118,7 +1624,7 @@ FocusScope {
 
             Loader {
                 active: root.enableOW && !root.alternateOW && !root.dlcOW
-                            && !root.suspended && (priv.focusedAppDelegate == priv.sideStageDelegate && !sideStage.shown)
+                            && !root.suspended && ((priv.focusedAppDelegate == priv.sideStageDelegate && !sideStage.shown) || appContainer.showDesktop)
                 sourceComponent: scoutComponent
                 asynchronous: true
                 z: wallpaper.z + 1
@@ -1166,6 +1672,10 @@ FocusScope {
             visible: workspaceEnabled ? opacity > 0 : false
             enabled: workspaceEnabled
             mode: root.mode
+            // ENH185 - Workspace spread UI fixes
+            launcherLockedVisible: root.launcherLockedVisible
+            topPanelHeight: root.topPanelHeight
+            // ENH185 - End
             onCloseSpread: priv.goneToSpread = false;
         }
 
@@ -1181,10 +1691,7 @@ FocusScope {
             leftMargin: root.availableDesktopArea.x
             model: root.topLevelSurfaceList
             spreadFlickable: floatingFlickable
-            // ENH143 - Fix spread many apps issue
-            // z: 10
             z: root.topLevelSurfaceList.count
-            // ENH143 - End
 
             onLeaveSpread: {
                 priv.goneToSpread = false;
@@ -1335,7 +1842,10 @@ FocusScope {
 
             onDropped: {
                 drop.source.appDelegate.saveStage(ApplicationInfoInterface.MainStage);
-                drop.source.appDelegate.focus = true;
+                // ENH173 - Moving to Side stage focus issue fix
+                // drop.source.appDelegate.focus = true;
+                drop.source.appDelegate.activate();
+                // ENH173 - End
             }
             keys: "SideStage"
         }
@@ -1352,6 +1862,9 @@ FocusScope {
             // ENH135 - Show Desktop
             opacity: appContainer.appDelegateOpacity
             // ENH135 - End
+            // ENH172 - Shorten Side Stage Handle
+            availableDesktopAreaHeight: root.availableDesktopArea.height
+            // ENH172 - End
             visible: false
             Behavior on opacity { LomiriNumberAnimation {} }
             z: {
@@ -1414,7 +1927,10 @@ FocusScope {
                 onDropped: {
                     if (drop.keys == "MainStage") {
                         drop.source.appDelegate.saveStage(ApplicationInfoInterface.SideStage);
-                        drop.source.appDelegate.focus = true;
+                        // ENH173 - Moving to Side stage focus issue fix
+                        // drop.source.appDelegate.focus = true;
+                        drop.source.appDelegate.activate()
+                        // ENH173 - End
                     }
                 }
                 drag {
@@ -1452,6 +1968,18 @@ FocusScope {
             showDesktop = !showDesktop
         }
         // ENH135 - End
+        // ENH155 - Wobbly Windows
+        Repeater {
+            id: wobblyRepeater
+            model: topLevelSurfaceList
+            delegate: LPWobblyWindow {
+                active: shell.settings.enableWobblyWindows && root.mode === "windowed"
+                appItem: appRepeater.itemAt(index)
+                z: appItem.z + 1
+                anchors.fill: appItem
+            }
+        }
+        // ENH155 - End
         Repeater {
             id: appRepeater
             model: topLevelSurfaceList
@@ -1708,7 +2236,12 @@ FocusScope {
                         spreadItem.highlightedIndex = index
                         // force pendingActivation so that when switching to staged mode, topLevelSurfaceList focus won't got to previous app ( case when apps are launched from outside )
                         topLevelSurfaceList.pendingActivation();
-                        priv.goneToSpread = false;
+                        // ENH159 - Spread workaround in Ubuntu desktop
+                        // priv.goneToSpread = false;
+                        if (!shell.settings.enableSpreadTouchFix) {
+                            priv.goneToSpread = false;
+                        }
+                        // ENH159 - End
                     }
                     if (root.mode == "stagedWithSideStage") {
                         if (appDelegate.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
@@ -1821,7 +2354,45 @@ FocusScope {
                         } else {
                             policy = stagedFullscreenPolicy
                         }
+
                         window.requestState(policy.applyPolicy(state, surface.shellChrome));
+                        // ENH183 - Workaround for maxmized windows restoring when switching workspace
+                        if (shell.settings.workaroundMaxAppsSwitchWorkspace
+                                && WindowStateStorage.toMirState(appDelegate.windowState) != window.state) {
+                            let value = window.state
+                            if (value == Mir.MinimizedState) {
+                                appDelegate.minimize(false);
+                            } else if (value == Mir.MaximizedState) {
+                                appDelegate.maximize(false);
+                            } else if (value == Mir.VertMaximizedState) {
+                                appDelegate.maximizeVertically(false);
+                            } else if (value == Mir.HorizMaximizedState) {
+                                appDelegate.maximizeHorizontally(false);
+                            } else if (value == Mir.MaximizedLeftState) {
+                                appDelegate.maximizeLeft(false);
+                            } else if (value == Mir.MaximizedRightState) {
+                                appDelegate.maximizeRight(false);
+                            } else if (value == Mir.MaximizedTopLeftState) {
+                                appDelegate.maximizeTopLeft(false);
+                            } else if (value == Mir.MaximizedTopRightState) {
+                                appDelegate.maximizeTopRight(false);
+                            } else if (value == Mir.MaximizedBottomLeftState) {
+                                appDelegate.maximizeBottomLeft(false);
+                            } else if (value == Mir.MaximizedBottomRightState) {
+                                appDelegate.maximizeBottomRight(false);
+                            } else if (value == Mir.RestoredState) {
+                                if (appDelegate.fullscreen && appDelegate.prevWindowState != WindowStateStorage.WindowStateRestored
+                                        && appDelegate.prevWindowState != WindowStateStorage.WindowStateNormal) {
+                                    model.window.requestState(WindowStateStorage.toMirState(appDelegate.prevWindowState));
+                                } else {
+                                    appDelegate.restore(false);
+                                }
+                            } else if (value == Mir.FullscreenState) {
+                                appDelegate.prevWindowState = appDelegate.windowState;
+                                appDelegate.windowState = WindowStateStorage.WindowStateFullscreen;
+                            }
+                        }
+                        // ENH183 - End
                     }
                 }
 
@@ -1940,8 +2511,12 @@ FocusScope {
                             rightEdgeFocusAnimation.targetX = appDelegate.stage == ApplicationInfoInterface.SideStage ? sideStage.x : 0
                             rightEdgeFocusAnimation.start()
                         }
+                    // ENH153 - Short right swipe in windowed mode
+                    /*
                     } else if (state == "windowedRightEdge" || state == "windowed") {
                         activate();
+                    */
+                    // ENH153 - End
                     } else {
                         focusAnimation.start()
                     }
@@ -2079,7 +2654,10 @@ FocusScope {
                             itemScale: spreadMaths.targetScale
                             scaleToPreviewSize: spreadItem.stackHeight
                             scaleToPreviewProgress: 1
-                            hasDecoration: root.mode === "windowed"
+                            // ENH187 - Fix for app window size when entering spread
+                            // hasDecoration: root.mode === "windowed"
+                            hasDecoration: root.mode === "windowed" && !appDelegate.fullscreen
+                            // ENH187 - End
                             shadowOpacity: spreadMaths.shadowOpacity
                             showHighlight: spreadItem.highlightedIndex === index
                             darkening: spreadItem.highlightedIndex >= 0
@@ -2240,11 +2818,18 @@ FocusScope {
                         name: "maximized"; when: appDelegate.maximized && !appDelegate.minimized
                         PropertyChanges {
                             target: appDelegate;
-                            requestedX: root.availableDesktopArea.x;
+                            // ENH187 - Fix for app window size when entering spread
+                            // requestedX: root.availableDesktopArea.x;
+                            windowedX: root.availableDesktopArea.x;
+                            // ENH187 - End
                             // ENH002 - Notch/Punch hole fix
                             // requestedY: 0;
-                            requestedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
+                            // ENH187 - Fix for app window size when entering spread
+                            //requestedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
+                            //                                     : 0;
+                            windowedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
                                                                  : 0;
+                            // ENH187 - End
                             // ENH002 - End
                             visuallyMinimized: false;
                             visuallyMaximized: true
@@ -2254,12 +2839,15 @@ FocusScope {
                             requestedWidth: root.availableDesktopArea.width;
                             // ENH002 - Notch/Punch hole fix
                             // requestedHeight: appContainer.height;
-                            requestedHeight: appContainer.height - requestedY;
+                            requestedHeight: appContainer.height - (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0);
                             // ENH002 - End
                             restoreEntryValues: false
                         }
                         PropertyChanges { target: touchControls; enabled: true }
                         PropertyChanges { target: decoratedWindow; windowControlButtonsVisible: false }
+                        // ENH179 - Hide window title bar when maximized
+                        PropertyChanges { target: decoratedWindow; transparentDecoration: true }
+                        // ENH179 - End
                     },
                     State {
                         name: "fullscreen"; when: appDelegate.fullscreen && !appDelegate.minimized
@@ -2274,7 +2862,10 @@ FocusScope {
                             requestedHeight: appContainer.height
                             restoreEntryValues: false
                         }
-                        PropertyChanges { target: decoratedWindow; hasDecoration: false }
+                        // ENH187 - Fix for app window size when entering spread
+                        // PropertyChanges { target: decoratedWindow; hasDecoration: false }
+                        PropertyChanges { target: decoratedWindow; hasDecoration: false; restoreEntryValues: false }
+                        // ENH187 - ENd
                     },
                     State {
                         name: "normal";
@@ -2311,9 +2902,19 @@ FocusScope {
                             target: appDelegate
                             windowedX: root.availableDesktopArea.x
                             windowedY: root.availableDesktopArea.y
-                            windowedWidth: root.availableDesktopArea.width / 2
-                            windowedHeight: root.availableDesktopArea.height
+                            // ENH187 - Fix for app window size when entering spread
+                            // windowedWidth: root.availableDesktopArea.width / 2
+                            // windowedHeight: root.availableDesktopArea.height
+                            // ENH187 - Fix for app window size when entering spread
                         }
+                        // ENH187 - Fix for app window size when entering spread
+                        PropertyChanges {
+                            target: appDelegate
+                            restoreEntryValues: false
+                            requestedWidth: root.availableDesktopArea.width / 2
+                            requestedHeight: root.availableDesktopArea.height
+                        }
+                        // ENH187 - End
                     },
                     State {
                         name: "maximizedRight"; when: appDelegate.maximizedRight && !appDelegate.minimized
@@ -2330,9 +2931,19 @@ FocusScope {
                             target: appDelegate
                             windowedX: root.availableDesktopArea.x
                             windowedY: root.availableDesktopArea.y
-                            windowedWidth: root.availableDesktopArea.width / 2
-                            windowedHeight: root.availableDesktopArea.height / 2
+                            // ENH187 - Fix for app window size when entering spread
+                            // windowedWidth: root.availableDesktopArea.width / 2
+                            // windowedHeight: root.availableDesktopArea.height / 2
+                            // ENH187 - End
                         }
+                        // ENH187 - Fix for app window size when entering spread
+                        PropertyChanges {
+                            target: appDelegate
+                            restoreEntryValues: false
+                            requestedWidth: root.availableDesktopArea.width / 2
+                            requestedHeight: root.availableDesktopArea.height / 2
+                        }
+                        // ENH187 - End
                     },
                     State {
                         name: "maximizedTopRight"; when: appDelegate.maximizedTopRight && !appDelegate.minimized
@@ -2349,9 +2960,20 @@ FocusScope {
                             target: appDelegate
                             windowedX: root.availableDesktopArea.x
                             windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
-                            windowedWidth: root.availableDesktopArea.width / 2
-                            windowedHeight: root.availableDesktopArea.height / 2
+                            // ENH187 - Fix for app window size when entering spread
+                            // windowedWidth: root.availableDesktopArea.width / 2
+                            // windowedHeight: root.availableDesktopArea.height / 2
+                            // ENH187 - End
+                            
                         }
+                        // ENH187 - Fix for app window size when entering spread
+                        PropertyChanges {
+                            target: appDelegate
+                            restoreEntryValues: false
+                            requestedWidth: root.availableDesktopArea.width / 2
+                            requestedHeight: root.availableDesktopArea.height / 2
+                        }
+                        // ENH187 - End
                     },
                     State {
                         name: "maximizedBottomRight"; when: appDelegate.maximizedBottomRight && !appDelegate.minimized
@@ -2366,18 +2988,53 @@ FocusScope {
                         extend: "normal"
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x; windowedY: windowedY
-                            windowedWidth: root.availableDesktopArea.width; windowedHeight: windowedHeight
+                            // ENH156 - Advanced snapping keyboard shortcuts
+                            // windowedX: root.availableDesktopArea.x; windowedY: windowedY
+                            windowedX: root.availableDesktopArea.x
+                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y : windowedY
+                            // ENH156 - End
+                            // ENH187 - Fix for app window size when entering spread
+                            // windowedWidth: root.availableDesktopArea.width; windowedHeight: windowedHeight
+                            // ENH187 - End
                         }
+                        // ENH187 - Fix for app window size when entering spread
+                        PropertyChanges {
+                            target: appDelegate
+                            restoreEntryValues: false
+                            // ENH156 - Advanced snapping keyboard shortcuts
+                            // requestedWidth: root.availableDesktopArea.width; requestedHeight: requestedHeight
+                            requestedWidth: root.availableDesktopArea.width
+                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : requestedHeight
+                            // ENH156 - End
+                        }
+                        // ENH187 - End
                     },
                     State {
                         name: "maximizedVertically"; when: appDelegate.maximizedVertically && !appDelegate.minimized
                         extend: "normal"
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: windowedX; windowedY: root.availableDesktopArea.y
-                            windowedWidth: windowedWidth; windowedHeight: root.availableDesktopArea.height
+                            // ENH156 - Advanced snapping keyboard shortcuts
+                            // windowedX: windowedX; windowedY: root.availableDesktopArea.y
+                            windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.x : windowedX
+                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                                                                                                     : root.availableDesktopArea.y
+                            // ENH156 - End
+                            // ENH187 - Fix for app window size when entering spread
+                            // windowedWidth: windowedWidth; windowedHeight: root.availableDesktopArea.height
+                            // ENH187 - End
                         }
+                        // ENH187 - Fix for app window size when entering spread
+                        PropertyChanges {
+                            target: appDelegate
+                            restoreEntryValues: false
+                            // ENH156 - Advanced snapping keyboard shortcuts
+                            // requestedWidth: requestedWidth; requestedHeight: root.availableDesktopArea.height
+                            requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.width : requestedWidth;
+                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : root.availableDesktopArea.height
+                            // ENH156 - End
+                        }
+                        // ENH187 - End
                     },
                     State {
                         name: "minimized"; when: appDelegate.minimized
@@ -2387,8 +3044,12 @@ FocusScope {
                             opacity: 0;
                             visuallyMinimized: true
                             visuallyMaximized: false
-                            x: -appDelegate.width / 2
-                            y: root.height / 2
+                            // ENH187 - Fix for app window size when entering spread
+                            // x: -appDelegate.width / 2
+                            // y: root.height / 2
+                            windowedX: -appDelegate.width / 2
+                            windowedY: root.height / 2 //TODO
+                            // ENH187 - End
                         }
                     }
                 ]
@@ -2463,8 +3124,11 @@ FocusScope {
                         SequentialAnimation {
                             ScriptAction { script: { fakeRectangle.stop(); } }
                             PropertyAction { target: appDelegate; property: "visuallyMaximized" }
-                            PropertyAction { target: appDelegate; property: "visuallyMinimized" }
-                            LomiriNumberAnimation { target: appDelegate; properties: "x,y,scale,opacity"; duration: priv.animationDuration }
+                            // ENH187 - Fix for app window size when entering spread
+                            // PropertyAction { target: appDelegate; property: "visuallyMinimized" }
+                            // LomiriNumberAnimation { target: appDelegate; properties: "x,y,scale,opacity"; duration: priv.animationDuration }
+                            LomiriNumberAnimation { target: appDelegate; properties: "windowedX,windowedY,scale,opacity"; duration: priv.animationDuration }
+                            // ENH187 - End
                             PropertyAction { target: appDelegate; property: "visuallyMinimized" }
                         }
                     },
@@ -2474,8 +3138,12 @@ FocusScope {
                         SequentialAnimation {
                             PropertyAction { target: appDelegate; property: "visuallyMinimized,z" }
                             ParallelAnimation {
-                                LomiriNumberAnimation { target: appDelegate; properties: "x"; from: -appDelegate.width / 2; duration: priv.animationDuration }
-                                LomiriNumberAnimation { target: appDelegate; properties: "y,opacity"; duration: priv.animationDuration }
+                                // ENH187 - Fix for app window size when entering spread
+                                // LomiriNumberAnimation { target: appDelegate; properties: "x"; from: -appDelegate.width / 2; duration: priv.animationDuration }
+                                // LomiriNumberAnimation { target: appDelegate; properties: "y,opacity"; duration: priv.animationDuration }
+                                LomiriNumberAnimation { target: appDelegate; properties: "x, windowedX"; from: -appDelegate.width / 2; duration: priv.animationDuration }
+                                LomiriNumberAnimation { target: appDelegate; properties: "y, windowedY,opacity"; duration: priv.animationDuration }
+                                // ENH187 - End
                                 LomiriNumberAnimation { target: appDelegate; properties: "scale"; from: 0; duration: priv.animationDuration }
                             }
                             PropertyAction { target: appDelegate; property: "visuallyMaximized" }
@@ -2552,6 +3220,7 @@ FocusScope {
                     boundsItem: root.availableDesktopArea
                     panelState: root.panelState
                     altDragEnabled: root.mode == "windowed"
+
                     // ENH006 - Rounded app spread
                     highlightRadius: shell.settings.roundedAppPreview ? shell.deviceConfiguration.roundedCornerRadius - 100 : 0
                     // ENH006 - End
@@ -2610,6 +3279,10 @@ FocusScope {
                     id: opacityEffect
                     anchors.fill: decoratedWindow
                 }
+                // ENH155 - Wobbly Windows
+                readonly property alias touchDragging: touchControls.touchDragging
+                readonly property alias touchPoint: touchControls.touchPoint
+                // ENH155 - End
 
                 WindowControlsOverlay {
                     id: touchControls
@@ -2770,14 +3443,92 @@ FocusScope {
         appContainerWidth: appContainer.width
         appContainerHeight: appContainer.height
         panelState: root.panelState
+        // ENH156 - Advanced snapping keyboard shortcuts
+        delayedSnappingIsHappening: windowSnapper.visible
+        delayedSnappingIsInitialShow: windowSnapper.initialShow
+        launcherWidth: root.launcherLeftMargin
+        // ENH156 - End
     }
+    // ENH154 - Workspace switcher gesture
+    Loader {
+        id: workspaceSwitcherDim
+
+        readonly property bool shouldShow: workspaceSwitcher.opacity === 1
+        readonly property Timer delayTimer: Timer {
+            running: false
+            interval: 1000
+            onTriggered: workspaceSwitcherDim.show()
+        }
+        onShouldShowChanged: {
+            if (shouldShow) {
+                delayTimer.restart()
+            } else {
+                delayTimer.stop()
+                hide()
+            }
+        }
+
+        function show() {
+            hideAnimation.stop()
+            showAnimation.start()
+        }
+
+        function hide() {
+            showAnimation.stop()
+            hideAnimation.start()
+        }
+
+        asynchronous: true
+        active: opacity > 0
+        anchors.fill: parent
+        opacity: 0
+        
+        LomiriNumberAnimation {
+            id: showAnimation
+
+            target: workspaceSwitcherDim
+            property: "opacity"
+            to: 0.6
+            duration: LomiriAnimation.BriskDuration
+            alwaysRunToEnd: false
+        }
+        LomiriNumberAnimation {
+            id: hideAnimation
+
+            target: workspaceSwitcherDim
+            property: "opacity"
+            to: 0
+            duration: LomiriAnimation.SnapDuration
+            alwaysRunToEnd: false
+        }
+
+        sourceComponent: Rectangle {
+            color: "black"
+        }
+    }
+    // ENH154 - End
 
     WorkspaceSwitcher {
         id: workspaceSwitcher
         enabled: workspaceEnabled
-        anchors.centerIn: parent
-        height: units.gu(20)
-        width: root.width - units.gu(8)
+        // ENH154 - Workspace switcher gesture
+        // anchors.centerIn: parent
+        // height: units.gu(20)
+        // width: root.width - units.gu(8)
+        anchors {
+            verticalCenter: parent.verticalCenter
+            left: parent.left
+            right: parent.right
+            leftMargin: root.availableDesktopArea.x + units.gu(4)
+            rightMargin: units.gu(4)
+        }
+
+        height: units.gu(35)
+        // ENH154 - End
+        // ENH185 - Workspace spread UI fixes
+        launcherLockedVisible: root.launcherLockedVisible
+        topPanelHeight: root.topPanelHeight
+        // ENH185 - End
         background: root.background
         onActiveChanged: {
             if (!active) {
@@ -2977,4 +3728,50 @@ FocusScope {
             }
         }
     }
+
+    // ENH171 - Add blur to Top Panel and Drawer
+    BackgroundBlur {
+        readonly property bool enableBlur: shell.lomiriGSettings.enableBlur && shell.settings.enableTopPanelBlur
+        // ENH174 - Top panel background based on current app
+        readonly property bool useMatchingAppsColor: shell.settings.enableTopPanelMatchAppTopColor && root.rightEdgePushProgress === 0
+                                                        && !rightEdgeDragArea.dragging
+                                                        && !root.desktopShown
+                                                        && (
+                                                                root.mode !== "windowed"
+                                                                || (shell.settings.enableTopPanelMatchAppTopColorWindowed
+                                                                        && root.mode === "windowed")
+                                                            )
+        readonly property bool useCurrentAppAsSource: shell.settings.enableTopPanelMatchAppTopColor && shell.settings.topPanelMatchAppBehavior === 0
+                                                        && root.focusedAppDelegate && root.rightEdgePushProgress === 0
+                                                        && !rightEdgeDragArea.dragging && !root.spreadShown
+                                                        && root.mode !== "windowed"
+        // ENH174 - End
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
+        blurRadius: enableBlur ? defaultRadius : 0
+        height: root.height - root.availableDesktopArea.height
+        visible: !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
+        sourceItem: {
+            if (enableBlur || shell.settings.enableTopPanelMatchAppTopColor) {
+                if (shell.settings.useWallpaperForBlur && !useMatchingAppsColor) {
+                    return stage.wallpaperSurface
+                }
+
+                return useCurrentAppAsSource ? root.focusedAppDelegate : appContainer
+            }
+
+            return null
+        }
+        // ENH174 - Top panel background based on current app
+        //blurRect: Qt.rect(0, 0, width, height)
+        blurRect: useMatchingAppsColor ? useCurrentAppAsSource ? Qt.rect(units.dp(2), units.gu(1), units.dp(1), units.dp(1))
+                                                               : Qt.rect(0, height, width, units.dp(1))
+                                       : Qt.rect(0, 0, width, height)
+        // ENH174 - End
+        occluding: false
+    }
+    // ENH171 - End
 }

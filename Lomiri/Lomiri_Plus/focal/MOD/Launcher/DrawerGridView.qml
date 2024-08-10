@@ -26,6 +26,7 @@ import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.12
 import Lomiri.Components.Popups 1.3
 import Lomiri.Components.ListItems 1.3 as ListItems
+import ".."
 // ENH105 - End
 
 FocusScope {
@@ -55,6 +56,7 @@ FocusScope {
     // ENH007 - End
     // ENH105 - Custom app drawer
     readonly property bool inverted: gridView.verticalLayoutDirection == GridView.BottomToTop
+    property bool launcherInverted: false
     property real viewMargin: 0
     property var contextMenuItem: null
     property var rawModel
@@ -559,7 +561,7 @@ FocusScope {
                     text: "Pick Icon"
                     onClicked: {
                         // Do not use PopupUtils to fix orientation issues
-                        let _iconMenu = iconMenuComponent.createObject(shell.popupParent, { caller: iconButton, currentIcon: gridIconLabel.text } );
+                        let _iconMenu = iconMenuComponent.createObject(shell.popupParent, { caller: iconButton, currentIcon: gridIconLabel.text, model: shell.iconsList } );
 
                         let _iconSelect = function (_iconName) {
                             dialogue.currentIcon = _iconName
@@ -608,78 +610,7 @@ FocusScope {
             Component {
                 id: iconMenuComponent
 
-                Rectangle {
-                    id: iconMenu
-
-                    readonly property string selectedIcon: iconGridView.model[iconGridView.currentIndex]
-                    property string currentIcon
-                    signal iconSelected(string iconName)
-
-                    anchors.centerIn: parent
-                    width: Math.min(parent.width * 0.7, units.gu(60))
-                    height: Math.min(parent.height * 0.8, units.gu(90))
-                    z: 1000
-                    visible: false
-                    color: theme.palette.normal.base
-                    radius: units.gu(3)
-
-                    function show() {
-                        visible = true
-                    }
-
-                    function hide() {
-                        visible = false
-                        destroy()
-                    }
-
-                    onSelectedIconChanged: iconSelected(selectedIcon)
-
-                    Component.onCompleted: {
-                        if (currentIcon) {
-                            let _foundIndex = iconGridView.model.indexOf(currentIcon)
-                            if (_foundIndex > -1) {
-                                iconGridView.currentIndex = _foundIndex
-                            }
-                        }
-                    }
-
-                    InverseMouseArea {
-                       anchors.fill: parent
-                       acceptedButtons: Qt.LeftButton
-                       onPressed: iconMenu.hide()
-                    }
-
-                    GridView {
-                        id: iconGridView
-
-                        anchors {
-                            left: parent.left
-                            top: parent.top
-                            right: parent.right
-                            bottom: parent.bottom
-                        }
-                        clip: true
-                        height: iconMenu.contentHeight
-                        cellWidth: width / 6
-                        cellHeight: cellWidth
-                        snapMode: GridView.SnapToRow
-                        model: root.iconsList
-                        delegate: QQC2.ToolButton {
-                            width: iconGridView.cellWidth
-                            height: width
-                            highlighted: iconGridView.currentIndex === index
-                            icon {
-                                name: modelData
-                                width: units.gu(3)
-                                height: units.gu(3)
-                            }
-                            onClicked: {
-                                iconGridView.currentIndex = index
-                                iconMenu.hide()
-                            }
-                        }
-                    }
-                }
+                LPIconSelector {}
             }
          }
     }
@@ -957,6 +888,14 @@ FocusScope {
                 }
             }
 
+            function toggleEditMode() {
+                if (customAppGridItem.editMode) {
+                    customAppGridItem.exitEditMode()
+                } else {
+                    customAppGridItem.enterEditMode()
+                }
+            }
+
             onEditModeChanged: {
                 // WORKAROUND: Store current contentHeight when entering editMode so that it won't flick when moving an app
                 if (editMode) {
@@ -1061,7 +1000,8 @@ FocusScope {
                         let _availableHeight = height - topMargin - bottomMargin
                         let _heightDiff = _availableHeight - customGridLoader.height
                         if (_heightDiff >= 0) {
-                            return _availableHeight
+                            // WORKAROUND: (For desktops) Adds more height so app grids that cannot be scrolled can still be expanded
+                            return _availableHeight + units.gu(0.5)
                         }
 
                         return customGridLoader.height
@@ -1121,6 +1061,7 @@ FocusScope {
                         if (target.visible) {
                             if (shell.settings.resetAppDrawerWhenClosed) {
                                 if (inverted) {
+                                    customGridView.resetHeader()
                                     customGridView.positionToEnd()
                                 } else {
                                     customGridView.positionToBeginning()
@@ -1128,22 +1069,29 @@ FocusScope {
                             }
 
                             if (!inverted) {
-                                customGridView.expandHeader()
+                                if (root.launcherInverted) {
+                                    customGridView.expandHeader()
+                                } else {
+                                    customGridView.resetHeader()
+                                }
                             }
                         }
                     }
                 }
                 
                 TapHandler {
-                    acceptedPointerTypes: PointerDevice.Finger | PointerDevice.Pen
-                    onLongPressed: {
-                        if (customAppGridItem.editMode) {
-                            customAppGridItem.exitEditMode()
-                        } else {
-                            customAppGridItem.enterEditMode()
-                        }
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
+                    onLongPressed: {
+                        customAppGridItem.toggleEditMode()
                         shell.haptics.playSubtle()
+                    }
+
+                    onSingleTapped: {
+                        if ((eventPoint.event.device.pointerType === PointerDevice.Cursor || eventPoint.event.device.pointerType == PointerDevice.GenericPointer)
+                                && eventPoint.event.button === Qt.RightButton) {
+                            customAppGridItem.toggleEditMode()
+                        }
                     }
                 }
 
@@ -1328,6 +1276,7 @@ FocusScope {
         id: appGridIndicatorLoader
         
         readonly property bool swipeSelectMode: item && item.swipeSelectMode
+        readonly property bool isHovered: item && item.isHovered
         readonly property real defaultBottomMargin: units.gu(1)
         //bottomMargin for views
         readonly property real viewBottomMargin: item ? (swipeSelectMode ? item.storedHeightBeforeSwipeSelectMode : height) + appGridIndicatorLoader.defaultBottomMargin
@@ -1341,7 +1290,7 @@ FocusScope {
             left: parent.left
             right: parent.right
             bottom: bottomDockLoader.top
-            bottomMargin: (swipeSelectMode ? shell.convertFromInch(0.3) : 0) + defaultBottomMargin
+            bottomMargin: (swipeSelectMode && !isHovered ? shell.convertFromInch(0.3) : 0) + defaultBottomMargin
             leftMargin: units.gu(1)
             rightMargin: units.gu(1)
         }
@@ -1412,22 +1361,4 @@ FocusScope {
     function getFirstAppId() {
         return model.appId(0);
     }
-    // ENH105 - Custom app drawer
-    readonly property var iconsList: [
-        "account","active-call","add","add-to-call","add-to-playlist","alarm-clock","appointment","appointment-new","attachment","back","bookmark","bookmark-new","broadcast","browser-tabs","burn-after-read"
-        ,"bot","favorite-selected", "favorite-unselected", "filter", "properties", "horizontal_distance", "hud", "gestures"
-        ,"calendar","calendar-holidays","calendar-today","call-end","call-start","call-stop","camcorder","camera-flip","camera-grid","camera-self-timer","cancel","clock","close","compose","contact","contact-group"
-        ,"contact-new","contextual-menu","crop","delete","document-open","document-preview","document-print","document-save","document-save-as","down","edit","edit-clear","edit-copy","edit-cut","edit-delete"
-        ,"edit-find","edit-paste","edit-redo","edit-select-all","edit-undo","email","erase","event","event-new","external-link","filters","find","finish","flash-auto","flash-off","flash-on","flash-redeyes"
-        ,"go-down","go-first","go-home","go-last","go-next","go-previous","go-up","grip-large","gtk-add","help","help-contents","history","home","image-quality","import","inbox","inbox-all","incoming-call"
-        ,"info","insert-image","insert-link","junk","keyboard-caps-disabled","keyboard-caps-enabled","keyboard-caps-locked","keyboard-enter","keyboard-spacebar","keyboard-tab","language-chooser","like","list-add"
-        ,"list-remove","livetv","location","lock","lock-broken","mail-forward","mail-forwarded","mail-mark-important","mail-read","mail-replied","mail-replied-all","mail-reply","mail-reply-all","mail-unread"
-        ,"media-eject","media-playback-pause","media-playback-start","media-playback-start-rtl","media-playback-stop","media-playlist","media-playlist-repeat","media-playlist-repeat-one","media-playlist-shuffle"
-        ,"media-preview-pause","media-preview-start","media-preview-start-rtl","media-record","media-seek-backward","media-seek-forward","media-skip-backward","media-skip-forward","merge","message","message-new"
-        ,"message-received","message-sent","missed-call","navigation-menu","next","night-mode","non-starred","note","note-new","notebook","notebook-new","notification","ok","other-actions","outgoing-call","pinned"
-        ,"previous","private-browsing","private-browsing-exit","private-tab-new","redo","reload","reload_all_tabs","reload_page","reminder","reminder-new","remove","remove-from-call","remove-from-group","reset"
-        ,"retweet","revert","rotate-left","rotate-right","save","save-as","save-to","scope-manager","security-alert","select","select-none","select-undefined","send","settings","share","slideshow","sort-listitem"
-        ,"starred","start","stock_alarm-clock","stock_application","stock_appointment","stock_contact","stock_document","stock_document-landscape","stock_ebook","stock_email","stock_event","stock_image","stock_key","stock_link","stock_lock","stock_message","stock_music","stock_note","stock_notebook","stock_notification","stock_reminder","stock_ringtone","stock_store","stock_usb","stock_video","stock_website","stop","stopwatch","stopwatch-lap","swap","sync","system-lock-screen","system-log-out","system-restart","system-shutdown","system-suspend","tab-new","tag","thumb-down","thumb-up","tick","timer","torch-off","torch-on","undo","unlike","unpinned","up","user-admin","user-switch","view-collapse","view-expand","view-fullscreen","view-grid-symbolic","view-list-symbolic","view-off","view-on","view-refresh","view-restore","view-rotate","voicemail","zoom-in","zoom-out","address-book-app-symbolic","amazon-symbolic","calculator-app-symbolic","calendar-app-symbolic","camera-app-symbolic","clock-app-symbolic","dekko-app-symbolic","dialer-app-symbolic","docviewer-app-symbolic","dropbox-symbolic","ebay-symbolic","evernote-symbolic","facebook-symbolic","feedly-symbolic","fitbit-symbolic","gallery-app-symbolic","gmail-symbolic","google-calendar-symbolic","google-maps-symbolic","google-plus-symbolic","googleplus-symbolic","maps-app-symbolic","mediaplayer-app-symbolic","messaging-app-symbolic","music-app-symbolic","notes-app-symbolic","pinterest-symbolic","pocket-symbolic","preferences-color-symbolic","preferences-desktop-accessibility-symbolic","preferences-desktop-accounts-symbolic","preferences-desktop-media-symbolic","preferences-desktop-display-symbolic","preferences-desktop-keyboard-shortcuts-symbolic","preferences-desktop-launcher-symbolic","preferences-desktop-locale-symbolic","preferences-desktop-login-items-symbolic","preferences-desktop-notifications-symbolic","preferences-desktop-sounds-symbolic","preferences-desktop-wallpaper-symbolic","preferences-network-bluetooth-active-symbolic","preferences-network-bluetooth-disabled-symbolic","preferences-network-cellular-symbolic","preferences-network-hotspot-symbolic","preferences-network-wifi-active-symbolic","preferences-network-wifi-no-connection-symbolic","preferences-system-battery-000-charging-symbolic","preferences-system-battery-010-charging-symbolic","preferences-system-battery-020-charging-symbolic","preferences-system-battery-030-charging-symbolic","preferences-system-battery-040-charging-symbolic","preferences-system-battery-050-charging-symbolic","preferences-system-battery-060-charging-symbolic","preferences-system-battery-070-charging-symbolic","preferences-system-battery-080-charging-symbolic","preferences-system-battery-090-charging-symbolic","preferences-system-battery-100-charging-symbolic","preferences-system-battery-charged-symbolic","preferences-system-phone-symbolic","preferences-system-privacy-symbolic","preferences-system-time-symbolic","preferences-system-updates-symbolic","rssreader-app-symbolic","skype-symbolic","songkick-symbolic","soundcloud-symbolic","spotify-symbolic","system-settings-symbolic","system-users-symbolic","telegram-symbolic","terminal-app-symbolic","twc-symbolic","twitter-symbolic","ubuntu-logo-symbolic","ubuntu-sdk-symbolic","ubuntu-store-symbolic","ubuntuone-symbolic","vimeo-symbolic","weather-app-symbolic","webbrowser-app-symbolic","wechat-symbolic","wikipedia-symbolic","youtube-symbolic","audio-carkit-symbolic","audio-headphones-symbolic","audio-headset-symbolic","audio-input-microphone-muted-symbolic","audio-input-microphone-symbolic","audio-speakers-bluetooth-symbolic","audio-speakers-muted-symbolic","audio-speakers-symbolic","camera-photo-symbolic","camera-web-symbolic","computer-laptop-symbolic","computer-symbolic","drive-harddisk-symbolic","drive-optical-symbolic","drive-removable-symbolic","input-dialpad-hidden-symbolic","input-dialpad-symbolic","input-gaming-symbolic","input-keyboard-symbolic","input-mouse-symbolic","input-tablet-symbolic","input-touchpad-symbolic","media-flash-symbolic","media-optical-symbolic","media-removable-symbolic","multimedia-player-symbolic","network-printer-symbolic","network-wifi-symbolic","network-wired-symbolic","phone-apple-iphone-symbolic","phone-cellular-symbolic","phone-smartphone-symbolic","phone-symbolic","phone-uncategorized-symbolic","printer-symbolic","sdcard-symbolic","simcard","smartwatch-symbolic","tablet-symbolic","video-display-symbolic","wireless-display-symbolic","application-pdf-symbolic","application-x-archive-symbolic","audio-x-generic-symbolic","empty-symbolic","image-x-generic-symbolic","package-x-generic-symbolic","text-css-symbolic","text-html-symbolic","text-x-generic-symbolic","text-xml-symbolic","video-x-generic-symbolic","x-office-document-symbolic","x-office-presentation-symbolic","x-office-spreadsheet-symbolic","distributor-logo","folder-symbolic","network-server-symbolic","airplane-mode","airplane-mode-disabled","alarm","alarm-missed","audio-input-microphone-high","audio-input-microphone-high-symbolic","audio-input-microphone-low-symbolic","audio-input-microphone-low-zero","audio-input-microphone-low-zero-panel","audio-input-microphone-medium-symbolic","audio-input-microphone-muted-symbolic","audio-output-none","audio-output-none-panel","audio-volume-high","audio-volume-high-panel","audio-volume-low","audio-volume-low-panel","audio-volume-low-zero","audio-volume-low-zero-panel","audio-volume-medium","audio-volume-medium-panel","audio-volume-muted","audio-volume-muted-blocking-panel","audio-volume-muted-panel","battery-000","battery-000-charging","battery-010","battery-010-charging","battery-020","battery-020-charging","battery-030","battery-030-charging","battery-040","battery-040-charging","battery-050","battery-050-charging","battery-060","battery-060-charging","battery-070","battery-070-charging","battery-080","battery-080-charging","battery-090","battery-090-charging","battery-100","battery-100-charging","battery-caution","battery-caution-charging-symbolic","battery-caution-symbolic","battery-charged","battery-empty-charging-symbolic","battery-empty-symbolic","battery-full-charged-symbolic","battery-full-charging-symbolic","battery-full-symbolic","battery-good-charging-symbolic","battery-good-symbolic","battery-low-charging-symbolic","battery-low-symbolic","battery-missing-symbolic","battery_charged","battery_empty","battery_full","bluetooth-active","bluetooth-disabled","bluetooth-paired","dialog-error-symbolic","dialog-question-symbolic","dialog-warning-symbolic","display-brightness-max","display-brightness-min","display-brightness-symbolic","gpm-battery-000","gpm-battery-000-charging","gpm-battery-010","gpm-battery-010-charging","gpm-battery-020","gpm-battery-020-charging","gpm-battery-030","gpm-battery-030-charging","gpm-battery-040","gpm-battery-040-charging","gpm-battery-050","gpm-battery-050-charging","gpm-battery-060","gpm-battery-060-charging","gpm-battery-070","gpm-battery-070-charging","gpm-battery-080","gpm-battery-080-charging","gpm-battery-090","gpm-battery-090-charging","gpm-battery-100","gpm-battery-100-charging","gpm-battery-charged","gpm-battery-empty","gpm-battery-missing","gps","gps-disabled","gsm-3g-disabled","gsm-3g-full","gsm-3g-full-secure","gsm-3g-high","gsm-3g-high-secure","gsm-3g-low","gsm-3g-low-secure","gsm-3g-medium","gsm-3g-medium-secure","gsm-3g-no-service","gsm-3g-none","gsm-3g-none-secure","hotspot-active","hotspot-connected","hotspot-disabled","indicator-messages","indicator-messages-new","location-active","location-disabled","location-idle","messages","messages-new","microphone-sensitivity-high","microphone-sensitivity-high-symbolic","microphone-sensitivity-low","microphone-sensitivity-low-symbolic","microphone-sensitivity-low-zero","microphone-sensitivity-medium","microphone-sensitivity-medium-symbolic","microphone-sensitivity-muted-symbolic","multimedia-volume-high","multimedia-volume-low","network-cellular-3g","network-cellular-4g","network-cellular-edge","network-cellular-hspa","network-cellular-hspa-plus","network-cellular-lte","network-cellular-none","network-cellular-pre-edge","network-cellular-roaming","network-secure","network-vpn","network-vpn-connected","network-vpn-connecting","network-vpn-disabled","network-vpn-error","network-wired","network-wired-active","network-wired-connected","network-wired-connecting","network-wired-disabled","network-wired-error","network-wired-offline","nm-adhoc","nm-no-connection","nm-signal-00","nm-signal-00-secure","nm-signal-100","nm-signal-100-secure","nm-signal-25","nm-signal-25-secure","nm-signal-50","nm-signal-50-secure","nm-signal-75","nm-signal-75-secure","no-simcard","orientation-lock","orientation-lock-disabled","printer-error-symbolic","ringtone-volume-high","ringtone-volume-low","simcard-1","simcard-2","simcard-error","simcard-locked","stock_volume-max","stock_volume-min","sync-error","sync-idle","sync-offline","sync-paused","sync-updating","system-devices-panel","system-devices-panel-alert","system-devices-panel-information","transfer-error","transfer-none","transfer-paused","transfer-progress","transfer-progress-download","transfer-progress-upload","volume-max","volume-min","weather-chance-of-rain","weather-chance-of-snow","weather-chance-of-storm","weather-chance-of-wind","weather-clear-night-symbolic","weather-clear-symbolic","weather-clouds-night-symbolic","weather-clouds-symbolic","weather-few-clouds-night-symbolic","weather-few-clouds-symbolic","weather-flurries-symbolic","weather-fog-symbolic","weather-hazy-symbolic","weather-overcast-symbolic","weather-severe-alert-symbolic","weather-showers-scattered-symbolic","weather-showers-symbolic","weather-sleet-symbolic","weather-snow-symbolic","weather-storm-symbolic","wifi-connecting","wifi-full","wifi-full-secure","wifi-high","wifi-high-secure","wifi-low","wifi-low-secure","wifi-medium","wifi-medium-secure","wifi-no-connection","wifi-none","wifi-none-secure","Toolkit","toolkit_arrow-down","toolkit_arrow-left","toolkit_arrow-right","toolkit_arrow-up","toolkit_bottom-edge-hint","toolkit_chevron-down_1gu","toolkit_chevron-down_2gu","toolkit_chevron-down_3gu","toolkit_chevron-down_4gu","toolkit_chevron-ltr_1gu","toolkit_chevron-ltr_2gu","toolkit_chevron-ltr_3gu","toolkit_chevron-ltr_4gu","toolkit_chevron-rtl_1gu","toolkit_chevron-rtl_2gu","toolkit_chevron-rtl_3gu","toolkit_chevron-rtl_4gu","toolkit_chevron-up_1gu","toolkit_chevron-up_2gu","toolkit_chevron-up_3gu","toolkit_chevron-up_4gu","toolkit_cross","toolkit_input-clear","toolkit_input-search","toolkit_scrollbar-stepper","toolkit_tick"
-    ]
-    // ENH105 - End
 }
