@@ -49,7 +49,7 @@ import Qt.labs.settings 1.0
 import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Suru 2.2
-import Ubuntu.Components.Pickers 1.3
+import Lomiri.Components.Pickers 1.3
 // ENH046 - End
 // ENH067 - Custom Lockscreen Clock Color
 import "LPColorpicker"
@@ -63,11 +63,11 @@ import QtSystemInfo 5.0
 // ENH056 - End
 // ENH116 - Standalone Dark mode toggle
 import Lomiri.Indicators 0.1 as Indicators
+import Qt.labs.platform 1.0 as LabsPlatform
 // ENH116 - End
 // ENH150 - Sensor gestures
 import QtSensors 5.12
 // ENH150 - End
-
 
 StyledItem {
     id: shell
@@ -80,7 +80,9 @@ StyledItem {
         , Indicator
         , ToggleSpread
         , PreviousApp
+        , OpenDirectActions
     }
+    readonly property alias directActions: directActionsLoader.item
     // ENH133 - End
 
     // ENH150 - Sensor gestures
@@ -92,6 +94,7 @@ StyledItem {
         , ToggleOrientation
         , LockScreen
         , ShowDesktop
+        , ToggleScreen
     }
     // ENH150 - End
 
@@ -125,6 +128,9 @@ StyledItem {
     property alias lpsettingsLoader: settingsLoader
     Suru.theme: Suru.Dark
     // ENH046 - End
+    // ENH171 - Add blur to Top Panel and Drawer
+    property alias lomiriGSettings: settings
+    // ENH171 - End
     // ENH116 - Standalone Dark mode toggle
     property alias themeSettings: themeSettings
     // ENH116 - End
@@ -153,6 +159,7 @@ StyledItem {
                                                         )
                                                         || !shell.settings.onlyHideTopPanelonLandscape
                                                     )
+                                                && !isWindowedMode
     // ENH048 - End
     // ENH100 - Camera button to toggle rotation and OSK
     signal toggleRotation
@@ -294,11 +301,16 @@ StyledItem {
     // True when the user is logged in with no apps running
     readonly property bool atDesktop: topLevelSurfaceList && greeter && topLevelSurfaceList.count === 0 && !greeter.active
 
+    // ENH188 - Fix for Spread sometimes open in incomplete state
+    // What's the purpose of this anyway?
+    /*
     onAtDesktopChanged: {
         if (atDesktop && stage) {
             stage.closeSpread();
         }
     }
+    */
+    // ENH188 - End
 
     property real edgeSize: units.gu(settings.edgeDragWidth)
     // ENH061 - Add haptics
@@ -307,6 +319,10 @@ StyledItem {
         id: hapticsFeedback
     }
     // ENH061 - End
+    // ENH185 - Workspace spread UI fixes
+    readonly property bool sideStageShown: stage.sideStageShown
+    readonly property real sideStageWidth: stage.sideStageWidth
+    // ENH185 - Emd
     // ENH028 - Open indicators via gesture
     readonly property int sessionIndicatorIndex: panel.indicators.lockItem ? panel.indicators.lockItem.parentMenuIndex : 0
     readonly property int powerIndicatorIndex: panel.indicators.brightnessSlider ? panel.indicators.brightnessSlider.parentMenuIndex : 0
@@ -348,7 +364,7 @@ StyledItem {
                 let _currentAppName = appModel.data(_modelIndex, 1)
                 let _currentAppIcon = appModel.data(_modelIndex, 2)
 
-                return {"name": _currentAppName, "icon": _currentAppIcon }
+                return {"name": _currentAppName, "icon": _currentAppIcon, "index": i }
             }
         }
         return null
@@ -374,8 +390,8 @@ StyledItem {
         , { "identifier": "wifi", "url": "wifi", "iconName": "wifi-high", "name": "Wi-Fi" }
     ]
 
-    function openIndicatorByIndex(index) {
-        panel.indicators.openAsInverted(index)
+    function openIndicatorByIndex(_index, _inverted=false) {
+        panel.indicators.openAsInverted(_index, _inverted)
     }
 
     // Custom actions
@@ -388,6 +404,7 @@ StyledItem {
         name: "lockscreen"
         text: "Lock screen"
         iconName: "lock"
+        enabled: !shell.showingGreeter
         onTriggered: DBusLomiriSessionService.PromptLock();
     }
     Action {
@@ -399,7 +416,7 @@ StyledItem {
     }
     Action {
         id: appScreenshotAction
-        enabled: stage.focusedAppId ? true : false
+        enabled: stage.focusedAppId && !shell.showingGreeter ? true : false
         name: "appscreenshot"
         text: "App Screenshot"
         iconName: "stock_application"
@@ -419,7 +436,7 @@ StyledItem {
     }
     Action {
         id: closeAppAction
-        enabled: stage.focusedAppId ? true : false
+        enabled: stage.focusedAppId && !shell.showingGreeter ? true : false
         name: "closeapp"
         text: "Close App"
         iconName: "close"
@@ -542,6 +559,14 @@ StyledItem {
                 showDesktopAction.trigger()
                 shell.haptics.play()
                 break
+            case Shell.SensorGestures.ToggleScreen:
+                if (Powerd.status === Powerd.Off) {
+                    Powerd.setStatus(Powerd.On, Powerd.Notification);
+                } else {
+                    lockScreenAction.trigger()
+                }
+                shell.haptics.play()
+                break
             default:
                 break
         }
@@ -549,7 +574,8 @@ StyledItem {
 
     SensorGesture {
         id: sensorGesture
-        enabled: shell.settings.enableSensorGestures
+        enabled: shell.settings.enableSensorGestures && (!shell.settings.enableSensorGesturesOnlyWhenScreenOn
+                                                            || (shell.settings.enableSensorGesturesOnlyWhenScreenOn && Powerd.status === Powerd.On))
         gestures : shell.settings.enabledSensorGestureList
         onDetected:{
             console.log("Sensor Gesture: " + gesture)
@@ -586,13 +612,57 @@ StyledItem {
         }
     }
     // ENH150 - End
+    // ENH190 - Keypad backlight settings
+    function enableKeypadBacklight() {
+        if (!shell.settings.enableKeyboardBacklight) {
+            shell.settings.enableKeyboardBacklight = true
+        }
+    }
+    function disableKeypadBacklight() {
+        if (shell.settings.enableKeyboardBacklight) {
+            shell.settings.enableKeyboardBacklight = false
+        }
+    }
+    AmbientLightSensor {
+        id: lightSensor
+        active: Powerd.status === Powerd.On && shell.settings.keyboardBacklightAutoBehavior === 2
+        dataRate: 20
+        onReadingChanged: {
+            switch (reading.lightLevel) {
+                case AmbientLightReading.Dark:
+                    shell.enableKeypadBacklight()
+                    break
+                case AmbientLightReading.Twilight:
+                case AmbientLightReading.Light:
+                case AmbientLightReading.Bright:
+                case AmbientLightReading.Sunny:
+                default:
+                    shell.disableKeypadBacklight()
+                    break
+            }
+        }
+    }
+    // ENH190 - End
 
     Item {
         id: themeSettings
  
-        readonly property string defaultPath: "/home/phablet/.config/lomiri-ui-toolkit/theme.ini"
+        readonly property string defaultPath: LabsPlatform.StandardPaths.writableLocation(LabsPlatform.StandardPaths.ConfigLocation).toString().replace("file://", "")
+                                                    + "/lomiri-ui-toolkit/theme.ini"
         readonly property bool isDarkMode: currentTheme == "Lomiri.Components.Themes.SuruDark"
         property string currentTheme: "Lomiri.Components.Themes.Ambiance"
+
+        // ENH190 - Keypad backlight settings
+        onIsDarkModeChanged: {
+            if (shell.settings.keyboardBacklightAutoBehavior == 1) {
+                if (isDarkMode) {
+                    shell.enableKeypadBacklight()
+                } else {
+                    shell.disableKeypadBacklight()
+                }
+            }
+        }
+        // ENH190 - End
 
         function checkAutoToggle() {
             let _rawStartTime = Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeStartTime, "hh:mm")
@@ -658,7 +728,9 @@ StyledItem {
 
             Component.onCompleted: {
                 themeSettings.updateCurrentValue()
-                themeSettings.checkAutoToggle()
+                if (shell.settings.enableAutoDarkMode) {
+                    themeSettings.checkAutoToggle()
+                }
             }
         }
     }
@@ -750,6 +822,7 @@ StyledItem {
         property alias enableOSKToggleKeyboardShortcut: settingsObj.enableOSKToggleKeyboardShortcut
         property alias disableLeftEdgeMousePush: settingsObj.disableLeftEdgeMousePush
         property alias disableRightEdgeMousePush: settingsObj.disableRightEdgeMousePush
+        property alias lessSensitiveEdgeBarriers: settingsObj.lessSensitiveEdgeBarriers
         property alias externalDisplayBehavior: settingsObj.externalDisplayBehavior
         property alias enablePullDownGesture: settingsObj.enablePullDownGesture
         property alias pullDownHeight: settingsObj.pullDownHeight
@@ -759,6 +832,21 @@ StyledItem {
         property alias enableShowDesktop: settingsObj.enableShowDesktop
         property alias enableCustomBlurRadius: settingsObj.enableCustomBlurRadius
         property alias customBlurRadius: settingsObj.customBlurRadius
+        property alias touchVisualColor: settingsObj.touchVisualColor
+        property alias enableAdvancedKeyboardSnapping: settingsObj.enableAdvancedKeyboardSnapping
+        property alias onlyCommitOnReleaseWhenKeyboardSnapping: settingsObj.onlyCommitOnReleaseWhenKeyboardSnapping
+        property alias useWallpaperForBlur: settingsObj.useWallpaperForBlur
+        property alias enableDelayedStartingAppSuspension: settingsObj.enableDelayedStartingAppSuspension
+        property alias delayedStartingAppSuspensionDuration: settingsObj.delayedStartingAppSuspensionDuration
+        property alias enableDelayedAppSuspension: settingsObj.enableDelayedAppSuspension
+        property alias delayedAppSuspensionDuration: settingsObj.delayedAppSuspensionDuration
+        property alias useTimerForBackgroundBlurInWindowedMode: settingsObj.useTimerForBackgroundBlurInWindowedMode
+        property alias delayedWorkspaceSwitcherUI: settingsObj.delayedWorkspaceSwitcherUI
+        property alias useCustomWindowSnappingRectangleColor: settingsObj.useCustomWindowSnappingRectangleColor
+        property alias customWindowSnappingRectangleColor: settingsObj.customWindowSnappingRectangleColor
+        property alias useCustomWindowSnappingRectangleBorderColor: settingsObj.useCustomWindowSnappingRectangleBorderColor
+        property alias customWindowSnappingRectangleBorderColor: settingsObj.customWindowSnappingRectangleBorderColor
+        property alias replaceHorizontalVerticalSnappingWithBottomTop: settingsObj.replaceHorizontalVerticalSnappingWithBottomTop
 
         // Privacy
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -776,6 +864,13 @@ StyledItem {
         property alias punchHoleHeightFromTop: settingsObj.punchHoleHeightFromTop
         property alias showMiddleNotchHint: settingsObj.showMiddleNotchHint
 
+        // Window Decoration
+        property alias enableWobblyWindows: settingsObj.enableWobblyWindows
+        property alias enlargeWindowButtonsWithOverlay: settingsObj.enlargeWindowButtonsWithOverlay
+        property alias enableTitlebarMatchAppTopColor: settingsObj.enableTitlebarMatchAppTopColor
+        property alias titlebarMatchAppBehavior: settingsObj.titlebarMatchAppBehavior
+        property alias retainRoundedWindowWhileMatching: settingsObj.retainRoundedWindowWhileMatching
+
         // Drawer / Launcher
         property alias drawerBlur: settingsObj.drawerBlur
         property alias drawerBlurFullyOpen: settingsObj.drawerBlurFullyOpen
@@ -789,6 +884,7 @@ StyledItem {
         property alias customLogoScale: settingsObj.customLogoScale
         property alias customLogoColor: settingsObj.customLogoColor
         property alias customBFBColor: settingsObj.customBFBColor
+        property alias useCustomeBFBLogoAppearance: settingsObj.useCustomeBFBLogoAppearance
         property alias roundedBFB: settingsObj.roundedBFB
         property alias bigDrawerSearchField: settingsObj.bigDrawerSearchField
         property alias showBottomHintDrawer: settingsObj.showBottomHintDrawer
@@ -803,6 +899,17 @@ StyledItem {
         property alias customAppGrids: settingsObj.customAppGrids
         property alias placeFullAppGridToLast: settingsObj.placeFullAppGridToLast
         property alias customAppGridsExpandable: settingsObj.customAppGridsExpandable
+        property alias useCustomLauncherColor: settingsObj.useCustomLauncherColor
+        property alias customLauncherColor: settingsObj.customLauncherColor
+        property alias useCustomLauncherOpacity: settingsObj.useCustomLauncherOpacity
+        property alias customLauncherOpacity: settingsObj.customLauncherOpacity
+        property alias useCustomDrawerColor: settingsObj.useCustomDrawerColor
+        property alias customDrawerColor: settingsObj.customDrawerColor
+        property alias useCustomDrawerOpacity: settingsObj.useCustomDrawerOpacity
+        property alias customDrawerOpacity: settingsObj.customDrawerOpacity
+        property alias customLauncherOpacityBehavior: settingsObj.customLauncherOpacityBehavior
+        property alias enableLauncherBottomMargin: settingsObj.enableLauncherBottomMargin
+        property alias enableLauncherBlur: settingsObj.enableLauncherBlur
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
@@ -848,6 +955,19 @@ StyledItem {
         property alias transparentTopBarOnSpread: settingsObj.transparentTopBarOnSpread
         property alias enablePanelHeaderExpand: settingsObj.enablePanelHeaderExpand
         property alias expandPanelHeaderWhenBottom: settingsObj.expandPanelHeaderWhenBottom
+        property alias enableShowTouchVisualsToggleIndicator: settingsObj.enableShowTouchVisualsToggleIndicator
+        property alias useCustomPanelColor: settingsObj.useCustomPanelColor
+        property alias customPanelColor: settingsObj.customPanelColor
+        property alias useCustomIndicatorPanelColor: settingsObj.useCustomIndicatorPanelColor
+        property alias customIndicatorPanelColor: settingsObj.customIndicatorPanelColor
+        property alias useCustomIndicatorPanelOpacity: settingsObj.useCustomIndicatorPanelOpacity
+        property alias customIndicatorPanelOpacity: settingsObj.customIndicatorPanelOpacity
+        property alias matchTopPanelToDrawerIndicatorPanels: settingsObj.matchTopPanelToDrawerIndicatorPanels
+        property alias enableTopPanelBlur: settingsObj.enableTopPanelBlur
+        property alias enableTopPanelMatchAppTopColor: settingsObj.enableTopPanelMatchAppTopColor
+        property alias enableTransparentTopBarInGreeter: settingsObj.enableTransparentTopBarInGreeter
+        property alias topPanelMatchAppBehavior: settingsObj.topPanelMatchAppBehavior
+        property alias enableTopPanelMatchAppTopColorWindowed: settingsObj.enableTopPanelMatchAppTopColorWindowed
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -856,7 +976,7 @@ StyledItem {
         property alias autoCollapseQuickToggles: settingsObj.autoCollapseQuickToggles
         property alias quickTogglesCollapsedRowCount: settingsObj.quickTogglesCollapsedRowCount
 
-        // Direct Actions
+        // Quick Actions (Previously Direct Actions)
         property alias enableDirectActions: settingsObj.enableDirectActions
         property alias directActionList: settingsObj.directActionList
         property alias directActionsSwipeAreaHeight: settingsObj.directActionsSwipeAreaHeight
@@ -865,6 +985,11 @@ StyledItem {
         property alias directActionsSideMargins: settingsObj.directActionsSideMargins
         property alias directActionsEnableHint: settingsObj.directActionsEnableHint
         property alias directActionsSides: settingsObj.directActionsSides
+        property alias directActionsNoSwipeCommit: settingsObj.directActionsNoSwipeCommit
+        property alias directActionsCustomURIs: settingsObj.directActionsCustomURIs
+        property alias directActionsShortcutHorizontalLayout: settingsObj.directActionsShortcutHorizontalLayout
+        property alias directActionsShortcutVerticalLayout: settingsObj.directActionsShortcutVerticalLayout
+        property alias directActionsAnimationSpeed: settingsObj.directActionsAnimationSpeed
 
         // Lockscreen
         property alias useCustomLockscreen: settingsObj.useCustomLockscreen
@@ -883,6 +1008,7 @@ StyledItem {
         
         // Sensor Gestures
         property alias enableSensorGestures: settingsObj.enableSensorGestures
+        property alias enableSensorGesturesOnlyWhenScreenOn: settingsObj.enableSensorGesturesOnlyWhenScreenOn
         property alias enableCoverGesture: settingsObj.enableCoverGesture
         property alias coverGestureAction: settingsObj.coverGestureAction
         property alias enableShakeGesture: settingsObj.enableShakeGesture
@@ -915,7 +1041,8 @@ StyledItem {
                         enabledSensorGestureList = _tempArr.slice()
                     }
                 }
-                sensorGesture.enabled = Qt.binding(function() { return shell.settings.enableSensorGestures })
+                sensorGesture.enabled = Qt.binding(function() { return shell.settings.enableSensorGestures && (!shell.settings.enableSensorGesturesOnlyWhenScreenOn
+                                                            || (shell.settings.enableSensorGesturesOnlyWhenScreenOn && Powerd.status === Powerd.On)) })
             }
         }
 
@@ -935,6 +1062,12 @@ StyledItem {
         property alias enableCameraKeyDoublePress: settingsObj.enableCameraKeyDoublePress
         property alias reversedCameraKeyDoubePress: settingsObj.reversedCameraKeyDoubePress
         property alias cameraKeyDoublePressDelay: settingsObj.cameraKeyDoublePressDelay
+        property alias enableKeyboardBacklight: settingsObj.enableKeyboardBacklight
+        property alias keyboardBacklightAutoBehavior: settingsObj.keyboardBacklightAutoBehavior
+
+        // Device hacks
+        property alias enableBottomSwipeDeviceFix: settingsObj.enableBottomSwipeDeviceFix
+        property alias enableSpreadTouchFix: settingsObj.enableSpreadTouchFix
 
         // Outer Wilds
         property alias ow_ColoredClock: settingsObj.ow_ColoredClock
@@ -995,11 +1128,17 @@ StyledItem {
         // Others
         property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
         property alias enableVolumeButtonsLogic: settingsObj.enableVolumeButtonsLogic
+        property alias workaroundMaxAppsSwitchWorkspace: settingsObj.workaroundMaxAppsSwitchWorkspace
+
+        // Extras
+        property alias blueScreenNotYetShown: settingsObj.blueScreenNotYetShown
 
         // Non-persistent settings
         property bool enableOW: false
         property bool showInfographics: true
         property bool immersiveMode: false
+        property bool showTouchVisuals: false
+
 
         Settings {
             id: settingsObj
@@ -1010,8 +1149,8 @@ StyledItem {
             Component.onCompleted: {
                 shell.haptics.enabled = Qt.binding( function() { return enableHaptics } )
 
-                // Add new Quick Toggles in don't exists yet
-                let _newItems = [17, 18, 19]
+                // Add new Quick Toggles if don't exists yet
+                let _newItems = [17, 18, 19, 20]
                 for (let i = 0; i < _newItems.length; i++) {
                     let _newItem = _newItems[i]
                     let _foundItem = shell.findFromArray(quickToggles, "type", _newItem)
@@ -1107,6 +1246,7 @@ StyledItem {
                 , {"type": 10, "enabled": false}
                 , {"type": 18, "enabled": false}
                 , {"type": 19, "enabled": false}
+                , {"type": 20, "enabled": false}
                 , {"type": 15, "enabled": false}
                 , {"type": 16, "enabled": false}
             ]
@@ -1331,6 +1471,114 @@ StyledItem {
             property bool enableWhipGesture: false
             property int whipGestureAction: Shell.SensorGestures.None
             property bool enableVolumeButtonsLogic: false
+            property bool enableShowTouchVisualsToggleIndicator: false
+            property string touchVisualColor: "#000000"
+            property bool enableWobblyWindows: false
+            property bool enableBottomSwipeDeviceFix: false
+            property bool enableAdvancedKeyboardSnapping: false
+            property bool enableSpreadTouchFix: false
+            property bool useCustomeBFBLogoAppearance: false
+            property bool enlargeWindowButtonsWithOverlay: false
+            property bool useCustomLauncherColor: false
+            property color customLauncherColor: "#111111"
+            property bool useCustomLauncherOpacity: false
+            property real customLauncherOpacity: 0.95
+            property bool useCustomPanelColor: false
+            property color customPanelColor: "#111111"
+            property bool useCustomDrawerColor: false
+            property color customDrawerColor: "#000000"
+            property bool useCustomDrawerOpacity: false
+            property real customDrawerOpacity: 0.75
+            property bool useCustomIndicatorPanelColor: false
+            property color customIndicatorPanelColor: "#000000"
+            property bool useCustomIndicatorPanelOpacity: false
+            property real customIndicatorPanelOpacity: 0.85
+            property bool useWallpaperForBlur: false
+            property bool customLauncherOpacityBehavior: false
+            property bool enableLauncherBottomMargin: false
+            property bool matchTopPanelToDrawerIndicatorPanels: false
+            property bool enableTopPanelBlur: false
+            property bool enableLauncherBlur: false
+            property bool enableTopPanelMatchAppTopColor: false
+            property bool enableTransparentTopBarInGreeter: false
+            property int topPanelMatchAppBehavior: 0
+            /*
+            0 - Top Left side middle of current app
+            1 - Top row of Stage
+            */
+            property bool enableDelayedStartingAppSuspension: false
+            property real delayedStartingAppSuspensionDuration: 5
+            property bool enableDelayedAppSuspension: false
+            property real delayedAppSuspensionDuration: 5
+            property bool enableTopPanelMatchAppTopColorWindowed: false
+            property bool enableTitlebarMatchAppTopColor: false
+            property int titlebarMatchAppBehavior: 0
+            /*
+            0 - Top Left side middle of current app
+            1 - Top row of Stage
+            */
+            property bool retainRoundedWindowWhileMatching: false
+            property bool useTimerForBackgroundBlurInWindowedMode: false
+            property bool workaroundMaxAppsSwitchWorkspace: false // Fix for maximized windows restoring when switching workspace
+            property bool delayedWorkspaceSwitcherUI: false
+            property bool lessSensitiveEdgeBarriers: false
+            property bool enableKeyboardBacklight: false // For Fxtec Pro1-X only
+            property bool enableSensorGesturesOnlyWhenScreenOn: false
+            property bool blueScreenNotYetShown: true
+            property bool directActionsNoSwipeCommit: false
+            property var directActionsCustomURIs: [
+                {
+                    name: "Call 911"
+                    , uri: "tel://call/911"
+                    , iconType: "default"
+                    , iconName: "call-start"
+                    , appId: ""
+                }
+                , {
+                    name: "Compose new SMS"
+                    , uri: "sms://"
+                    , iconType: "default"
+                    , iconName: "message-new"
+                    , appId: ""
+                }
+                , {
+                    name: "Report a bug"
+                    , uri: "mailto:kugi_eusebio@protonmail.com?subject=%5DLomiri%20Plus%20Bug%5D"
+                    , iconType: "default"
+                    , iconName: "mail-mark-important"
+                    , appId: ""
+                }
+            ]
+            property int directActionsShortcutHorizontalLayout: 0
+            /*
+            0 - Left to right
+            1 - Right to left
+            2 - Dynamic
+            */
+            property int directActionsShortcutVerticalLayout: 0
+            /*
+            0 - Top to bottom
+            1 - Bottom to top
+            2 - Dynamic
+            */
+            property int directActionsAnimationSpeed: 0
+            /*
+            0 - Fast
+            1 - Brisk
+            2 - Snap
+            */
+            property bool onlyCommitOnReleaseWhenKeyboardSnapping: false
+            property bool useCustomWindowSnappingRectangleColor: false
+            property color customWindowSnappingRectangleColor: "#ffffff"
+            property bool useCustomWindowSnappingRectangleBorderColor: false
+            property color customWindowSnappingRectangleBorderColor: "#99ffffff"
+            property bool replaceHorizontalVerticalSnappingWithBottomTop: false
+            property int keyboardBacklightAutoBehavior: 0
+            /*
+            0 - Disabled
+            1 - Dark Mode
+            2 - Ambient Light
+            */
         }
     }
 
@@ -1348,7 +1596,7 @@ StyledItem {
         anchors.fill: parent
         z: settingsLoader.z + 1
         active: false
-        
+
         function open(caller) {
             itemToColor = caller
             oldColor = caller.text
@@ -1730,8 +1978,47 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Experimentals"
+                text: "Experimentals/Fixes"
                 onClicked: settingsLoader.item.stack.push(experimentalsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Extras"
+                onClicked: settingsLoader.item.stack.push(extrasPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: extrasPage
+
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: blueScreenNotYetShown
+                Layout.fillWidth: true
+                text: "Show BSOD (next startup)"
+                onCheckedChanged: shell.settings.blueScreenNotYetShown = checked
+                Binding {
+                    target: blueScreenNotYetShown
+                    property: "checked"
+                    value: shell.settings.blueScreenNotYetShown
+                }
+            }
+            Button {
+                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Show BSOD Now"
+                onClicked: buruIskunuru.show()
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Long press or right click to close BSOD"
+                wrapMode: Text.WordWrap
+                font.italic: true
             }
         }
     }
@@ -1748,6 +2035,17 @@ StyledItem {
                     target: enableAppSpreadFlickMod
                     property: "checked"
                     value: shell.settings.enableAppSpreadFlickMod
+                }
+            }
+            LPSettingsCheckBox {
+                id: workaroundMaxAppsSwitchWorkspace
+                Layout.fillWidth: true
+                text: "Fix maximized windows are restored when switching workspace"
+                onCheckedChanged: shell.settings.workaroundMaxAppsSwitchWorkspace = checked
+                Binding {
+                    target: workaroundMaxAppsSwitchWorkspace
+                    property: "checked"
+                    value: shell.settings.workaroundMaxAppsSwitchWorkspace
                 }
             }
         }
@@ -1784,6 +2082,28 @@ StyledItem {
         id: appearancePage
         
         LPSettingsPage {
+            LPSettingsCheckBox {
+                id: useWallpaperForBlur
+                Layout.fillWidth: true
+                text: "Use wallpaper for background blurs"
+                onCheckedChanged: shell.settings.useWallpaperForBlur = checked
+                Binding {
+                    target: useWallpaperForBlur
+                    property: "checked"
+                    value: shell.settings.useWallpaperForBlur
+                }
+            }
+            LPSettingsCheckBox {
+                id: useTimerForBackgroundBlurInWindowedMode
+                Layout.fillWidth: true
+                text: "Use timer for blur updates (May improve performance in Windowed mode)"
+                onCheckedChanged: shell.settings.useTimerForBackgroundBlurInWindowedMode = checked
+                Binding {
+                    target: useTimerForBackgroundBlurInWindowedMode
+                    property: "checked"
+                    value: shell.settings.useTimerForBackgroundBlurInWindowedMode
+                }
+            }
             LPSettingsSwitch {
                 id: enableCustomBlurRadius
                 Layout.fillWidth: true
@@ -1849,6 +2169,31 @@ StyledItem {
         id: accessibilityPage
         
         LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "App Lifecycle"
+                onClicked: settingsLoader.item.stack.push(lifecyclePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Abot Kamay"
+                onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Color Overlay"
+                onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Quick Actions"
+                onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Sensor Gestures"
+                onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
+            }
             LPSettingsSwitch {
                 id: enableHaptics
                 Layout.fillWidth: true
@@ -1924,25 +2269,91 @@ StyledItem {
                 font.italic: true
                 textSize: Label.Small
             }
-            LPSettingsNavItem {
+            LPColorField {
+                id: touchVisualColor
                 Layout.fillWidth: true
-                text: "Abot Kamay"
-                onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
+                Layout.margins: units.gu(2)
+                title: "Touch visuals color"
+                visible: shell.settings.touchVisualColor
+                onTextChanged: shell.settings.touchVisualColor = text
+                onColorPicker: colorPickerLoader.open(touchVisualColor)
+                Binding {
+                    target: touchVisualColor
+                    property: "text"
+                    value: shell.settings.touchVisualColor
+                }
             }
-            LPSettingsNavItem {
+        }
+    }
+    Component {
+        id: lifecyclePage
+        
+        LPSettingsPage {
+            LPSettingsSwitch {
+                id: enableDelayedStartingAppSuspension
                 Layout.fillWidth: true
-                text: "Color Overlay"
-                onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
+                text: "Delay app suspension upon opening"
+                onCheckedChanged: shell.settings.enableDelayedStartingAppSuspension = checked
+                Binding {
+                    target: enableDelayedStartingAppSuspension
+                    property: "checked"
+                    value: shell.settings.enableDelayedStartingAppSuspension
+                }
             }
-            LPSettingsNavItem {
+            LPSettingsSlider {
+                id: delayedStartingAppSuspensionDuration
                 Layout.fillWidth: true
-                text: "Direct Actions"
-                onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDelayedStartingAppSuspension
+                title: "Delay Duration"
+                minimumValue: 0.1
+                maximumValue: 20
+                stepSize: 0.5
+                resetValue: 5
+                live: true
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                unitsLabel: "seconds"
+                onValueChanged: shell.settings.delayedStartingAppSuspensionDuration = value
+                Binding {
+                    target: delayedStartingAppSuspensionDuration
+                    property: "value"
+                    value: shell.settings.delayedStartingAppSuspensionDuration
+                }
             }
-            LPSettingsNavItem {
+            LPSettingsSwitch {
+                id: enableDelayedAppSuspension
                 Layout.fillWidth: true
-                text: "Sensor Gestures"
-                onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
+                text: "Delay app suspension"
+                onCheckedChanged: shell.settings.enableDelayedAppSuspension = checked
+                Binding {
+                    target: enableDelayedAppSuspension
+                    property: "checked"
+                    value: shell.settings.enableDelayedAppSuspension
+                }
+            }
+            LPSettingsSlider {
+                id: delayedAppSuspensionDuration
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDelayedAppSuspension
+                title: "Delay Duration"
+                minimumValue: 0.1
+                maximumValue: 60
+                stepSize: 0.5
+                resetValue: 5
+                live: true
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                unitsLabel: "seconds"
+                onValueChanged: shell.settings.delayedAppSuspensionDuration = value
+                Binding {
+                    target: delayedAppSuspensionDuration
+                    property: "value"
+                    value: shell.settings.delayedAppSuspensionDuration
+                }
             }
         }
     }
@@ -1954,6 +2365,11 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Staged Mode"
                 onClicked: settingsLoader.item.stack.push(stagedModePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Windowed Mode"
+                onClicked: settingsLoader.item.stack.push(windowedModePage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -1969,6 +2385,67 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Key Shortcuts"
                 onClicked: settingsLoader.item.stack.push(keyShortcutsPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: windowedModePage
+
+        LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Window Snapping"
+                onClicked: settingsLoader.item.stack.push(windowSnappingPage, {"title": text})
+            }
+            LPSettingsCheckBox {
+                id: delayedWorkspaceSwitcherUI
+                Layout.fillWidth: true
+                text: "Delay showing Workspace Switcher UI"
+                onCheckedChanged: shell.settings.delayedWorkspaceSwitcherUI = checked
+                Binding {
+                    target: delayedWorkspaceSwitcherUI
+                    property: "checked"
+                    value: shell.settings.delayedWorkspaceSwitcherUI
+                }
+            }
+        }
+    }
+    Component {
+        id: windowSnappingPage
+
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: replaceHorizontalVerticalSnappingWithBottomTop
+                Layout.fillWidth: true
+                text: "Replace Horizontal & Vertical snap with Top and Bottom"
+                onCheckedChanged: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop = checked
+                Binding {
+                    target: replaceHorizontalVerticalSnappingWithBottomTop
+                    property: "checked"
+                    value: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableAdvancedKeyboardSnapping
+                Layout.fillWidth: true
+                text: "Use advanced behavior that supports quarter snapping"
+                onCheckedChanged: shell.settings.enableAdvancedKeyboardSnapping = checked
+                Binding {
+                    target: enableAdvancedKeyboardSnapping
+                    property: "checked"
+                    value: shell.settings.enableAdvancedKeyboardSnapping
+                }
+            }
+            LPSettingsCheckBox {
+                id: onlyCommitOnReleaseWhenKeyboardSnapping
+                Layout.fillWidth: true
+                text: "Only commit window snapping upon key release"
+                onCheckedChanged: shell.settings.onlyCommitOnReleaseWhenKeyboardSnapping = checked
+                Binding {
+                    target: onlyCommitOnReleaseWhenKeyboardSnapping
+                    property: "checked"
+                    value: shell.settings.onlyCommitOnReleaseWhenKeyboardSnapping
+                }
             }
         }
     }
@@ -1991,12 +2468,24 @@ StyledItem {
             LPSettingsSwitch {
                 id: enableSensorGestures
                 Layout.fillWidth: true
-                text: "Enable"
+                text: "Enable (May affect standby battery)"
                 onCheckedChanged: shell.settings.enableSensorGestures = checked
                 Binding {
                     target: enableSensorGestures
                     property: "checked"
                     value: shell.settings.enableSensorGestures
+                }
+            }
+            LPSettingsSwitch {
+                id: enableSensorGesturesOnlyWhenScreenOn
+                Layout.fillWidth: true
+                text: "Disable when screen is off (improves battery)"
+                visible: shell.settings.enableSensorGestures
+                onCheckedChanged: shell.settings.enableSensorGesturesOnlyWhenScreenOn = checked
+                Binding {
+                    target: enableSensorGesturesOnlyWhenScreenOn
+                    property: "checked"
+                    value: shell.settings.enableSensorGesturesOnlyWhenScreenOn
                 }
             }
             property var sensorGestureActions: [
@@ -2007,6 +2496,7 @@ StyledItem {
                 , "Toggle Orientation"
                 , "Lock Screen"
                 , "Show Desktop"
+                , "Toggle Screen"
             ]
             LPSettingsSwitch {
                 id: enableCoverGesture
@@ -2216,9 +2706,9 @@ StyledItem {
                 Layout.margins: units.gu(2)
                 text: i18n.tr("Behavior")
                 model: [
-                    i18n.tr("Virtual Touchpad"),
-                    i18n.tr("Multi-display")
-                    // i18n.tr("Mirrored")
+                    i18n.tr("Virtual Touchpad")
+                    , i18n.tr("Multi-display")
+                    //, i18n.tr("Mirrored")
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.externalDisplayBehavior
@@ -2235,6 +2725,11 @@ StyledItem {
         id: mousePage
         
         LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Hot Corners"
+                onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
+            }
             LPSettingsCheckBox {
                 id: disableLeftEdgeMousePush
                 Layout.fillWidth: true
@@ -2257,10 +2752,16 @@ StyledItem {
                     value: shell.settings.disableRightEdgeMousePush
                 }
             }
-            LPSettingsNavItem {
+            LPSettingsCheckBox {
+                id: lessSensitiveEdgeBarriers
                 Layout.fillWidth: true
-                text: "Hot Corners"
-                onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
+                text: "Less sensitive edge barriers (Edges would require more push)"
+                onCheckedChanged: shell.settings.lessSensitiveEdgeBarriers = checked
+                Binding {
+                    target: lessSensitiveEdgeBarriers
+                    property: "checked"
+                    value: shell.settings.lessSensitiveEdgeBarriers
+                }
             }
         }
     }
@@ -2515,10 +3016,57 @@ StyledItem {
                 onClicked: settingsLoader.item.stack.push(pro1Page, {"title": text})
             }
 
+            LPSettingsCheckBox {
+                id: enableBottomSwipeDeviceFix
+                Layout.fillWidth: true
+                text: "Edge swipe fix (rotate to take effect)"
+                onCheckedChanged: shell.settings.enableBottomSwipeDeviceFix = checked
+                Binding {
+                    target: enableBottomSwipeDeviceFix
+                    property: "checked"
+                    value: shell.settings.enableBottomSwipeDeviceFix
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableSpreadTouchFix
+                Layout.fillWidth: true
+                text: "App spread touch fix (Ubuntu Desktop)"
+                onCheckedChanged: shell.settings.enableSpreadTouchFix = checked
+                Binding {
+                    target: enableSpreadTouchFix
+                    property: "checked"
+                    value: shell.settings.enableSpreadTouchFix
+                }
+            }
+
             Component {
                 id: pro1Page
                 
                 LPSettingsPage {
+                    LPSettingsSwitch {
+                        id: enableKeyboardBacklight
+                        Layout.fillWidth: true
+                        text: "Keypad backlight (Needs script to work)"
+                        onCheckedChanged: shell.settings.enableKeyboardBacklight = checked
+                        Binding {
+                            target: enableKeyboardBacklight
+                            property: "checked"
+                            value: shell.settings.enableKeyboardBacklight
+                        }
+                    }
+                    OptionSelector {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: i18n.tr("Auto toggle keypad backlight")
+                        model: [
+                            i18n.tr("Disabled"),
+                            i18n.tr("Follow Dark Mode"),
+                            i18n.tr("Ambient Light Sensor")
+                        ]
+                        containerHeight: itemHeight * 6
+                        selectedIndex: shell.settings.keyboardBacklightAutoBehavior
+                        onSelectedIndexChanged: shell.settings.keyboardBacklightAutoBehavior = selectedIndex
+                    }
                     LPSettingsCheckBox {
                         id: pro1_OSKOrientation
                         Layout.fillWidth: true
@@ -2586,7 +3134,124 @@ StyledItem {
                 text: "App Spread"
                 onClicked: settingsLoader.item.stack.push(spreadPage, {"title": text})
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Window Decoration"
+                onClicked: settingsLoader.item.stack.push(windowDecorationPage, {"title": text})
+            }
 
+            Component {
+                id: windowDecorationPage
+
+                LPSettingsPage {
+                    LPSettingsCheckBox {
+                        id: enableTitlebarMatchAppTopColor
+                        Layout.fillWidth: true
+                        text: "Match titlebar with app's color (Affects performance)"
+                        onCheckedChanged: shell.settings.enableTitlebarMatchAppTopColor = checked
+                        Binding {
+                            target: enableTitlebarMatchAppTopColor
+                            property: "checked"
+                            value: shell.settings.enableTitlebarMatchAppTopColor
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: retainRoundedWindowWhileMatching
+                        Layout.fillWidth: true
+                        text: "Retain rounded corners (May affect performance)"
+                        visible: shell.settings.enableTitlebarMatchAppTopColor
+                        onCheckedChanged: shell.settings.retainRoundedWindowWhileMatching = checked
+                        Binding {
+                            target: retainRoundedWindowWhileMatching
+                            property: "checked"
+                            value: shell.settings.retainRoundedWindowWhileMatching
+                        }
+                    }
+                    OptionSelector {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.enableTitlebarMatchAppTopColor
+                        text: i18n.tr("Match behavior")
+                        model: [
+                            i18n.tr("App's Top left side"),
+                            i18n.tr("App's Top Row")
+                        ]
+                        containerHeight: itemHeight * 6
+                        selectedIndex: shell.settings.titlebarMatchAppBehavior
+                        onSelectedIndexChanged: shell.settings.titlebarMatchAppBehavior = selectedIndex
+                    }
+                    LPSettingsSwitch {
+                        id: enableWobblyWindows
+                        Layout.fillWidth: true
+                        text: "Wobbly windows"
+                        onCheckedChanged: shell.settings.enableWobblyWindows = checked
+                        Binding {
+                            target: enableWobblyWindows
+                            property: "checked"
+                            value: shell.settings.enableWobblyWindows
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: enlargeWindowButtonsWithOverlay
+                        Layout.fillWidth: true
+                        text: "Enlarge window buttons on drag/resize overlay"
+                        onCheckedChanged: shell.settings.enlargeWindowButtonsWithOverlay = checked
+                        Binding {
+                            target: enlargeWindowButtonsWithOverlay
+                            property: "checked"
+                            value: shell.settings.enlargeWindowButtonsWithOverlay
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomWindowSnappingRectangleColor
+                        Layout.fillWidth: true
+                        text: "Custom Snapping Rectangle Color"
+                        onCheckedChanged: shell.settings.useCustomWindowSnappingRectangleColor = checked
+                        Binding {
+                            target: useCustomWindowSnappingRectangleColor
+                            property: "checked"
+                            value: shell.settings.useCustomWindowSnappingRectangleColor
+                        }
+                    }
+                    LPColorField {
+                        id: customWindowSnappingRectangleColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomWindowSnappingRectangleColor
+                        onTextChanged: shell.settings.customWindowSnappingRectangleColor = text
+                        onColorPicker: colorPickerLoader.open(customWindowSnappingRectangleColor)
+                        Binding {
+                            target: customWindowSnappingRectangleColor
+                            property: "text"
+                            value: shell.settings.customWindowSnappingRectangleColor
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomWindowSnappingRectangleBorderColor
+                        Layout.fillWidth: true
+                        text: "Custom Snapping Rectangle Border Color"
+                        onCheckedChanged: shell.settings.useCustomWindowSnappingRectangleBorderColor = checked
+                        Binding {
+                            target: useCustomWindowSnappingRectangleBorderColor
+                            property: "checked"
+                            value: shell.settings.useCustomWindowSnappingRectangleBorderColor
+                        }
+                    }
+                    LPColorField {
+                        id: customWindowSnappingRectangleBorderColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomWindowSnappingRectangleBorderColor
+                        onTextChanged: shell.settings.customWindowSnappingRectangleBorderColor = text
+                        onColorPicker: colorPickerLoader.open(customWindowSnappingRectangleBorderColor)
+                        Binding {
+                            target: customWindowSnappingRectangleBorderColor
+                            property: "text"
+                            value: shell.settings.customWindowSnappingRectangleBorderColor
+                        }
+                    }
+                }
+            }
             Component {
                 id: lockscreenPage
 
@@ -2832,25 +3497,10 @@ StyledItem {
                         text: "Always Shown Icons"
                         onClicked: settingsLoader.item.stack.push(alwaysShownIconsPage, {"title": text})
                     }
-                    LPSettingsSlider {
-                        id: topPanelOpacity
+                    LPSettingsNavItem {
                         Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        title: "Opacity"
-                        minimumValue: 0
-                        maximumValue: 100
-                        stepSize: 10
-                        resetValue: 100
-                        live: true
-                        percentageValue: true
-                        valueIsPercentage: true
-                        roundValue: true
-                        onValueChanged: shell.settings.topPanelOpacity = value
-                        Binding {
-                            target: topPanelOpacity
-                            property: "value"
-                            value: shell.settings.topPanelOpacity
-                        }
+                        text: "Appearance"
+                        onClicked: settingsLoader.item.stack.push(topPanelAppearancePage, {"title": text})
                     }
                     LPSettingsCheckBox {
                         id: alwaysHideTopPanel
@@ -2885,17 +3535,6 @@ StyledItem {
                             value: shell.settings.onlyHideTopPanelonLandscape
                         }
                     }
-                    LPSettingsCheckBox {
-                        id: transparentTopBarOnSpread
-                        Layout.fillWidth: true
-                        text: "Transparent when in App Spread"
-                        onCheckedChanged: shell.settings.transparentTopBarOnSpread = checked
-                        Binding {
-                            target: transparentTopBarOnSpread
-                            property: "checked"
-                            value: shell.settings.transparentTopBarOnSpread
-                        }
-                    }
                     LPSettingsSwitch {
                         id: batteryCircleCheck
                         Layout.fillWidth: true
@@ -2920,6 +3559,135 @@ StyledItem {
                 }
             }
             Component {
+                id: topPanelAppearancePage
+
+                LPSettingsPage {
+                    LPSettingsSwitch {
+                        id: enableTopPanelBlur
+                        Layout.fillWidth: true
+                        text: "Background Blur"
+                        onCheckedChanged: shell.settings.enableTopPanelBlur = checked
+                        Binding {
+                            target: enableTopPanelBlur
+                            property: "checked"
+                            value: shell.settings.enableTopPanelBlur
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomPanelColor
+                        Layout.fillWidth: true
+                        text: "Use custom color"
+                        onCheckedChanged: shell.settings.useCustomPanelColor = checked
+                        Binding {
+                            target: useCustomPanelColor
+                            property: "checked"
+                            value: shell.settings.useCustomPanelColor
+                        }
+                    }
+                    LPColorField {
+                        id: customPanelColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomPanelColor
+                        onTextChanged: shell.settings.customPanelColor = text
+                        onColorPicker: colorPickerLoader.open(customPanelColor)
+                        Binding {
+                            target: customPanelColor
+                            property: "text"
+                            value: shell.settings.customPanelColor
+                        }
+                    }
+                    LPSettingsSlider {
+                        id: topPanelOpacity
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        title: "Opacity"
+                        minimumValue: 0
+                        maximumValue: 100
+                        stepSize: 10
+                        resetValue: 100
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: true
+                        roundValue: true
+                        onValueChanged: shell.settings.topPanelOpacity = value
+                        Binding {
+                            target: topPanelOpacity
+                            property: "value"
+                            value: shell.settings.topPanelOpacity
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: matchTopPanelToDrawerIndicatorPanels
+                        Layout.fillWidth: true
+                        text: "Match appearance when Drawer or Indicator panels are open"
+                        onCheckedChanged: shell.settings.matchTopPanelToDrawerIndicatorPanels = checked
+                        Binding {
+                            target: matchTopPanelToDrawerIndicatorPanels
+                            property: "checked"
+                            value: shell.settings.matchTopPanelToDrawerIndicatorPanels
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: enableTopPanelMatchAppTopColor
+                        Layout.fillWidth: true
+                        text: "Match background with app's color (Staged mode)"
+                        onCheckedChanged: shell.settings.enableTopPanelMatchAppTopColor = checked
+                        Binding {
+                            target: enableTopPanelMatchAppTopColor
+                            property: "checked"
+                            value: shell.settings.enableTopPanelMatchAppTopColor
+                        }
+                    }
+                    OptionSelector {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.enableTopPanelMatchAppTopColor
+                        text: i18n.tr("Match background behavior")
+                        model: [
+                            i18n.tr("App's Top left side"),
+                            i18n.tr("Stage's Top Row")
+                        ]
+                        containerHeight: itemHeight * 6
+                        selectedIndex: shell.settings.topPanelMatchAppBehavior
+                        onSelectedIndexChanged: shell.settings.topPanelMatchAppBehavior = selectedIndex
+                    }
+                    LPSettingsCheckBox {
+                        id: enableTopPanelMatchAppTopColorWindowed
+                        Layout.fillWidth: true
+                        text: "Match background with fullscreen app's color (Windowed mode)"
+                        onCheckedChanged: shell.settings.enableTopPanelMatchAppTopColorWindowed = checked
+                        Binding {
+                            target: enableTopPanelMatchAppTopColorWindowed
+                            property: "checked"
+                            value: shell.settings.enableTopPanelMatchAppTopColorWindowed
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: transparentTopBarOnSpread
+                        Layout.fillWidth: true
+                        text: "Fully Transparent when in App Spread"
+                        onCheckedChanged: shell.settings.transparentTopBarOnSpread = checked
+                        Binding {
+                            target: transparentTopBarOnSpread
+                            property: "checked"
+                            value: shell.settings.transparentTopBarOnSpread
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: enableTransparentTopBarInGreeter
+                        Layout.fillWidth: true
+                        text: "Fully Transparent when in Lockscreen"
+                        onCheckedChanged: shell.settings.enableTransparentTopBarInGreeter = checked
+                        Binding {
+                            target: enableTransparentTopBarInGreeter
+                            property: "checked"
+                            value: shell.settings.enableTransparentTopBarInGreeter
+                        }
+                    }
+                }
+            }
+            Component {
                 id: indicatorsPage
 
                 LPSettingsPage {
@@ -2927,6 +3695,11 @@ StyledItem {
                         Layout.fillWidth: true
                         text: "Quick toggles"
                         onClicked: settingsLoader.item.stack.push(quickTogglesPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Appearance"
+                        onClicked: settingsLoader.item.stack.push(indicatorPanelAppearancePage, {"title": text})
                     }
                     LPSettingsCheckBox {
                         id: enablePanelHeaderExpand
@@ -2949,17 +3722,6 @@ StyledItem {
                             target: expandPanelHeaderWhenBottom
                             property: "checked"
                             value: shell.settings.expandPanelHeaderWhenBottom
-                        }
-                    }
-                    LPSettingsCheckBox {
-                        id: indicatorBlur
-                        Layout.fillWidth: true
-                        text: "Background Blur"
-                        onCheckedChanged: shell.settings.indicatorBlur = checked
-                        Binding {
-                            target: indicatorBlur
-                            property: "checked"
-                            value: shell.settings.indicatorBlur
                         }
                     }
                     LPSettingsCheckBox {
@@ -2992,6 +3754,79 @@ StyledItem {
                             target: widerLandscapeTopPanel
                             property: "checked"
                             value: shell.settings.widerLandscapeTopPanel
+                        }
+                    }
+                }
+            }
+            Component {
+                id: indicatorPanelAppearancePage
+                
+                LPSettingsPage {
+                    LPSettingsSwitch {
+                        id: indicatorBlur
+                        Layout.fillWidth: true
+                        text: "Background Blur"
+                        onCheckedChanged: shell.settings.indicatorBlur = checked
+                        Binding {
+                            target: indicatorBlur
+                            property: "checked"
+                            value: shell.settings.indicatorBlur
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomIndicatorPanelColor
+                        Layout.fillWidth: true
+                        text: "Custom Color"
+                        onCheckedChanged: shell.settings.useCustomIndicatorPanelColor = checked
+                        Binding {
+                            target: useCustomIndicatorPanelColor
+                            property: "checked"
+                            value: shell.settings.useCustomIndicatorPanelColor
+                        }
+                    }
+                    LPColorField {
+                        id: customIndicatorPanelColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomIndicatorPanelColor
+                        onTextChanged: shell.settings.customIndicatorPanelColor = text
+                        onColorPicker: colorPickerLoader.open(customIndicatorPanelColor)
+                        Binding {
+                            target: customIndicatorPanelColor
+                            property: "text"
+                            value: shell.settings.customIndicatorPanelColor
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomIndicatorPanelOpacity
+                        Layout.fillWidth: true
+                        text: "Custom opacity"
+                        onCheckedChanged: shell.settings.useCustomIndicatorPanelOpacity = checked
+                        Binding {
+                            target: useCustomIndicatorPanelOpacity
+                            property: "checked"
+                            value: shell.settings.useCustomIndicatorPanelOpacity
+                        }
+                    }
+                    LPSettingsSlider {
+                        id: customIndicatorPanelOpacity
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomIndicatorPanelOpacity
+                        title: "Opacity"
+                        minimumValue: 0.00
+                        maximumValue: 1.0
+                        stepSize: 0.05
+                        resetValue: 0.85
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: false
+                        roundValue: true
+                        onValueChanged: shell.settings.customIndicatorPanelOpacity = value
+                        Binding {
+                            target: customIndicatorPanelOpacity
+                            property: "value"
+                            value: shell.settings.customIndicatorPanelOpacity
                         }
                     }
                 }
@@ -3093,6 +3928,17 @@ StyledItem {
                             target: showImmersiveModeIconIndicator
                             property: "checked"
                             value: shell.settings.showImmersiveModeIconIndicator
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: enableShowTouchVisualsToggleIndicator
+                        Layout.fillWidth: true
+                        text: "Touch visuals toggle"
+                        onCheckedChanged: shell.settings.enableShowTouchVisualsToggleIndicator = checked
+                        Binding {
+                            target: enableShowTouchVisualsToggleIndicator
+                            property: "checked"
+                            value: shell.settings.enableShowTouchVisualsToggleIndicator
                         }
                     }
                     Label {
@@ -3330,16 +4176,10 @@ StyledItem {
                         text: "App Grids"
                         onClicked: settingsLoader.item.stack.push(appGridsPage, {"title": text})
                     }
-                    LPSettingsSwitch {
-                        id: drawerBlur
+                    LPSettingsNavItem {
                         Layout.fillWidth: true
-                        text: "Background Blur"
-                        onCheckedChanged: shell.settings.drawerBlur = checked
-                        Binding {
-                            target: drawerBlur
-                            property: "checked"
-                            value: shell.settings.drawerBlur
-                        }
+                        text: "Appearance"
+                        onClicked: settingsLoader.item.stack.push(drawerAppearancePage, {"title": text})
                     }
                     LPSettingsCheckBox {
                         id: invertedDrawer
@@ -3453,6 +4293,79 @@ StyledItem {
                 }
             }
             Component {
+                id: drawerAppearancePage
+                
+                LPSettingsPage {
+                    LPSettingsSwitch {
+                        id: drawerBlur
+                        Layout.fillWidth: true
+                        text: "Background Blur"
+                        onCheckedChanged: shell.settings.drawerBlur = checked
+                        Binding {
+                            target: drawerBlur
+                            property: "checked"
+                            value: shell.settings.drawerBlur
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomDrawerColor
+                        Layout.fillWidth: true
+                        text: "Custom Color"
+                        onCheckedChanged: shell.settings.useCustomDrawerColor = checked
+                        Binding {
+                            target: useCustomDrawerColor
+                            property: "checked"
+                            value: shell.settings.useCustomDrawerColor
+                        }
+                    }
+                    LPColorField {
+                        id: customDrawerColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomDrawerColor
+                        onTextChanged: shell.settings.customDrawerColor = text
+                        onColorPicker: colorPickerLoader.open(customDrawerColor)
+                        Binding {
+                            target: customDrawerColor
+                            property: "text"
+                            value: shell.settings.customDrawerColor
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomDrawerOpacity
+                        Layout.fillWidth: true
+                        text: "Custom opacity"
+                        onCheckedChanged: shell.settings.useCustomDrawerOpacity = checked
+                        Binding {
+                            target: useCustomDrawerOpacity
+                            property: "checked"
+                            value: shell.settings.useCustomDrawerOpacity
+                        }
+                    }
+                    LPSettingsSlider {
+                        id: customDrawerOpacity
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomDrawerOpacity
+                        title: "Opacity"
+                        minimumValue: 0.00
+                        maximumValue: 1.0
+                        stepSize: 0.05
+                        resetValue: 0.75
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: false
+                        roundValue: true
+                        onValueChanged: shell.settings.customDrawerOpacity = value
+                        Binding {
+                            target: customDrawerOpacity
+                            property: "value"
+                            value: shell.settings.customDrawerOpacity
+                        }
+                    }
+                }
+            }
+            Component {
                 id: appGridsPage
                 
                 LPSettingsPage {
@@ -3548,6 +4461,34 @@ StyledItem {
                         text: "BFB"
                         onClicked: settingsLoader.item.stack.push(bfbPage, {"title": text})
                     }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Appearance"
+                        onClicked: settingsLoader.item.stack.push(launcherAppearancePage, {"title": text})
+                    }
+                    LPSettingsCheckBox {
+                        id: customLauncherOpacityBehavior
+                        Layout.fillWidth: true
+                        text: "Custom opacity behavior when dragging drawer"
+                        onCheckedChanged: shell.settings.customLauncherOpacityBehavior = checked
+                        Binding {
+                            target: customLauncherOpacityBehavior
+                            property: "checked"
+                            value: shell.settings.customLauncherOpacityBehavior
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: enableLauncherBottomMargin
+                        Layout.fillWidth: true
+                        text: "Use rounded corner margin as bottom margin"
+                        visible: shell.settings.roundedCornerMargin > 0
+                        onCheckedChanged: shell.settings.enableLauncherBottomMargin = checked
+                        Binding {
+                            target: enableLauncherBottomMargin
+                            property: "checked"
+                            value: shell.settings.enableLauncherBottomMargin
+                        }
+                    }
                     LPSettingsCheckBox {
                         id: showLauncherAtDesktop
                         Layout.fillWidth: true
@@ -3568,6 +4509,79 @@ StyledItem {
                             target: dimWhenLauncherShow
                             property: "checked"
                             value: shell.settings.dimWhenLauncherShow
+                        }
+                    }
+                }
+            }
+            Component {
+                id: launcherAppearancePage
+                
+                LPSettingsPage {
+                    LPSettingsSwitch {
+                        id: enableLauncherBlur
+                        Layout.fillWidth: true
+                        text: "Background Blur"
+                        onCheckedChanged: shell.settings.enableLauncherBlur = checked
+                        Binding {
+                            target: enableLauncherBlur
+                            property: "checked"
+                            value: shell.settings.enableLauncherBlur
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomLauncherColor
+                        Layout.fillWidth: true
+                        text: "Custom Color"
+                        onCheckedChanged: shell.settings.useCustomLauncherColor = checked
+                        Binding {
+                            target: useCustomLauncherColor
+                            property: "checked"
+                            value: shell.settings.useCustomLauncherColor
+                        }
+                    }
+                    LPColorField {
+                        id: customLauncherColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLauncherColor
+                        onTextChanged: shell.settings.customLauncherColor = text
+                        onColorPicker: colorPickerLoader.open(customLauncherColor)
+                        Binding {
+                            target: customLauncherColor
+                            property: "text"
+                            value: shell.settings.customLauncherColor
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomLauncherOpacity
+                        Layout.fillWidth: true
+                        text: "Custom opacity"
+                        onCheckedChanged: shell.settings.useCustomLauncherOpacity = checked
+                        Binding {
+                            target: useCustomLauncherOpacity
+                            property: "checked"
+                            value: shell.settings.useCustomLauncherOpacity
+                        }
+                    }
+                    LPSettingsSlider {
+                        id: customLauncherOpacity
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLauncherOpacity
+                        title: "Opacity"
+                        minimumValue: 0.00
+                        maximumValue: 1.0
+                        stepSize: 0.05
+                        resetValue: 0.95
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: false
+                        roundValue: true
+                        onValueChanged: shell.settings.customLauncherOpacity = value
+                        Binding {
+                            target: customLauncherOpacity
+                            property: "value"
+                            value: shell.settings.customLauncherOpacity
                         }
                     }
                 }
@@ -3665,11 +4679,22 @@ StyledItem {
                         font.italic: true
                         textSize: Label.Small
                     }
+                    LPSettingsSwitch {
+                        id: useCustomeBFBLogoAppearance
+                        Layout.fillWidth: true
+                        text: "Enable custom Logo settings"
+                        onCheckedChanged: shell.settings.useCustomeBFBLogoAppearance = checked
+                        Binding {
+                            target: useCustomeBFBLogoAppearance
+                            property: "checked"
+                            value: shell.settings.useCustomeBFBLogoAppearance
+                        }
+                    }
                     LPSettingsSlider {
                         id: logScale
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
-                        visible: shell.settings.useCustomLogo
+                        visible: shell.settings.useCustomeBFBLogoAppearance
                         title: "Logo scale"
                         minimumValue: 5
                         maximumValue: 100
@@ -3691,7 +4716,7 @@ StyledItem {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
                         title: "Logo Color"
-                        visible: shell.settings.useCustomLogo
+                        visible: shell.settings.useCustomeBFBLogoAppearance
                         onTextChanged: shell.settings.customLogoColor = text
                         onColorPicker: colorPickerLoader.open(this)
                         Binding {
@@ -3977,6 +5002,7 @@ StyledItem {
                 , "Open Indicator"
                 , "Toggle Spread"
                 , "Switch to previous app"
+                , "Quick Actions"
             ]
             Component {
                 id: selectorDelegate
@@ -4329,6 +5355,11 @@ StyledItem {
                 Layout.margins: units.gu(2)
                 text: "Swipe from the very bottom of left/right edge to open a floating menu that contains customizable actions\n"
                 + "Lifting the swipe will trigger the currently selected action"
+                + "\nCan also be access via Hot Corners"
+                + "\nCan also be access with Super + Q"
+                + "\nEdit mode can be used to rearrange the actions"
+                + "\nTo enter Edit mode, use the button from the Actions list page,"
+                + "\nLong press or right-click on an Action"
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
@@ -4352,13 +5383,27 @@ StyledItem {
             LPSettingsNavItem {
                 Layout.fillWidth: true
                 text: "Actions List"
+                visible: shell.settings.enableDirectActions
                 onClicked: settingsLoader.item.stack.push(directActionsListPage, {"title": text})
+            }
+            LPSettingsCheckBox {
+                id: directActionsNoSwipeCommit
+                Layout.fillWidth: true
+                text: "Trigger actions via clicking/tapping"
+                visible: shell.settings.enableDirectActions
+                onCheckedChanged: shell.settings.directActionsNoSwipeCommit = checked
+                Binding {
+                    target: directActionsNoSwipeCommit
+                    property: "checked"
+                    value: shell.settings.directActionsNoSwipeCommit
+                }
             }
             OptionSelector {
                 id: directActionsSidesItem
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: i18n.tr("Swipe Area Edge")
+                visible: shell.settings.enableDirectActions
                 model: [
                     i18n.tr("Both")
                     ,i18n.tr("Left Only")
@@ -4367,6 +5412,48 @@ StyledItem {
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.directActionsSides
                 onSelectedIndexChanged: shell.settings.directActionsSides = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                text: i18n.tr("Horizontal layout (via keyboard shortcut)")
+                model: [
+                    i18n.tr("Left to Right"),
+                    i18n.tr("Right to Left"),
+                    i18n.tr("Dynamic")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.directActionsShortcutHorizontalLayout
+                onSelectedIndexChanged: shell.settings.directActionsShortcutHorizontalLayout = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                text: i18n.tr("Vertical layout (via keyboard shortcut)")
+                model: [
+                    i18n.tr("Top to Bottom"),
+                    i18n.tr("Bottom to Top"),
+                    i18n.tr("Dynamic")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.directActionsShortcutVerticalLayout
+                onSelectedIndexChanged: shell.settings.directActionsShortcutVerticalLayout = selectedIndex
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                text: i18n.tr("Animation speed (via keyboard or hot corner)")
+                model: [
+                    i18n.tr("Fast"),
+                    i18n.tr("Brisk"),
+                    i18n.tr("Snap")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.directActionsAnimationSpeed
+                onSelectedIndexChanged: shell.settings.directActionsAnimationSpeed = selectedIndex
             }
             LPSettingsCheckBox {
                 id: directActionsEnableHint
@@ -4490,11 +5577,17 @@ StyledItem {
                 + " • App: Opens a specific app\n"
                 + " • Settings: Opens the settings app with a specific page\n"
                 + " • Toggle: Toggles an item from the Quick Toggles\n"
-                + " • Custom: Custom actions that performs specific actions"
+                + " • Preset: Actions that are set to perform specific actions\n"
+                + " • Custom: Actions that performs user-specified actions"
                 verticalAlignment: Text.AlignVCenter
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Custom Actions"
+                onClicked: settingsLoader.item.stack.push(customActionsPage, {"title": text})
             }
             Button {
                 Layout.fillWidth: true
@@ -4505,7 +5598,20 @@ StyledItem {
 
                 text: "Add Action"
                 color: theme.palette.normal.positive
-                onClicked: PopupUtils.open(addDirectActionDialog)
+                onClicked: {
+                    let _dialogAdd = addDirectActionDialog.createObject(shell.popupParent);
+                    _dialogAdd.show()
+                }
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: "Open in Edit mode"
+                onClicked: if (directActionsLoader.item) directActionsLoader.item.openInEditMode(false, false)
             }
             Button {
                 Layout.fillWidth: true
@@ -4575,6 +5681,9 @@ StyledItem {
                             case LPDirectActions.Type.Custom:
                                 _found = shell.customDirectActions.find((element) => element.name == actionId);
                                 break
+                            case LPDirectActions.Type.CustomURI:
+                                _found = shell.settings.directActionsCustomURIs.find((element) => element.name == actionId);
+                                break
 
                             return _found
                         }
@@ -4592,6 +5701,8 @@ StyledItem {
                                     return foundData.text
                                 case LPDirectActions.Type.Custom:
                                     return foundData.text
+                                case LPDirectActions.Type.CustomURI:
+                                    return foundData.name
                             }
                         }
 
@@ -4608,6 +5719,8 @@ StyledItem {
                             case LPDirectActions.Type.Toggle:
                                 return "Toggle"
                             case LPDirectActions.Type.Custom:
+                                return "Preset"
+                            case LPDirectActions.Type.CustomURI:
                                 return "Custom"
                         }
 
@@ -4622,7 +5735,7 @@ StyledItem {
                         title.text: "[%1] %2".arg(listItem.itemTypeLabel).arg(listItem.itemTitle)
                         title.wrapMode: Text.WordWrap
                     }
-                    
+
                     leadingActions: ListItemActions {
                         actions: [
                             Action {
@@ -4631,7 +5744,7 @@ StyledItem {
                                     let _arrNewValues = shell.settings.directActionList.slice()
                                     let _indexToDelete = _arrNewValues.findIndex((element) => (element.actionId == listItem.actionId && element.type == listItem.actionType));
                                     _arrNewValues.splice(_indexToDelete, 1)
-                                    shell.settings.directActionList = _arrNewValues
+                                    shell.settings.directActionList = _arrNewValues.slice()
                                 }
                             }
                         ]
@@ -4642,6 +5755,9 @@ StyledItem {
                     id: addDirectActionDialog
                     Dialog {
                         id: dialogue
+                        
+                        property bool reparentToRootItem: false
+                        anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
 
                         property string actionId: {
                             if (actionType == LPDirectActions.Type.App) {
@@ -4651,7 +5767,7 @@ StyledItem {
                             }
 
                             let _selectedItem = actionIdSelector.model[actionIdSelector.selectedIndex]
-                            if (actionType == LPDirectActions.Type.Custom) {
+                            if (actionType == LPDirectActions.Type.Custom || actionType == LPDirectActions.Type.CustomURI) {
                                 return _selectedItem && _selectedItem.name ? _selectedItem.name : ""
                             }
 
@@ -4668,7 +5784,8 @@ StyledItem {
                                 { "name": "App", "value": LPDirectActions.Type.App },
                                 { "name": "Settings", "value": LPDirectActions.Type.Settings },
                                 { "name": "Toggle", "value": LPDirectActions.Type.Toggle },
-                                { "name": "Custom", "value": LPDirectActions.Type.Custom },
+                                { "name": "Preset Actions", "value": LPDirectActions.Type.Custom },
+                                { "name": "Custom Actions", "value": LPDirectActions.Type.CustomURI },
                             ]
                             containerHeight: itemHeight * 6
                             selectedIndex: LPDirectActions.Type.Indicator
@@ -4678,7 +5795,7 @@ StyledItem {
                             id: selectorDelegate
                             OptionSelectorDelegate { text: modelData.name }
                         }
-                         OptionSelector {
+                        OptionSelector {
                              id: actionIdSelector
 
                             text: i18n.tr("Action")
@@ -4700,6 +5817,9 @@ StyledItem {
                                         break
                                     case LPDirectActions.Type.Custom:
                                         _model = shell.customDirectActions;
+                                        break
+                                    case LPDirectActions.Type.CustomURI:
+                                        _model = shell.settings.directActionsCustomURIs;
                                         break
 
                                     return _model
@@ -4724,6 +5844,8 @@ StyledItem {
                                             return modelData.text
                                         case LPDirectActions.Type.Custom:
                                             return modelData.text
+                                        case LPDirectActions.Type.CustomURI:
+                                            return modelData.name
                                         default:
                                             return "unknown"
                                     }
@@ -4737,7 +5859,7 @@ StyledItem {
                                  let _arrNewValues = shell.settings.directActionList.slice()
                                 let _properties = { actionId: dialogue.actionId, type: dialogue.actionType }
                                 _arrNewValues.push(_properties)
-                                shell.settings.directActionList = _arrNewValues
+                                shell.settings.directActionList = _arrNewValues.slice()
                                 PopupUtils.close(dialogue)
                              }
                          }
@@ -4746,6 +5868,370 @@ StyledItem {
                              onClicked: PopupUtils.close(dialogue)
                          }
                      }
+                }
+            }
+        }
+    }
+    Component {
+        id: customActionsPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: units.gu(2)
+                Layout.leftMargin: units.gu(2)
+                text: "Custom URIs can be anything that any app can handle.\n"
+                + "For example, http and https will open in Morph or other browsers you installed\n"
+                + "sms:// will open the Messaging app\n"
+                + "tel:// will open the Phone app\n"
+                + "settings://system/battery will open the battery page in the system settings app\n\n"
+                + "Custom icons must be placed in ~/Pictures/lomiriplus"
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: "Add Custom URI"
+                color: theme.palette.normal.positive
+                onClicked: {
+                    // Do not use PopupUtils to fix orientation issues
+                    let _dialogAdd = addCustomURIDialog.createObject(shell.popupParent, { "editMode": false });
+
+                    let _addNewCustomURI = function (_actionName, _actionURI, _iconType, _iconName, _appId) {
+                        let _tempArr = shell.settings.directActionsCustomURIs.slice()
+                        let _itemData = {
+                            name: _actionName
+                            , uri: _actionURI
+                            , iconType: _iconType
+                            , iconName: _iconName
+                            , appId: _appId
+                        }
+                        _tempArr.push(_itemData)
+                        shell.settings.directActionsCustomURIs = _tempArr.slice()
+                    }
+
+                    _dialogAdd.add.connect(_addNewCustomURI)
+                    _dialogAdd.show()
+                }
+            }
+            ListView {
+                id: directActionsListView
+
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentHeight
+
+                interactive: false
+                model: shell.settings.directActionsCustomURIs
+
+                delegate: ListItem {
+                    id: listItem
+
+                    property int actionIndex: index
+                    property string actionName: modelData.name
+                    property string actionURI: modelData.uri
+                    property string iconType: modelData.iconType
+                    property string iconName: modelData.iconName
+                    property string appId: modelData.appId
+
+                    height: layout.height + (divider.visible ? divider.height : 0)
+                    color: dragging ? theme.palette.selected.base : "transparent"
+
+                    ListItemLayout {
+                        id: layout
+                        title.text: listItem.actionName
+                        title.wrapMode: Text.WordWrap
+                    }
+
+                    leadingActions: ListItemActions {
+                        actions: [
+                            Action {
+                                iconName: "delete"
+                                onTriggered: {
+                                    // Delete corresponding Direct Action
+                                    let _arrNewValuesDA = shell.settings.directActionList.slice()
+                                    let _indexToDelete = _arrNewValuesDA.findIndex((element) => (element.actionId == listItem.actionName && element.type == LPDirectActions.Type.CustomURI));
+                                    if (_indexToDelete > -1) {
+                                        _arrNewValuesDA.splice(_indexToDelete, 1)
+                                    }
+                                    shell.settings.directActionList = _arrNewValuesDA.slice()
+
+                                    let _arrNewValues = shell.settings.directActionsCustomURIs.slice()
+                                    _arrNewValues.splice(listItem.actionIndex, 1)
+                                    shell.settings.directActionsCustomURIs = _arrNewValues.slice()
+                                }
+                            }
+                        ]
+                    }
+                    trailingActions: ListItemActions {
+                        actions: [
+                            Action {
+                                iconName: "edit"
+                                onTriggered: {
+                                    // Do not use PopupUtils to fix orientation issues
+                                    let _actionName = listItem.actionName
+                                    let _actionURI = listItem.actionURI
+                                    let _iconName = listItem.iconName
+                                    let _iconType = listItem.iconType
+                                    let _appId = listItem.appId
+                                    let dialogEdit = addCustomURIDialog.createObject(shell.popupParent, { "editMode": true, "actionIndex": listItem.actionIndex
+                                                                                                            , "actionName": _actionName, "actionURI": _actionURI
+                                                                                                            , "actionIconName": _iconName , "actionIconType": _iconType
+                                                                                                            , "actionAppId": _appId } );
+
+                                    let _editCustomURI = function (_newName, _newURI, _newIconType, _newIconName, _newAppId) {
+                                        let _tempArr = shell.settings.directActionsCustomURIs.slice()
+                                        let _itemData = _tempArr[listItem.actionIndex]
+                                        if (_itemData) {
+                                            // Update corresponding Direct Action
+                                            let _arrNewValuesDA = shell.settings.directActionList.slice()
+                                            let _indexToUpdate = _arrNewValuesDA.findIndex((element) => (element.actionId == listItem.actionName && element.type == LPDirectActions.Type.CustomURI));
+                                            let _itemDataDA = _arrNewValuesDA[_indexToUpdate]
+                                            if (_itemDataDA) {
+                                                _itemDataDA.actionId = _newName
+                                                _arrNewValuesDA[_indexToUpdate] = _itemDataDA
+                                            }
+                                            shell.settings.directActionList = _arrNewValuesDA.slice()
+
+                                            _itemData.name = _newName
+                                            _itemData.uri = _newURI
+                                            _itemData.iconType = _newIconType
+                                            _itemData.iconName = _newIconName
+                                            _itemData.appId = _newAppId
+                                            _tempArr[listItem.actionIndex] = _itemData
+                                            shell.settings.directActionsCustomURIs = _tempArr.slice()
+                                        }
+                                    }
+
+                                    dialogEdit.edit.connect(_editCustomURI)
+                                    dialogEdit.show()
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                Component {
+                    id: addCustomURIDialog
+                    Dialog {
+                        id: dialogue
+
+                        readonly property bool nameIsValid: actionNameTextField.text.trim() !== ""
+                                                    && (
+                                                            (!editMode && shell.findFromArray(shell.settings.directActionsCustomURIs, "name", currentName) == undefined)
+                                                            ||
+                                                            (editMode && nameHasChanged && shell.countFromArray(shell.settings.directActionsCustomURIs, "name", currentName) === 0)
+                                                            ||
+                                                            (editMode && !nameHasChanged && shell.countFromArray(shell.settings.directActionsCustomURIs, "name", currentName) < 2)
+                                                        )
+                        readonly property bool nameHasChanged: editMode && actionName !== currentName
+                        readonly property bool isAppIcon: currentAppId.trim() !== ""
+                        readonly property bool isCustomIcon: currentIconType === "custom"
+                        readonly property bool isDefaultIcon: !isCustomIcon
+                        property bool editMode: false
+                        property int actionIndex
+                        property string actionName
+                        property string actionURI
+                        property string actionIconType
+                        property string actionIconName
+                        property string actionAppId
+                        property string currentName
+                        property string currentURI
+                        readonly property string currentIconType: iconTypeSelector.model[iconTypeSelector.selectedIndex].value
+                        property string currentIconName
+                        readonly property string currentAppId: {
+                            if (useAppIcon) {
+                                let _modelIndex = shell.appModel.index(actionAppIdSelector.selectedIndex, 0)
+                                let _appId = shell.appModel.data(_modelIndex, 0)
+                                return _appId ? _appId : ""
+                            }
+
+                            return ""
+                        }
+                        property bool useAppIcon: false
+
+                        signal add(string actionName, string actionURI, string iconType, string iconName, string appId)
+                        signal edit(string actionName, string actionURI, string iconType, string iconName, string appId)
+
+                        onAdd: PopupUtils.close(dialogue)
+                        onEdit: PopupUtils.close(dialogue)
+
+                        property bool reparentToRootItem: false
+
+                        title: editMode ? 'Edit "%1"'.arg(actionName) : "New Custom URI"
+                        anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+
+                        Component.onCompleted: {
+                            if (editMode) {
+                                actionNameTextField.text = actionName
+                                actionURITextField.text = actionURI
+                                iconNameTextField.text = currentIconName
+                                currentName = actionName
+                                currentURI = actionURI
+                                currentIconName = actionIconName
+                                useAppIcon = (actionAppId !== "")
+
+                                if (useAppIcon) {
+                                    let _appData = !shell.appModel.refreshing ? shell.getAppData(actionAppId) : null
+                                    actionAppIdSelector.selectedIndex = _appData ? _appData.index : 0
+                                }
+                            }
+                        }
+
+                        TextField {
+                            id: actionNameTextField
+
+                            placeholderText: "Name of the Custom URI"
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                            onTextChanged: dialogue.currentName = text
+                        }
+                        Label {
+                            id: errorLabel
+                            visible: actionNameTextField.text.trim() !== "" && !dialogue.nameIsValid
+                            text: "Name already exists"
+                            color: theme.palette.normal.negative
+                        }
+                        TextField {
+                            id: actionURITextField
+
+                            placeholderText: "Type the URI (i.e. tel://0123456789)"
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                            onTextChanged: dialogue.currentURI = text
+                        }
+                        OptionSelector {
+                             id: iconTypeSelector
+
+                            text: i18n.tr("Icon Type")
+                            model: [
+                                { "name": "Default", "value": "default" },
+                                { "name": "Custom", "value": "custom" },
+                            ]
+                            containerHeight: itemHeight * 6
+                            selectedIndex: dialogue.actionIconType === "custom" ? 1 : 0
+                            delegate: selectorIconTypeDelegate
+                        }
+                        Component {
+                            id: selectorIconTypeDelegate
+                            OptionSelectorDelegate { text: modelData.name }
+                        }
+
+                        TextField {
+                            id: iconNameTextField
+
+                            visible: dialogue.isDefaultIcon || dialogue.isCustomIcon
+                            verticalAlignment: Text.AlignVCenter
+                            placeholderText: dialogue.isDefaultIcon ?"Type exact icon name" : "Type custom icon's filename"
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                            text: dialogue.actionIconName
+                            onTextChanged: dialogue.currentIconName = text
+                        }
+                        RowLayout {
+                            height: units.gu(6)
+
+                            Button {
+                                id: iconButton
+
+                                Layout.alignment: Qt.AlignVCenter
+
+                                visible: dialogue.isDefaultIcon
+
+                                text: "Pick Icon"
+                                onClicked: {
+                                    // Do not use PopupUtils to fix orientation issues
+                                    let _iconMenu = iconMenuComponent.createObject(shell.popupParent, { caller: iconButton, currentIcon: iconNameTextField.text, model: shell.iconsList } );
+
+                                    let _iconSelect = function (_iconName) {
+                                        dialogue.currentIconName = _iconName
+                                        iconNameTextField.text = _iconName
+                                    }
+
+                                    _iconMenu.iconSelected.connect(_iconSelect)
+                                    _iconMenu.show()
+                                }
+                            }
+                            Icon {
+                                id: actionIconItem
+                                Layout.preferredWidth: units.gu(3)
+                                Layout.preferredHeight: units.gu(3)
+                                name: dialogue.currentIconName
+                                source: {
+                                    if (name !== "") {
+                                        if (dialogue.isCustomIcon){
+                                            return LabsPlatform.StandardPaths.writableLocation(LabsPlatform.StandardPaths.HomeLocation).toString()
+                                                    + "/Pictures/lomiriplus/" + dialogue.currentIconName
+                                        } else {
+                                            return "image://theme/" + name
+                                        }
+                                    }
+
+                                    return ""
+                                }
+                                color: theme.palette.normal.backgroundText
+                            }
+                        }
+
+                        LPSettingsCheckBox {
+                            id: useAppIconCheckBox
+                            text: "Display as an App"
+                            onCheckedChanged: dialogue.useAppIcon = checked
+                            Binding {
+                                target: useAppIconCheckBox
+                                property: "checked"
+                                value: dialogue.useAppIcon
+                            }
+                        }
+
+                        OptionSelector {
+                             id: actionAppIdSelector
+
+                            visible: dialogue.useAppIcon
+                            text: i18n.tr("App ID")
+                            model: shell.appModel
+                            containerHeight: itemHeight * 6
+                            selectedIndex: 0
+                            delegate: actionAppIdselectorDelegate
+                        }
+                        Component {
+                            id: actionAppIdselectorDelegate
+                            OptionSelectorDelegate {
+                                text: model.name
+                            }
+                        }
+
+                        Button {
+                            text: dialogue.editMode ? "Save" : "Add"
+                            color: theme.palette.normal.positive
+                            enabled: dialogue.nameIsValid
+                            onClicked: {
+                                let _actionName = dialogue.currentName
+                                let _actionURI = dialogue.currentURI
+                                let _actionIconType = dialogue.currentIconType
+                                let _actionIconName = dialogue.currentIconName
+                                let _actionAppId = dialogue.useAppIcon ? dialogue.currentAppId : ""
+
+                                if (dialogue.editMode) {
+                                    dialogue.edit(_actionName, _actionURI, _actionIconType, _actionIconName, _actionAppId)
+                                } else {
+                                    dialogue.add(_actionName, _actionURI, _actionIconType, _actionIconName, _actionAppId)
+                                }
+                            }
+                        }
+                        Button {
+                            text: "Cancel"
+                            onClicked: PopupUtils.close(dialogue)
+                        }
+                        Component {
+                            id: iconMenuComponent
+
+                            LPIconSelector {}
+                        }
+                    }
                 }
             }
         }
@@ -5351,7 +6837,8 @@ StyledItem {
     Settings {
         id: clockAppSettings
 
-        fileName: "/home/phablet/.config/clock.ubports/clock.ubports.conf"
+        fileName: LabsPlatform.StandardPaths.writableLocation(LabsPlatform.StandardPaths.ConfigLocation).toString().replace("file://", "")
+                                                    + "/clock.ubports/clock.ubports.conf"
         Component.onCompleted: alarm.defaultSound = value("defaultAlarmSound", "file:///usr/share/sounds/lomiri/ringtones/Alarm clock.ogg")
     }
     Alarm {
@@ -5575,7 +7062,10 @@ StyledItem {
         Connections {
             target: greeter
             onShownChanged: {
-                if (!target.shown && stage.topLevelSurfaceList.count == 0) {
+                // ENH135 - Show Desktop
+                //if (!target.shown && stage.topLevelSurfaceList.count == 0) {
+                if (!target.shown && (stage.topLevelSurfaceList.count == 0 || stage.desktopShown)) {
+                // ENH135 - End
                     eyeBlinkLoader.active = lp_settings.enableOW && lp_settings.ow_theme == 0
                 }
             }
@@ -6036,6 +7526,10 @@ StyledItem {
             rightEdgePushProgress: rightEdgeBarrier.progress
             availableDesktopArea: availableDesktopAreaItem
             launcherLeftMargin: launcher.visibleWidth
+            // ENH185 - Workspace spread UI fixes
+            launcherLockedVisible: launcher.lockedVisible
+            topPanelHeight: panel.minimizedPanelHeight
+            // ENH185 - End
 
             property string usageScenario: shell.usageScenario === "phone" || greeter.hasLockedApp
                                                        ? "phone"
@@ -6082,7 +7576,10 @@ StyledItem {
             anchors.fill: stage
 
             minimumTouchPoints: 4
-            maximumTouchPoints: minimumTouchPoints
+            // ENH154 - Workspace switcher gesture
+            // maximumTouchPoints: minimumTouchPoints
+            maximumTouchPoints: 5
+            // ENH154 - End
             // ENH018 - Immersive mode
             enabled: !shell.immersiveMode
             // ENH018 - End
@@ -6092,12 +7589,83 @@ StyledItem {
                                                     touchPoints.length <= maximumTouchPoints
             property bool wasPressed: false
 
+            // ENH154 - Workspace switcher gesture
+            property bool enableDrag: stage.workspaceEnabled
+            readonly property bool recognisedDrag: wasPressed && dragging
+            property bool wasRecognisedDrag: false
+            property real startX: 0
+            property real currentX: {
+                var sum = 0;
+                for (var i = 0; i < touchPoints.length; i++) {
+                    sum += touchPoints[i].x;
+                }
+                return sum/touchPoints.length;
+            }
+            readonly property real dragDistance: currentX - startX
+            readonly property real dragThreshold: units.gu(30)
+            readonly property int dragStep: Math.floor(dragDistance / dragThreshold)
+            property int prevDragStep: 0
+            property bool draggingRight: wasRecognisedDrag && currentX - startX >= units.gu(5)
+            property bool draggingLeft: wasRecognisedDrag && currentX - startX <= units.gu(-5)
+
+            signal pressed(int x, int y)
+            signal clicked
+            signal dragStarted
+            signal dropped
+            signal cancelled
+
+            onDragStepChanged: {
+                if (wasRecognisedDrag) {
+                    const _step = prevDragStep - dragStep
+                    if (_step < 0) {
+                        if (touchPoints.length === 4) {
+                            stage.switchWorkspaceRight()
+                        } else {
+                            stage.switchWorkspaceRightMoveApp()
+                        }
+                        shell.haptics.playSubtle()
+                    } else if (_step > 0) {
+                        if (touchPoints.length === 4) {
+                            stage.switchWorkspaceLeft()
+                        } else {
+                            stage.switchWorkspaceLeftMoveApp()
+                        }
+                        shell.haptics.playSubtle()
+                    }
+
+                    prevDragStep = dragStep
+                }
+            }
+
+            onClicked: launcher.toggleDrawer(true);
+
+            onEnabledChanged: {
+                if (!enabled) {
+                    wasRecognisedDrag = false;
+                    wasPressed = false;
+                }
+            }
+            onRecognisedDragChanged: {
+                if (enableDrag && recognisedDrag) {
+                    startX = currentX
+                    wasRecognisedDrag = true;
+                    dragStarted()
+                }
+            }
+
+            onDropped: {
+                stage.commitWorkspaceSwitch()
+            }
+            // ENH154 - End
+
             onRecognisedPressChanged: {
                 if (recognisedPress) {
                     wasPressed = true;
                 }
             }
 
+            // ENH154 - Workspace switcher gesture
+            /*
             onStatusChanged: {
                 if (status !== TouchGestureArea.Recognized) {
                     if (status === TouchGestureArea.WaitingForTouch) {
@@ -6108,25 +7676,65 @@ StyledItem {
                     wasPressed = false;
                 }
             }
+            */
+            onStatusChanged: {
+                if (status != TouchGestureArea.Recognized) {
+                    if (status == TouchGestureArea.Rejected) {
+                        cancelled();
+                    } else if (status == TouchGestureArea.WaitingForTouch) {
+                        if (wasPressed) {
+                            if (!wasRecognisedDrag) {
+                                clicked();
+                            } else {
+                                dropped();
+                            }
+                        }
+                    }
+                    wasRecognisedDrag = false;
+                    wasPressed = false;
+                    startX = 0
+                    prevDragStep = 0
+                }
+            }
+            // ENH154 - End
         }
     }
 
     // ENH139 - System Direct Actions
     Loader {
+        id: directActionsLoader
         active: shell.settings.enableDirectActions
         asynchronous: true
         anchors.fill: parent
         z: settingsLoader.z + 1
         sourceComponent: LPDirectActions {
             enabled: !shell.immersiveMode
+            noSwipeCommit: shell.settings.directActionsNoSwipeCommit
             swipeAreaHeight: shell.convertFromInch(shell.settings.directActionsSwipeAreaHeight)
             swipeAreaWidth: shell.edgeSize
             maximumWidth: shell.convertFromInch(shell.settings.directActionsMaxWidth)
             sideMargins: shell.convertFromInch(shell.settings.directActionsSideMargins)
+            preferredActionItemWidth: shell.convertFromInch(0.35)
+            thresholdWidthForCentered: shell.convertFromInch(4)
             maximumColumn: shell.settings.directActionsMaxColumn
             enableVisualHint: shell.settings.directActionsEnableHint
             swipeAreaSides: shell.settings.directActionsSides
             actionsList: shell.settings.directActionList
+            showHideAnimationSpeed: shell.settings.directActionsAnimationSpeed
+
+            onAppOrderChanged: shell.settings.directActionList = newAppOrderArray.slice()
+
+            GlobalShortcut {
+                shortcut: Qt.MetaModifier | Qt.Key_Q
+                onTriggered: {
+                    let _fromLeft = shell.settings.directActionsShortcutHorizontalLayout == 2 ? cursor.x <= shell.width / 2
+                                        : shell.settings.directActionsShortcutHorizontalLayout === 0
+                    let _fromTop = shell.settings.directActionsShortcutVerticalLayout == 2 ? cursor.y <= shell.height / 2
+                                        : shell.settings.directActionsShortcutVerticalLayout === 0
+
+                    shell.directActions.toggle(_fromLeft, _fromTop, Qt.point(cursor.x, cursor.y))
+                }
+            }
         }
     }
     // ENH139 - End
@@ -6590,6 +8198,24 @@ StyledItem {
             height: shell.shellTopMargin
         }
         // ENH002 - End
+        // ENH177 - Swipe down to show top bar
+        SwipeArea {
+            enabled: panel.state === "offscreen"
+            direction: SwipeArea.Downwards
+            immediateRecognition: false
+            height: units.gu(2)
+            anchors {
+                top: parent.top
+                left: parent.left
+                right: parent.right
+            }
+            onDraggingChanged: {
+                if (dragging) {
+                    panel.temporarilyShow()
+                }
+            }
+        }
+        // ENH177 - End
 
         Panel {
             id: panel
@@ -6597,8 +8223,18 @@ StyledItem {
             anchors.fill: parent //because this draws indicator menus
             // ENH030 - Blurred indicator panel
             // blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
-            blurSource: settings.enableBlur && shell.settings.indicatorBlur ? (greeter.shown ? greeter : stages) : null
+            // ENH168 - Settings to use wallpaper as blur source
+            //blurSource: settings.enableBlur && shell.settings.indicatorBlur ? (greeter.shown ? greeter : stages) : null
+            blurSource: settings.enableBlur && shell.settings.indicatorBlur ? shell.settings.useWallpaperForBlur ? stage.wallpaperSurface
+                                                                                                                 : (greeter.shown ? greeter : stages)
+                                                                            : null
+            // ENH168 - End
             // ENH030 - End
+            // ENH171 - Add blur to Top Panel and Drawer
+            topPanelBlurSource: settings.enableBlur && shell.settings.enableTopPanelBlur
+                                        && greeter.shown ? shell.settings.useWallpaperForBlur ? stage.wallpaperSurface : greeter
+                                                         : null
+            // ENH171 - End
 
             mode: shell.usageScenario == "desktop" ? "windowed" : "staged"
             // ENH002 - Notch/Punch hole fix
@@ -6621,11 +8257,20 @@ StyledItem {
             transparentTopBar: shell.settings.transparentTopBarOnSpread
                                     && (stage.spreadShown || stage.rightEdgeDragProgress > 0 || stage.rightEdgePushProgress > 0)
             topBarOpacityOverride: stage.spreadShown ? 0 : 1 - (stage.rightEdgeDragProgress * 2)
+            // ENH170 - Adjust top panel based on Drawer and Indicator panels
+            spreadShown: stage.spreadShown
+            spreadDragProgress: stage.rightEdgeDragProgress
+            // ENH170 - End
             // ENH122 - End
             // ENH046 - Lomiri Plus Settings
             topPanelMargin: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
                                         ? shell.shellMargin : 0
             // ENH046 - End
+            // ENH170 - Adjust top panel based on Drawer and Indicator panels
+            drawerProgress: launcher.drawerProgress
+            drawerOpacity: launcher.drawerOpacity
+            drawerColor: launcher.drawerColor
+            // ENH170 - End
 
             indicators {
                 hides: [launcher]
@@ -6704,7 +8349,12 @@ StyledItem {
             // ENH002 - End
             // ENH106 - Separate drawer blur settings
             // blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
-            blurSource: settings.enableBlur && shell.settings.drawerBlur ? (greeter.shown ? greeter : stages) : null
+            // ENH168 - Settings to use wallpaper as blur source
+            //blurSource: settings.enableBlur && shell.settings.drawerBlur ? (greeter.shown ? greeter : stages) : null
+            blurSource: settings.enableBlur && shell.settings.drawerBlur ? shell.settings.useWallpaperForBlur ? stage.wallpaperSurface
+                                                                                                              : (greeter.shown ? greeter : stages)
+                                                                         : null
+            // ENH168 - End
             // ENH106 - End
             topPanelHeight: panel.panelHeight
             drawerEnabled: !greeter.active && tutorial.launcherLongSwipeEnabled
@@ -6931,7 +8581,7 @@ StyledItem {
         readonly property bool desktopEnabled: panel.indicators.fullyClosed && !shell.atDesktop && !shell.showingGreeter
         readonly property bool previousAppEnabled: !shell.showingGreeter
 
-        function triggerHotCorner(__actionType, __action) {
+        function triggerHotCorner(__actionType, __action, _edge) {
 
             switch (__actionType) {
                 case Shell.HotCorner.Drawer:
@@ -6955,6 +8605,11 @@ StyledItem {
                     } else {
                         panel.indicators.hide()
                     }
+                    break
+                case Shell.HotCorner.OpenDirectActions:
+                    let _fromLeft = _edge === LPHotCorner.Edge.TopLeft || _edge === LPHotCorner.Edge.BottomLeft
+                    let _fromTop = _edge === LPHotCorner.Edge.TopLeft || _edge === LPHotCorner.Edge.TopRight
+                    if (shell.directActions) shell.directActions.toggle(_fromLeft, _fromTop)
                     break
             }
         }
@@ -6987,11 +8642,16 @@ StyledItem {
                                 && overlay.previousAppEnabled
                             )
                             ||
+                            (
+                                actionType == Shell.HotCorner.OpenDirectActions
+                                && shell.directActions
+                            )
+                            ||
                             actionType == Shell.HotCorner.Indicator
                         )
             edge: LPHotCorner.Edge.TopLeft
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
         }
 
         LPHotCorner {
@@ -7022,11 +8682,16 @@ StyledItem {
                                 && overlay.previousAppEnabled
                             )
                             ||
+                            (
+                                actionType == Shell.HotCorner.OpenDirectActions
+                                && shell.directActions
+                            )
+                            ||
                             actionType == Shell.HotCorner.Indicator
                         )
             edge: LPHotCorner.Edge.TopRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
         }
 
         LPHotCorner {
@@ -7057,11 +8722,16 @@ StyledItem {
                                 && overlay.previousAppEnabled
                             )
                             ||
+                            (
+                                actionType == Shell.HotCorner.OpenDirectActions
+                                && shell.directActions
+                            )
+                            ||
                             actionType == Shell.HotCorner.Indicator
                         )
             edge: LPHotCorner.Edge.BottomRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
         }
 
         LPHotCorner {
@@ -7092,11 +8762,16 @@ StyledItem {
                                 && overlay.previousAppEnabled
                             )
                             ||
+                            (
+                                actionType == Shell.HotCorner.OpenDirectActions
+                                && shell.directActions
+                            )
+                            ||
                             actionType == Shell.HotCorner.Indicator
                         )
             edge: LPHotCorner.Edge.BottomLeft
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
-            onTrigger: overlay.triggerHotCorner(actionType, actionValue)
+            onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
         }
         // ENH133 - End
     }
@@ -7264,4 +8939,125 @@ StyledItem {
             }
         }
     }
+
+    // ENH152 - Touch visuals
+    MouseArea {
+        id: touchMouseArea
+
+        enabled: shell.settings.showTouchVisuals
+        visible: enabled
+        z: Number.MAX_VALUE
+        anchors.fill: parent
+        hoverEnabled: true
+        propagateComposedEvents: true
+        onPressed: {
+            touchRec.show()
+            mouse.accepted = false
+        }
+        onReleased: mouse.accepted = false
+        onClicked: mouse.accepted = false
+        onDoubleClicked: mouse.accepted = false
+        onPressAndHold: mouse.accepted = false
+        onWheel: wheel.accepted = false
+        onPositionChanged: {
+            touchRec.show()
+        }
+    }
+
+    Timer {
+        id: touchRecTimer
+        interval: 200
+        onTriggered: touchRec.opacity = 0
+    }
+
+    Loader {
+        id: touchRec
+
+        readonly property real visibleOpacity: 0.8
+        readonly property real centerX: width / 2
+        readonly property real centerY: height / 2
+
+        z: touchMouseArea.z
+        asynchronous: true
+        active: touchMouseArea.enabled
+        opacity: 0
+        width: units.gu(5)
+        height: width
+        x: touchMouseArea.mouseX - centerX
+        y: touchMouseArea.mouseY - centerY
+
+        function show() {
+            touchRecTimer.stop()
+            opacity = visibleOpacity
+            touchRecTimer.restart()
+        }
+
+        Behavior on opacity { LomiriNumberAnimation {} }
+
+        sourceComponent: Rectangle {
+            color: shell.settings.touchVisualColor !== "" ? shell.settings.touchVisualColor : "white"
+            radius: width / 2
+        }
+    }
+    // ENH152 - End
+    // ENH186 - BSOD prank
+    Connections {
+        target: shell
+        Component.onCompleted: {
+            if (shell.settings.blueScreenNotYetShown) {
+                buruIskunuru.delayShow.restart()
+            }
+        }
+    }
+
+    Loader {
+        id: buruIskunuru
+        
+        readonly property Timer delayShow: Timer {
+            interval: 5000
+            onTriggered: buruIskunuru.show()
+        }
+        readonly property Timer delayHide: Timer {
+            interval: 35000
+            onTriggered: buruIskunuru.hide()
+        }
+        z: Number.MAX_VALUE
+        anchors.fill: parent
+        visible: item ? true : false
+        active: false
+
+        function show() {
+            buruIskunuru.active = true
+            buruIskunuru.delayHide.restart()
+        }
+
+        function hide() {
+            console.log("BSOD CLOSED! ::)")
+            active = false
+            shell.settings.blueScreenNotYetShown = false
+        }
+
+        sourceComponent: LPBlueScreen {
+            onClose: buruIskunuru.hide()
+        }
+    }
+    // ENH186 - End
+    // ENH105 - Custom app drawer
+    readonly property var iconsList: [
+        "account","active-call","add","add-to-call","add-to-playlist","alarm-clock","appointment","appointment-new","attachment","back","bookmark","bookmark-new","broadcast","browser-tabs","burn-after-read"
+        ,"bot","favorite-selected", "favorite-unselected", "filter", "properties", "horizontal_distance", "hud", "gestures"
+        ,"calendar","calendar-holidays","calendar-today","call-end","call-start","call-stop","camcorder","camera-flip","camera-grid","camera-self-timer","cancel","clock","close","compose","contact","contact-group"
+        ,"contact-new","contextual-menu","crop","delete","document-open","document-preview","document-print","document-save","document-save-as","down","edit","edit-clear","edit-copy","edit-cut","edit-delete"
+        ,"edit-find","edit-paste","edit-redo","edit-select-all","edit-undo","email","erase","event","event-new","external-link","filters","find","finish","flash-auto","flash-off","flash-on","flash-redeyes"
+        ,"go-down","go-first","go-home","go-last","go-next","go-previous","go-up","grip-large","gtk-add","help","help-contents","history","home","image-quality","import","inbox","inbox-all","incoming-call"
+        ,"info","insert-image","insert-link","junk","keyboard-caps-disabled","keyboard-caps-enabled","keyboard-caps-locked","keyboard-enter","keyboard-spacebar","keyboard-tab","language-chooser","like","list-add"
+        ,"list-remove","livetv","location","lock","lock-broken","mail-forward","mail-forwarded","mail-mark-important","mail-read","mail-replied","mail-replied-all","mail-reply","mail-reply-all","mail-unread"
+        ,"media-eject","media-playback-pause","media-playback-start","media-playback-start-rtl","media-playback-stop","media-playlist","media-playlist-repeat","media-playlist-repeat-one","media-playlist-shuffle"
+        ,"media-preview-pause","media-preview-start","media-preview-start-rtl","media-record","media-seek-backward","media-seek-forward","media-skip-backward","media-skip-forward","merge","message","message-new"
+        ,"message-received","message-sent","missed-call","navigation-menu","next","night-mode","non-starred","note","note-new","notebook","notebook-new","notification","ok","other-actions","outgoing-call","pinned"
+        ,"previous","private-browsing","private-browsing-exit","private-tab-new","redo","reload","reload_all_tabs","reload_page","reminder","reminder-new","remove","remove-from-call","remove-from-group","reset"
+        ,"retweet","revert","rotate-left","rotate-right","save","save-as","save-to","scope-manager","security-alert","select","select-none","select-undefined","send","settings","share","slideshow","sort-listitem"
+        ,"starred","start","stock_alarm-clock","stock_application","stock_appointment","stock_contact","stock_document","stock_document-landscape","stock_ebook","stock_email","stock_event","stock_image","stock_key","stock_link","stock_lock","stock_message","stock_music","stock_note","stock_notebook","stock_notification","stock_reminder","stock_ringtone","stock_store","stock_usb","stock_video","stock_website","stop","stopwatch","stopwatch-lap","swap","sync","system-lock-screen","system-log-out","system-restart","system-shutdown","system-suspend","tab-new","tag","thumb-down","thumb-up","tick","timer","torch-off","torch-on","undo","unlike","unpinned","up","user-admin","user-switch","view-collapse","view-expand","view-fullscreen","view-grid-symbolic","view-list-symbolic","view-off","view-on","view-refresh","view-restore","view-rotate","voicemail","zoom-in","zoom-out","address-book-app-symbolic","amazon-symbolic","calculator-app-symbolic","calendar-app-symbolic","camera-app-symbolic","clock-app-symbolic","dekko-app-symbolic","dialer-app-symbolic","docviewer-app-symbolic","dropbox-symbolic","ebay-symbolic","evernote-symbolic","facebook-symbolic","feedly-symbolic","fitbit-symbolic","gallery-app-symbolic","gmail-symbolic","google-calendar-symbolic","google-maps-symbolic","google-plus-symbolic","googleplus-symbolic","maps-app-symbolic","mediaplayer-app-symbolic","messaging-app-symbolic","music-app-symbolic","notes-app-symbolic","pinterest-symbolic","pocket-symbolic","preferences-color-symbolic","preferences-desktop-accessibility-symbolic","preferences-desktop-accounts-symbolic","preferences-desktop-media-symbolic","preferences-desktop-display-symbolic","preferences-desktop-keyboard-shortcuts-symbolic","preferences-desktop-launcher-symbolic","preferences-desktop-locale-symbolic","preferences-desktop-login-items-symbolic","preferences-desktop-notifications-symbolic","preferences-desktop-sounds-symbolic","preferences-desktop-wallpaper-symbolic","preferences-network-bluetooth-active-symbolic","preferences-network-bluetooth-disabled-symbolic","preferences-network-cellular-symbolic","preferences-network-hotspot-symbolic","preferences-network-wifi-active-symbolic","preferences-network-wifi-no-connection-symbolic","preferences-system-battery-000-charging-symbolic","preferences-system-battery-010-charging-symbolic","preferences-system-battery-020-charging-symbolic","preferences-system-battery-030-charging-symbolic","preferences-system-battery-040-charging-symbolic","preferences-system-battery-050-charging-symbolic","preferences-system-battery-060-charging-symbolic","preferences-system-battery-070-charging-symbolic","preferences-system-battery-080-charging-symbolic","preferences-system-battery-090-charging-symbolic","preferences-system-battery-100-charging-symbolic","preferences-system-battery-charged-symbolic","preferences-system-phone-symbolic","preferences-system-privacy-symbolic","preferences-system-time-symbolic","preferences-system-updates-symbolic","rssreader-app-symbolic","skype-symbolic","songkick-symbolic","soundcloud-symbolic","spotify-symbolic","system-settings-symbolic","system-users-symbolic","telegram-symbolic","terminal-app-symbolic","twc-symbolic","twitter-symbolic","ubuntu-logo-symbolic","ubuntu-sdk-symbolic","ubuntu-store-symbolic","ubuntuone-symbolic","vimeo-symbolic","weather-app-symbolic","webbrowser-app-symbolic","wechat-symbolic","wikipedia-symbolic","youtube-symbolic","audio-carkit-symbolic","audio-headphones-symbolic","audio-headset-symbolic","audio-input-microphone-muted-symbolic","audio-input-microphone-symbolic","audio-speakers-bluetooth-symbolic","audio-speakers-muted-symbolic","audio-speakers-symbolic","camera-photo-symbolic","camera-web-symbolic","computer-laptop-symbolic","computer-symbolic","drive-harddisk-symbolic","drive-optical-symbolic","drive-removable-symbolic","input-dialpad-hidden-symbolic","input-dialpad-symbolic","input-gaming-symbolic","input-keyboard-symbolic","input-mouse-symbolic","input-tablet-symbolic","input-touchpad-symbolic","media-flash-symbolic","media-optical-symbolic","media-removable-symbolic","multimedia-player-symbolic","network-printer-symbolic","network-wifi-symbolic","network-wired-symbolic","phone-apple-iphone-symbolic","phone-cellular-symbolic","phone-smartphone-symbolic","phone-symbolic","phone-uncategorized-symbolic","printer-symbolic","sdcard-symbolic","simcard","smartwatch-symbolic","tablet-symbolic","video-display-symbolic","wireless-display-symbolic","application-pdf-symbolic","application-x-archive-symbolic","audio-x-generic-symbolic","empty-symbolic","image-x-generic-symbolic","package-x-generic-symbolic","text-css-symbolic","text-html-symbolic","text-x-generic-symbolic","text-xml-symbolic","video-x-generic-symbolic","x-office-document-symbolic","x-office-presentation-symbolic","x-office-spreadsheet-symbolic","distributor-logo","folder-symbolic","network-server-symbolic","airplane-mode","airplane-mode-disabled","alarm","alarm-missed","audio-input-microphone-high","audio-input-microphone-high-symbolic","audio-input-microphone-low-symbolic","audio-input-microphone-low-zero","audio-input-microphone-low-zero-panel","audio-input-microphone-medium-symbolic","audio-input-microphone-muted-symbolic","audio-output-none","audio-output-none-panel","audio-volume-high","audio-volume-high-panel","audio-volume-low","audio-volume-low-panel","audio-volume-low-zero","audio-volume-low-zero-panel","audio-volume-medium","audio-volume-medium-panel","audio-volume-muted","audio-volume-muted-blocking-panel","audio-volume-muted-panel","battery-000","battery-000-charging","battery-010","battery-010-charging","battery-020","battery-020-charging","battery-030","battery-030-charging","battery-040","battery-040-charging","battery-050","battery-050-charging","battery-060","battery-060-charging","battery-070","battery-070-charging","battery-080","battery-080-charging","battery-090","battery-090-charging","battery-100","battery-100-charging","battery-caution","battery-caution-charging-symbolic","battery-caution-symbolic","battery-charged","battery-empty-charging-symbolic","battery-empty-symbolic","battery-full-charged-symbolic","battery-full-charging-symbolic","battery-full-symbolic","battery-good-charging-symbolic","battery-good-symbolic","battery-low-charging-symbolic","battery-low-symbolic","battery-missing-symbolic","battery_charged","battery_empty","battery_full","bluetooth-active","bluetooth-disabled","bluetooth-paired","dialog-error-symbolic","dialog-question-symbolic","dialog-warning-symbolic","display-brightness-max","display-brightness-min","display-brightness-symbolic","gpm-battery-000","gpm-battery-000-charging","gpm-battery-010","gpm-battery-010-charging","gpm-battery-020","gpm-battery-020-charging","gpm-battery-030","gpm-battery-030-charging","gpm-battery-040","gpm-battery-040-charging","gpm-battery-050","gpm-battery-050-charging","gpm-battery-060","gpm-battery-060-charging","gpm-battery-070","gpm-battery-070-charging","gpm-battery-080","gpm-battery-080-charging","gpm-battery-090","gpm-battery-090-charging","gpm-battery-100","gpm-battery-100-charging","gpm-battery-charged","gpm-battery-empty","gpm-battery-missing","gps","gps-disabled","gsm-3g-disabled","gsm-3g-full","gsm-3g-full-secure","gsm-3g-high","gsm-3g-high-secure","gsm-3g-low","gsm-3g-low-secure","gsm-3g-medium","gsm-3g-medium-secure","gsm-3g-no-service","gsm-3g-none","gsm-3g-none-secure","hotspot-active","hotspot-connected","hotspot-disabled","indicator-messages","indicator-messages-new","location-active","location-disabled","location-idle","messages","messages-new","microphone-sensitivity-high","microphone-sensitivity-high-symbolic","microphone-sensitivity-low","microphone-sensitivity-low-symbolic","microphone-sensitivity-low-zero","microphone-sensitivity-medium","microphone-sensitivity-medium-symbolic","microphone-sensitivity-muted-symbolic","multimedia-volume-high","multimedia-volume-low","network-cellular-3g","network-cellular-4g","network-cellular-edge","network-cellular-hspa","network-cellular-hspa-plus","network-cellular-lte","network-cellular-none","network-cellular-pre-edge","network-cellular-roaming","network-secure","network-vpn","network-vpn-connected","network-vpn-connecting","network-vpn-disabled","network-vpn-error","network-wired","network-wired-active","network-wired-connected","network-wired-connecting","network-wired-disabled","network-wired-error","network-wired-offline","nm-adhoc","nm-no-connection","nm-signal-00","nm-signal-00-secure","nm-signal-100","nm-signal-100-secure","nm-signal-25","nm-signal-25-secure","nm-signal-50","nm-signal-50-secure","nm-signal-75","nm-signal-75-secure","no-simcard","orientation-lock","orientation-lock-disabled","printer-error-symbolic","ringtone-volume-high","ringtone-volume-low","simcard-1","simcard-2","simcard-error","simcard-locked","stock_volume-max","stock_volume-min","sync-error","sync-idle","sync-offline","sync-paused","sync-updating","system-devices-panel","system-devices-panel-alert","system-devices-panel-information","transfer-error","transfer-none","transfer-paused","transfer-progress","transfer-progress-download","transfer-progress-upload","volume-max","volume-min","weather-chance-of-rain","weather-chance-of-snow","weather-chance-of-storm","weather-chance-of-wind","weather-clear-night-symbolic","weather-clear-symbolic","weather-clouds-night-symbolic","weather-clouds-symbolic","weather-few-clouds-night-symbolic","weather-few-clouds-symbolic","weather-flurries-symbolic","weather-fog-symbolic","weather-hazy-symbolic","weather-overcast-symbolic","weather-severe-alert-symbolic","weather-showers-scattered-symbolic","weather-showers-symbolic","weather-sleet-symbolic","weather-snow-symbolic","weather-storm-symbolic","wifi-connecting","wifi-full","wifi-full-secure","wifi-high","wifi-high-secure","wifi-low","wifi-low-secure","wifi-medium","wifi-medium-secure","wifi-no-connection","wifi-none","wifi-none-secure","Toolkit","toolkit_arrow-down","toolkit_arrow-left","toolkit_arrow-right","toolkit_arrow-up","toolkit_bottom-edge-hint","toolkit_chevron-down_1gu","toolkit_chevron-down_2gu","toolkit_chevron-down_3gu","toolkit_chevron-down_4gu","toolkit_chevron-ltr_1gu","toolkit_chevron-ltr_2gu","toolkit_chevron-ltr_3gu","toolkit_chevron-ltr_4gu","toolkit_chevron-rtl_1gu","toolkit_chevron-rtl_2gu","toolkit_chevron-rtl_3gu","toolkit_chevron-rtl_4gu","toolkit_chevron-up_1gu","toolkit_chevron-up_2gu","toolkit_chevron-up_3gu","toolkit_chevron-up_4gu","toolkit_cross","toolkit_input-clear","toolkit_input-search","toolkit_scrollbar-stepper","toolkit_tick"
+    ]
+    // ENH105 - End
 }

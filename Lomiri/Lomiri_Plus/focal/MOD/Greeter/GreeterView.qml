@@ -200,6 +200,7 @@ FocusScope {
         owAlternateWallpaper: root.alternateOW
         owDLCWallpaper: root.dlcOW
         Loader {
+            id: loadingCircleLoader
             active: lockscreen.owWallpaper && lockscreen.owAlternateWallpaper && lockscreen.shown && !coverPage.shown
             asynchronous: true
             anchors {
@@ -212,6 +213,19 @@ FocusScope {
             width: height
             sourceComponent: Component {
                 Item {
+                    readonly property bool isPaused: rotationAnimation.paused
+                    function resume() {
+                        rotationAnimation.resume()
+                    }
+                    function pause() {
+                        rotationAnimation.pause()
+                        pauseTimer.restart()
+                    }
+                    Timer {
+                        id: pauseTimer
+                        interval: 800
+                        onTriggered: resume()
+                    }
                     Icon {
                         source: "../OuterWilds/graphics/loading_circle.svg"
                         width: units.gu(5)
@@ -233,6 +247,7 @@ FocusScope {
                             }
                         }
                         RotationAnimation {
+                            id: rotationAnimation
                             target: rotatingCircle
                             running: true
                             loops: Animation.Infinite
@@ -288,6 +303,17 @@ FocusScope {
             function setCurrentSession() {
                 currentSession = LightDMService.users.data(currentIndex, LightDMService.userRoles.SessionRole);
             }
+            // ENH032 - Infographics Outer Wilds
+            onPromptTextChanged: {
+                if (loadingCircleLoader.item) {
+                    if (loadingCircleLoader.item.isPaused) {
+                        loadingCircleLoader.item.resume()
+                    } else {
+                        loadingCircleLoader.item.pause()
+                    }
+                }
+            }
+            // ENH032 - End
         }
 
         DelayedLockscreen {

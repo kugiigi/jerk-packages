@@ -85,6 +85,12 @@ FocusScope {
     // ENH006 - Rounded app spread
     property alias highlightRadius: selectionHighlight.radius
     // ENH006 - End
+    // ENH179 - Hide window title bar when maximized
+    property bool transparentDecoration: false
+    // ENH179 - End
+    // ENH180 - Match window titlebar with app
+    property alias blurSource: decoration.blurSource
+    // ENH180 - End
 
     signal closeClicked()
     signal maximizeClicked()
@@ -182,6 +188,9 @@ FocusScope {
 //        onRequestedWidthChanged: oldRequestedWidth = requestedWidth
 //        onRequestedHeightChanged: oldRequestedHeight = requestedHeight
         focus: true
+        // ENH180 - Match window titlebar with app
+        z: shell.settings.enableTitlebarMatchAppTopColor ? decoration.z + 1 : 0
+        // ENH180 - End
 
         property real itemScale: 1
         property real minSize: Math.min(root.scaleToPreviewSize, Math.min(requestedHeight, Math.min(requestedWidth, Math.min(implicitHeight, implicitWidth))))
@@ -225,9 +234,24 @@ FocusScope {
         windowMoving: moveHandler.moving && !altDragHandler.dragging
         panelState: root.panelState
 
-        opacity: root.hasDecoration ? Math.min(1, root.showDecoration) : 0
-        Behavior on opacity { LomiriNumberAnimation { } }
-        visible: opacity > 0 // don't eat input when decoration is fully translucent
+        // ENH179 - Hide window title bar when maximized
+        // opacity: root.hasDecoration ? Math.min(1, root.showDecoration) : 0
+        // Behavior on opacity { LomiriNumberAnimation { } }
+        // visible: opacity > 0 // don't eat input when decoration is fully translucent
+        opacity: root.hasDecoration && !root.transparentDecoration ? Math.min(1, root.showDecoration) : 0        
+        Behavior on opacity {
+            // Disable to fix issue when dragging from maximized and breaking the drag
+            //  when transparentDecoration is true
+            enabled: !root.transparentDecoration
+            LomiriNumberAnimation { }
+        }
+        visible: opacity > 0 || root.transparentDecoration // don't eat input when decoration is fully translucent
+        // ENH179 - End
+        // ENH180 - Match window titlebar with app
+        // Improves performance when entering the Spread
+        blurSource: opacity === 1 ? applicationWindow : null
+        blurUpdates: opacity === 1
+        // ENH180 - End
 
         onPressed: root.decorationPressed();
         onPressedChanged: moveHandler.handlePressedChanged(pressed, pressedButtons, mouseX, mouseY)
@@ -283,6 +307,9 @@ FocusScope {
         property bool dragging: false
         cursorShape: undefined // don't interfere with the cursor shape set by the underlying MirSurfaceItem
         visible: enabled
+        // ENH180 - Match window titlebar with app
+        z: shell.settings.enableTitlebarMatchAppTopColor ? applicationWindow.z + 1 : 0
+        // ENH180 - End
         onPressed: {
             if (mouse.button == Qt.LeftButton && mouse.modifiers == Qt.AltModifier) {
                 root.decorationPressed(); // to raise it

@@ -18,6 +18,9 @@
 import QtQuick 2.12
 import QtGraphicalEffects 1.0
 import Lomiri.Components 1.3
+// ENH175 - Stop background blur updates when locked
+import Powerd 0.1
+// ENH175 - End
 
 Item {
     id: root
@@ -29,15 +32,26 @@ Item {
     readonly property int minRadius : Math.max(units.gu(4), 64)
     // ENH138 - Blur radius settings
     // readonly property int blurRadius : Math.min(minRadius, 128)
-    readonly property int blurRadius : shell.settings.enableCustomBlurRadius ? units.gu(shell.settings.customBlurRadius) : Math.min(minRadius, 128)
+    readonly property int defaultRadius: shell.settings.enableCustomBlurRadius ? units.gu(shell.settings.customBlurRadius) : Math.min(minRadius, 128)
+    property int blurRadius : defaultRadius
     // ENH138 - End
+    // ENH180 - Match window titlebar with app
+    property bool surfaceUpdates: true
+    // ENH180 - End
 
     ShaderEffectSource {
         id: shaderEffectSource
         sourceItem: root.sourceItem
         hideSource: root.occluding
         sourceRect: root.blurRect
-        live: false
+        // Phones and tablets are better off saving power
+        // ENH182 - Settings to set blur not live in windowed mode
+        // live: false
+        // ENH180 - Match window titlebar with app
+        //live: stage.mode === "windowed" && !shell.settings.useTimerForBackgroundBlurInWindowedMode
+        live: stage.mode === "windowed" && !shell.settings.useTimerForBackgroundBlurInWindowedMode && root.surfaceUpdates
+        // ENH180 - End
+        // ENH182 - End
         enabled: sourceItem != null
     }
 
@@ -53,7 +67,13 @@ Item {
 
     Timer {
         interval: 48
-        repeat: root.visible && (sourceItem != null)
+        // ENH175 - Stop background blur updates when locked
+        // repeat: root.visible && (sourceItem != null)
+        // ENH180 - Match window titlebar with app
+        //repeat: root.visible && (sourceItem != null) && !shaderEffectSource.live && Powerd.status === Powerd.On
+        repeat: root.visible && (sourceItem != null) && !shaderEffectSource.live && Powerd.status === Powerd.On && root.surfaceUpdates
+        // ENH180 - End
+        // ENH175 - End
         running: repeat
         onTriggered: shaderEffectSource.scheduleUpdate()
     }

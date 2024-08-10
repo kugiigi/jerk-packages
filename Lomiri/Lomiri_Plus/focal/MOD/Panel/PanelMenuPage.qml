@@ -167,7 +167,7 @@ PageStack {
 
                 z: page.header.z + 1
                 expandable: shell.height >= idealExpandableHeight && (shell.settings.enablePanelHeaderExpand || root.inverted)
-                defaultHeight: root.inverted ? root.topPanelMargin : 0
+                defaultHeight: root.topPanelMargin
                 maxHeight: idealMaxHeight
 
                 anchors {
@@ -206,16 +206,14 @@ PageStack {
                         opacity: labelHeader.height - labelHeader.defaultHeight < labelHeader.maxHeight * 0.2 ? 0
                                             : 1 - ((labelHeader.maxHeight - labelHeader.height) / ((labelHeader.maxHeight * 0.8) - labelHeader.defaultHeight))
                         visible: opacity > 0
-                        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
                     }
-
-                    ListItems.ThinDivider {
-                        anchors {
-                            bottom: parent.bottom
-                            left: parent.left
-                            right: parent.right
-                        }
-                    }
+                }
+            }
+            ListItems.ThinDivider {
+                anchors {
+                    bottom: panelFlickable.top
+                    left: parent.left
+                    right: parent.right
                 }
             }
             // ENH028 - End
@@ -234,7 +232,8 @@ PageStack {
                 pageHeader: labelHeader
                 clip: true
                 anchors {
-                    top: page.isSubmenu ? backLabel.bottom : labelHeader.bottom
+                    top: page.isSubmenu ? backLabel.bottom : parent.top
+                    topMargin: root.inverted ? labelHeader.height : labelHeader.height - root.topPanelMargin
                     left: parent.left
                     right: parent.right
                     bottom: parent.bottom
@@ -351,6 +350,26 @@ PageStack {
                                 }
                             }
                             // ENH115 - End
+                            // ENH152 - Touch visuals
+                            Menus.SwitchMenu {
+                                id: showTouchVisualsSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.settings.enableShowTouchVisualsToggleIndicator
+                                text: "Show touch visuals"
+                                iconSource: "image://theme/gestures"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: shell.settings.showTouchVisuals = checked
+
+                                Binding {
+                                    target: showTouchVisualsSwitch
+                                    property: "checked"
+                                    value: shell.settings.showTouchVisuals
+                                }
+                            }
+                            // ENH152 - End
                             // ENH116 - Standalone Dark mode toggle
                             Menus.SwitchMenu {
                                 id: autoDarkModeSwitch
