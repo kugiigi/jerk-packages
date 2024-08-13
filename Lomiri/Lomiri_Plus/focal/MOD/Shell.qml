@@ -301,16 +301,14 @@ StyledItem {
     // True when the user is logged in with no apps running
     readonly property bool atDesktop: topLevelSurfaceList && greeter && topLevelSurfaceList.count === 0 && !greeter.active
 
-    // ENH188 - Fix for Spread sometimes open in incomplete state
-    // What's the purpose of this anyway?
-    /*
     onAtDesktopChanged: {
-        if (atDesktop && stage) {
+        // ENH188 - Fix for Spread sometimes open in incomplete state
+        // if (atDesktop && stage) {
+        if (atDesktop && stage && !stage.workspaceEnabled) {
+        // ENH188 - End
             stage.closeSpread();
         }
     }
-    */
-    // ENH188 - End
 
     property real edgeSize: units.gu(settings.edgeDragWidth)
     // ENH061 - Add haptics
@@ -847,6 +845,7 @@ StyledItem {
         property alias useCustomWindowSnappingRectangleBorderColor: settingsObj.useCustomWindowSnappingRectangleBorderColor
         property alias customWindowSnappingRectangleBorderColor: settingsObj.customWindowSnappingRectangleBorderColor
         property alias replaceHorizontalVerticalSnappingWithBottomTop: settingsObj.replaceHorizontalVerticalSnappingWithBottomTop
+        property alias disableKeyboardShortcutsOverlay: settingsObj.disableKeyboardShortcutsOverlay
 
         // Privacy
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -910,6 +909,7 @@ StyledItem {
         property alias customLauncherOpacityBehavior: settingsObj.customLauncherOpacityBehavior
         property alias enableLauncherBottomMargin: settingsObj.enableLauncherBottomMargin
         property alias enableLauncherBlur: settingsObj.enableLauncherBlur
+        property alias hideLauncherWhenNarrow: settingsObj.hideLauncherWhenNarrow
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
@@ -1579,6 +1579,8 @@ StyledItem {
             1 - Dark Mode
             2 - Ambient Light
             */
+            property bool disableKeyboardShortcutsOverlay: false
+            property bool hideLauncherWhenNarrow: false
         }
     }
 
@@ -2767,8 +2769,19 @@ StyledItem {
     }
     Component {
         id: keyShortcutsPage
-        
+
         LPSettingsPage {
+            LPSettingsCheckBox {
+                id: disableKeyboardShortcutsOverlay
+                Layout.fillWidth: true
+                text: "Disable shortcuts overlay when long pressing Super"
+                onCheckedChanged: shell.settings.disableKeyboardShortcutsOverlay = checked
+                Binding {
+                    target: disableKeyboardShortcutsOverlay
+                    property: "checked"
+                    value: shell.settings.disableKeyboardShortcutsOverlay
+                }
+            }
             Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
@@ -4498,6 +4511,17 @@ StyledItem {
                             target: showLauncherAtDesktop
                             property: "checked"
                             value: shell.settings.showLauncherAtDesktop
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: hideLauncherWhenNarrow
+                        Layout.fillWidth: true
+                        text: "Hide Launcher when screen is narrow even if it's locked"
+                        onCheckedChanged: shell.settings.hideLauncherWhenNarrow = checked
+                        Binding {
+                            target: hideLauncherWhenNarrow
+                            property: "checked"
+                            value: shell.settings.hideLauncherWhenNarrow
                         }
                     }
                     LPSettingsCheckBox {
@@ -7528,7 +7552,7 @@ StyledItem {
             launcherLeftMargin: launcher.visibleWidth
             // ENH185 - Workspace spread UI fixes
             launcherLockedVisible: launcher.lockedVisible
-            topPanelHeight: panel.minimizedPanelHeight
+            topPanelHeight: panel.panelHeight
             // ENH185 - End
 
             property string usageScenario: shell.usageScenario === "phone" || greeter.hasLockedApp
@@ -7541,9 +7565,8 @@ StyledItem {
             //          : "windowed"
             mode: usageScenario == "phone" || usageScenario == "tablet" ? 
             // ENH046 - Lomiri Plus Settings
-                        //((shell.height > shell.width && shell.height / 2 >= units.gu(40)) || (shell.height <= shell.width && shell.width / 2 >= units.gu(40))) ?
-                        ((shell.height > shell.width && shell.height / 2 >= units.gu(40)) || (shell.height <= shell.width && shell.width / 2 >= units.gu(40)))
-                                && shell.settings.enableSideStage ?
+                        (Screen.width / 2 >= stage.sideStageWidth || Screen.height / 2 >= stage.sideStageWidth)
+                        && shell.settings.enableSideStage ?
             // ENH046 - End
                             "stagedWithSideStage" : "staged"
                     : "windowed"
@@ -8372,7 +8395,8 @@ StyledItem {
             // conditions
             readonly property bool lockAllowed: !collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
             // ENH146 - Hide launcher when narrow
-                                                        && stages.width >= units.gu(60)
+                                                        && ((shell.settings.hideLauncherWhenNarrow && stages.width >= units.gu(60))
+                                                                || !shell.settings.hideLauncherWhenNarrow)
             // ENH146 - End
 
             onShowDashHome: showHome()
@@ -8456,6 +8480,9 @@ StyledItem {
             objectName: "shortcutsOverlay"
             enabled: launcher.shortcutHintsShown && width < parent.width - (launcher.lockedVisible ? launcher.panelWidth : 0) - padding
                      && height < parent.height - padding - panel.panelHeight
+                    // ENH191 - Keyboard shortcuts overlay settings
+                    && !shell.settings.disableKeyboardShortcutsOverlay
+                    // ENH191 - End
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: launcher.lockedVisible ? launcher.panelWidth/2 : 0
             anchors.verticalCenterOffset: panel.panelHeight/2

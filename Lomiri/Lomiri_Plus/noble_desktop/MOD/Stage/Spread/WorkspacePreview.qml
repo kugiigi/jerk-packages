@@ -35,6 +35,7 @@ Item {
     // ENH185 - Workspace spread UI fixes
     // property int screenHeight
     property real screenHeight
+    property real launcherWidth
     // ENH185 - End
 
     property real previewScale: previewSpace.height / previewSpace.screenHeight
@@ -151,7 +152,7 @@ Item {
                         return previewSpace.width / 2
                     }
 
-                    return (model.window.position.x - screen.position.x) * previewScale
+                    return (model.window.position.x - screen.position.x - previewSpace.launcherWidth) * previewScale
                 }
                 y: {
                     if (isFullscreen || isMaximized || isMaximizedLeft || isMaximizedRight || isMaximizedTopLeft
@@ -188,7 +189,7 @@ Item {
 
                 // ENH185 - Workspace spread UI fixes
                 // property int decorationHeight: units.gu(3)
-                property int decorationHeight: isFullscreen ? 0 : units.gu(3)
+                property int decorationHeight: isFullscreen || isMaximized ? 0 : units.gu(3)
                 // ENH185 - End
 
                 WindowDecoration {
@@ -203,7 +204,7 @@ Item {
                     title: model.window && model.window.surface ? model.window.surface.name : ""
                     z: 3
                     // ENH180 - Match window titlebar with app
-                    visible: !delegateItem.isMainStage && !delegateItem.isSideStage && !delegateItem.isFullscreen
+                    visible: !delegateItem.isMainStage && !delegateItem.isSideStage && !delegateItem.isFullscreen && !delegateItem.isMaximized
                     blurSource: surfaceItem
                     blurUpdates: false
                     // ENH180 - End
