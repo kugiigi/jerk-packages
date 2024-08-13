@@ -139,6 +139,7 @@ Item {
 
             orientation: ListView.Horizontal
             // ENH185 - Workspace spread UI fixes
+            // spacing: units.gu(1)
             spacing: units.gu(2)
             // ENH185 - End
             leftMargin: itemWidth
@@ -149,14 +150,14 @@ Item {
             // property int screenHeight: screen.availableModes[screen.currentModeIndex].size.height
             // property int itemWidth: height * screenWidth / screenHeight
             // FIXME: screen orientation update event does not trigger properly so we rely on height getting changed when rotating hence updating the value as needed
-            readonly property bool screenIsLandscapeOrPrimary: screen.orientation == Qt.PrimaryOrientation
-                                                                    || screen.orientation == Qt.LandscapeOrientation
+            readonly property bool screenIsLandscape: screen.orientation == Qt.LandscapeOrientation
                                                                     || screen.orientation == Qt.InvertedLandscapeOrientation ? height > 0
                                                                                                                              : height < 0
-            readonly property real screenWidth: screenIsLandscapeOrPrimary ? screen.availableModes[screen.currentModeIndex].size.width
-                                                        : screen.availableModes[screen.currentModeIndex].size.height
-            readonly property real screenHeight: screenIsLandscapeOrPrimary ? screen.availableModes[screen.currentModeIndex].size.height
-                                                        : screen.availableModes[screen.currentModeIndex].size.width
+            readonly property var screenSize: screen.availableModes[screen.currentModeIndex].size
+            readonly property real screenWidth: screenIsLandscape ? screenSize.width >= screenSize.height ? screenSize.width : screenSize.height
+                                                                           : screenSize.width >= screenSize.height ? screenSize.height : screenSize.width
+            readonly property real screenHeight: screenIsLandscape ? screenSize.width >= screenSize.height ? screenSize.height : screenSize.width
+                                                                            : screenSize.width >= screenSize.height ? screenSize.width : screenSize.height
             readonly property real screenSpaceHeight: screenHeight - root.topPanelHeight
             readonly property real launcherWidth: root.launcherLockedVisible ? units.gu(settings.launcherWidth) : 0
             readonly property real screenSpaceWidth: screenWidth - launcherWidth
@@ -300,6 +301,7 @@ Item {
                     // ENH185 - Workspace spread UI fixes
                     // screenHeight: listView.screenHeight
                     screenHeight: listView.screenSpaceHeight
+                    launcherWidth: listView.launcherWidth
                     // ENH185 - End
                     containsDragLeft: listView.hoveredWorkspaceIndex == index && listView.hoveredHalf == "left"
                     containsDragRight: listView.hoveredWorkspaceIndex == index && listView.hoveredHalf == "right"
@@ -425,6 +427,7 @@ Item {
                     // ENH185 - Workspace spread UI fixes
                     // screenHeight: screen.availableModes[screen.currentModeIndex].size.height
                     screenHeight: listView.screenSpaceHeight
+                    launcherWidth: listView.launcherWidth
                     // ENH185 - End
                     visible: Drag.active
 

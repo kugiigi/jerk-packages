@@ -1218,6 +1218,28 @@ FocusScope {
                 }
                 // ENH178 - End
                 onFocusRequested: {
+                    // ENH162 - Automatically switch to workspace when app gets focused
+                    if (root.workspaceEnabled) {
+                        let _screensCount = screensAndWorkspaces.screensProxy.count
+                        _screenLoop:
+                        for (let i = 0; i < _screensCount; i++) {
+                            let _workspaces = screensAndWorkspaces.screensProxy.get(i).workspaces
+                            let _workspacesCount = _workspaces.count
+                            for (let h = 0; h < _workspacesCount; h++) {
+                                let _workspace = _workspaces.get(h)
+                                let _windows = _workspace.windowModel
+                                let _windowsCount = _windows.count
+                                for (let j = 0; j < _windowsCount; j++) {
+                                    let _app = _windows.applicationAt(j)
+                                    if (model.application.appId === _app.appId) {
+                                        _workspace.activate()
+                                        break _screenLoop
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // ENH162 - End
                     // Application emits focusRequested when it has no surface (i.e. their processes died).
                     // Find the topmost window for this application and activate it, after which the app
                     // will be requested to be running.
@@ -1229,25 +1251,6 @@ FocusScope {
                             return;
                         }
                     }
-                    // ENH162 - Automatically switch to workspace when app gets focused
-                    let _screensCount = screensAndWorkspaces.screensProxy.count
-                    for (let i = 0; i < _screensCount; i++) {
-                        let _workspaces = screensAndWorkspaces.screensProxy.get(i).workspaces
-                        let _workspacesCount = _workspaces.count
-                        for (let h = 0; h < _workspacesCount; h++) {
-                            let _workspace = _workspaces.get(h)
-                            let _windows = _workspace.windowModel
-                            let _windowsCount = _windows.count
-                            for (let j = 0; j < _windowsCount; j++) {
-                                let _app = _windows.applicationAt(j)
-                                if (model.application.appId === _app.appId) {
-                                    _workspace.activate()
-                                    return
-                                }
-                            }
-                        }
-                    }
-                    // ENH162 - End
 
                     console.warn("Application requested te be focused but no window for it. What should we do?");
                 }
@@ -3020,7 +3023,7 @@ FocusScope {
                             target: appDelegate
                             restoreEntryValues: false
                             // ENH156 - Advanced snapping keyboard shortcuts
-                            // requestedWidth: root.availableDesktopArea.width; requestedHeight: requestedHeight
+                            //requestedWidth: root.availableDesktopArea.width; requestedHeight: requestedHeight
                             requestedWidth: root.availableDesktopArea.width
                             requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : requestedHeight
                             // ENH156 - End
@@ -3047,7 +3050,7 @@ FocusScope {
                             target: appDelegate
                             restoreEntryValues: false
                             // ENH156 - Advanced snapping keyboard shortcuts
-                            // requestedWidth: requestedWidth; requestedHeight: root.availableDesktopArea.height
+                            //requestedWidth: requestedWidth; requestedHeight: root.availableDesktopArea.height
                             requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.width : requestedWidth;
                             requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : root.availableDesktopArea.height
                             // ENH156 - End
