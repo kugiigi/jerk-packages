@@ -7,8 +7,8 @@ import "." as Local
 Local.MariKitSwipeGestureHandler {
     id: horizontalSwipeHandle
 
-    readonly property real swipeProgress: usePhysicalUnit ? Math.min(1.0, Math.max(0.0, Math.abs(distance) / (thresholds[stage] * (Screen.pixelDensity * 25.4))))
-                                                    : Math.min(1.0, Math.max(0.0, Math.abs(distance) / (thresholds[stage] * parent.width)))
+    readonly property real swipeProgress: usePhysicalUnit ? Math.min(1.0, Math.max(0.0, Math.abs(distance) / (thresholds[physicalStageTrigger - 1] * (Screen.pixelDensity * 25.4))))
+                                                    : Math.min(1.0, Math.max(0.0, Math.abs(distance) / (thresholds[defaultStageTrigger - 1] * parent.width)))
     readonly property int physicalStageTrigger: 2
     readonly property int defaultStageTrigger: 4
 
@@ -16,6 +16,12 @@ Local.MariKitSwipeGestureHandler {
     property bool rightSwipeHoldEnabled: true
     property bool leftSwipeEnabled: true
     property bool rightSwipeEnabled: true
+
+    // Enable/disable triggering the signal and taking action to swipes
+    property bool leftSwipeActionEnabled: true
+    property bool rightSwipeActionEnabled: true
+
+    property bool delayHideOfActions: false
 
     property var leftAction
     property var rightAction
@@ -34,35 +40,61 @@ Local.MariKitSwipeGestureHandler {
             if (distance > 0 && rightSwipeEnabled) {
                 if (swipeHold) {
                     if (rightSwipeHoldEnabled) {
-                        leftAction.heldState = true
-                            hapticsPlay()
+                        if (leftAction) {
+                            leftAction.heldState = true
+                        }
+                        hapticsPlay()
                         rightSwipeHeld()
-                        internal.delayedHideActions()
+                        if (horizontalSwipeHandle.delayHideOfActions) {
+                            internal.delayedHideActions()
+                        } else {
+                            internal.hideActions()
+                        }
                     } else {
                         // Whem hold is disabled, only trigger after lifting swipe
                         internal.swipeHeld = false
                     }
-                } else {
+                } else if (rightSwipeActionEnabled) {
                     rightSwipe()
+                    if (horizontalSwipeHandle.delayHideOfActions) {
+                            internal.delayedHideActions()
+                        } else {
+                            internal.hideActions()
+                        }
+                } else {
                     internal.hideActions()
                 }
             }
             if (distance < 0 && leftSwipeEnabled) {
                 if (swipeHold) {
                     if (leftSwipeHoldEnabled) {
-                        rightAction.heldState = true
+                        if (rightAction) {
+                            rightAction.heldState = true
+                        }
                         hapticsPlay()
                         leftSwipeHeld()
-                        internal.delayedHideActions()
+                        if (horizontalSwipeHandle.delayHideOfActions) {
+                            internal.delayedHideActions()
+                        } else {
+                            internal.hideActions()
+                        }
                     } else {
                         // Whem hold is disabled, only trigger after lifting swipe
                         internal.swipeHeld = false
                     }
-                } else {
+                } else if (leftSwipeActionEnabled) {
                     leftSwipe()
+                    if (horizontalSwipeHandle.delayHideOfActions) {
+                        internal.delayedHideActions()
+                    } else {
+                        internal.hideActions()
+                    }
+                } else {
                     internal.hideActions()
                 }
             }
+        } else {
+            internal.hideActions()
         }
     }
 
@@ -79,19 +111,23 @@ Local.MariKitSwipeGestureHandler {
                  || (!usePhysicalUnit && stage >= defaultStageTrigger)
                ) {
                 if (distance > 0 && rightSwipeEnabled) {
-                    leftAction.show()
-                    if (!leftAction.visible) {
-                        hapticsPlay()
+                    if (leftAction) {
+                        leftAction.show()
+                        if (!leftAction.visible) {
+                            hapticsPlay()
+                        }
                     }
                 } else if (distance < 0 && leftSwipeEnabled) {
-                    rightAction.show()
-                    if (!rightAction.visible) {
-                        hapticsPlay()
+                    if (rightAction) {
+                        rightAction.show()
+                        if (!rightAction.visible) {
+                            hapticsPlay()
+                        }
                     }
                 }
             } else {
                 internal.hideActions()
-                if (leftAction.opacity > 0 || rightAction.opacity > 0) {
+                if ((leftAction && leftAction.opacity > 0) || (rightAction && rightAction.opacity > 0)) {
                     hapticsPlaySubtle()
                 }
             }
@@ -111,57 +147,35 @@ Local.MariKitSwipeGestureHandler {
         }
     }
 
-    Timer {
-        id: delayTimer
-        interval: 400
-        running: false
-        onTriggered: {
-            internal.hideActions()
-        }
-    }
 
     QtObject {
         id: internal
         property bool swipeHeld: false // Use to cancel normal left and right swipe
 
         function hideActions() {
-            horizontalSwipeHandle.leftAction.hide()
-            horizontalSwipeHandle.rightAction.hide()
+            if (horizontalSwipeHandle.leftAction) {
+                horizontalSwipeHandle.leftAction.hide()
+            }
+            if (horizontalSwipeHandle.rightAction) {
+                horizontalSwipeHandle.rightAction.hide()
+            }
         }
 
         function delayedHideActions() {
-            delayTimer.restart()
+            if (horizontalSwipeHandle.leftAction && horizontalSwipeHandle.leftAction.visible) {
+                horizontalSwipeHandle.leftAction.delayedHide()
+            }
+            if (horizontalSwipeHandle.rightAction && horizontalSwipeHandle.rightAction.visible) {
+                horizontalSwipeHandle.rightAction.delayedHide()
+            }
         }
     }
     
     function hapticsPlay() {
-        normalHaptics.start()
+        Haptics.play()
     }
 
     function hapticsPlaySubtle() {
-        subtleHaptics.start()
+        Haptics.play({duration: 3})
     }
-
-    HapticsEffect {
-        id: normalHaptics
-
-        attackIntensity: 0.0
-        attackTime: 50
-        intensity: 1.0
-        duration: 10
-        fadeTime: 50
-        fadeIntensity: 0.0
-    }
-
-    HapticsEffect {
-        id: subtleHaptics
-
-        attackIntensity: 0.0
-        attackTime: 50
-        intensity: 1.0
-        duration: 3
-        fadeTime: 50
-        fadeIntensity: 0.0
-    }
-
 }

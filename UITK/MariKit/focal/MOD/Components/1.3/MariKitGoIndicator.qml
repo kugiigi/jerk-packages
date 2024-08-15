@@ -5,15 +5,18 @@ import Lomiri.Components 1.3
 Item {
     id: goIndicator
 
+     readonly property bool readyToTrigger: scale >= maxScale
     property real defaultWidth: units.gu(5)
     property real defaultScale: 1
-    property real maxScale: 2
+    property real maxScale: 1.5
+    property real pulseScale: 2
 
-    property alias iconName: iconItem.name
+    property string iconName
     property real swipeProgress
     property bool enabled: true
     property bool heldState: false
     property color defaultColor: theme.palette.normal.foreground
+    property color highlightedColor: theme.palette.highlighted.foreground
     property color iconColor: theme.palette.normal.foregroundText
     property color shadowColor: theme.palette.normal.foregroundText
     property color heldColor: theme.palette.normal.activity
@@ -35,8 +38,31 @@ Item {
         heldState = false
     }
 
+    function delayedHide() {
+        scale = pulseScale
+        delayedHideTimer.restart()
+    }
+    onVisibleChanged: {
+        // Update icon if it changed
+        if (!visible && iconItem.name !== iconName) {
+            iconItem.name = iconName
+        }
+    }
+    onIconNameChanged: {
+        if (!visible) {
+            // Delay changing of icon to after it's hidden
+            iconItem.name = iconName
+        }
+    }
+    Timer {
+        id: delayedHideTimer
+        running: false
+        interval: 400
+        onTriggered: goIndicator.hide()
+    }
+
     Behavior on scale {
-        LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration}
+        LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration}
     }
 
     Behavior on opacity {
@@ -45,31 +71,21 @@ Item {
         }
     }
 
-    /* Breaks Lomiri
-    DropShadow {
-
-        readonly property color shadowColor: goIndicator.shadowColor
-        
-        anchors.fill: source
-        cached: true
-        horizontalOffset: 3
-        verticalOffset: 3
-        radius: 8.0
-        samples: 16
-        color: Qt.hsla(shadowColor.hslHue, shadowColor.hslSaturation, shadowColor.hslLightness, 0.5)
-        source: bg
-    }
-    */
-
     Rectangle {
         id: bg
         
         anchors.fill: parent
         radius: width / 2
-        color: heldState ? heldColor : defaultColor
+        color: heldState ? heldColor : readyToTrigger ? highlightedColor : defaultColor
         border {
-            width: units.dp(1)
-            color: theme.palette.normal.base
+            width: units.dp(2)
+            color: goIndicator.readyToTrigger ? theme.palette.normal.activity : theme.palette.normal.base
+        }
+
+        Behavior on border.color {
+            ColorAnimation {
+                duration: LomiriAnimation.FastDuration
+            }
         }
 
         Behavior on color {
