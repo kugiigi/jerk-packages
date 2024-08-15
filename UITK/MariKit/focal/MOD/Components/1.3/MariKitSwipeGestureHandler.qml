@@ -25,6 +25,7 @@ SwipeArea {
                                                                     : thresholds.map(function(t) { return distance <= ((Screen.pixelDensity * 25.4) * t) }).indexOf(true)
                                                  : thresholds.map(function(t) { return dragFraction <= t }).indexOf(true)
     readonly property real stageValue: thresholds[stage] ? thresholds[stage] : -1 // In inch when usePhysicalUnit is true, otherwise, height percentage
+    readonly property real stagePixelValue: usePhysicalUnit ? Screen.pixelDensity * 25.4 * stageValue : dragFraction  // Value in actual pixel unit
     readonly property alias towardsDirection: internal.towardsDirection
 
     property bool usePhysicalUnit: false
@@ -33,6 +34,18 @@ SwipeArea {
     signal swipeHeld(int stage)
 
     immediateRecognition: true
+
+    function getStagePixelValue(stageNum) {
+        if (usePhysicalUnit) {
+            return Screen.pixelDensity * 25.4 * thresholds[stageNum]
+        } else {
+            if (internal.isVerticalDirection) {
+                return thresholds[stageNum] * parent.height
+            } else {
+                return thresholds[stageNum] * parent.width
+            }
+        }
+    }
 
     onDistanceChanged: {
         if (Math.abs(internal.prevDistance - distance) >= internal.distanceThreshold) {

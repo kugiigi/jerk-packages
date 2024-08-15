@@ -20,6 +20,7 @@ import "pageUtils.js" as Utils
 // ENH094 - Bottom gesture in UITK
 import Lomiri.Components.Popups 1.3
 import QtQuick.Layouts 1.12
+import Qt.labs.settings 1.0
 // ENH094 - End
 
 /*!
@@ -217,12 +218,72 @@ PageTreeNode {
         }
     }
     // ENH094 - Bottom gesture in UITK
+    Settings {
+        id: settingsItem
+        category: "marikit"
+        fileName: "/home/phablet/.config/lomiri-ui-toolkit/marikit.conf"
+        property bool showBottomGestureHint: false
+        property bool enableBottomSwipeGesture: true
+        property bool enableBackAnimation: false
+        property bool enableDelayedBackAnimation: false
+    }
+    
+    Rectangle {
+        visible: opacity > 0
+        opacity: (page.leftActionIsBackAction && bottomBackForwardHandle.swipeProgress > 0.8) ? bottomBackForwardHandle.swipeProgress * 0.6
+                                : page.backWasTriggered ? 0.6 : 0
+        color: "black"
+        anchors.fill: parent
+        z: Number.MAX_VALUE
+        Behavior on opacity { LomiriNumberAnimation {} }
+    }
+
+    Rectangle {
+        visible: page.leftActionIsBackAction
+        color: theme.palette.normal.base
+        width: pageTranslate.x
+        anchors {
+            right: parent.left
+            top: parent.top
+            bottom: parent.bottom
+        }
+    }
+
+    transform: Translate {
+        id: pageTranslate
+        x: {
+            if (!page.leftActionIsBackAction)
+                return page.backWasTriggered ? page.width : 0
+
+            if (bottomBackForwardHandle.swipeProgress < 1)
+                return bottomBackForwardHandle.distance
+
+            return bottomBackForwardHandle.getStagePixelValue(bottomBackForwardHandle.physicalStageTrigger - 1)
+        }
+        Behavior on x {
+            LomiriNumberAnimation {
+                duration: bottomBackForwardHandle.dragging ? LomiriAnimation.SnapDuration : page.animationDuration
+            }
+        }
+    }
+
     readonly property real headerTrailingActionWidth: page.header ? page.header.trailingActionBar.children[0].children[1].children[0].width : units.gu(4)
     readonly property real headerLeadingActionWidth: page.header ? page.header.leadingActionBar.children[0].children[1].children[0].width : units.gu(4)
+    readonly property bool leftActionIsBackAction: settingsItem.enableBackAnimation
+                                                        && bottomBackForwardHandle.dragging
+                                                        && bottomBackForwardHandle.distance >= 0
+                                                        && goBackIcon.enabled
+                                                        && (leadingActionVisible.objectName == "pagestack_back_action"
+                                                            || leadingActionVisible.iconName === "back"
+                                                            || leadingActionVisible.iconName === "go-previous"
+                                                            || leadingActionVisible.iconName === "previous"
+                                                            )
     property int leadingActionsVisibleCount: 0
     property int trailingActionsVisibleCount: 0
     property var leadingActionVisible
     property var trailingActionVisible
+    property bool backWasTriggered: false
+    property int animationDuration: LomiriAnimation.BriskDuration
 
     MariKitGoIndicator {
         id: goForwardIcon
@@ -247,7 +308,7 @@ PageTreeNode {
         swipeProgress: bottomBackForwardHandle.swipeProgress
         anchors {
             left: parent.left
-            leftMargin: units.gu(3)
+            leftMargin: page.leftActionIsBackAction ? -pageTranslate.x + units.gu(3) : units.gu(3)
             verticalCenter: parent.verticalCenter
         }
     }
@@ -262,11 +323,23 @@ PageTreeNode {
             bottom: parent.bottom
             horizontalCenter: parent.horizontalCenter
         }
+
+        onVisibleChanged: if (visible) page.backWasTriggered = false
+
+        states: [
+            State {
+                when: page.leftActionIsBackAction
+                PropertyChanges {
+                    target: page
+                    clip: false
+                }
+            }
+        ]
+
         Rectangle {
             id: recVisual
 
-            // visible: bottomBackForwardHandle.enabled
-            visible: false
+            visible: settingsItem.showBottomGestureHint && bottomBackForwardHandle.enabled
             color: theme.palette.normal.base
             radius: height / 2
             height: units.gu(0.5)
@@ -280,7 +353,11 @@ PageTreeNode {
         MariKitHorizontalSwipeHandle {
             id: bottomBackForwardHandle
 
-            enabled: page.header
+            readonly property Timer delayLeadingTriggerTimer: Timer {
+                interval: page.animationDuration
+                onTriggered: leadingActionVisible.trigger()
+            }
+            enabled: page.header && settingsItem.enableBottomSwipeGesture
             // Sometimes header is hidden but should still work
             // && ((page.header.leadingActionBar && page.header.leadingActionBar.visible)
             //                                 || (page.header.trailingActionBar && page.header.trailingActionBar.visible))
@@ -301,7 +378,12 @@ PageTreeNode {
 
             onRightSwipe: {
                 if (page.leadingActionsVisibleCount == 1) {
-                    leadingActionVisible.trigger()
+                    if (page.leftActionIsBackAction && settingsItem.enableDelayedBackAnimation) {
+                        page.backWasTriggered = true
+                        delayLeadingTriggerTimer.restart()
+                    } else {
+                        leadingActionVisible.trigger()
+                    }
                 } else if (page.leadingActionsVisibleCount > 1) {
                     PopupUtils.open(leftActionsPopoverComponent, leftPopoverPlaceHolder)
                 }
