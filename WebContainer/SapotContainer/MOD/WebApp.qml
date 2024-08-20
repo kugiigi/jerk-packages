@@ -104,6 +104,31 @@ Common.BrowserView {
     readonly property real findBarHeight: findLoader.height
     property real findInPageMargin: keyboardRec.height
     property alias osk: keyboardRec
+    property string searchUrl: {
+        let _searchEngine = searchEngines[webapp.settings.defaultSearchEngine]
+        if (_searchEngine) {
+            return _searchEngine.url
+        }
+
+        return searchEngines[0].url
+    }
+    property string searchPageUrl: {
+        let _searchEngine = searchEngines[webapp.settings.defaultSearchEngine]
+        if (_searchEngine) {
+            return _searchEngine.home
+        }
+
+        return searchEngines[0].home
+    }
+    readonly property var searchEngines: [
+        { "name" : "DuckDuckGo", "url": "https://duckduckgo.com/?q={searchTerms}", "home": "https://duckduckgo.com" } 
+        , { "name" : "Baidu", "url": "https://www.baidu.com/s?ie=utf-8&amp;f=8&amp;rsv_bp=0&amp;wd={searchTerms}", "home": "https://www.baidu.com" }
+        , { "name" : "Bing", "url": "https://www.bing.com/search?q={searchTerms}", "home": "https://www.bing.com" }
+        , { "name" : "Brave", "url": "https://search.brave.com/search?q={searchTerms}", "home": "https://search.brave.com" }
+        , { "name" : "Google", "url": "https://google.com/search?client=ubuntu&amp;q={searchTerms}&amp;ie=utf-8&amp;oe=utf-8", "home": "https://google.com" }
+        , { "name" : "StartPage", "url": "https://www.startpage.com/do/dsearch?query={searchTerms}&amp;language=auto", "home": "https://www.startpage.com" }
+        , { "name" : "Yahoo", "url": "https://search.yahoo.com/yhs/search?ei=UTF-8&amp;p={searchTerms}", "home": "https://search.yahoo.com" }
+    ]
 
     signal chooseAccount()
 
@@ -361,6 +386,10 @@ Common.BrowserView {
         }
     }
 
+    function openSearchInOverlay() {
+        containerWebView.openOverlayForUrl(webapp.searchPageUrl, true)
+    }
+
     onFindInPageModeChanged: {
         if (findInPageMode) {
             if (!findLoader.active) {
@@ -538,7 +567,6 @@ Common.BrowserView {
             webview: webapp.currentWebview
             navigationButtonsVisible: webapp.backForwardButtonsVisible
             accountSwitcher: webapp.accountSwitcher
-            searchUrl: "https://duckduckgo.com/?q={searchTerms}"
 
             anchors {
                 left: parent.left

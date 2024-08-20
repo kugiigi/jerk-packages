@@ -46,6 +46,8 @@ WebView {
     // Current selection menu
     property var selectionMenuObj
 
+    property var contentHandlerLoaderObj
+
     // better way to detect that, or move context menu items only available for the browser to other files ?
     readonly property bool isWebApp: (typeof browserTab === 'undefined')
 
@@ -55,6 +57,9 @@ WebView {
     readonly property alias findController: findController
     readonly property alias zoomController: zoomMenu.controller
     readonly property alias resetZoomShortCutText: zoomMenu.resetZoomShortCutText
+
+    signal shareLinkRequested(url linkUrl, string title)
+    signal shareTextRequested(string text)
 
     enableSelectOverride: true //let Morph.Web handle the dropdowns overlay
 
@@ -317,6 +322,9 @@ WebView {
         if (request.linkUrl.toString() || request.mediaType)
         {
             contextMenuObj = contextMenuComponent.createObject(webview)
+
+            // Not sure why binding doesn't work properly so we set it here
+            contextMenuObj.showAsCenteredModal = !webview.wide
             if (webview.wide) {
                 contextMenuObj.popup(request.x + units.gu(2), request.y)
             } else {
@@ -341,6 +349,9 @@ WebView {
                 showSelectionMenu()
             } else {
                 contextMenuObj = generalContextMenuComponent.createObject(webview)
+
+                // Not sure why binding doesn't work properly so we set it here
+                contextMenuObj.showAsCenteredModal = !webview.wide
                 if (webview.wide) {
                     contextMenuObj.popup(request.x + units.gu(2), request.y)
                 } else {
@@ -455,6 +466,13 @@ WebView {
                 enabled: !incognito && contextMenu.linkUrl
                 onTriggered: webview.triggerWebAction(WebEngineView.OpenLinkInNewWindow)
             }
+            CustomizedMenuItem {
+                id: openExternallyMenuItem
+                objectName: "OpenLinkExternallyContextualAction"
+                text: i18n.tr("Open link externally")
+                enabled: isWebApp && contextMenu.linkUrl
+                onTriggered: Qt.openUrlExternally(contextMenuRequest.linkUrl)
+            }
             /*
             BrowserApp.OpenToWindowMenu {
                 id: openToWindowMenu
@@ -549,11 +567,16 @@ WebView {
                         objectName: "ShareContextualAction"
                         text: i18n.tr("Share link")
                         icon.name: "share"
-                        enabled: !isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready &&
-                                            contextMenu.linkUrl
+                        enabled: ((!isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready)
+                                    || (isWebApp && webview.contentHandlerLoaderObj && webview.contentHandlerLoaderObj.status === Loader.Ready))
+                                && contextMenu.linkUrl
                         closeMenuOnTrigger: true
                         onTriggered: {
-                            browser.shareLinkRequested(contextMenu.linkUrl, contextMenuRequest.linkText);
+                            if (isWebApp) {
+                                webview.shareLinkRequested(contextMenu.linkUrl, contextMenuRequest.linkText);
+                            } else {
+                                browser.shareLinkRequested(contextMenu.linkUrl, contextMenuRequest.linkText);
+                            }
                         }
                     }
                 ]
@@ -653,7 +676,7 @@ WebView {
     
     function searchForText(searchText) {
         var query = searchText.trim()
-        var requestedUrl = TextUtils.buildSearchUrl(query, chrome.searchUrl)
+        var requestedUrl = TextUtils.buildSearchUrl(query, webapp.searchUrl)
         console.log("requestedUrl: " + requestedUrl)
         if (isWebApp) {
             webapp.currentWebview.openUrlExternally(requestedUrl, false)
@@ -748,11 +771,16 @@ WebView {
                     , RowMenuAction {
                         text: i18n.dtr('lomiri-ui-toolkit', "Share")
                         icon.name: "share"
-                        enabled: !isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready
+                        enabled: ((!isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready)
+                                    || (isWebApp && webview.contentHandlerLoaderObj && webview.contentHandlerLoaderObj.status === Loader.Ready))
                                         && ((contextMenuRequest.editFlags & ContextMenuRequest.CanCopy) || editableMenu.tempCopyEnabled)
                         closeMenuOnTrigger: true
                         onTriggered: {
-                            webview.runJavaScript("window.getSelection().toString()", function(result) { browser.shareTextRequested(result) })
+                            if (isWebApp) {
+                                webview.runJavaScript("window.getSelection().toString()", function(result) { webview.shareTextRequested(result) })
+                            } else {
+                                webview.runJavaScript("window.getSelection().toString()", function(result) { browser.shareTextRequested(result) })
+                            }
                         }
                     }
                     , RowMenuAction {
@@ -835,7 +863,7 @@ WebView {
                         }
                     }
                     , RowMenuAction {
-                        readonly property bool isAlreadyAdded: isWebApp && webapp.findFromArray(webapp.settings.customURLActions, "url", webview.url)
+                        readonly property bool isAlreadyAdded: isWebApp && webapp.findFromArray(webapp.settings.customURLActions, "url", webview.url) !== undefined
 
                         text: i18n.tr("Add Current as Custom Action")
                         enabled: isWebApp && webview.url.toString() && !isAlreadyAdded ? true : false
@@ -877,11 +905,16 @@ WebView {
                     , RowMenuAction {
                         text: i18n.tr("Share current tab's link")
                         icon.name: "share"
-                        enabled: !isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready &&
-                                            webview.url.toString()
+                        enabled: ((!isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready)
+                                    || (isWebApp && webview.contentHandlerLoaderObj && webview.contentHandlerLoaderObj.status === Loader.Ready))
+                                && webview.url.toString()
                         closeMenuOnTrigger: true
                         onTriggered: {
-                            browser.shareLinkRequested(webview.url, webview.title);
+                            if (isWebApp) {
+                                webview.shareLinkRequested(webview.url, webview.title);
+                            } else {
+                                browser.shareLinkRequested(webview.url, webview.title);
+                            }
                         }
                     }
                     , RowMenuAction {
@@ -1006,11 +1039,16 @@ WebView {
                     , RowMenuAction {
                         text: i18n.dtr('lomiri-ui-toolkit', "Share")
                         icon.name: "share"
-                        enabled: !isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready
+                        enabled: ((!isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready)
+                                    || (isWebApp && webview.contentHandlerLoaderObj && webview.contentHandlerLoaderObj.status === Loader.Ready))
                                         && contextMenuController.selectedTextLength > 0
                         closeMenuOnTrigger: true
                         onTriggered: {
-                            webview.runJavaScript("window.getSelection().toString()", function(result) { browser.shareTextRequested(result) })
+                            if (isWebApp) {
+                                webview.runJavaScript("window.getSelection().toString()", function(result) { webview.shareTextRequested(result) })
+                            } else {
+                                webview.runJavaScript("window.getSelection().toString()", function(result) { browser.shareTextRequested(result) })
+                            }
                         }
                     }
                     , RowMenuAction {

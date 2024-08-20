@@ -85,6 +85,118 @@ FocusScope {
                 }
 
                 ListItem {
+                    objectName: "autoDeskMobSwitch"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Auto switch requested site")
+                        subtitle.text: i18n.tr("Automatically switch between Desktop and Mobile version of sites based on web view's width")
+                        CheckBox {
+                            id: autoDeskMobSwitch
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.autoDeskMobSwitch = checked
+                        }
+                    }
+
+                    Binding {
+                        target: autoDeskMobSwitch
+                        property: "checked"
+                        value: settingsObject.autoDeskMobSwitch
+                    }
+                }
+
+                ListItem {
+                    objectName: "autoDeskMobSwitchReload"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Reload when site version changed")
+                        subtitle.text: i18n.tr("Automatically reload page when the requested site version was changed")
+                        CheckBox {
+                            id: autoDeskMobSwitchReload
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.autoDeskMobSwitchReload = checked
+                        }
+                    }
+
+                    Binding {
+                        target: autoDeskMobSwitchReload
+                        property: "checked"
+                        value: settingsObject.autoDeskMobSwitchReload
+                    }
+                }
+
+                ListItem {
+                    objectName: "setDesktopMode"
+                    visible: webapp.currentWebview && webapp.currentWebview.context.__ua.calcScreenSize() == "small"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Force desktop site")
+                        subtitle.text: i18n.tr("Request desktop version of sites as default")
+
+                        CheckBox {
+                            id: setDesktopMode
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.setDesktopMode = checked
+                        }
+                    }
+
+                    Binding {
+                        target: setDesktopMode
+                        property: "checked"
+                        value: settingsObject.setDesktopMode
+                    }
+                }
+
+                ListItem {
+                    objectName: "forceMobileSite"
+                    visible: webapp.currentWebview && webapp.currentWebview.context.__ua.calcScreenSize() !== "small"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Force mobile site")
+                        subtitle.text: i18n.tr("Request mobile version of sites as default")
+                        CheckBox {
+                            id: forceMobileSite
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.forceMobileSite = checked
+                        }
+                    }
+
+                    Binding {
+                        target: forceMobileSite
+                        property: "checked"
+                        value: settingsObject.forceMobileSite
+                    }
+                }
+
+                Sapot.ComboBoxItem {
+                    id: defaultSearchEngine
+
+                    property int settingIndex: -1
+
+                    anchors {
+                        left: parent.left
+                        leftMargin: units.gu(2)
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                    }
+
+                    height: units.gu(7)
+                    text: i18n.tr("Search engine")
+                    model: webapp.searchEngines
+                    currentIndex: settingIndex
+                    textRole: "name"
+
+                    onCurrentIndexChanged: {
+                        settingsObject.defaultSearchEngine = currentIndex
+                    }
+
+                    Binding {
+                        target: defaultSearchEngine
+                        property: "settingIndex"
+                        value: settingsObject.defaultSearchEngine
+                    }
+                }
+
+                ListItem {
                     objectName: "incognitoOverlay"
 
                     ListItemLayout {

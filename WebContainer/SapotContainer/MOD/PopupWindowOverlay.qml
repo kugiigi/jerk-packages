@@ -68,70 +68,6 @@ FocusScope {
         anchors.fill: parent
     }
 
-    Chrome {
-        id: menubar
-
-        isPopupOverlay: true
-        height: units.gu(6)
-        width: parent.width
-        scrollTracker: popupWebview.scrollTracker
-        webview: popup.currentWebview
-        navigationButtonsVisible: webapp.backForwardButtonsVisible
-        accountSwitcher: webapp.accountSwitcher
-        availableHeight: popup.height
-        wide: webapp.wide
-
-        anchors {
-            top: parent.top
-            horizontalCenter: parent.horizontalCenter
-        }
-
-        onCloseOverlay: {
-            if (popupWindowController) {
-                popupWindowController.handleViewRemoved(popup)
-            }
-        }
-
-        onOpenLinkExternally: {
-            if (popupWindowController) {
-                popupWindowController.handleOpenInUrlBrowserForView(
-                            popupWebview.url, popup)
-            }
-        }
-
-        SwipeArea {
-            anchors.fill: parent
-            direction: SwipeArea.Downwards
-            
-            property int initMouseY: 0
-            property int prevMouseY: 0
-
-            onDistanceChanged: {
-                if (dragging) {
-                    if (popupWindowController) {
-                        popup.y = distance
-                    }
-                }
-            }
-
-            onDraggingChanged: {
-                 if (!dragging) {
-                     popupWindowController.isDragging = false
-                    if (distance > (popup.height / 8) ||
-                            popup.y > popup.height/2) {
-                        if (popupWindowController) {
-                            popupWindowController.handleViewRemoved(popup)
-                            return
-                        }
-                    }
-                    popup.y = 0
-                } else {
-                    popupWindowController.isDragging = true
-                }
-            }
-        }
-    }
-
     Item {
         id: containerWebView
         anchors {
@@ -238,6 +174,70 @@ FocusScope {
                     webview: popupWebview
                 }
                 asynchronous: true
+            }
+        }
+    }
+
+    Chrome {
+        id: menubar
+
+        isPopupOverlay: true
+        height: units.gu(6)
+        width: parent.width
+        scrollTracker: popupWebview.scrollTracker
+        webview: popup.currentWebview
+        navigationButtonsVisible: webapp.backForwardButtonsVisible
+        accountSwitcher: webapp.accountSwitcher
+        availableHeight: popup.height
+        wide: webapp.wide
+
+        anchors {
+            top: parent.top
+            horizontalCenter: parent.horizontalCenter
+        }
+
+        onCloseOverlay: {
+            if (popupWindowController) {
+                popupWindowController.handleViewRemoved(popup)
+            }
+        }
+
+        onOpenLinkExternally: {
+            if (popupWindowController) {
+                popupWindowController.handleOpenInUrlBrowserForView(
+                            popupWebview.url, popup)
+            }
+        }
+
+        SwipeArea {
+            anchors.fill: parent
+            direction: SwipeArea.Downwards
+            
+            property int initMouseY: 0
+            property int prevMouseY: 0
+
+            onDistanceChanged: {
+                if (dragging) {
+                    if (popupWindowController) {
+                        popup.y = distance
+                    }
+                }
+            }
+
+            onDraggingChanged: {
+                 if (!dragging) {
+                     popupWindowController.isDragging = false
+                    if (distance > (popup.height / 8) ||
+                            popup.y > popup.height/2) {
+                        if (popupWindowController) {
+                            popupWindowController.handleViewRemoved(popup)
+                            return
+                        }
+                    }
+                    popup.y = 0
+                } else {
+                    popupWindowController.isDragging = true
+                }
             }
         }
     }

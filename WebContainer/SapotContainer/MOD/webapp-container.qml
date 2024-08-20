@@ -28,7 +28,7 @@ import "sapot" as Sapot
 import QtQuick.Window 2.2
 import QtQuick.Controls.Suru 2.2
 
-BrowserWindow {
+Sapot.BrowserWindow {
     id: root
     objectName: "webappContainer"
 
@@ -169,6 +169,10 @@ BrowserWindow {
         return ""
     }
 
+    Sapot.UserAgent02 {
+        id: customUserAgent02
+    }
+
     // Because of https://launchpad.net/bugs/1398046, it's important that this
     // is the first child
     Loader {
@@ -181,6 +185,10 @@ BrowserWindow {
         focus: true
 
         onLoaded: {
+            // Use our custom UserAgent02
+            SharedWebContext.sharedContext.__ua = customUserAgent02
+            SharedWebContext.sharedIncognitoContext.__ua = customUserAgent02
+
             var context = item.currentWebview.context;
             context.offTheRecord = false;
             context.storageName = "Default";
@@ -296,6 +304,11 @@ BrowserWindow {
         property string searchEngine: "duckduckgo"
         property var customURLActions: []
         property bool incognitoOverlay: true
+        property bool setDesktopMode: false
+        property bool forceMobileSite: false
+        property bool autoDeskMobSwitch: true
+        property bool autoDeskMobSwitchReload: true
+        property int defaultSearchEngine: 0
 
         Component.onCompleted: Sapot.Haptics.enabled = Qt.binding( function() { return enableHaptics } )
 
@@ -341,6 +354,11 @@ BrowserWindow {
             restoreDefault_searchEngine();
             customURLActions = [];
             incognitoOverlay = true;
+            setDesktopMode = false;
+            forceMobileSite = false;
+            autoDeskMobSwitch = true;
+            autoDeskMobSwitchReload = true;
+            defaultSearchEngine = 0;
         }
 
         function restoreDefault_searchEngine() {
@@ -355,6 +373,14 @@ BrowserWindow {
             DomainSettingsModel.deleteAndResetDataBase();
             // it is a common database with DomainSettingsModel, so it is only for reset here
             UserAgentsModel.deleteAndResetDataBase();
+        }
+
+        onSetDesktopModeChanged: if (root.currentWebview && autoDeskMobSwitchReload) root.currentWebview.reload();
+        onForceMobileSiteChanged: if (root.currentWebview && autoDeskMobSwitchReload) root.currentWebview.reload();
+        onAutoDeskMobSwitchChanged: {
+            if (autoDeskMobSwitchReload && root.currentWebview && root.currentWebview.context.__ua.calcScreenSize() == "large") {
+                root.currentWebview.reload();
+            }
         }
     }
 
