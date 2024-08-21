@@ -981,6 +981,7 @@ StyledItem {
         property alias directActionList: settingsObj.directActionList
         property alias directActionsSwipeAreaHeight: settingsObj.directActionsSwipeAreaHeight
         property alias directActionsMaxWidth: settingsObj.directActionsMaxWidth
+        property alias directActionsMaxWidthGU: settingsObj.directActionsMaxWidthGU
         property alias directActionsMaxColumn: settingsObj.directActionsMaxColumn
         property alias directActionsSideMargins: settingsObj.directActionsSideMargins
         property alias directActionsEnableHint: settingsObj.directActionsEnableHint
@@ -1581,6 +1582,7 @@ StyledItem {
             */
             property bool disableKeyboardShortcutsOverlay: false
             property bool hideLauncherWhenNarrow: false
+            property real directActionsMaxWidthGU: 40 // In GU
         }
     }
 
@@ -5520,7 +5522,7 @@ StyledItem {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 visible: shell.settings.enableDirectActions
-                title: "Max Width"
+                title: "Max Width (Via Swiping)"
                 minimumValue: 1
                 maximumValue: 5
                 stepSize: 0.1
@@ -5537,6 +5539,30 @@ StyledItem {
                     target: directActionsMaxWidth
                     property: "value"
                     value: shell.settings.directActionsMaxWidth
+                }
+            }
+            LPSettingsSlider {
+                id: directActionsMaxWidthGU
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDirectActions
+                title: "Max Width (Via shortcut)"
+                minimumValue: 20
+                maximumValue: 100
+                stepSize: 1
+                resetValue: 40
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "GU"
+                enableFineControls: true
+                onValueChanged: shell.settings.directActionsMaxWidthGU = value
+                Binding {
+                    target: directActionsMaxWidthGU
+                    property: "value"
+                    value: shell.settings.directActionsMaxWidthGU
                 }
             }
             LPSettingsSlider {
@@ -7735,9 +7761,10 @@ StyledItem {
             noSwipeCommit: shell.settings.directActionsNoSwipeCommit
             swipeAreaHeight: shell.convertFromInch(shell.settings.directActionsSwipeAreaHeight)
             swipeAreaWidth: shell.edgeSize
-            maximumWidth: shell.convertFromInch(shell.settings.directActionsMaxWidth)
+            maximumWidthPhysical: shell.convertFromInch(shell.settings.directActionsMaxWidth)
+            maximumWidth: units.gu(shell.settings.directActionsMaxWidthGU)
             sideMargins: shell.convertFromInch(shell.settings.directActionsSideMargins)
-            preferredActionItemWidth: shell.convertFromInch(0.35)
+            preferredActionItemWidthPhysical: shell.convertFromInch(0.35)
             thresholdWidthForCentered: shell.convertFromInch(4)
             maximumColumn: shell.settings.directActionsMaxColumn
             enableVisualHint: shell.settings.directActionsEnableHint

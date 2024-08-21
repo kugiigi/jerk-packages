@@ -273,7 +273,7 @@ Item {
                     target: bgRec
                     anchors.centerIn: undefined
                     anchors.fill: appIconLoader
-                    opacity: 0.7
+                    opacity: 0.5
                     radius: units.gu(1.45)
                 }
             }
