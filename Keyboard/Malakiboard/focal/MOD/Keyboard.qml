@@ -183,6 +183,8 @@ Item {
         property alias hideNumberRowOnShortHeight: settingsObj.hideNumberRowOnShortHeight
         property alias enableFlickLayout: settingsObj.enableFlickLayout
         property alias flickReplacedLanguage: settingsObj.flickReplacedLanguage
+        property alias customBottomMargin: settingsObj.customBottomMargin
+        property alias customSideMargin: settingsObj.customSideMargin
         
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
@@ -196,6 +198,9 @@ Item {
         property alias cursorMoverWorkaround: settingsObj.cursorMoverWorkaround
         property alias cursorMoverTimeout: settingsObj.cursorMoverTimeout
         property alias redesignedLanguageKey: settingsObj.redesignedLanguageKey
+
+        // Advanced
+        property alias enableSwipeToDelete: settingsObj.enableSwipeToDelete
 
         // Quick actions
         property alias enableQuickActions: settingsObj.enableQuickActions
@@ -360,6 +365,9 @@ Item {
             property bool hideNumberRowOnShortHeight: false
             property bool enableFlickLayout: false
             property string flickReplacedLanguage: "en"
+            property real customBottomMargin: 2 // in gu
+            property real customSideMargin: 0 // in gu
+            property bool enableSwipeToDelete: false
         }
     }
 
@@ -900,6 +908,17 @@ Item {
             }
             */
             QQC2.CheckDelegate {
+                id: enableSwipeToDelete
+                Layout.fillWidth: true
+                text: "Enable Swipe-To-Delete in Backspace key"
+                onCheckedChanged: fullScreenItem.settings.enableSwipeToDelete = checked
+                Binding {
+                    target: enableSwipeToDelete
+                    property: "checked"
+                    value: fullScreenItem.settings.enableSwipeToDelete
+                }
+            }
+            QQC2.CheckDelegate {
                 id: disableKeyboardHeight
                 Layout.fillWidth: true
                 text: "Disable keyboard height"
@@ -1363,6 +1382,11 @@ Item {
                 Layout.fillWidth: true
                 text: "Custom Ribbon Height"
                 onClicked: settingsLoader.item.stack.push(customRibbonHeightPage, {"title": text})
+            }
+            MKSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Custom Margins"
+                onClicked: settingsLoader.item.stack.push(customMarginsPage, {"title": text})
             }
         }
     }
@@ -2021,6 +2045,42 @@ Item {
         }
     }
     Component {
+        id: customMarginsPage
+        
+        MKSettingsPage {
+            MKSliderItem {
+                id: customBottomMargin
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Bottom Margin (in Grid Unit)"
+                minimumValue: 0
+                maximumValue: 10
+                resetValue: 2
+                onValueChanged: fullScreenItem.settings.customBottomMargin = value
+                Binding {
+                    target: customBottomMargin
+                    property: "value"
+                    value: fullScreenItem.settings.customBottomMargin
+                }
+            }
+            MKSliderItem {
+                id: customSideMargin
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Side Margin (in Grid Unit)"
+                minimumValue: 0
+                maximumValue: 5
+                resetValue: 0
+                onValueChanged: fullScreenItem.settings.customSideMargin = value
+                Binding {
+                    target: customSideMargin
+                    property: "value"
+                    value: fullScreenItem.settings.customSideMargin
+                }
+            }
+        }
+    }
+    Component {
         id: customRibbonHeightPage
         
         MKSettingsPage {
@@ -2194,7 +2254,11 @@ Item {
 
             // Additional bottom margin when in floating mode to make it easier to use bottom swipe
             readonly property real addBottomMargin: fullScreenItem.keyboardFloating ? units.gu(2) : 0
-            readonly property real defaultBottomMargin: units.gu(UI.bottom_margin)
+            // ENH193 - Custom bottom and side margins
+            // readonly property real defaultBottomMargin: units.gu(UI.bottom_margin)
+            readonly property real defaultBottomMargin: fullScreenItem.keyboardFloating ? units.gu(UI.bottom_margin)
+                                                                                        : units.gu(fullScreenItem.settings.customBottomMargin)
+            // ENH193 - End
 
             readonly property real fixedY: 0
             readonly property real floatBottomY: canvas.height - height
@@ -2750,7 +2814,15 @@ Item {
                     anchors.top: borderTop.bottom
                     anchors.bottom: background.bottom
                     anchors.bottomMargin: keyboardSurface.defaultBottomMargin + keyboardSurface.addBottomMargin
-                    width: parent.width
+                    // ENH193 - Custom bottom and side margins
+                    // width: parent.width
+                    readonly property real sideMargins: fullScreenItem.keyboardFloating ? 0
+                                                                                        : units.gu(fullScreenItem.settings.customSideMargin)
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: sideMargins
+                    anchors.rightMargin: sideMargins
+                    // ENH193 - End
                     // ENH086 - Do not hide key labels
                     // hideKeyLabels: fullScreenItem.cursorSwipe
                     // ENH086 - End
@@ -2773,6 +2845,11 @@ Item {
                 id: floatingActions
                 objectName: "floatingActions"
 
+                // ENH193 - Custom bottom and side margins
+                readonly property real sideMargins: fullScreenItem.keyboardFloating ? units.gu(1)
+                                                       : units.gu(fullScreenItem.settings.customSideMargin) + units.gu(1)
+                // ENH193 - End
+
                 z: 1
                 visible: fullScreenItem.cursorSwipe && !cursorSwipeArea.pressed && !bottomSwipe.pressed
 
@@ -2783,6 +2860,11 @@ Item {
                     margins: units.gu(1)
                     topMargin: toolbar.height + units.gu(1)
                     bottom: cursorSwipeArea.bottom
+                    // ENH193 - Custom bottom and side margins
+                    leftMargin: sideMargins
+                    rightMargin: sideMargins
+                    bottomMargin: keypad.anchors.bottomMargin
+                    // ENH193 - End
                 }
             }
 
@@ -3602,6 +3684,22 @@ Item {
             audioFeedback.play()
         }
     }
+
+    function enterSelectMode(_cursorMode = true, _startingX = 0, _startingY = 0) {
+        fullScreenItem.prevSwipePositionX = _startingX
+        fullScreenItem.prevSwipePositionY = _startingY
+        cursorSwipeArea.selectionMode = true
+        if (_cursorMode) {
+            fullScreenItem.cursorSwipe = true
+        }
+    }
+
+    function exitSelectMode(_cursorMode = true) {
+        cursorSwipeArea.selectionMode = false
+        if (_cursorMode) {
+            fullScreenItem.cursorSwipe = false
+        }
+    }
     
     function exitSwipeMode() {
         fullScreenItem.cursorSwipe = false
@@ -3733,9 +3831,11 @@ Item {
         event_handler.onKeyReleased("MoveToEndOfDocument", "keysequence");
     }
     function redo() {
+        commitPreedit();
         event_handler.onKeyReleased("Redo", "keysequence");
     }
     function undo() {
+        commitPreedit();
         event_handler.onKeyReleased("Undo", "keysequence");
     }
     function paste() {
