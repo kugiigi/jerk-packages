@@ -25,7 +25,7 @@ MKBasePage {
 
         text: i18n.tr("Exit mode")
         tooltipText: quickActionsSettingsPage.selectMode ? i18n.tr("Exit selection mode") : i18n.tr("Exit sort mode")
-        iconName: "cancel"
+        iconName: "close"
         visible: quickActionsSettingsPage.selectMode || quickActionsSettingsPage.dragMode
 
         onTrigger: {

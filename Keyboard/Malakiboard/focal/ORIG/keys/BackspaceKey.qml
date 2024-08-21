@@ -16,18 +16,9 @@
 
 import QtQuick 2.4
 
-import Lomiri.Components 1.3
-
-import "key_constants.js" as UI
-
-FlickCharKey {
-    property string shifted:"?123"
-    fontSize: (fullScreenItem.landscape ? (height / 2) : (height / 2.8)) 
-                           * (4 / (label.length >= 2 ? (label.length <= 6 ? label.length + 2.5 : 8) : 4));
-    property int visHeight: panel.keyHeight
-    property int padding: UI.actionKeyPadding
-    width: panel.keyWidth + units.gu( padding )
-    normalColor: fullScreenItem.theme.actionKeyColor
-    pressedColor: fullScreenItem.theme.actionKeyPressedColor
-    borderColor: fullScreenItem.theme.actionKeyBorderColor
+ActionKey {
+    iconNormal: "erase";
+    iconShifted: "erase";
+    iconCapsLock: "erase";
+    action: "backspace";
 }
