@@ -62,6 +62,12 @@ FocusScope {
         }
     }
 
+    function openOverlayForUrl(_url, _incognito) {
+        if (webappContainerWebViewLoader.item) {
+            webappContainerWebViewLoader.item.openOverlayForUrl(_url, _incognito)
+        }
+    }
+
     Component {
         id: mediaAccessDialogComponent
         MediaAccessDialog {

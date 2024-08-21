@@ -71,8 +71,8 @@ WebappWebview {
         }
     }
 */
-    function openOverlayForUrl(overlayUrl) {
-        let _context = webapp.settings.incognitoOverlay ? SharedWebContext.sharedIncognitoContext : context
+    function openOverlayForUrl(overlayUrl, _incognito = false) {
+        let _context = webapp.settings.incognitoOverlay || _incognito ? SharedWebContext.sharedIncognitoContext : context
         if (popupController) {
             popupController.createPopupViewForUrl(
                         overlayViewsParent,
@@ -138,10 +138,10 @@ WebappWebview {
             }
         }
 
-        function openLinkInOverlay(url) {
-            let _context = webapp.settings.incognitoOverlay ? SharedWebContext.sharedIncognitoContext : webview.context
+        function openLinkInOverlay(url, _isExternalLink = false) {
+            let _context = webapp.settings.incognitoOverlay || _isExternalLink ? SharedWebContext.sharedIncognitoContext : webview.context
             popupController.createPopupViewForUrl(overlayViewsParent, url, true, _context)
-        }
+        }  
     }
 
     onOpenUrlExternallyRequested: openUrlExternally(url, false)
@@ -204,7 +204,7 @@ WebappWebview {
         if (webapp.settings.externalUrlHandling == 3) {
             let _openExternalDialog = askExternalLinkDialogComponent.createObject(webview, { "url": url })
             _openExternalDialog.openInOverlay.connect(function() {
-                    internal.openLinkInOverlay(url)
+                    internal.openLinkInOverlay(url, true)
                 }
             )
             _openExternalDialog.openExternally.connect(function() {
@@ -219,7 +219,7 @@ WebappWebview {
         } else {
             if ((openExternalUrlInOverlay && isTriggeredByUserNavigation)
                     || webapp.settings.externalUrlHandling == 1) {
-                internal.openLinkInOverlay(url)
+                internal.openLinkInOverlay(url, true)
                 return
             } else {
                 if (webapp.settings.externalUrlHandling == 2) {
@@ -399,25 +399,51 @@ WebappWebview {
         // handle user agents
         if (isMainFrame)
         {
-          var newUserAgentId = (UserAgentsModel.count > 0) ? DomainSettingsModel.getUserAgentId(requestDomain) : 0;
+            let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
+            let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
+            let _tabForceDesktop = webview.forceDesktopSite
+            let _tabForceMobile = webview.forceMobileSite
+            let _forceDesktopUA = false
+            let _forceMobileUA = false
+            let _screenSize = webview.context.__ua.calcScreenSize()
+            let _newUserAgentId = 0
+            let _newCustomUserAgent = ""
 
-          // change of the custom user agent
-          if (newUserAgentId !== webview.context.userAgentId)
-          {
-            webview.context.userAgentId = newUserAgentId;
-            webview.context.userAgent = (newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(newUserAgentId)
-                                                             : localUserAgentOverride ? localUserAgentOverride : webview.context.defaultUserAgent;
+            if ( _screenSize == "small") {
+                // Small screeens use mobile UA by default so only check when desktop UA is forced
+                _forceDesktopUA = ((_appForceDesktop && !_tabForceMobile) || (!_appForceDesktop && _tabForceDesktop))
+            } else {
+                // Large screeens use desktop UA by default so only check when mobile UA is forced
+                if (webapp.settings.autoDeskMobSwitch) {
+                    _forceMobileUA = ((webapp.wide && _appForceMobile && !_tabForceDesktop)
+                                            || (webapp.wide && !_appForceMobile && _tabForceMobile)
+                                            || (!webapp.wide && !_tabForceDesktop))
+                } else {
+                    _forceMobileUA = ((_appForceMobile && !_tabForceDesktop) || (!_appForceMobile && _tabForceMobile))
+                }
+            }
 
-            // for some reason when letting through the request, another navigation request will take us back to the
-            // to the previous page. Therefore we block it first and navigate to the new url with the correct user agent.
-            request.action = WebEngineNavigationRequest.IgnoreRequest;
-            webview.url = url;
-            return;
-          }
-          else
-          {
-              console.log("user agent: " + webview.context.httpUserAgent);
-          }
+            _newUserAgentId = (UserAgentsModel.count > 0) ? DomainSettingsModel.getUserAgentId(requestDomain) : 0;
+
+            // change of the custom user agent
+            if (_newUserAgentId !== webview.context.userAgentId) {
+                webview.context.userAgentId = _newUserAgentId;
+                webview.context.userAgent = (_newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(_newUserAgentId)
+                                                                 : localUserAgentOverride ? localUserAgentOverride : webview.context.defaultUserAgent;
+
+                // for some reason when letting through the request, another navigation request will take us back to the
+                // to the previous page. Therefore we block it first and navigate to the new url with the correct user agent.
+                request.action = WebEngineNavigationRequest.IgnoreRequest;
+                webview.url = url;
+                return;
+            } else {
+                if ( _screenSize == "small") {
+                    webview.context.__ua.setDesktopMode(_forceDesktopUA);
+                } else {
+                    webview.context.__ua.forceMobileSite(_forceMobileUA);
+                }
+                console.log("user agent: " + webview.context.httpUserAgent);
+            }
         }
 
         if (runningLocalApplication && !url.startsWith("file://") && !webview.haveValidUrlPatterns) {

@@ -18,6 +18,10 @@ Item {
         , { "id": "findInPage", "title": i18n.tr("Find In Page"), "component": actionFindInPage }
         , { "id": "toggleFullscreen", "title": i18n.tr("Toggle Full Screen"), "component": actionFullscreen }
         , { "id": "goHome", "title": i18n.tr("Go Home"), "component": actionGoHome }
+        , { "id": "shareLink", "title": i18n.tr("Share link"), "component": actionShareLink }
+        , { "id": "copyLink", "title": i18n.tr("Copy link"), "component": actionCopyLink }
+        , { "id": "openSearchInOverlay", "title": i18n.tr("Open search page"), "component": actionSearchInOverlay }
+        , { "id": "toggleSiteVersion", "title": i18n.tr("Toggle site version"), "component": actionToggleSiteVersion }
         , { "id": "customUrl", "title": i18n.tr("Custom Url Action"), "component": actionCustomUrlAction }
     ]
 
@@ -44,6 +48,18 @@ Item {
     function navigateToUrl(targetUrl) {
         webview.forceActiveFocus()
         webview.url = targetUrl
+    }
+
+    QtObject {
+        id: internal
+        
+        readonly property bool smallDevice: webapp.currentWebview && webapp.currentWebview.context.__ua.calcScreenSize() == "small"
+        readonly property bool appForceDesktop: webapp.settings ? webapp.settings.setDesktopMode :  false
+        readonly property bool appForceMobile: webapp.settings ? webapp.settings.forceMobileSite : false
+        readonly property bool desktopSwitchMode: (smallDevice && !appForceDesktop) || (!smallDevice && appForceMobile)
+                                            // Always treat as mobile when auto version is enabled and window is NOT wide
+                                            // on a large screen
+                                            || (!smallDevice && webapp.settings.autoDeskMobSwitch && !webapp.wide)
     }
 
     Component {
@@ -157,5 +173,54 @@ Item {
         iconName: "settings"
         text: i18n.tr("Settings")
         onTrigger: webapp.showWebappSettings()
+    }
+
+    Sapot.BaseAction {
+        id: actionShareLink
+
+        iconName: "share"
+        text: i18n.tr("Share Link")
+        onTrigger: webview.shareCurrentLink()
+    }
+
+    Sapot.BaseAction {
+        id: actionCopyLink
+
+        iconName: "stock_link"
+        text: i18n.tr("Copy Link")
+        onTrigger: webview.copyCurrentLink()
+    }
+
+    Sapot.BaseAction {
+        id: actionSearchInOverlay
+
+        iconName: "search"
+        text: i18n.tr("Open Search page")
+        onTrigger: webapp.openSearchInOverlay()
+    }
+
+    Sapot.BaseAction {
+        id: actionToggleSiteVersion
+
+        iconName: internal.desktopSwitchMode && !checked ? "computer-symbolic" : "phone-smartphone-symbolic"
+        text: internal.desktopSwitchMode && !checked ? i18n.tr("Desktop site") : i18n.tr("Mobile site")
+
+        onTrigger: {
+            if (webview) {
+                checked = !checked
+                if (internal.desktopSwitchMode) {
+                    webview.forceDesktopSite = checked
+                } else {
+                    webview.forceMobileSite = checked
+                }
+            }
+        }
+    }
+
+    Binding {
+        target: actionToggleSiteVersion
+        property: "checked"
+        value: internal.desktopSwitchMode ? webview && webview.forceDesktopSite
+                                : webview && webview.forceMobileSite
     }
 }

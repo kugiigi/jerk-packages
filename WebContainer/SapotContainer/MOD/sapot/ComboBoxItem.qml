@@ -9,6 +9,7 @@ RowLayout {
 	property alias currentIndex: comboBox.currentIndex
 	property alias model: comboBox.model
 	property alias currentText: comboBox.currentText
+	property alias textRole: comboBox.textRole
 
 	spacing: units.gu(5)
 

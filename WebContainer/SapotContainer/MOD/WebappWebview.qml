@@ -21,6 +21,7 @@ import Morph.Web 0.1
 import Lomiri.Components 1.3
 import Lomiri.Components.Popups 1.3
 import QtWebEngine 1.5
+import webbrowsercommon.private 0.1
 import "../actions" as Actions
 import ".."
 import "sapot" as Sapot
@@ -36,7 +37,26 @@ Sapot.WebViewImpl {
     property bool webviewPulledDown: false
     readonly property real contentHeight: contentsSize.height / scaleFactor
 
+    property bool forceDesktopSite: false
+    property bool forceMobileSite: false
+
     signal openUrlExternallyRequested(string url)
+
+
+    onForceDesktopSiteChanged: if (webapp.settings.autoDeskMobSwitchReload) reload()
+    onForceMobileSiteChanged: if (webapp.settings.autoDeskMobSwitchReload) reload()
+    onWideChanged: {
+        if (webapp.settings.autoDeskMobSwitch && webapp.settings.autoDeskMobSwitchReload) {
+            if (context.__ua.calcScreenSize() == "large") {
+                reload()
+            }
+        }
+    }
+
+    onShareLinkRequested: internal.shareLink(linkUrl, title)
+    onShareTextRequested: internal.shareText(text)
+
+    contentHandlerLoaderObj: contentHandlerLoader
 
     function pullDownWebview() {
         webviewPulledDown = true
@@ -52,6 +72,72 @@ Sapot.WebViewImpl {
 
     function scrollToBottom(){
         runJavaScript("window.scrollTo(0, " + contentsSize.height +"); ")
+    }
+
+    function shareCurrentLink() {
+        internal.shareLink(url, title)
+    }
+
+    function copyCurrentLink() {
+        Clipboard.push(["text/plain", url.toString()])
+        webapp.showTooltip(i18n.tr("Link url copied"))
+    }
+
+    function navigationRequestedDelegate(request) {
+
+        var url = request.url.toString();
+        var isMainFrame = request.isMainFrame;
+        var requestDomain = UrlUtils.schemeIs(url, "file") ? "scheme:file" : UrlUtils.extractHost(url);
+
+        // handle user agents
+        if (isMainFrame)
+        {
+            let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
+            let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
+            let _tabForceDesktop = webappWebview.forceDesktopSite
+            let _tabForceMobile = webappWebview.forceMobileSite
+            let _forceDesktopUA = false
+            let _forceMobileUA = false
+            let _screenSize = webappWebview.context.__ua.calcScreenSize()
+            let _newUserAgentId = 0
+            let _newCustomUserAgent = ""
+
+            if ( _screenSize == "small") {
+                // Small screeens use mobile UA by default so only check when desktop UA is forced
+                _forceDesktopUA = ((_appForceDesktop && !_tabForceMobile) || (!_appForceDesktop && _tabForceDesktop))
+            } else {
+                // Large screeens use desktop UA by default so only check when mobile UA is forced
+                if (webapp.settings.autoDeskMobSwitch) {
+                    _forceMobileUA = ((webapp.wide && _appForceMobile && !_tabForceDesktop)
+                                            || (webapp.wide && !_appForceMobile && _tabForceMobile)
+                                            || (!webapp.wide && !_tabForceDesktop))
+                } else {
+                    _forceMobileUA = ((_appForceMobile && !_tabForceDesktop) || (!_appForceMobile && _tabForceMobile))
+                }
+            }
+
+            _newUserAgentId = (UserAgentsModel.count > 0) ? DomainSettingsModel.getUserAgentId(requestDomain) : 0;
+
+            // change of the custom user agent
+            if (_newUserAgentId !== webappWebview.context.userAgentId) {
+                webappWebview.context.userAgentId = _newUserAgentId;
+                webappWebview.context.userAgent = (_newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(_newUserAgentId)
+                                                                 : localUserAgentOverride ? localUserAgentOverride : webappWebview.context.defaultUserAgent;
+
+                // for some reason when letting through the request, another navigation request will take us back to the
+                // to the previous page. Therefore we block it first and navigate to the new url with the correct user agent.
+                request.action = WebEngineNavigationRequest.IgnoreRequest;
+                webappWebview.url = url;
+                return;
+            } else {
+                if ( _screenSize == "small") {
+                    webappWebview.context.__ua.setDesktopMode(_forceDesktopUA);
+                } else {
+                    webappWebview.context.__ua.forceMobileSite(_forceMobileUA);
+                }
+                console.log("user agent: " + webappWebview.context.httpUserAgent);
+            }
+        }
     }
 
     Loader {
