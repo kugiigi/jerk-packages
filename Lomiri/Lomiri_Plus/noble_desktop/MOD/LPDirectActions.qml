@@ -23,10 +23,12 @@ Item {
 
     readonly property bool actionsShown: directActionsItems.visible
     property bool noSwipeCommit: false
+    property real preferredActionItemWidthPhysical: shell.convertFromInch(0.35)
     property real preferredActionItemWidth: units.gu(7)
     property real thresholdWidthForCentered: parent.width
     property alias swipeAreaHeight: swipeAreas.height
     property real swipeAreaWidth: units.gu(2)
+    property real maximumWidthPhysical: shell.convertFromInch(2.5)
     property real maximumWidth: parent.width
     property real sideMargins: units.gu(2)
     property bool enableVisualHint: true
@@ -98,7 +100,8 @@ Item {
                             return directActions.height - _thresholdMargin
                         }
                     }
-                    return directActions.swipeAreaHeight
+
+                    return directActionsItems.defaultVerticalMargin
                 }
             }
         }
@@ -120,7 +123,8 @@ Item {
                             return _thresholdMargin
                         }
                     }
-                    return directActions.swipeAreaHeight
+
+                    return directActionsItems.defaultVerticalMargin
                 }
             }
         }
@@ -152,6 +156,9 @@ Item {
 
             return null
         }
+        property bool usePhysicalSize: false
+        property real preferredActionItemWidth: usePhysicalSize ? directActions.preferredActionItemWidthPhysical : directActions.preferredActionItemWidth
+        property real maximumWidth: usePhysicalSize ? directActions.maximumWidthPhysical : directActions.maximumWidth
         
         onHighlightedItemChanged: {
             titleRec.targetItem = highlightedItem
@@ -288,19 +295,22 @@ Item {
         id: directActionsItems
         
         readonly property bool shouldBeShown: swipeAreas.isDragging || internal.showWithoutSwipe
-        readonly property real defaultSideMargin: shouldBeShown || internal.openedViaToggle ? directActions.sideMargins : -width
+        readonly property real defaultSideMargin: shouldBeShown || internal.openedViaToggle
+                                                            ? internal.usePhysicalSize ? directActions.sideMargins : units.gu(2)
+                                                            : -width
+        readonly property real defaultVerticalMargin: internal.usePhysicalSize ? directActions.swipeAreaHeight : units.gu(4)
         property bool delayedAnimation: false
         property real relativePosAnimationScale: 1
 
         anchors {
             bottom: parent.bottom
-            topMargin: directActions.swipeAreaHeight
-            bottomMargin: directActions.swipeAreaHeight
+            topMargin: defaultVerticalMargin
+            bottomMargin: defaultVerticalMargin
             leftMargin: defaultSideMargin
             rightMargin: defaultSideMargin
         }
         height: gridLayout.height
-        width: parent.width > directActions.thresholdWidthForCentered ? directActions.maximumWidth - directActions.sideMargins : parent.width - (directActions.sideMargins * 2)
+        width: parent.width > directActions.thresholdWidthForCentered ? internal.maximumWidth - directActions.sideMargins : parent.width - (directActions.sideMargins * 2)
         visible: opacity > 0
         opacity: shouldBeShown && !relativePositionHideAnimation.running ? 1 : 0
 
@@ -400,6 +410,9 @@ Item {
 
         onVisibleChanged: {
             if (visible) {
+                if (swipeAreas.isDragging) {
+                    internal.usePhysicalSize = true
+                }
                 relativePosAnimationScale = 0
 
                 if (leftSwipeArea.isDragging) {
@@ -418,6 +431,7 @@ Item {
                 internal.relativePoint = Qt.point(0, 0)
                 internal.openedViaToggle = false
                 directActions.editMode = false
+                internal.usePhysicalSize = false
             }
         }
 
@@ -542,7 +556,7 @@ Item {
             readonly property int maxColumn: directActions.maximumColumn > 0 ? directActions.maximumColumn : 99 // "Do not limit" column when set to 0
             property real highlightScale: 1.3
 
-            columns: Math.min(maxColumn, Math.floor(width / directActions.preferredActionItemWidth))
+            columns: Math.min(maxColumn, Math.floor(width / internal.preferredActionItemWidth))
             columnSpacing: 0
             rowSpacing: 0
             LayoutMirroring.enabled: rotation == 180
@@ -564,7 +578,7 @@ Item {
                     id: itemContainer
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: directActions.preferredActionItemWidth
+                    Layout.preferredHeight: internal.preferredActionItemWidth
 
                     readonly property string itemDragId: itemDelegate.itemId + " - " + itemDelegate.type
                     property var itemData: modelData
@@ -609,7 +623,7 @@ Item {
                         type: itemContainer.itemData.type
                         editMode: directActions.editMode
                         highlighted: internal.highlightedItem == itemContainer
-                        maximumSize: directActions.preferredActionItemWidth * 0.8
+                        maximumSize: height * 0.8
                         highlightScale: gridLayout.highlightScale
                         displayedTop: directActions.state == "top"
                         displayedLeft: directActionsItems.state == "left"
