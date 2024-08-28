@@ -70,7 +70,7 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 textSize: rootRec.isCompact ? Label.Medium : Label.Large
-                text: "For more information about this issue and possible fixes, visit your doctor, https://www.kugiverse.com\n\nif you call a support person, give them this info:\nPrank code: LOMIRI_PLUS_LIED"
+                text: "For more information about this issue and possible fixes, insult your doctor, https://www.kugiverse.com\n\nif you call a support person, give them this info:\nPrank code: LOMIRI_PLUS_YARI_KA"
             }
         }
     }
