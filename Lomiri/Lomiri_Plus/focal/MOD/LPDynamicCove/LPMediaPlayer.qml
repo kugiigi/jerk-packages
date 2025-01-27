@@ -24,7 +24,7 @@ LPDynamicCoveItem {
 
     swipeAreaDirection: SwipeArea.Horizontal
     enableMouseArea: false
-    
+
     function clearQueue() {
         mediaPlayerObj.clear()
     }
@@ -53,6 +53,14 @@ LPDynamicCoveItem {
     function playPendingPlaylist() {
         playlistPending = false
         mediaPlayerObj.playRandomSong(playlistTracksModel)
+    }
+
+    // Reload media player object when loaded and no playlist is on queue
+    // This might solve issue when playing a playlist doesn't work until reloaded
+    Component.onCompleted: {
+        if (shell.mediaPlayerLoaderObj.active && (!mediaPlayerObj || mediaPlayer.noQueue)) {
+            shell.mediaPlayerLoaderObj.reloadSource()
+        }
     }
 
     Connections {

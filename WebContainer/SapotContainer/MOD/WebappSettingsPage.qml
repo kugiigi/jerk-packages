@@ -46,6 +46,7 @@ FocusScope {
         Flickable {
             anchors.fill: parent
             contentHeight: settingsCol.height
+            clip: true
 
             Column {
                 id: settingsCol
@@ -421,10 +422,11 @@ FocusScope {
 
                     anchors {
                         left: parent.left
-                        leftMargin: units.gu(2)
+                        leftMargin: units.gu(3)
                         right: parent.right
                         rightMargin: units.gu(2)
                     }
+                    visible: settingsObject.appWideScrollPositioner
 
                     height: units.gu(7)
                     text: i18n.tr("Scroll positioner position")
@@ -449,8 +451,12 @@ FocusScope {
                 ListItem {
                     objectName: "scrollPositionerSize"
 
+                    visible: settingsObject.appWideScrollPositioner
+
                     ListItemLayout {
-                        title.text: i18n.tr("Scroll positioner size")
+                        title.text: i18n.tr("Button size")
+                        padding.leading: units.gu(2)
+
                         SpinBox {
                           id: scrollPositionerSize
                           value: settingsObject.scrollPositionerSize
@@ -472,6 +478,168 @@ FocusScope {
                             MouseArea {
                                 anchors.fill: parent
                                 onClicked: settingsObject.scrollPositionerSize = 8
+                            }
+
+                            anchors {
+                                leftMargin: units.gu(1)
+                                topMargin: units.gu(2)
+                            }
+                        }
+                    }
+                }
+
+                ListItem {
+                    objectName: "enableFloatingScrollButton"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Enable floating scroll button")
+                        subtitle.text: i18n.tr("Floating button that can be dragged to scroll the web page")
+                        CheckBox {
+                            id: enableFloatingScrollButton
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.enableFloatingScrollButton = checked
+                        }
+                    }
+
+                    Binding {
+                        target: enableFloatingScrollButton
+                        property: "checked"
+                        value: settingsObject.enableFloatingScrollButton
+                    }
+                }
+
+                ListItem {
+                    objectName: "enableFloatingScrollButtonAsPositioner"
+
+                    visible: settingsObject.enableFloatingScrollButton
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Use as scroll positioner")
+                        subtitle.text: i18n.tr("Floating button can be used to scroll to top and bottom")
+                        padding.leading: units.gu(2)
+
+                        CheckBox {
+                            id: enableFloatingScrollButtonAsPositioner
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.enableFloatingScrollButtonAsPositioner = checked
+                        }
+                    }
+
+                    Binding {
+                        target: enableFloatingScrollButtonAsPositioner
+                        property: "checked"
+                        value: settingsObject.enableFloatingScrollButtonAsPositioner
+                    }
+                }
+
+                ListItem {
+                    objectName: "floatingScrollButtonSize"
+
+                    visible: settingsObject.enableFloatingScrollButton
+                    ListItemLayout {
+                        title.text: i18n.tr("Button size")
+                        padding.leading: units.gu(2)
+
+                        SpinBox {
+                          id: floatingScrollButtonSize
+                          value: settingsObject.floatingScrollButtonSize
+                          from: 2
+                          to: 10
+                          stepSize: 1
+                          onValueModified: {
+                            settingsObject.floatingScrollButtonSize = value
+                          }
+                        }
+                        Icon {
+                            id: resetFloatingScrollButtonSize
+                            name: "reset"
+
+                            height: units.gu(2)
+                            width: height
+                            opacity: (settingsObject.floatingScrollButtonSize === 6) ? 0.5 : 1
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: settingsObject.floatingScrollButtonSize = 6
+                            }
+
+                            anchors {
+                                leftMargin: units.gu(1)
+                                topMargin: units.gu(2)
+                            }
+                        }
+                    }
+                }
+                ListItem {
+                    objectName: "floatingScrollButtonSideMargin"
+
+                    visible: settingsObject.enableFloatingScrollButton
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Side margin")
+                        padding.leading: units.gu(2)
+
+                        SpinBox {
+                          id: floatingScrollButtonSideMargin
+                          value: settingsObject.floatingScrollButtonSideMargin
+                          from: 0
+                          to: 6
+                          stepSize: 1
+                          onValueModified: {
+                            settingsObject.floatingScrollButtonSideMargin = value
+                          }
+                        }
+                        Icon {
+                            id: resetFloatingScrollButtonSideMargin
+                            name: "reset"
+
+                            height: units.gu(2)
+                            width: height
+                            opacity: (settingsObject.floatingScrollButtonSideMargin === 2) ? 0.5 : 1
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: settingsObject.floatingScrollButtonSideMargin = 2
+                            }
+
+                            anchors {
+                                leftMargin: units.gu(1)
+                                topMargin: units.gu(2)
+                            }
+                        }
+                    }
+                }
+
+                ListItem {
+                    objectName: "floatingScrollButtonVerticalMargin"
+
+                    visible: settingsObject.enableFloatingScrollButton
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Vertical margin")
+                        padding.leading: units.gu(2)
+
+                        SpinBox {
+                          id: floatingScrollButtonVerticalMargin
+                          value: settingsObject.floatingScrollButtonVerticalMargin
+                          from: 0
+                          to: 20
+                          stepSize: 1
+                          onValueModified: {
+                            settingsObject.floatingScrollButtonVerticalMargin = value
+                          }
+                        }
+                        Icon {
+                            id: resetfloatingScrollButtonVerticalMargin
+                            name: "reset"
+
+                            height: units.gu(2)
+                            width: height
+                            opacity: (settingsObject.floatingScrollButtonVerticalMargin === 2) ? 0.5 : 1
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: settingsObject.floatingScrollButtonVerticalMargin = 2
                             }
 
                             anchors {
@@ -609,7 +777,7 @@ FocusScope {
                     objectName: "bottomGesturesAreaHeight"
 
                     ListItemLayout {
-                        title.text: i18n.tr("Bottom Gestures Area Height")
+                        title.text: i18n.tr("Gestures Area Height")
                         SpinBox {
                           id: bottomGesturesAreaHeight
                           value: settingsObject.bottomGesturesAreaHeight
@@ -663,9 +831,13 @@ FocusScope {
                 ListItem {
                     objectName: "webviewQuickActionEnableDelay"
 
+                    visible: settingsObject.webviewEnableQuickActions
+
                     ListItemLayout {
-                        title.text: i18n.tr("Quick Actions Delay")
+                        title.text: i18n.tr("Trigger Delay")
                         subtitle.text: i18n.tr("Add short delay when opening Quick Actions menu")
+                        padding.leading: units.gu(2)
+
                         CheckBox {
                             id: webviewQuickActionEnableDelay
                             SlotsLayout.position: SlotsLayout.Trailing
@@ -683,8 +855,12 @@ FocusScope {
                 ListItem {
                     objectName: "webviewQuickActionsHeight"
 
+                    visible: settingsObject.webviewEnableQuickActions
+
                     ListItemLayout {
-                        title.text: i18n.tr("Quick Actions Height (inch)")
+                        title.text: i18n.tr("Height (inch)")
+                        padding.leading: units.gu(2)
+
                         SpinBox {
                           id: webviewQuickActionsHeight
                           value: settingsObject.webviewQuickActionsHeight * 4
@@ -721,8 +897,11 @@ FocusScope {
                 ListItem {
                     objectName: "webviewQuickActionsLeft"
 
+                    visible: settingsObject.webviewEnableQuickActions
+
                     ListItemLayout {
                         title.text: i18n.tr("Quick Actions (Left)")
+                        padding.leading: units.gu(2)
                         ProgressionSlot {}
                     }
 
@@ -732,8 +911,11 @@ FocusScope {
                 ListItem {
                     objectName: "webviewQuickActionsRight"
 
+                    visible: settingsObject.webviewEnableQuickActions
+
                     ListItemLayout {
                         title.text: i18n.tr("Quick Actions (Right)")
+                        padding.leading: units.gu(2)
                         ProgressionSlot {}
                     }
 
@@ -743,8 +925,11 @@ FocusScope {
                 ListItem {
                     objectName: "customUrlActions"
 
+                    visible: settingsObject.webviewEnableQuickActions
+
                     ListItemLayout {
                         title.text: i18n.tr("Custom URL Actions")
+                        padding.leading: units.gu(2)
                         ProgressionSlot {}
                     }
 
@@ -780,7 +965,7 @@ FocusScope {
                     objectName: "reset"
 
                     ListItemLayout {
-                        title.text: i18n.tr("Reset webapp settings")
+                        title.text: i18n.tr("Reset settings")
                     }
 
                     onClicked: {

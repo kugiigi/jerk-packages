@@ -26,6 +26,10 @@ import Lomiri.Settings.Menus 0.1 as Menus
 // ENH102 - App suspension indicator
 import QtQuick.Layouts 1.12
 // ENH102 - End
+// ENH196 - Battery stats tracking
+import Powerd 0.1
+import QtQuick.Controls 2.12 as QQC2
+// ENH196 - End
 
 PageStack {
     id: root
@@ -155,8 +159,18 @@ PageStack {
                     }
                 ]
             }
+            // ENH207 - Disable bottom gesture in indicator panels
+            Component.onCompleted: {
+                if (page.hasOwnProperty("forceDisableBottmGesture")) {
+                    page.forceDisableBottmGesture = true
+                }
+            }
+            // ENH207 - End
             
             // ENH028 - Open indicators via gesture
+            // Fix height binding loop
+            height: parent.height
+
             LPHeader {
                 id: labelHeader
                     
@@ -252,7 +266,7 @@ PageStack {
                 }
 
                 interactive: labelHeader.expandable ? !labelHeader.expanded : contentHeight > height
-                contentHeight: customMenuItems.height + listView.height
+                contentHeight: customMenuItems.height + listView.height + (customBottomMenuItems.active ? customBottomMenuItems.height : 0)
                 contentWidth: parent.width
 
                 Loader {
@@ -477,6 +491,323 @@ PageStack {
                                 value: lomiriSettings.alwaysShowOsk
                             }
                         }
+                    }
+
+                    // ENH195 - Battery graph in indicator
+                    Component {
+                        id: batteryComponent
+
+                        ColumnLayout {
+                            id: batteryLayout
+
+                            property bool expandScreenTime: false
+
+                            spacing: 0
+
+                            onVisibleChanged: {
+                                if (!visible) {
+                                    expandScreenTime = false
+                                }
+                            }
+
+                            LPBatteryGraph {
+                                Layout.fillWidth: true
+                                visible: shell.settings.enableBatteryGraphIndicator
+                            }
+
+                            // ENH196 - Battery stats tracking
+                            LiveTimer {
+                                frequency: shell.batteryTracking && Powerd.status === Powerd.On && batteryLayout.visible ? LiveTimer.Minute : LiveTimer.Disabled
+                                onTrigger: shell.batteryTracking.updateScreenTimeValues()
+                            }
+
+                            Menus.StandardMenu {
+                                Layout.fillWidth: true
+                                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator && shell.settings.collapsibleScreenTimeIndicators
+                                text: i18n.tr("Screen Time")
+                                iconSource: batteryLayout.expandScreenTime ? "image://theme/go-up" : "image://theme/go-down"
+                                onTriggered: batteryLayout.expandScreenTime = !batteryLayout.expandScreenTime
+                            }
+
+                            ColumnLayout {
+                                Layout.fillHeight: true
+                                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator //&& shell.settings.showScreenTimeSinceLastFullCharged
+                                            && (!shell.settings.collapsibleScreenTimeIndicators || (shell.settings.collapsibleScreenTimeIndicators && batteryLayout.expandScreenTime))
+                                spacing: 0
+
+                                onVisibleChanged: {
+                                    if (visible && shell.batteryTracking) {
+                                        shell.batteryTracking.updateScreenTimeValues()
+                                    }
+                                }
+
+                                Menus.StandardMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeSinceLastFullCharged
+                                    text: i18n.tr("Since Last Full Charge")
+                                    iconSource: ""
+                                    highlightWhenPressed: false
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeSinceLastFullCharged
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen On Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOnTimeSinceLastFull : ""
+                                    iconSource: "image://theme/view-on"
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeSinceLastFullCharged
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen Off Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOffTimeSinceLastFull : ""
+                                    iconSource: "image://theme/view-off"
+                                }
+
+                                Menus.StandardMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeSinceLastCharge
+                                    text: shell.batteryTracking ? i18n.tr("Since Last Charge", "Since Last Charge: %1%", shell.batteryTracking.lastChargeBatteryLevel).arg(shell.batteryTracking.lastChargeBatteryLevel)
+                                                : i18n.tr("Since Last Charge")
+                                    iconSource: ""
+                                    highlightWhenPressed: false
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeSinceLastCharge
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen On Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOnTimeSinceLastCharge : ""
+                                    iconSource: "image://theme/view-on"
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeSinceLastCharge
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen Off Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOffTimeSinceLastCharge : ""
+                                    iconSource: "image://theme/view-off"
+                                }
+
+                                Menus.StandardMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeToday
+                                    text: i18n.tr("Today")
+                                    iconSource: ""
+                                    highlightWhenPressed: false
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeToday
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen On Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOnTimeToday : ""
+                                    iconSource: "image://theme/view-on"
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeToday
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen Off Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOffTimeToday : ""
+                                    iconSource: "image://theme/view-off"
+                                }
+
+                                Menus.StandardMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeYesterday
+                                    text: i18n.tr("Yesterday")
+                                    iconSource: ""
+                                    highlightWhenPressed: false
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeYesterday
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen On Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOnTimeYesterday : ""
+                                    iconSource: "image://theme/view-on"
+                                }
+
+                                Menus.EventMenu {
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.enableBatteryStatsIndicator && shell.settings.showScreenTimeYesterday
+
+                                    highlightWhenPressed: false
+                                    text: i18n.tr("Screen Off Time")
+                                    time: shell.batteryTracking ? shell.batteryTracking.screenOffTimeYesterday : ""
+                                    iconSource: "image://theme/view-off"
+                                }
+
+                                ColumnLayout {
+                                    id: historyChartsLayout
+
+                                    Layout.fillWidth: true
+                                    visible: shell.settings.showHistoryCharts
+                                    spacing: 0
+
+                                    property int dataToDisplay: LPBatteryChart.DataToDisplay.Both
+
+                                    function navigateDisplay() {
+                                        if (dataToDisplay < 2) {
+                                            dataToDisplay += 1
+                                        } else {
+                                            dataToDisplay = 0
+                                        }
+                                    }
+
+                                    Menus.EventMenu {
+                                        id: titleMenu
+
+                                        Layout.fillWidth: true
+
+                                        text: {
+                                            switch (swipeView.currentItem.type) {
+                                                case LPBatteryChart.Type.Day:
+                                                    return shell.batteryTracking ? i18n.tr("Last %1 days").arg(shell.batteryTracking.daysData.length)
+                                                                : i18n.tr("Previous days")
+                                                case LPBatteryChart.Type.FullyCharged:
+                                                    return i18n.tr("Last Fully Charged")
+                                                case LPBatteryChart.Type.LastCharge:
+                                                    return i18n.tr("Last Charge")
+                                            }
+                                        }
+                                        time: {
+                                            switch (swipeView.currentItem.dataToDisplay) {
+                                                case LPBatteryChart.DataToDisplay.Both:
+                                                    return i18n.tr("Screen Time")
+                                                case LPBatteryChart.DataToDisplay.ScreenOn:
+                                                    return i18n.tr("Screen On")
+                                                case LPBatteryChart.DataToDisplay.ScreenOff:
+                                                    return i18n.tr("Screen Off")
+                                            }
+                                        }
+                                        highlightWhenPressed: false
+                                        iconSource: "image://theme/history"
+                                    }
+
+                                    QQC2.SwipeView {
+                                        id: swipeView
+
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: units.gu(40)
+
+                                        currentIndex: 0
+
+                                        LPBatteryChart {
+                                            screenOnAverage: shell.batteryTracking ? shell.batteryTracking.screenOnTimeDaysAverage : 0
+                                            screenOffAverage: shell.batteryTracking ? shell.batteryTracking.screenOffTimeDaysAverage : 0
+                                            dataToDisplay: historyChartsLayout.dataToDisplay
+                                            type: LPBatteryChart.Type.Day
+                                            modelData: shell.batteryTracking ? shell.batteryTracking.daysData : []
+                                            onClicked: historyChartsLayout.navigateDisplay()
+                                        }
+                                        LPBatteryChart {
+                                            screenOnAverage: shell.batteryTracking ? shell.batteryTracking.screenOnTimeFullyChargedAverage : 0
+                                            screenOffAverage: shell.batteryTracking ? shell.batteryTracking.screenOffTimeFullyChargedAverage : 0
+                                            dataToDisplay: historyChartsLayout.dataToDisplay
+                                            type: LPBatteryChart.Type.FullyCharged
+                                            modelData: shell.batteryTracking ? shell.batteryTracking.fullyChargedData : []
+                                            onClicked: historyChartsLayout.navigateDisplay()
+                                        }
+                                        LPBatteryChart {
+                                            screenOnAverage: shell.batteryTracking ? shell.batteryTracking.screenOnTimeLastChargeAverage : 0
+                                            screenOffAverage: shell.batteryTracking ? shell.batteryTracking.screenOffTimeLastChargeAverage : 0
+                                            dataToDisplay: historyChartsLayout.dataToDisplay
+                                            type: LPBatteryChart.Type.LastCharge
+                                            modelData: shell.batteryTracking ? shell.batteryTracking.lastChargeData : []
+                                            onClicked: historyChartsLayout.navigateDisplay()
+                                        }
+                                    }
+
+                                    Menus.EventMenu {
+                                        Layout.fillWidth: true
+
+                                        highlightWhenPressed: false
+                                        text: {
+                                            if (swipeView.currentItem.dataToDisplay !== LPBatteryChart.DataToDisplay.ScreenOff) {
+                                                return i18n.tr("On: %1").arg(swipeView.currentItem.screenOnAverage)
+                                            } else {
+                                                return i18n.tr("Off: %1").arg(swipeView.currentItem.screenOffAverage)
+                                            }
+                                        }
+                                        time: {
+                                            if (swipeView.currentItem.dataToDisplay === LPBatteryChart.DataToDisplay.Both) {
+                                                return i18n.tr("Off: %1").arg(swipeView.currentItem.screenOffAverage)
+                                            } else {
+                                                return  ""
+                                            }
+                                        }
+                                        iconSource: ""
+                                    }
+
+                                    QQC2.PageIndicator {
+                                        id: pageIndicator
+
+                                        Layout.alignment: Qt.AlignHCenter
+                                        visible: count > 1
+                                        count: swipeView.count
+                                        currentIndex: swipeView.currentIndex
+                                        delegate: Rectangle {
+                                            color: index === pageIndicator.currentIndex ? theme.palette.normal.backgroundText : theme.palette.normal.foreground
+                                            width: units.gu(1)
+                                            height: width
+                                            radius: width / 2
+                                        }
+                                    }
+                                }
+                            }
+                            // ENH196 - End
+                        }
+                    }
+                    // ENH195 - End
+                }
+                Loader {
+                    id: customBottomMenuItems
+
+                    asynchronous: true
+                    anchors {
+                        top: listView.bottom
+                        left: parent.left
+                        right: parent.right
+                    }
+                    sourceComponent: {
+                        switch (root.identifier) {
+                            // ENH195 - Battery graph in indicator
+                            case "ayatana-indicator-power":
+                                return batteryComponent
+                            // ENH195 - End
+                            // ENH204 - Bluetooth device list
+                            case "ayatana-indicator-bluetooth":
+                                if (shell.settings.enableBluetoothDevicesList
+                                        && root.bluetoothToggle && root.bluetoothToggle.checked) {
+                                    return bluetoothComponent
+                                }
+                            // ENH204 - End
+                            break
+                        }
+                        return null
+                    }
+
+                    Component {
+                        id: bluetoothComponent
+
+                        LPBluetoothDevices {}
                     }
                 }
                 // ENH046 - End

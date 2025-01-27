@@ -126,8 +126,13 @@ StyledItem {
     // ENH046 - Lomiri Plus Settings
     property alias settings: lp_settings
     property alias lpsettingsLoader: settingsLoader
+    readonly property bool settingsShown: settingsLoader.active
     Suru.theme: Suru.Dark
     // ENH046 - End
+    // ENH216 - Right Edge gesture for Waydroid
+    readonly property bool foregroundAppIsWaydroid: stage.focusedAppId === "Waydroid"
+    // ENH216 - End
+    // ENH216 - End
     // ENH171 - Add blur to Top Panel and Drawer
     property alias lomiriGSettings: settings
     // ENH171 - End
@@ -139,6 +144,7 @@ StyledItem {
     property alias playbackItemIndicator: panel.playbackItem
     property alias alarmItem: alarm
     property alias alarmItemModel: alarmModel
+    property alias mediaPlayerLoaderObj: mediaPlayerLoader
     property alias mediaPlayer: mediaPlayerLoader.item
     // ENH064 - End
     // ENH114 - Popup holder
@@ -395,7 +401,7 @@ StyledItem {
     // Custom actions
     readonly property var customDirectActions: [
         lockScreenAction, lomiriPlusAction, powerDialogAction, screenshotAction, rotateAction, appScreenshotAction
-        , closeAppAction, showDesktopAction, appSuspensionAction
+        , closeAppAction, showDesktopAction, appSuspensionAction, searchDrawerAction
     ]
     Action {
         id: lockScreenAction
@@ -469,6 +475,13 @@ StyledItem {
         onTriggered: toggleRotation()
     }
     Action {
+        id: searchDrawerAction
+        name: "searchdrawer"
+        text: "Search Drawer"
+        iconName: "search"
+        onTriggered: launcher.toggleDrawer(true)
+    }
+    Action {
         id: lomiriPlusAction
         name: "lomiriplus"
         text: "LomiriPlus Settings"
@@ -526,6 +539,7 @@ StyledItem {
             }
         }
     }
+
     // ENH150 - Sensor gestures
     function triggerSensorGesture(_actionType, _action) {
         switch (_actionType) {
@@ -622,7 +636,7 @@ StyledItem {
         }
     }
     AmbientLightSensor {
-        id: lightSensor
+        id: ambientLightSensor
         active: Powerd.status === Powerd.On && shell.settings.keyboardBacklightAutoBehavior === 2
         dataRate: 20
         onReadingChanged: {
@@ -641,6 +655,151 @@ StyledItem {
         }
     }
     // ENH190 - End
+    // ENH208 - Pause media on bluetooth disconnect
+    property var volumeSlider: panel.indicators.volumeSlider
+
+    Loader {
+        id: autoPauseLoader
+
+        active: shell.settings.pauseMediaOnBluetoothAudioDisconnect
+        asynchronous: true
+        sourceComponent: LPAutoPauseBluetooth {
+            volumeSlider: shell.volumeSlider
+            playbackObj: shell.playbackItemIndicator
+        }
+    }
+    // ENH208 - End
+    // ENH206 - Custom auto brightness
+    property var brightnessSlider: panel.indicators.brightnessSlider
+    Loader {
+        id: autoBrightnessLoader
+
+        property bool temporaryDisable: false
+
+        active: shell.settings.enableCustomAutoBrightness
+                        && !temporaryDisable
+                        && (panel.indicators.autoBrightnessToggle && !panel.indicators.autoBrightnessToggle.checked ? true : false)
+        asynchronous: true
+        sourceComponent: LPAutoBrightness {
+            autoBrightnessData: shell.settings.customAutoBrightnessData
+        }
+    }
+    // ENH206 - End
+    // ENH197 - Light sensor
+    property real lightSensorValue: -1
+    property alias lightSensorObj: lightSensor
+    LightSensor {
+        id: lightSensor
+        active: Powerd.status === Powerd.On
+                    && (shell.settings.enableColorOverlaySensor || shell.settings.enableAutoDarkModeSensor
+                            || (shell.settings.enablePocketModeSecurity && shell.showingGreeter)
+                            || autoBrightnessLoader.active
+                            || autoBrightnessLoader.temporaryDisable)
+        dataRate: 20
+        onActiveChanged: if (!active) shell.lightSensorValue = -1
+    }
+    Timer {
+        running: lightSensor.active
+        repeat: true
+        interval: 1000
+        onTriggered: {
+            shell.lightSensorValue = lightSensor.reading.illuminance >= 0 ? lightSensor.reading.illuminance : -1
+        }
+    }
+
+    onLightSensorValueChanged: {
+        if (shell.settings.enableAutoDarkModeSensor
+                && (!shell.settings.enableAutoDarkMode
+                        || (shell.settings.enableAutoDarkMode && !themeSettings.checkAutoToggle(true)))
+            ) {
+            autoDarkModeSensorDelayTimer.restart()
+        }
+    }
+
+    Timer {
+        id: autoDarkModeSensorDelayTimer
+        interval: shell.settings.autoDarkModeSensorDelay * 1000
+        onTriggered: {
+            let _shouldDarkMode = lightSensorValue > -1 && lightSensorValue <= shell.settings.autoDarkModeSensorThreshold
+
+            if (_shouldDarkMode) {
+                themeSettings.setToDark()
+            } else {
+                themeSettings.setToAmbiance()
+            }
+        }
+    }
+    // ENH197 - End
+    // ENH198 - Pocket Mode
+    readonly property bool pocketModeDetected: proximitySensor.active && proximitySensor.reading.near && shell.showingGreeter
+                                            && (shell.settings.doNotUseLightSensorInPocketMode || (!shell.settings.doNotUseLightSensorInPocketMode && shell.lightSensorValue == 0))
+    property bool isPocketMode: false
+
+    onPocketModeDetectedChanged: {
+        if (pocketModeDetected) {
+            delayPocketMode.restart()
+        } else {
+            delayPocketModeDisable.restart()
+        }
+    }
+
+    Timer {
+        id: delayPocketMode
+
+        interval: 200
+
+        onTriggered: {
+            // Check if it's still detected
+            if (pocketModeDetected) {
+                isPocketMode = true
+            }
+        }
+    }
+
+    Timer {
+        id: delayPocketModeDisable
+
+        interval: 1000
+
+        onTriggered: {
+            // Check if it's still detected
+            if (!pocketModeDetected) {
+                isPocketMode = false
+            }
+        }
+    }
+    
+    ProximitySensor {
+        id: proximitySensor
+        active: Powerd.status === Powerd.On && shell.settings.enablePocketModeSecurity && shell.showingGreeter
+    }
+    // ENH198 - End
+    // ENH196 - Battery stats tracking
+    property alias batteryTracking: batteryTrackingLoader.item
+
+    Loader {
+        id: batteryTrackingLoader
+
+        active: shell.settings.enableBatteryTracking
+        asynchronous: true
+        sourceComponent: LPBatteryTracking {
+            automaticUpdateValues: false
+        }
+    }
+    // ENH196 - End
+    // ENH203 - I’m awake
+    property alias awakeTracking: awakeTrackingLoader.item
+
+    Loader {
+        id: awakeTrackingLoader
+
+        active: shell.settings.enableImAwake
+        asynchronous: true
+        sourceComponent: LPAwakeTracking {
+            alarmPrefix: shell.settings.wakeUpAlarmPrefix
+        }
+    }
+    // ENH203 - End
 
     Item {
         id: themeSettings
@@ -662,7 +821,7 @@ StyledItem {
         }
         // ENH190 - End
 
-        function checkAutoToggle() {
+        function checkAutoToggle(_checkOnly=false) {
             let _rawStartTime = Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeStartTime, "hh:mm")
             let _rawEndTime = Date.fromLocaleString(Qt.locale(), shell.settings.autoDarkModeEndTime, "hh:mm")
             let _currentTime = new Date()
@@ -681,12 +840,20 @@ StyledItem {
                             _reverseLogic && ((_currentTime >= _startTime && _currentTime >= _endTime) || (_currentTime <= _startTime && _currentTime <= _endTime))
                        )
                ) {
-                if (!isDarkMode) {
-                    setToDark()
+                if (_checkOnly) {
+                    return true
+                } else {
+                    if (!isDarkMode) {
+                        setToDark()
+                    }
                 }
             } else {
-                if (isDarkMode) {
-                    setToAmbiance()
+                if (_checkOnly) {
+                    return false
+                } else {
+                    if (isDarkMode) {
+                        setToAmbiance()
+                    }
                 }
             }
         }
@@ -846,9 +1013,28 @@ StyledItem {
         property alias customWindowSnappingRectangleBorderColor: settingsObj.customWindowSnappingRectangleBorderColor
         property alias replaceHorizontalVerticalSnappingWithBottomTop: settingsObj.replaceHorizontalVerticalSnappingWithBottomTop
         property alias disableKeyboardShortcutsOverlay: settingsObj.disableKeyboardShortcutsOverlay
+        property alias enableColorOverlaySensor: settingsObj.enableColorOverlaySensor
+        property alias colorOverlaySensorThreshold: settingsObj.colorOverlaySensorThreshold
+        property alias enableImAwake: settingsObj.enableImAwake
+        property alias listOfDisabledWakeAlarms: settingsObj.listOfDisabledWakeAlarms
+        property alias currentDateForAlarms: settingsObj.currentDateForAlarms
+        property alias earliestWakeUpAlarm: settingsObj.earliestWakeUpAlarm
+        property alias latestWakeUpAlarm: settingsObj.latestWakeUpAlarm
+        property alias wakeUpAlarmPrefix: settingsObj.wakeUpAlarmPrefix
+        property alias enableCustomAutoBrightness: settingsObj.enableCustomAutoBrightness
+        property alias customAutoBrightnessData: settingsObj.customAutoBrightnessData
+        property alias pauseMediaOnBluetoothAudioDisconnect: settingsObj.pauseMediaOnBluetoothAudioDisconnect
+        property alias showNotificationBubblesAtTheBottom: settingsObj.showNotificationBubblesAtTheBottom
+        property alias enableAdvancedScreenshot: settingsObj.enableAdvancedScreenshot
+        property alias tryToStabilizeAutoBrightness: settingsObj.tryToStabilizeAutoBrightness
 
-        // Privacy
+        // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
+        property alias enablePocketModeSecurity: settingsObj.enablePocketModeSecurity
+        property alias doNotUseLightSensorInPocketMode: settingsObj.doNotUseLightSensorInPocketMode
+        property alias enableSnatchAlarm: settingsObj.enableSnatchAlarm
+        property alias snatchAlarmContactName: settingsObj.snatchAlarmContactName
+        property alias disablePowerRebootInLockscreen: settingsObj.disablePowerRebootInLockscreen
 
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
@@ -916,7 +1102,9 @@ StyledItem {
         property alias drawerDockType: settingsObj.drawerDockType
         property alias drawerDockApps: settingsObj.drawerDockApps
         property alias drawerDockHideLabels: settingsObj.drawerDockHideLabels
-        
+        property alias enableMaxHeightInDrawerDock: settingsObj.enableMaxHeightInDrawerDock
+        property alias drawerDockMaxHeight: settingsObj.drawerDockMaxHeight
+
         // Indicators/Top Panel
         property alias indicatorBlur: settingsObj.indicatorBlur
         property alias indicatorGesture: settingsObj.indicatorGesture
@@ -944,7 +1132,11 @@ StyledItem {
         property alias enableImmersiveModeToggleIndicator: settingsObj.enableImmersiveModeToggleIndicator
         property alias showImmersiveModeIconIndicator: settingsObj.showImmersiveModeIconIndicator
         property alias enableDarkModeToggleIndicator: settingsObj.enableDarkModeToggleIndicator
+        property alias enableBatteryGraphIndicator: settingsObj.enableBatteryGraphIndicator
         property alias enableAutoDarkMode: settingsObj.enableAutoDarkMode
+        property alias enableAutoDarkModeSensor: settingsObj.enableAutoDarkModeSensor
+        property alias autoDarkModeSensorThreshold: settingsObj.autoDarkModeSensorThreshold
+        property alias autoDarkModeSensorDelay: settingsObj.autoDarkModeSensorDelay
         property alias enableAutoDarkModeToggleIndicator: settingsObj.enableAutoDarkModeToggleIndicator
         property alias immediateDarkModeSwitch: settingsObj.immediateDarkModeSwitch
         property alias autoDarkModeStartTime: settingsObj.autoDarkModeStartTime
@@ -968,6 +1160,10 @@ StyledItem {
         property alias enableTransparentTopBarInGreeter: settingsObj.enableTransparentTopBarInGreeter
         property alias topPanelMatchAppBehavior: settingsObj.topPanelMatchAppBehavior
         property alias enableTopPanelMatchAppTopColorWindowed: settingsObj.enableTopPanelMatchAppTopColorWindowed
+        property alias useCustomTopBarIconTextColor: settingsObj.useCustomTopBarIconTextColor
+        property alias customTopBarIconTextColor: settingsObj.customTopBarIconTextColor
+        property alias enableBluetoothDevicesList: settingsObj.enableBluetoothDevicesList
+        property alias recentBlutoothDevicesList: settingsObj.recentBlutoothDevicesList
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -975,6 +1171,8 @@ StyledItem {
         property alias gestureMediaControls: settingsObj.gestureMediaControls
         property alias autoCollapseQuickToggles: settingsObj.autoCollapseQuickToggles
         property alias quickTogglesCollapsedRowCount: settingsObj.quickTogglesCollapsedRowCount
+        property alias disableTogglesOnLockscreen: settingsObj.disableTogglesOnLockscreen
+        property alias togglesToDisableOnLockscreen: settingsObj.togglesToDisableOnLockscreen
 
         // Quick Actions (Previously Direct Actions)
         property alias enableDirectActions: settingsObj.enableDirectActions
@@ -1006,6 +1204,7 @@ StyledItem {
         property alias customInfographicsCircleColor: settingsObj.customInfographicsCircleColor
         property alias useCustomDotsColor: settingsObj.useCustomDotsColor
         property alias customDotsColor: settingsObj.customDotsColor
+        property alias useCustomAccountIcon: settingsObj.useCustomAccountIcon
         
         // Sensor Gestures
         property alias enableSensorGestures: settingsObj.enableSensorGestures
@@ -1056,6 +1255,50 @@ StyledItem {
         onEnableTwistGestureChanged: toggleInSensorGestureList("QtSensors.twist", enableTwistGesture)
         onEnableWhipGestureChanged: toggleInSensorGestureList("QtSensors.whip", enableWhipGesture)
 
+        // ENH201 - Disable toggles in lockscreen
+        Timer {
+            id: delayedDisableTogglesTimer
+            interval: 2000
+            onTriggered: lp_settings.updateTogglesForDisabling()
+        }
+
+        function updateTogglesForDisabling() {
+            let _settingEnabled = shell.settings.disableTogglesOnLockscreen
+
+            let _arr = shell.quickToggleItems.slice()
+            let _length = _arr.length
+            let _failed = false // When toggle items are not loaded yet
+
+            for (let i = 0; i < _length; i++) {
+                let _item = _arr[i]
+                let _identifier = _item.identifier
+                let _toggleObj = _item.toggleObj
+                if (!_toggleObj) {
+                    _failed = true
+                    break
+                }
+                let _foundItem = findFromArray(togglesToDisableOnLockscreen, "identifier", _identifier)
+                let _when = _foundItem ? _foundItem.when : -1
+
+                if (_when > -1 && _settingEnabled) {
+                    if (_toggleObj && _toggleObj.hasOwnProperty("disableOnLockscreenWhen")) {
+                        _toggleObj.disableOnLockscreenWhen = _when
+                    }
+                } else {
+                    if (_toggleObj && _toggleObj.hasOwnProperty("disableOnLockscreenWhen")) {
+                        _toggleObj.disableOnLockscreenWhen = -1
+                    }
+                }
+            }
+
+            if (_failed) {
+                delayedDisableTogglesTimer.restart()
+            }
+        }
+        onDisableTogglesOnLockscreenChanged: updateTogglesForDisabling()
+        onTogglesToDisableOnLockscreenChanged: updateTogglesForDisabling()
+        // ENH201 - End
+
         // Pro1-X
         property alias pro1_OSKOrientation: settingsObj.pro1_OSKOrientation
         property alias pro1_OSKToggleKey: settingsObj.pro1_OSKToggleKey
@@ -1092,6 +1335,8 @@ StyledItem {
         property alias dcBlurredAlbumArt: settingsObj.dcBlurredAlbumArt
         property alias dcCDPlayerSimpleMode: settingsObj.dcCDPlayerSimpleMode
         property alias dcCDPlayerOpacity: settingsObj.dcCDPlayerOpacity
+        property alias enableAmbientModeInCDPlayer: settingsObj.enableAmbientModeInCDPlayer
+        property alias hideCDPlayerWhenScreenOff: settingsObj.hideCDPlayerWhenScreenOff
 
         // Air Mouse
         property alias enableAirMouse: settingsObj.enableAirMouse
@@ -1118,6 +1363,36 @@ StyledItem {
         property alias actionBottomRightHotCorner: settingsObj.actionBottomRightHotCorner
         property alias actionBottomLeftHotCorner: settingsObj.actionBottomLeftHotCorner
 
+        // Battery Tracking
+        property alias enableBatteryTracking: settingsObj.enableBatteryTracking
+        property alias batteryTrackingData: settingsObj.batteryTrackingData
+        property alias batteryTrackingDataDuration: settingsObj.batteryTrackingDataDuration
+        property alias enableBatteryStatsIndicator: settingsObj.enableBatteryStatsIndicator
+        property alias showScreenTimeSinceLastFullCharged: settingsObj.showScreenTimeSinceLastFullCharged
+        property alias showScreenTimeSinceLastCharge: settingsObj.showScreenTimeSinceLastCharge
+        property alias showScreenTimeToday: settingsObj.showScreenTimeToday
+        property alias showScreenTimeYesterday: settingsObj.showScreenTimeYesterday
+        property alias screenTimeFullyChargedWorkaround: settingsObj.screenTimeFullyChargedWorkaround
+        property alias collapsibleScreenTimeIndicators: settingsObj.collapsibleScreenTimeIndicators
+        property alias showHistoryCharts: settingsObj.showHistoryCharts
+        property alias onlyIncludePercentageRangeInBatteryChart: settingsObj.onlyIncludePercentageRangeInBatteryChart
+        property alias batteryPercentageRangeToInclude: settingsObj.batteryPercentageRangeToInclude
+        property alias enableChargingAlarm: settingsObj.enableChargingAlarm
+        property alias silentChargingAlarm: settingsObj.silentChargingAlarm
+        property alias detectFullyChargedInChargingAlarm: settingsObj.detectFullyChargedInChargingAlarm
+        property alias targetPercentageChargingAlarm: settingsObj.targetPercentageChargingAlarm
+        property alias alwaysPromptchargingAlarm: settingsObj.alwaysPromptchargingAlarm
+        property alias chargingAlarmPromptTimesout: settingsObj.chargingAlarmPromptTimesout
+        property alias enableChargingAlarmByDefault: settingsObj.enableChargingAlarmByDefault
+
+        // Waydroid Gesture
+        property alias disableRigheEdgeForWaydroid: settingsObj.disableRigheEdgeForWaydroid
+        property alias disableRigheEdgeForWaydroidEdge: settingsObj.disableRigheEdgeForWaydroidEdge
+        property alias disableRigheEdgeForWaydroidHeight: settingsObj.disableRigheEdgeForWaydroidHeight
+        property alias disableLeftEdgeForWaydroid: settingsObj.disableLeftEdgeForWaydroid
+        property alias disableLeftEdgeForWaydroidEdge: settingsObj.disableLeftEdgeForWaydroidEdge
+        property alias disableLeftEdgeForWaydroidHeight: settingsObj.disableLeftEdgeForWaydroidHeight
+
         // Stopwatch Data
         property alias dcStopwatchTimeMS: settingsObj.dcStopwatchTimeMS
         property alias dcStopwatchLastEpoch: settingsObj.dcStopwatchLastEpoch
@@ -1139,6 +1414,10 @@ StyledItem {
         property bool showInfographics: true
         property bool immersiveMode: false
         property bool showTouchVisuals: false
+        // For Charging Alarm
+        property bool temporaryEnableChargingAlarm: false
+        property bool temporaryCustomTargetBatteryPercentage: false
+        property int temporaryTargetBatteryPercentage: 80
 
 
         Settings {
@@ -1583,6 +1862,118 @@ StyledItem {
             property bool disableKeyboardShortcutsOverlay: false
             property bool hideLauncherWhenNarrow: false
             property real directActionsMaxWidthGU: 40 // In GU
+            property bool enableBatteryGraphIndicator: false
+            property bool enableBatteryTracking: false
+            property var batteryTrackingData: []
+            property int batteryTrackingDataDuration: 7
+            property bool enableBatteryStatsIndicator: false
+            property bool showScreenTimeSinceLastFullCharged: true
+            property bool showScreenTimeSinceLastCharge: false
+            property bool showScreenTimeToday: false
+            property bool showScreenTimeYesterday: false
+            property bool screenTimeFullyChargedWorkaround: false
+            property bool collapsibleScreenTimeIndicators: false
+            property bool showHistoryCharts: false
+            property bool enableColorOverlaySensor: false
+            property int colorOverlaySensorThreshold: 0
+            property bool enableAutoDarkModeSensor: false
+            property int autoDarkModeSensorThreshold: 0
+            property int autoDarkModeSensorDelay: 1 // In Seconds
+            property bool enablePocketModeSecurity: false
+            property bool useCustomTopBarIconTextColor: false
+            property color customTopBarIconTextColor: theme.palette.normal.backgroundText
+            property bool enableAmbientModeInCDPlayer: false
+            property bool disableTogglesOnLockscreen: false
+            property var togglesToDisableOnLockscreen: [
+            /* when
+             * 0 - Always
+             * 1 - When Turned On
+             * 2 - When Turned Off
+            */
+                {
+                    "identifier": "silentmode"
+                    , "when": 2
+                }
+                , {
+                    "identifier": "flightmode"
+                    , "when": 2
+                }
+                , {
+                    "identifier": "mobiledata"
+                    , "when": 1
+                }
+                , {
+                    "identifier": "wifi"
+                    , "when": 1
+                }
+                , {
+                    "identifier": "bluetooth"
+                    , "when": 1
+                }
+                , {
+                    "identifier": "location"
+                    , "when": 1
+                }
+                , {
+                    "identifier": "hotspot"
+                    , "when": 1
+                }
+                , {
+                    "identifier": "activescreen"
+                    , "when": 0
+                }
+            ]
+            property bool enableMaxHeightInDrawerDock: false
+            property real drawerDockMaxHeight: 3 // In inches
+            property bool hideCDPlayerWhenScreenOff: true
+            property bool onlyIncludePercentageRangeInBatteryChart: true
+            property int batteryPercentageRangeToInclude: 80
+            property bool enableSnatchAlarm: false
+            property string snatchAlarmContactName: ""
+            property bool enableImAwake: false
+            property var listOfDisabledWakeAlarms: []
+            property real currentDateForAlarms: new Date().getTime() // Unused
+            property string wakeUpAlarmPrefix: "[WAKEUP]"
+            property bool doNotUseLightSensorInPocketMode: false
+            property real earliestWakeUpAlarm: new Date().getTime()
+            property real latestWakeUpAlarm: new Date().getTime()
+            property bool enableBluetoothDevicesList: false
+            property var recentBlutoothDevicesList: []
+            property bool useCustomAccountIcon: false
+            property bool enableCustomAutoBrightness: false
+            property var customAutoBrightnessData: [
+                { light: 0, brightness: 0 }
+                , { light: 13, brightness: 0.25 }
+                , { light: 45, brightness: 0.40 }
+                , { light: 400, brightness: 0.70 }
+                , { light: 3000, brightness: 1.0 }
+            ]
+            property bool pauseMediaOnBluetoothAudioDisconnect: false
+            property bool showNotificationBubblesAtTheBottom: false
+            property bool enableAdvancedScreenshot: false
+            property bool disableRigheEdgeForWaydroid: false
+            property int disableRigheEdgeForWaydroidEdge: 0
+            /*
+             * 0 - Top
+             * 1 - Bottom
+            */
+            property int disableRigheEdgeForWaydroidHeight: 50 // In percentage
+            property bool disableLeftEdgeForWaydroid: false
+            property int disableLeftEdgeForWaydroidEdge: 0
+            /*
+             * 0 - Top
+             * 1 - Bottom
+            */
+            property int disableLeftEdgeForWaydroidHeight: 50 // In percentage
+            property bool disablePowerRebootInLockscreen: false
+            property bool tryToStabilizeAutoBrightness: false
+            property bool enableChargingAlarm: false
+            property bool silentChargingAlarm: false
+            property bool detectFullyChargedInChargingAlarm: true
+            property int targetPercentageChargingAlarm: 80
+            property bool alwaysPromptchargingAlarm: false
+            property bool chargingAlarmPromptTimesout: false
+            property bool enableChargingAlarmByDefault: true
         }
     }
 
@@ -1947,6 +2338,11 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Features"
+                onClicked: settingsLoader.item.stack.push(featuresPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Outer Wilds"
                 onClicked: settingsLoader.item.stack.push(outerWildsPage, {"title": text})
             }
@@ -1989,6 +2385,263 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Extras"
                 onClicked: settingsLoader.item.stack.push(extrasPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: featuresPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "General"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Abot Kamay"
+                onClicked: settingsLoader.item.stack.push(pullDownPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Advanced Screenshot"
+                onClicked: settingsLoader.item.stack.push(advancedScreenshotPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Auto Dark Mode"
+                onClicked: settingsLoader.item.stack.push(autoDarkModePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Auto-Brightness DIY"
+                onClicked: settingsLoader.item.stack.push(autoBrightnessPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Color Overlay"
+                onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Fully Charged Alarm"
+                onClicked: settingsLoader.item.stack.push(chargingAlarmPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Quick Actions"
+                onClicked: settingsLoader.item.stack.push(directActionsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Sensor Gestures"
+                onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Launcher & App Drawer"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Launcher Direct Select"
+                onClicked: settingsLoader.item.stack.push(directSelectPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Drawer Dock"
+                onClicked: settingsLoader.item.stack.push(drawerDockPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "App Grids"
+                onClicked: settingsLoader.item.stack.push(appGridsPage, {"title": text})
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Indicators"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Battery Statistics"
+                onClicked: settingsLoader.item.stack.push(batteryStatsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Quick toggles"
+                onClicked: settingsLoader.item.stack.push(quickTogglesPage, {"title": text})
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Lockscreen"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Dynamic Cove"
+                onClicked: settingsLoader.item.stack.push(dynamicCovePage, {"title": text})
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Desktop Mode"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Air Mouse"
+                onClicked: settingsLoader.item.stack.push(airMousePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Hot Corners"
+                onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: chargingAlarmPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "When this is enabled, an alarm will be set once your device is fully charged or reached the percentage you set. The alarm will go off after a minute or so"
+                + "\n\nNote that sometimes and/or some device will fail to detect fully charged state. If you encounter this, disable the setting and use the Default Target Battery % settings instead"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableChargingAlarm
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableChargingAlarm = checked
+                Binding {
+                    target: enableChargingAlarm
+                    property: "checked"
+                    value: shell.settings.enableChargingAlarm
+                }
+            }
+            LPSettingsCheckBox {
+                id: alwaysPromptchargingAlarm
+                Layout.fillWidth: true
+                text: "Ask upon plugging to power"
+                visible: shell.settings.enableChargingAlarm
+                onCheckedChanged: shell.settings.alwaysPromptchargingAlarm = checked
+                Binding {
+                    target: alwaysPromptchargingAlarm
+                    property: "checked"
+                    value: shell.settings.alwaysPromptchargingAlarm
+                }
+            }
+            LPSettingsCheckBox {
+                id: chargingAlarmPromptTimesout
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                text: "Prompt times out after 60s"
+                visible: shell.settings.enableChargingAlarm && shell.settings.alwaysPromptchargingAlarm
+                onCheckedChanged: shell.settings.chargingAlarmPromptTimesout = checked
+                Binding {
+                    target: chargingAlarmPromptTimesout
+                    property: "checked"
+                    value: shell.settings.chargingAlarmPromptTimesout
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableChargingAlarmByDefault
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                text: "Enable alarm when prompt times out"
+                visible: shell.settings.enableChargingAlarm && shell.settings.alwaysPromptchargingAlarm
+                                    && shell.settings.chargingAlarmPromptTimesout
+                onCheckedChanged: shell.settings.enableChargingAlarmByDefault = checked
+                Binding {
+                    target: enableChargingAlarmByDefault
+                    property: "checked"
+                    value: shell.settings.enableChargingAlarmByDefault
+                }
+            }
+            LPSettingsCheckBox {
+                id: silentChargingAlarm
+                Layout.fillWidth: true
+                text: "Silent alarm"
+                visible: shell.settings.enableChargingAlarm
+                onCheckedChanged: shell.settings.silentChargingAlarm = checked
+                Binding {
+                    target: silentChargingAlarm
+                    property: "checked"
+                    value: shell.settings.silentChargingAlarm
+                }
+            }
+            LPSettingsCheckBox {
+                id: detectFullyChargedInChargingAlarm
+                Layout.fillWidth: true
+                text: "Detect Fully Charged State"
+                visible: shell.settings.enableChargingAlarm
+                onCheckedChanged: shell.settings.detectFullyChargedInChargingAlarm = checked
+                Binding {
+                    target: detectFullyChargedInChargingAlarm
+                    property: "checked"
+                    value: shell.settings.detectFullyChargedInChargingAlarm
+                }
+            }
+            LPSettingsSlider {
+                id: targetPercentageChargingAlarm
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableChargingAlarm && !shell.settings.detectFullyChargedInChargingAlarm
+                title: "Default Target Battery %"
+                minimumValue: 50
+                maximumValue: 100
+                stepSize: 1
+                resetValue: 80
+                live: true
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                unitsLabel: "%"
+                onValueChanged: shell.settings.targetPercentageChargingAlarm = value
+                Binding {
+                    target: targetPercentageChargingAlarm
+                    property: "value"
+                    value: shell.settings.targetPercentageChargingAlarm
+                }
+            }
+        }
+    }
+    Component {
+        id: advancedScreenshotPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "This will show a prompt at the bottom whenever you take a screenshot. The prompt will allow you to do actions such as edit and share."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableAdvancedScreenshot
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableAdvancedScreenshot = checked
+                Binding {
+                    target: enableAdvancedScreenshot
+                    property: "checked"
+                    value: shell.settings.enableAdvancedScreenshot
+                }
             }
         }
     }
@@ -2078,6 +2731,122 @@ StyledItem {
                     target: hideNotificationBodyWhenLocked
                     property: "checked"
                     value: shell.settings.hideNotificationBodyWhenLocked
+                }
+            }
+            LPSettingsCheckBox {
+                id: disablePowerRebootInLockscreen
+                Layout.fillWidth: true
+                text: "Disable shutdown and reboot in lockscreen"
+                onCheckedChanged: shell.settings.disablePowerRebootInLockscreen = checked
+                Binding {
+                    target: disablePowerRebootInLockscreen
+                    property: "checked"
+                    value: shell.settings.disablePowerRebootInLockscreen
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "When enabled, shutdown and reboot buttons will do nothing when in the lockscreen. To make them work, swipe both from the left and right edge and press the button."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enablePocketModeSecurity
+                Layout.fillWidth: true
+                text: "Enable Pocket Mode detection"
+                onCheckedChanged: shell.settings.enablePocketModeSecurity = checked
+                Binding {
+                    target: enablePocketModeSecurity
+                    property: "checked"
+                    value: shell.settings.enablePocketModeSecurity
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Any kind of interaction will be disabled when Pocket Mode is detected. It is detected via Proximity (Near) and Light sensors (0)"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: doNotUseLightSensorInPocketMode
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enablePocketModeSecurity
+                text: "Do not use Light sensor"
+                onCheckedChanged: shell.settings.doNotUseLightSensorInPocketMode = checked
+                Binding {
+                    target: doNotUseLightSensorInPocketMode
+                    property: "checked"
+                    value: shell.settings.doNotUseLightSensorInPocketMode
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Some devices have non-functioning light sensor so you can disable it and only use proximity sensor"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Disable toggles when locked"
+                onClicked: settingsLoader.item.stack.push(disableTogglesPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Snatch Alarm"
+                onClicked: settingsLoader.item.stack.push(snatchAlarmPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: snatchAlarmPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Set a specific contact name which will make the phone automatically disable silent mode and put the volume to max when a call is received from this contact."
+                + "This could be helpful if for example you have a secondary phone and your main phone got snatched, you call it from your secondary phone and your phone will ring at max volume.\n"
+                + "Honestly, I don't know if this makes sense. I just thought of it and did anyway because I can LOL"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableSnatchAlarm
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableSnatchAlarm = checked
+                Binding {
+                    target: enableSnatchAlarm
+                    property: "checked"
+                    value: shell.settings.enableSnatchAlarm
+                }
+            }
+            TextField {
+                id: snatchAlarmContactName
+
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                placeholderText: "Contact Name"
+                inputMethodHints: Qt.ImhNoPredictiveText
+                onTextChanged: shell.settings.snatchAlarmContactName = text
+                Binding {
+                    target: snatchAlarmContactName
+                    property: "text"
+                    value: shell.settings.snatchAlarmContactName
                 }
             }
         }
@@ -2185,8 +2954,23 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Auto-Brightness DIY"
+                onClicked: settingsLoader.item.stack.push(autoBrightnessPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Battery Statistics"
+                onClicked: settingsLoader.item.stack.push(batteryStatsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Color Overlay"
                 onClicked: settingsLoader.item.stack.push(colorOverlayPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Fully Charged Alarm"
+                onClicked: settingsLoader.item.stack.push(chargingAlarmPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -2197,6 +2981,16 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Sensor Gestures"
                 onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Wake up Alarms"
+                onClicked: settingsLoader.item.stack.push(alarmWakePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Waydroid Gestures"
+                onClicked: settingsLoader.item.stack.push(waydroidGesturesPage, {"title": text})
             }
             LPSettingsSwitch {
                 id: enableHaptics
@@ -2252,6 +3046,17 @@ StyledItem {
                 font.italic: true
                 textSize: Label.Small
             }
+            LPSettingsCheckBox {
+                id: pauseMediaOnBluetoothAudioDisconnect
+                Layout.fillWidth: true
+                text: "Pause media upon bluetooth audio disconnect"
+                onCheckedChanged: shell.settings.pauseMediaOnBluetoothAudioDisconnect = checked
+                Binding {
+                    target: pauseMediaOnBluetoothAudioDisconnect
+                    property: "checked"
+                    value: shell.settings.pauseMediaOnBluetoothAudioDisconnect
+                }
+            }
             LPSettingsSwitch {
                 id: orientationPrompt
                 Layout.fillWidth: true
@@ -2285,6 +3090,386 @@ StyledItem {
                     target: touchVisualColor
                     property: "text"
                     value: shell.settings.touchVisualColor
+                }
+            }
+        }
+    }
+    Component {
+        id: waydroidGesturesPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "This would disable a portion of the left/right edge gestures whenever Waydroid is the focused app."
+                + " This could help using gestures-based navigation in Waydroid while still be able to use native edge gestures."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: disableRigheEdgeForWaydroid
+                Layout.fillWidth: true
+                text: "Disable Right Edge"
+                onCheckedChanged: shell.settings.disableRigheEdgeForWaydroid = checked
+                Binding {
+                    target: disableRigheEdgeForWaydroid
+                    property: "checked"
+                    value: shell.settings.disableRigheEdgeForWaydroid
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.disableRigheEdgeForWaydroid
+                text: i18n.tr("Right Edge Section")
+                model: [
+                    i18n.tr("Top"),
+                    i18n.tr("Bottom")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.disableRigheEdgeForWaydroidEdge
+                onSelectedIndexChanged: shell.settings.disableRigheEdgeForWaydroidEdge = selectedIndex
+            }
+            LPSettingsSlider {
+                id: disableRigheEdgeForWaydroidHeight
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.disableRigheEdgeForWaydroid
+                title: "Right Edge Height percentage"
+                minimumValue: 1
+                maximumValue: 100
+                stepSize: 5
+                resetValue: 50
+                live: true
+                enableFineControls: true
+                percentageValue: true
+                valueIsPercentage: true
+                roundValue: true
+                onValueChanged: shell.settings.disableRigheEdgeForWaydroidHeight = value
+                Binding {
+                    target: disableRigheEdgeForWaydroidHeight
+                    property: "value"
+                    value: shell.settings.disableRigheEdgeForWaydroidHeight
+                }
+            }
+            LPSettingsCheckBox {
+                id: disableLeftEdgeForWaydroid
+                Layout.fillWidth: true
+                text: "Disable Left Edge"
+                onCheckedChanged: shell.settings.disableLeftEdgeForWaydroid = checked
+                Binding {
+                    target: disableLeftEdgeForWaydroid
+                    property: "checked"
+                    value: shell.settings.disableLeftEdgeForWaydroid
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.disableLeftEdgeForWaydroid
+                text: i18n.tr("Left Edge Section")
+                model: [
+                    i18n.tr("Top"),
+                    i18n.tr("Bottom")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.disableLeftEdgeForWaydroidEdge
+                onSelectedIndexChanged: shell.settings.disableLeftEdgeForWaydroidEdge = selectedIndex
+            }
+            LPSettingsSlider {
+                id: disableLeftEdgeForWaydroidHeight
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.disableLeftEdgeForWaydroid
+                title: "Left Edge Height percentage"
+                minimumValue: 1
+                maximumValue: 100
+                stepSize: 5
+                resetValue: 50
+                live: true
+                enableFineControls: true
+                percentageValue: true
+                valueIsPercentage: true
+                roundValue: true
+                onValueChanged: shell.settings.disableLeftEdgeForWaydroidHeight = value
+                Binding {
+                    target: disableLeftEdgeForWaydroidHeight
+                    property: "value"
+                    value: shell.settings.disableLeftEdgeForWaydroidHeight
+                }
+            }
+        }
+    }
+    Component {
+        id: autoBrightnessPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "System auto brightness must be disabled for this to take effect.\n"
+                + "Brightness will adjust once the light sensor value reaches the next higher value in the data you set below."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableCustomAutoBrightness
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableCustomAutoBrightness = checked
+                Binding {
+                    target: enableCustomAutoBrightness
+                    property: "checked"
+                    value: shell.settings.enableCustomAutoBrightness
+                }
+            }
+            LPSettingsCheckBox {
+                id: tryToStabilizeAutoBrightness
+                Layout.fillWidth: true
+                text: "Try to stablize by not allowing changes for a few seconds"
+                onCheckedChanged: shell.settings.tryToStabilizeAutoBrightness = checked
+                Binding {
+                    target: tryToStabilizeAutoBrightness
+                    property: "checked"
+                    value: shell.settings.tryToStabilizeAutoBrightness
+                }
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: "Add data"
+                color: theme.palette.normal.positive
+                onClicked: {
+                    // Do not use PopupUtils to fix orientation issues
+                    let _dialogAdd = addAutoBrightnessDialog.createObject(shell.popupParent);
+
+                    let _addNewAutoBrightnessData = function (_lightValue, _brightnessValue) {
+                        let _tempArr = shell.settings.customAutoBrightnessData.slice()
+                        let _itemData = {
+                            light: _lightValue
+                            , brightness: parseFloat(_brightnessValue.toFixed(2))
+                        }
+                        _tempArr.push(_itemData)
+                        _tempArr.sort((a, b) => a.light - b.light)
+                        shell.settings.customAutoBrightnessData = _tempArr.slice()
+                    }
+
+                    _dialogAdd.add.connect(_addNewAutoBrightnessData)
+                    _dialogAdd.show()
+                }
+            }
+            ListView {
+                id: autoBrightnessListView
+
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentHeight
+
+                interactive: false
+                model: shell.settings.customAutoBrightnessData
+
+                delegate: ListItem {
+                    id: listItem
+
+                    property int actionIndex: index
+                    property int lightValue: modelData.light
+                    property real brightnessValue: modelData.brightness
+
+                    height: layout.height + (divider.visible ? divider.height : 0)
+                    color: dragging ? theme.palette.selected.base : "transparent"
+
+                    ListItemLayout {
+                        id: layout
+                        title.text: i18n.tr("Light: %1").arg(listItem.lightValue)
+                        title.wrapMode: Text.WordWrap
+
+                        Label {
+                            text: i18n.tr("Brightness: %1%").arg(listItem.brightnessValue * 100)
+                            wrapMode: Text.WordWrap
+                            SlotsLayout.position: SlotsLayout.Trailing
+                        }
+                    }
+
+                    leadingActions: ListItemActions {
+                        actions: [
+                            Action {
+                                iconName: "delete"
+                                onTriggered: {
+                                    let _arrNewValues = shell.settings.customAutoBrightnessData.slice()
+                                    _arrNewValues.splice(listItem.actionIndex, 1)
+                                    shell.settings.customAutoBrightnessData = _arrNewValues.slice()
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                Component {
+                    id: addAutoBrightnessDialog
+
+                    Dialog {
+                        id: autoBrightnessDialog
+
+                        readonly property int lightValue: lightTextField.isValid ? lightTextField.value : 0
+                        readonly property real brightnessValue: brightnessSliderClone.value
+                        property bool systemAutoBrightness: false
+
+                        signal add(int lightValue, real brightnessValue)
+                        signal close
+
+                        onAdd: close()
+
+                        property bool reparentToRootItem: false
+
+                        title: "New Auto-brightness Data"
+                        anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+
+                        Component.onCompleted: {
+                            autoBrightnessLoader.temporaryDisable = true
+
+                            autoBrightnessDialog.systemAutoBrightness = panel.indicators.autoBrightnessToggle ? panel.indicators.autoBrightnessToggle.checked : false
+
+                            // Disable system auto brightness while this dialog is displayed
+                            if (panel.indicators.autoBrightnessToggle && panel.indicators.autoBrightnessToggle.checked) {
+                                panel.indicators.autoBrightnessToggle.clicked()
+                            }
+                        }
+
+                        onClose: {
+                            autoBrightnessLoader.temporaryDisable = false
+                            
+                            // Restore system auto brightness settings after the dialog is closed
+                            if (autoBrightnessDialog.systemAutoBrightness !== panel.indicators.autoBrightnessToggle.checked) {
+                                panel.indicators.autoBrightnessToggle.clicked()
+                            }
+                            PopupUtils.close(autoBrightnessDialog)
+                        }
+
+                        TextField {
+                            id: lightTextField
+
+                            function isNumber(n) {
+                                return !isNaN(parseFloat(n)) && isFinite(n);
+                            }
+
+                            readonly property bool isValid: isNumber(text) && value >= 0
+                            readonly property int value: Number(text)
+
+                            text: "0"
+                            placeholderText: "Light Sensor Value"
+                            inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhDigitsOnly 
+                        }
+                        Label {
+                            visible: !lightTextField.isValid
+                            text: "Please enter a valid number"
+                            color: theme.palette.normal.negative
+                        }
+                        RowLayout {
+                            Label {
+                                id: currentLightValueLabel
+
+                                readonly property int currentValue: lightSensor.reading.illuminance >= 0 ? lightSensor.reading.illuminance : -1
+                                Layout.fillWidth: true
+                                text: i18n.tr("Current light value: %1").arg(currentValue)
+                            }
+                            QQC2.ToolButton {
+                                Layout.fillHeight: true
+                                icon.width: units.gu(2)
+                                icon.height: units.gu(2)
+                                action: QQC2.Action {
+                                    icon.name:  "go-up"
+                                    onTriggered: lightTextField.text = currentLightValueLabel.currentValue
+                                }
+                            }
+                        }
+                        LPSettingsSlider {
+                            id: brightnessSliderClone
+
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            Layout.topMargin: units.gu(4)
+                            title: "Brightness value"
+                            locked: false
+                            minimumValue: 0
+                            maximumValue: 1
+                            stepSize: 0.01
+                            resetValue: 0.5
+                            live: true
+                            roundValue: true
+                            roundingDecimal: 2
+                            enableFineControls: true
+                            percentageValue: true
+                            valueIsPercentage: false
+                            onValueChanged: if (shell.brightnessSlider) shell.brightnessSlider.value = value
+                            Binding {
+                                target: brightnessSliderClone
+                                property: "value"
+                                value: shell.brightnessSlider.value
+                            }
+                        }
+
+                        Button {
+                            text: "Add"
+                            color: theme.palette.normal.positive
+                            enabled: lightTextField.isValid
+
+                            onClicked: {
+                                let _lightValue = autoBrightnessDialog.lightValue
+                                let _brightnessValue = autoBrightnessDialog.brightnessValue
+
+                                autoBrightnessDialog.add(_lightValue, _brightnessValue)
+                            }
+                        }
+                        Button {
+                            text: "Cancel"
+                            onClicked: autoBrightnessDialog.close()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Component {
+        id: alarmWakePage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "When this is enabled, your wake up alarms will be disabled until the next day once you tell that you're awake from the lockscreen. You must set a prefix to identify your wake up alarms."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableImAwake
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableImAwake = checked
+                Binding {
+                    target: enableImAwake
+                    property: "checked"
+                    value: shell.settings.enableImAwake
+                }
+            }
+            TextField {
+                id: wakeUpAlarmPrefix
+
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                placeholderText: "Alarm Prefix"
+                visible: shell.settings.enableImAwake
+                inputMethodHints: Qt.ImhNoPredictiveText
+                onTextChanged: shell.settings.wakeUpAlarmPrefix = text
+                Binding {
+                    target: wakeUpAlarmPrefix
+                    property: "text"
+                    value: shell.settings.wakeUpAlarmPrefix
                 }
             }
         }
@@ -3154,7 +4339,59 @@ StyledItem {
                 text: "Window Decoration"
                 onClicked: settingsLoader.item.stack.push(windowDecorationPage, {"title": text})
             }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Notifications"
+                onClicked: settingsLoader.item.stack.push(notificationsPage, {"title": text})
+            }
 
+            Component {
+                id: notificationsPage
+
+                LPSettingsPage {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Notification Bubbles"
+                        wrapMode: Text.WordWrap
+                        textSize: Label.Large
+                    }
+                    LPSettingsCheckBox {
+                        id: showNotificationBubblesAtTheBottom
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(2)
+                        text: "Show at the bottom"
+                        onCheckedChanged: shell.settings.showNotificationBubblesAtTheBottom = checked
+                        Binding {
+                            target: showNotificationBubblesAtTheBottom
+                            property: "checked"
+                            value: shell.settings.showNotificationBubblesAtTheBottom
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "** Only applies when screen is narrow or in portrait"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
+                        id: enableSlimVolume
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(2)
+                        text: "Slim slider bubbles"
+                        onCheckedChanged: shell.settings.enableSlimVolume = checked
+                        Binding {
+                            target: enableSlimVolume
+                            property: "checked"
+                            value: shell.settings.enableSlimVolume
+                        }
+                    }
+                }
+            }
             Component {
                 id: windowDecorationPage
 
@@ -3286,6 +4523,11 @@ StyledItem {
                         text: "Dynamic Cove"
                         onClicked: settingsLoader.item.stack.push(dynamicCovePage, {"title": text})
                     }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "User Account"
+                        onClicked: settingsLoader.item.stack.push(userAccountPage, {"title": text})
+                    }
                     LPSettingsSwitch {
                         id: customLockscreenWP
                         Layout.fillWidth: true
@@ -3332,6 +4574,76 @@ StyledItem {
                     }
                 }
             }
+            // ENH205 - Device account personalization
+            Component {
+                id: userAccountPage
+
+                LPSettingsPage {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Display name"
+                        wrapMode: Text.WordWrap
+                    }
+                    RowLayout {
+                        Layout.leftMargin: units.gu(2)
+                        Layout.rightMargin: units.gu(2)
+
+                        TextField {
+                            id: deviceNameTextField
+
+                            readonly property string validName: text.trim()
+                            readonly property bool unsaved: AccountsService.realName !== validName
+
+                            Layout.fillWidth: true
+                            text: AccountsService.realName
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                        }
+                        QQC2.ToolButton {
+                            Layout.fillHeight: true
+                            visible: deviceNameTextField.unsaved
+                            icon.width: units.gu(2)
+                            icon.height: units.gu(2)
+                            action: QQC2.Action {
+                                icon.name:  "ok"
+                                onTriggered: AccountsService.realName = deviceNameTextField.validName
+                            }
+                        }
+                        QQC2.ToolButton {
+                            Layout.fillHeight: true
+                            visible: deviceNameTextField.unsaved
+                            icon.width: units.gu(2)
+                            icon.height: units.gu(2)
+                            action: QQC2.Action {
+                                icon.name:  "reset"
+                                onTriggered: deviceNameTextField.text = AccountsService.realName
+                            }
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: useCustomAccountIcon
+                        Layout.fillWidth: true
+                        text: "Use custom account icon"
+                        onCheckedChanged: shell.settings.useCustomAccountIcon = checked
+                        Binding {
+                            target: useCustomAccountIcon
+                            property: "checked"
+                            value: shell.settings.useCustomAccountIcon
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Custom Icon Filename: ~/Pictures/lomiriplus/user.svg"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                }
+            }
+            // ENH205 - End
             Component {
                 id: clockPage
 
@@ -3632,6 +4944,30 @@ StyledItem {
                             value: shell.settings.topPanelOpacity
                         }
                     }
+                    LPSettingsSwitch {
+                        id: useCustomTopBarIconTextColor
+                        Layout.fillWidth: true
+                        text: "Use custom icon/text color in lockscreen"
+                        onCheckedChanged: shell.settings.useCustomTopBarIconTextColor = checked
+                        Binding {
+                            target: useCustomTopBarIconTextColor
+                            property: "checked"
+                            value: shell.settings.useCustomTopBarIconTextColor
+                        }
+                    }
+                    LPColorField {
+                        id: customTopBarIconTextColor
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomTopBarIconTextColor
+                        onTextChanged: shell.settings.customTopBarIconTextColor = text
+                        onColorPicker: colorPickerLoader.open(customTopBarIconTextColor)
+                        Binding {
+                            target: customTopBarIconTextColor
+                            property: "text"
+                            value: shell.settings.customTopBarIconTextColor
+                        }
+                    }
                     LPSettingsCheckBox {
                         id: matchTopPanelToDrawerIndicatorPanels
                         Layout.fillWidth: true
@@ -3710,6 +5046,11 @@ StyledItem {
                         Layout.fillWidth: true
                         text: "Quick toggles"
                         onClicked: settingsLoader.item.stack.push(quickTogglesPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
+                        text: "Disable toggles when locked"
+                        onClicked: settingsLoader.item.stack.push(disableTogglesPage, {"title": text})
                     }
                     LPSettingsNavItem {
                         Layout.fillWidth: true
@@ -3959,6 +5300,24 @@ StyledItem {
                     Label {
                         Layout.fillWidth: true
                         Layout.margins: units.gu(2)
+                        text: "Bluetooth"
+                        wrapMode: Text.WordWrap
+                        textSize: Label.Large
+                    }
+                    LPSettingsSwitch {
+                        id: enableBluetoothDevicesList
+                        Layout.fillWidth: true
+                        text: "Show devices list"
+                        onCheckedChanged: shell.settings.enableBluetoothDevicesList = checked
+                        Binding {
+                            target: enableBluetoothDevicesList
+                            property: "checked"
+                            value: shell.settings.enableBluetoothDevicesList
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
                         text: "Date and Time"
                         wrapMode: Text.WordWrap
                         textSize: Label.Large
@@ -3991,6 +5350,29 @@ StyledItem {
                         text: "Battery"
                         wrapMode: Text.WordWrap
                         textSize: Label.Large
+                    }
+                    LPSettingsSwitch {
+                        id: enableBatteryGraphIndicator
+                        Layout.fillWidth: true
+                        text: "Show Battery graph"
+                        onCheckedChanged: shell.settings.enableBatteryGraphIndicator = checked
+                        Binding {
+                            target: enableBatteryGraphIndicator
+                            property: "checked"
+                            value: shell.settings.enableBatteryGraphIndicator
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: enableBatteryStatsIndicator
+                        Layout.fillWidth: true
+                        visible: shell.settings.enableBatteryTracking
+                        text: "Show Screen Time"
+                        onCheckedChanged: shell.settings.enableBatteryStatsIndicator = checked
+                        Binding {
+                            target: enableBatteryStatsIndicator
+                            property: "checked"
+                            value: shell.settings.enableBatteryStatsIndicator
+                        }
                     }
                     LPSettingsCheckBox {
                         id: verticalBatteryIndicatorIcon
@@ -4256,7 +5638,7 @@ StyledItem {
                         Layout.leftMargin: units.gu(4)
                         Layout.rightMargin: units.gu(2)
                         Layout.bottomMargin: units.gu(2)
-                        text: "Swipe up from the bottom or type something with a physical keyboard to search"
+                        text: "Swipe up from the bottom, type something with a physical keyboard to search or hover at the top/bottom"
                         wrapMode: Text.WordWrap
                         font.italic: true
                         textSize: Label.Small
@@ -4767,6 +6149,252 @@ StyledItem {
         }
     }
     Component {
+        id: batteryStatsPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Provides extra statistics such as screen on/off time as well as provide additional options for the battery indicator. \n"
+                + "Values may not be accurate or completely incorrect 😅"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: enableBatteryTracking
+                Layout.fillWidth: true
+                text: "Enable Screen time tracking"
+                onCheckedChanged: shell.settings.enableBatteryTracking = checked
+                Binding {
+                    target: enableBatteryTracking
+                    property: "checked"
+                    value: shell.settings.enableBatteryTracking
+                }
+            }
+            /*
+            LPSettingsSwitch {
+                id: screenTimeFullyChargedWorkaround
+                Layout.fillWidth: true
+                visible: shell.settings.enableBatteryTracking
+                text: "Last fully charged workaround"
+                onCheckedChanged: shell.settings.screenTimeFullyChargedWorkaround = checked
+                Binding {
+                    target: screenTimeFullyChargedWorkaround
+                    property: "checked"
+                    value: shell.settings.screenTimeFullyChargedWorkaround
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: screenTimeFullyChargedWorkaround.visible
+                text: "Some device doesn't properly detect fully charged state so using this will just check if the battery percentage is 100%"
+                font.italic: true
+                textSize: Label.Small
+                wrapMode: Text.WordWrap
+            }
+            */
+
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.preferredHeight: units.gu(8)
+                text: "Indicators:"
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            LPSettingsSwitch {
+                id: enableBatteryGraphIndicator
+                Layout.fillWidth: true
+                text: "Battery graph in indicator"
+                onCheckedChanged: shell.settings.enableBatteryGraphIndicator = checked
+                Binding {
+                    target: enableBatteryGraphIndicator
+                    property: "checked"
+                    value: shell.settings.enableBatteryGraphIndicator
+                }
+            }
+            LPSettingsSwitch {
+                id: enableBatteryStatsIndicator
+                Layout.fillWidth: true
+                visible: shell.settings.enableBatteryTracking
+                text: "Screen time in indicator"
+                onCheckedChanged: shell.settings.enableBatteryStatsIndicator = checked
+                Binding {
+                    target: enableBatteryStatsIndicator
+                    property: "checked"
+                    value: shell.settings.enableBatteryStatsIndicator
+                }
+            }
+            LPSettingsCheckBox {
+                id: collapsibleScreenTimeIndicators
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator
+                text: "Collapsible"
+                onCheckedChanged: shell.settings.collapsibleScreenTimeIndicators = checked
+                Binding {
+                    target: collapsibleScreenTimeIndicators
+                    property: "checked"
+                    value: shell.settings.collapsibleScreenTimeIndicators
+                }
+            }
+            LPSettingsSwitch {
+                id: showScreenTimeSinceLastFullCharged
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator
+                text: "Since last full charged"
+                onCheckedChanged: shell.settings.showScreenTimeSinceLastFullCharged = checked
+                Binding {
+                    target: showScreenTimeSinceLastFullCharged
+                    property: "checked"
+                    value: shell.settings.showScreenTimeSinceLastFullCharged
+                }
+            }
+            LPSettingsSwitch {
+                id: showScreenTimeSinceLastCharge
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator
+                text: "Since last charge"
+                onCheckedChanged: shell.settings.showScreenTimeSinceLastCharge = checked
+                Binding {
+                    target: showScreenTimeSinceLastCharge
+                    property: "checked"
+                    value: shell.settings.showScreenTimeSinceLastCharge
+                }
+            }
+            LPSettingsSwitch {
+                id: showScreenTimeToday
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator
+                text: "Today"
+                onCheckedChanged: shell.settings.showScreenTimeToday = checked
+                Binding {
+                    target: showScreenTimeToday
+                    property: "checked"
+                    value: shell.settings.showScreenTimeToday
+                }
+            }
+            LPSettingsSwitch {
+                id: showScreenTimeYesterday
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator
+                text: "Yesterday"
+                onCheckedChanged: shell.settings.showScreenTimeYesterday = checked
+                Binding {
+                    target: showScreenTimeYesterday
+                    property: "checked"
+                    value: shell.settings.showScreenTimeYesterday
+                }
+            }
+            LPSettingsSwitch {
+                id: showHistoryCharts
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator
+                text: "History Charts"
+                onCheckedChanged: shell.settings.showHistoryCharts = checked
+                Binding {
+                    target: showHistoryCharts
+                    property: "checked"
+                    value: shell.settings.showHistoryCharts
+                }
+            }
+            LPSettingsCheckBox {
+                id: onlyIncludePercentageRangeInBatteryChart
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking && shell.settings.enableBatteryStatsIndicator && shell.settings.showHistoryCharts
+                text: "Filter charging data based on total battery discharge"
+                onCheckedChanged: shell.settings.onlyIncludePercentageRangeInBatteryChart = checked
+                Binding {
+                    target: onlyIncludePercentageRangeInBatteryChart
+                    property: "checked"
+                    value: shell.settings.onlyIncludePercentageRangeInBatteryChart
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "When this is enabled, the History charts will only include charging data in which the discharge percentage reached the set percentage value below.\n"
+                + "Example: The detected last Charging was at 90% and the next Charging was done at 20%. If the threshold is set to 80%, this won't be included in the charts and the averages.\n"
+                + "If the threshold is changed to 70%, this data will now be included."
+                wrapMode: Text.WordWrap
+                visible: batteryPercentageRangeToInclude.visible
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSlider {
+                id: batteryPercentageRangeToInclude
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                Layout.leftMargin: units.gu(4)
+                visible: onlyIncludePercentageRangeInBatteryChart.visible && shell.settings.onlyIncludePercentageRangeInBatteryChart
+                title: "Battery Discharge Threshold"
+                minimumValue: 5
+                maximumValue: 100
+                stepSize: 5
+                resetValue: 80
+                live: false
+                roundValue: true
+                roundingDecimal: 0
+                enableFineControls: true
+                unitsLabel: "%"
+                onValueChanged: shell.settings.batteryPercentageRangeToInclude = value
+                Binding {
+                    target: batteryPercentageRangeToInclude
+                    property: "value"
+                    value: shell.settings.batteryPercentageRangeToInclude
+                }
+            }
+            LPSettingsSlider {
+                id: batteryTrackingDataDuration
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableBatteryTracking
+                title: "Tracking data lifetime"
+                minimumValue: 1
+                maximumValue: 100
+                stepSize: 1
+                resetValue: 7
+                live: false
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                unitsLabel: "days"
+                onValueChanged: shell.settings.batteryTrackingDataDuration = value
+                Binding {
+                    target: batteryTrackingDataDuration
+                    property: "value"
+                    value: shell.settings.batteryTrackingDataDuration
+                }
+            }
+            Button {
+                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: shell.settings.enableBatteryTracking
+                text: "Clear Screen Time Data"
+                onClicked: shell.batteryTracking.clear()
+            }
+        }
+    }
+    Component {
         id: colorOverlayPage
 
         LPSettingsPage {
@@ -4785,10 +6413,44 @@ StyledItem {
                 Layout.preferredHeight: units.dp(1)
                 color: Suru.neutralColor
             }
+            LPSettingsCheckBox {
+                id: enableColorOverlaySensor
+                Layout.fillWidth: true
+                text: "Toggle based on light sensor"
+                onCheckedChanged: shell.settings.enableColorOverlaySensor = checked
+                Binding {
+                    target: enableColorOverlaySensor
+                    property: "checked"
+                    value: shell.settings.enableColorOverlaySensor
+                }
+            }
+            LPSettingsSlider {
+                id: colorOverlaySensorThreshold
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableColorOverlaySensor
+                title: "Light Value Threshold"
+                minimumValue: 0
+                maximumValue: 100
+                stepSize: 1
+                resetValue: 0
+                live: false
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 0
+                enableFineControls: true
+                onValueChanged: shell.settings.colorOverlaySensorThreshold = value
+                Binding {
+                    target: colorOverlaySensorThreshold
+                    property: "value"
+                    value: shell.settings.colorOverlaySensorThreshold
+                }
+            }
             LPSettingsSwitch {
                 id: enableColorOverlay
                 Layout.fillWidth: true
-                text: "Enable"
+                text: "Enable now"
                 onCheckedChanged: shell.settings.enableColorOverlay = checked
                 Binding {
                     target: enableColorOverlay
@@ -4800,7 +6462,6 @@ StyledItem {
                 id: overlayColor
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: shell.settings.enableColorOverlay
                 onTextChanged: shell.settings.overlayColor = text
                 onColorPicker: colorPickerLoader.open(overlayColor)
                 Binding {
@@ -4813,7 +6474,6 @@ StyledItem {
                 id: colorOverlayOpacity
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                visible: shell.settings.enableColorOverlay
                 title: "Opacity"
                 minimumValue: 0.05
                 maximumValue: 0.7
@@ -4854,7 +6514,7 @@ StyledItem {
             LPSettingsSwitch {
                 id: enableAutoDarkMode
                 Layout.fillWidth: true
-                text: "Enable"
+                text: "Enable Schedule-based"
                 onCheckedChanged: shell.settings.enableAutoDarkMode = checked
                 Binding {
                     target: enableAutoDarkMode
@@ -4895,6 +6555,84 @@ StyledItem {
                 text: "End time"
                 onDateChanged: shell.settings.autoDarkModeEndTime = date.toLocaleString(Qt.locale(), "hh:mm")
                 onClicked: PickerPanel.openDatePicker(endTimeListitem, "date", "Hours|Minutes")
+            }
+            LPSettingsSwitch {
+                id: enableAutoDarkModeSensor
+                Layout.fillWidth: true
+                text: "Enable Light Sensor-based"
+                onCheckedChanged: shell.settings.enableAutoDarkModeSensor = checked
+                Binding {
+                    target: enableAutoDarkModeSensor
+                    property: "checked"
+                    value: shell.settings.enableAutoDarkModeSensor
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Automatically switch between dark and light mode based on light sensor.\n"
+                + "When Auto Dark Mode is enabled, this will only take effect when outside the time range set."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSlider {
+                id: autoDarkModeSensorThreshold
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAutoDarkModeSensor
+                title: "Light Value Threshold"
+                minimumValue: 0
+                maximumValue: 100
+                stepSize: 1
+                resetValue: 0
+                live: false
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 0
+                enableFineControls: true
+                onValueChanged: shell.settings.autoDarkModeSensorThreshold = value
+                Binding {
+                    target: autoDarkModeSensorThreshold
+                    property: "value"
+                    value: shell.settings.autoDarkModeSensorThreshold
+                }
+            }
+            LPSettingsSlider {
+                id: autoDarkModeSensorDelay
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAutoDarkModeSensor
+                title: "Delay Duration"
+                minimumValue: 0.1
+                maximumValue: 20
+                stepSize: 0.5
+                resetValue: 1
+                live: true
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                unitsLabel: i18n.tr("second", "seconds", value)
+                onValueChanged: shell.settings.autoDarkModeSensorDelay = value
+                Binding {
+                    target: autoDarkModeSensorDelay
+                    property: "value"
+                    value: shell.settings.autoDarkModeSensorDelay
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: autoDarkModeSensorDelay.visible
+                text: "How long the sensor value has to stay below the threshold before toggling dark mode"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
         }
     }
@@ -4941,6 +6679,42 @@ StyledItem {
                     target: drawerDockHideLabels
                     property: "checked"
                     value: shell.settings.drawerDockHideLabels
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableMaxHeightInDrawerDock
+                Layout.fillWidth: true
+                text: "Limit expanded height"
+                visible: shell.settings.enableDrawerDock
+                onCheckedChanged: shell.settings.enableMaxHeightInDrawerDock = checked
+                Binding {
+                    target: enableMaxHeightInDrawerDock
+                    property: "checked"
+                    value: shell.settings.enableMaxHeightInDrawerDock
+                }
+            }
+            LPSettingsSlider {
+                id: drawerDockMaxHeight
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDrawerDock && shell.settings.enableMaxHeightInDrawerDock
+                title: "Max expanded height"
+                minimumValue: 2
+                maximumValue: 10
+                stepSize: 0.25
+                resetValue: 3
+                live: false
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 2
+                unitsLabel: i18n.tr("inch", "inches", value)
+                enableFineControls: true
+                onValueChanged: shell.settings.drawerDockMaxHeight = value
+                Binding {
+                    target: drawerDockMaxHeight
+                    property: "value"
+                    value: shell.settings.drawerDockMaxHeight
                 }
             }
         }
@@ -5038,6 +6812,7 @@ StyledItem {
                 id: enableTopLeftHotCorner
                 Layout.fillWidth: true
                 text: i18n.tr("Top Left")
+                visible: shell.settings.enableHotCorners
                 onCheckedChanged: shell.settings.enableTopLeftHotCorner = checked
                 Binding {
                     target: enableTopLeftHotCorner
@@ -5070,6 +6845,7 @@ StyledItem {
                 id: enableTopRightHotCorner
                 Layout.fillWidth: true
                 text: i18n.tr("Top Right")
+                visible: shell.settings.enableHotCorners
                 onCheckedChanged: shell.settings.enableTopRightHotCorner = checked
                 Binding {
                     target: enableTopRightHotCorner
@@ -5102,6 +6878,7 @@ StyledItem {
                 id: enableBottomRightHotCorner
                 Layout.fillWidth: true
                 text: i18n.tr("Bottom Right")
+                visible: shell.settings.enableHotCorners
                 onCheckedChanged: shell.settings.enableBottomRightHotCorner = checked
                 Binding {
                     target: enableBottomRightHotCorner
@@ -5134,6 +6911,7 @@ StyledItem {
                 id: enableBottomLeftHotCorner
                 Layout.fillWidth: true
                 text: i18n.tr("Bottom Left")
+                visible: shell.settings.enableHotCorners
                 onCheckedChanged: shell.settings.enableBottomLeftHotCorner = checked
                 Binding {
                     target: enableBottomLeftHotCorner
@@ -6463,10 +8241,30 @@ StyledItem {
                     value: shell.settings.dcShowClockWhenLockscreen
                 }
             }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Entering the lockscreen will always show the clock\n"
+                + "Otherwise, the last selected will be shown"
+                wrapMode: Text.WordWrap
+                visible: dcShowClockWhenLockscreen.visible
+                font.italic: true
+                textSize: Label.Small
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableDynamicCove
+                text: "Media Controls"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
             LPSettingsCheckBox {
                 id: dcCDPlayerSimpleMode
                 Layout.fillWidth: true
-                text: "Simple Mode CD Player"
+                text: "Simple Mode"
                 visible: shell.settings.enableDynamicCove
                 onCheckedChanged: shell.settings.dcCDPlayerSimpleMode = checked
                 Binding {
@@ -6508,22 +8306,33 @@ StyledItem {
                     value: shell.settings.dcBlurredAlbumArt
                 }
             }
+            LPSettingsSwitch {
+                id: enableAmbientModeInCDPlayer
+                Layout.fillWidth: true
+                text: "Ambient Mode"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.enableAmbientModeInCDPlayer = checked
+                Binding {
+                    target: enableAmbientModeInCDPlayer
+                    property: "checked"
+                    value: shell.settings.enableAmbientModeInCDPlayer
+                }
+            }
             Label {
                 Layout.fillWidth: true
                 Layout.leftMargin: units.gu(4)
                 Layout.rightMargin: units.gu(2)
                 Layout.bottomMargin: units.gu(2)
-                text: "Entering the lockscreen will always show the clock\n"
-                + "Otherwise, the last selected will be shown"
+                text: "Displays the album art around the CD player in subtle style"
                 wrapMode: Text.WordWrap
-                visible: dcShowClockWhenLockscreen.visible
+                visible: enableAmbientModeInCDPlayer.visible
                 font.italic: true
                 textSize: Label.Small
             }
             LPSettingsSwitch {
                 id: enableCDPlayerDiscoCheck
                 Layout.fillWidth: true
-                text: "Enable Disco mode in media controls"
+                text: "Enable Disco mode in CD Player"
                 visible: shell.settings.enableDynamicCove
                 onCheckedChanged: shell.settings.enableCDPlayerDisco = checked
                 Binding {
@@ -6542,6 +8351,18 @@ StyledItem {
                 visible: enableCDPlayerDiscoCheck.visible
                 font.italic: true
                 textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: hideCDPlayerWhenScreenOff
+                Layout.fillWidth: true
+                text: "Hide CD Player when screen is off"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.hideCDPlayerWhenScreenOff = checked
+                Binding {
+                    target: hideCDPlayerWhenScreenOff
+                    property: "checked"
+                    value: shell.settings.hideCDPlayerWhenScreenOff
+                }
             }
             Rectangle {
                 Layout.fillWidth: true
@@ -6563,6 +8384,221 @@ StyledItem {
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+        }
+    }
+    Component {
+        id: disableTogglesPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "List toggles that will be disabled when the device is locked. \n"
+                + "This will affect the standard indicator toggles as well as Quick Toggles and Quick Actions.\n"
+                + "They can be set to be disabled always, only when turned on or only when turned off"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: units.dp(1)
+                color: Suru.neutralColor
+            }
+            LPSettingsSwitch {
+                id: disableTogglesOnLockscreen
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.disableTogglesOnLockscreen = checked
+                Binding {
+                    target: disableTogglesOnLockscreen
+                    property: "checked"
+                    value: shell.settings.disableTogglesOnLockscreen
+                }
+            }
+            ColumnLayout {
+                visible: shell.settings.disableTogglesOnLockscreen
+
+                Button {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: units.gu(2)
+                    Layout.rightMargin: units.gu(2)
+                    Layout.topMargin: units.gu(1)
+                    Layout.bottomMargin: units.gu(1)
+
+                    text: "Add"
+                    color: theme.palette.normal.positive
+                    onClicked: {
+                        let _dialogAdd = addToggleDialog.createObject(shell.popupParent);
+                        _dialogAdd.show()
+                    }
+                }
+
+                ListView {
+                    id: disabledTogglesListView
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: contentHeight
+
+                    interactive: false
+                    model: shell.settings.togglesToDisableOnLockscreen
+
+                    delegate: ListItem {
+                        id: listItem
+
+                        property string identifier: modelData.identifier
+                        property int disableWhen: modelData.when
+                        readonly property var foundData: {
+                            let _found = shell.quickToggleItems.find((element) => element.identifier == identifier);
+                            return _found
+                        }
+                        readonly property string itemTitle: {
+                            if (foundData) {
+                                return foundData.text
+                            }
+
+                            return "Unknown"
+                        }
+                        readonly property string itemWhenLabel: {
+                            switch (disableWhen) {
+                                case 0:
+                                    return "Always"
+                                case 1:
+                                    return "When On"
+                                case 2:
+                                    return "When Off"
+                                default:
+                                    return "Never"
+                            }
+                        }
+
+                        height: layout.height + (divider.visible ? divider.height : 0)
+                        color: "transparent"
+
+                        function changeWhen() {
+                            let _arrNewValues = shell.settings.togglesToDisableOnLockscreen.slice()
+                            let _indexToChange = _arrNewValues.findIndex((element) => (element.identifier == listItem.identifier));
+                            let _currentItem = _arrNewValues[_indexToChange]
+                            let _currentWhen = _currentItem.when
+                            _currentItem.when = _currentWhen == 2 ? 0 : _currentWhen + 1
+                            _arrNewValues[_indexToChange] = _currentItem
+                            shell.settings.togglesToDisableOnLockscreen = _arrNewValues.slice()
+                        }
+
+                        onClicked: changeWhen()
+
+                        ListItemLayout {
+                            id: layout
+                            title.text: listItem.itemTitle
+                            title.wrapMode: Text.WordWrap
+
+                            Label {
+                                SlotsLayout.position: SlotsLayout.Trailing
+
+                                text: listItem.itemWhenLabel
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        leadingActions: ListItemActions {
+                            actions: [
+                                Action {
+                                    iconName: "delete"
+                                    onTriggered: {
+                                        let _arrNewValues = shell.settings.togglesToDisableOnLockscreen.slice()
+                                        let _indexToDelete = _arrNewValues.findIndex((element) => (element.identifier == listItem.identifier));
+                                        _arrNewValues.splice(_indexToDelete, 1)
+                                        shell.settings.togglesToDisableOnLockscreen = _arrNewValues.slice()
+                                    }
+                                }
+                            ]
+                        }
+                    }
+
+                    Component {
+                        id: addToggleDialog
+                        Dialog {
+                            id: toggleDialogue
+                            
+                            property bool reparentToRootItem: false
+                            anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+
+                            property string identifier: togglesSelector.model[togglesSelector.selectedIndex].identifier
+                            property int disableWhen: whenSelector.model[whenSelector.selectedIndex].value
+
+                            Component.onCompleted: {
+                                // Filter already added toggles
+                                let _filteredModel = []
+                                let _togglesList = shell.quickToggleItems
+                                let _disabledTogglesList = shell.settings.togglesToDisableOnLockscreen
+                                let _arrLength = _togglesList.length
+
+                                for (let i = 0; i < _arrLength; ++i) {
+                                    let _currentItem = _togglesList[i]
+                                    let _currentText = _currentItem.text
+                                    let _currentIdentifier = _currentItem.identifier
+
+                                    if (!shell.findFromArray(_disabledTogglesList, "identifier", _currentIdentifier)
+                                            && !(_currentText == "Media Player" || _currentText == "Brightness" || _currentText == "Volume")) {
+                                        _filteredModel.push(_currentItem)
+                                    }
+                                }
+
+                                togglesSelector.model = _filteredModel.slice()
+                            }
+
+                            OptionSelector {
+                                 id: togglesSelector
+
+                                text: i18n.tr("Action")
+                                containerHeight: itemHeight * 6
+                                selectedIndex: 0
+                                delegate: toggleSselectorDelegate
+                            }
+                            Component {
+                                id: toggleSselectorDelegate
+                                OptionSelectorDelegate {
+                                    text: modelData.text
+                                }
+                            }
+                            OptionSelector {
+                                 id: whenSelector
+
+                                text: i18n.tr("Action")
+                                model: [
+                                    { text: "Always", value: 0 }
+                                    ,{ text: "When On", value: 1 }
+                                    ,{ text: "When Off", value: 2 }
+                                ]
+                                containerHeight: itemHeight * 6
+                                selectedIndex: 0
+                                delegate: whenSselectorDelegate
+                            }
+                            Component {
+                                id: whenSselectorDelegate
+                                OptionSelectorDelegate {
+                                    text: modelData.text
+                                }
+                            }
+                            Button {
+                                 text: "Add"
+                                 color: theme.palette.normal.positive
+                                 onClicked: {
+                                     let _arrNewValues = shell.settings.togglesToDisableOnLockscreen.slice()
+                                    let _properties = { identifier: toggleDialogue.identifier, when: toggleDialogue.disableWhen }
+                                    _arrNewValues.push(_properties)
+                                    shell.settings.togglesToDisableOnLockscreen = _arrNewValues.slice()
+                                    PopupUtils.close(toggleDialogue)
+                                 }
+                             }
+                             Button {
+                                 text: "Cancel"
+                                 onClicked: PopupUtils.close(toggleDialogue)
+                             }
+                         }
+                    }
+                }
             }
         }
     }
@@ -6914,12 +8950,19 @@ StyledItem {
     Loader {
         id: mediaPlayerLoader
 
+        function reloadSource() {
+            active = false
+            active = true
+            active = Qt.binding(function() { return shell.settings.enableDynamicCove } )
+            console.log("Media Player reloaded!!!!!!")
+        }
+
         active: shell.settings.enableDynamicCove
         asynchronous: true
         sourceComponent: Component {
             Item {
                 id: mediaPlayer
-                
+
                 readonly property bool isReady: allSongsModelModel.status === SongsModel.Ready
                 readonly property alias musicStore: musicStore
                 readonly property bool isPlaying: mediaPlayerObject.playbackState == MediaPlayer.PlayingState
@@ -6971,7 +9014,7 @@ StyledItem {
                     sortCaseSensitivity: Qt.CaseInsensitive
                 }
 
-                MediaPlayer {
+                Audio {
                     id: mediaPlayerObject
 
                     playlist: Playlist {
@@ -7436,6 +9479,9 @@ StyledItem {
         id: volumeControl
     }
 
+    // ENH202 - Caller Alarm
+    property bool temporaryDisableVolumeControl: false
+    // ENH202 - End
     PhysicalKeysMapper {
         id: physicalKeysMapper
         objectName: "physicalKeysMapper"
@@ -7445,12 +9491,20 @@ StyledItem {
         // onVolumeDownTriggered: volumeControl.volumeDown();
         // onVolumeUpTriggered: volumeControl.volumeUp();
         onVolumeDownTriggered: {
-            if (!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls) {
+            // ENH202 - Caller Alarm
+            //if (!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls) {
+            if ((!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls)
+                    && !shell.temporaryDisableVolumeControl) {
+            // ENH202 - End
                 volumeControl.volumeDown();
             }
         }
         onVolumeUpTriggered: {
-            if (!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls) {
+            // ENH202 - Caller Alarm
+            //if (!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls) {
+            if ((!shell.settings.enableVolumeButtonsLogic || Powerd.status === Powerd.On || shell.playbackItemIndicator.playing || callManager.hasCalls)
+                    && !shell.temporaryDisableVolumeControl) {
+            // ENH202 - End
                 volumeControl.volumeUp();
             }
         }
@@ -8571,7 +10625,27 @@ StyledItem {
             privacyMode: greeter.locked && AccountsService.hideNotificationContentWhileLocked
 
             y: topmostIsFullscreen ? 0 : panel.panelHeight
-            height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
+            // ENH209 - Notifications at the bottom
+            readonly property real defaultBottomMargin: units.gu(5)
+            // height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
+            height: {
+                let _height = parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
+                let _margin = 0
+
+                if (inverted) {
+                    // Anchors to the OSK only when at the bottom
+                    _margin = Qt.inputMethod.visible ? (Qt.inputMethod.keyboardRectangle.height) : 0
+
+                    if (shell.isBuiltInScreen) {
+                        _margin += Math.max(shell.settings.roundedCornerRadius / 2, defaultBottomMargin)
+                    } else {
+                        _margin += defaultBottomMargin
+                    }
+                }
+
+                return _height - _margin
+            }
+            // ENH209 - End
 
             states: [
                 State {
@@ -8857,7 +10931,12 @@ StyledItem {
         onUrlRequested: shell.activateURL(url)
     }
 
-    ItemGrabber {
+    // ENH210 - Advanced screenshot
+    // ItemGrabber {
+    LPScreenshotHandler {
+        advancedMode: shell.settings.enableAdvancedScreenshot
+        topPanelHeight: panel.panelHeight
+    // ENH210 - End
         id: itemGrabber
         anchors.fill: parent
         z: dialogs.z + 10

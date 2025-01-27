@@ -22,6 +22,7 @@ Item {
         , { "id": "copyLink", "title": i18n.tr("Copy link"), "component": actionCopyLink }
         , { "id": "openSearchInOverlay", "title": i18n.tr("Open search page"), "component": actionSearchInOverlay }
         , { "id": "toggleSiteVersion", "title": i18n.tr("Toggle site version"), "component": actionToggleSiteVersion }
+        , { "id": "toggleReaderMode", "title": i18n.tr("Toggle Reader mode"), "component": actionToggleReaderMode }
         , { "id": "customUrl", "title": i18n.tr("Custom Url Action"), "component": actionCustomUrlAction }
     ]
 
@@ -222,5 +223,25 @@ Item {
         property: "checked"
         value: internal.desktopSwitchMode ? webview && webview.forceDesktopSite
                                 : webview && webview.forceMobileSite
+    }
+
+    Sapot.BaseAction {
+        id: actionToggleReaderMode
+
+        enabled: webview && (webview.isReaderable || webview.readerMode)
+        iconName: "stock_ebook"
+        text: checked ? i18n.tr("Disable Reader mode") : i18n.tr("Reader mode")
+
+        onTrigger: {
+            if (webview) {
+                webview.toggleReaderMode()
+            }
+        }
+    }
+
+    Binding {
+        target: actionToggleReaderMode
+        property: "checked"
+        value: webview && webview.readerMode
     }
 }

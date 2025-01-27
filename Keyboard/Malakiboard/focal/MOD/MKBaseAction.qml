@@ -8,10 +8,13 @@ QQC2.Action {
     property bool separator: false
     property string tooltipText
     property string iconName
+    property color iconColor
     property int iconRotation: 0
     icon.name: iconName
+    icon.color: iconColor
     enabled: visible
 
     signal trigger(bool isBottom, var caller)
+    signal pressAndHold(bool isBottom, var caller)
 }
 // ENH089 - End

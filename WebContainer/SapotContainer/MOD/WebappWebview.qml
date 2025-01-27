@@ -40,6 +40,10 @@ Sapot.WebViewImpl {
     property bool forceDesktopSite: false
     property bool forceMobileSite: false
 
+    property bool readerMode: false
+    property bool isReaderable: false
+
+
     signal openUrlExternallyRequested(string url)
 
 
@@ -138,6 +142,45 @@ Sapot.WebViewImpl {
                 console.log("user agent: " + webappWebview.context.httpUserAgent);
             }
         }
+    }
+
+    userScripts: [
+        WebEngineScript {
+            name: "readability"
+            injectionPoint: WebEngineScript.DocumentReady
+            sourceUrl: Qt.resolvedUrl("../webbrowser/readability.js")
+            runOnSubframes: true
+            worldId: WebEngineScript.MainWorld
+        },
+        WebEngineScript {
+            name: "readability-readerable"
+            injectionPoint: WebEngineScript.DocumentReady
+            sourceUrl: Qt.resolvedUrl("../webbrowser/readability-readerable.js")
+            runOnSubframes: true
+            worldId: WebEngineScript.MainWorld
+        }
+    ]
+
+    onLoadingChanged: {
+        if (loadRequest.status === WebEngineLoadRequest.LoadSucceededStatus) {
+            readerMode = false
+
+            webappWebview.runJavaScript("isProbablyReaderable(document)", function(res) {
+                isReaderable = res
+                console.log('readerable', res)
+            });
+        }
+    }
+
+    function toggleReaderMode() {
+        if (webappWebview.readerMode) {
+            webappWebview.reload()
+            return
+        }
+
+        webappWebview.runJavaScript("makeDomReadable()", function(r) {
+            webappWebview.readerMode = true
+        })
     }
 
     Loader {
@@ -255,4 +298,24 @@ Sapot.WebViewImpl {
         mode: scrollTrackerItem.scrollingUp ? "Up" : "Down"
         forceHide: webappWebview.isFullScreen
     }
+
+    Sapot.TouchScrollerItem {
+        id: touchScroller
+
+        anchors {
+            fill: parent
+            topMargin: chrome.visibleHeight
+        }
+        parent: webappWebview.scrollPositionerParent
+        active: webapp.settings.enableFloatingScrollButton
+        target: webappWebview
+        z: webappWebview.z + 1
+        sideMargin: units.gu(webapp.settings.floatingScrollButtonSideMargin)
+        verticalMargin: units.gu(webapp.settings.floatingScrollButtonVerticalMargin)
+        buttonWidthGU: webapp.settings.floatingScrollButtonSize
+        doubleAsPositioner: webapp.settings.enableFloatingScrollButtonAsPositioner
+        mode: scrollTrackerItem.scrollingUp ? "Up" : "Down"
+        forceHide: webappWebview.isFullScreen
+    }
+
 }

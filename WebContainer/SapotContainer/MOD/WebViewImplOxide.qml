@@ -99,6 +99,8 @@ WebappWebview {
                 runOnSubframes: true
             }
         ]
+        // User our custom one
+        __ua: Sapot.UserAgent02 {}
     }
 
 /*    Component.onCompleted: webappSpecificMessageHandler.createObject(
@@ -441,6 +443,10 @@ WebappWebview {
                     webview.context.__ua.setDesktopMode(_forceDesktopUA);
                 } else {
                     webview.context.__ua.forceMobileSite(_forceMobileUA);
+                    // TODO: Fixes blank loading when forcing mobile site on big screens but loads twice
+                    if (webview.url == "about:blank") {
+						webview.url = url
+                    }
                 }
                 console.log("user agent: " + webview.context.httpUserAgent);
             }

@@ -15,6 +15,7 @@ Item {
     readonly property bool isHovered: bgHoverHandler.hovered && !swipeHandler.pressed
 
     property bool editMode: false
+    property bool mouseHoverEnabled: true
     property bool fullAppGridLast: false
     property int count
     property int currentIndex: -1
@@ -53,7 +54,9 @@ Item {
         property var highlightedItem: {
             if (swipeSelectMode && (allowSelection || mainRowLayout.rowCount > 1)) {
                 let _targetItem = bgHoverHandler.hovered ? bgHoverHandler : swipeHandler
-                let _mappedPos = mainRowLayout.mapFromItem(bg, _targetItem.mouseX, _targetItem.mouseY - highlightMargin)
+                let _isMouse = _targetItem === bgHoverHandler
+                let _highlightMargin = _isMouse ? 0 : highlightMargin
+                let _mappedPos = mainRowLayout.mapFromItem(bg, _targetItem.mouseX, _targetItem.mouseY - _highlightMargin)
 
                 let _found = null
                 if (mainRowLayout.rowCount == 1) {
@@ -244,8 +247,7 @@ Item {
         id: mainRowLayout
 
         property real dotWidth: appGridIndicator.swipeSelectMode ? units.gu(5) : units.gu(2)
-        readonly property int normalColumns: appGridIndicator.swipeSelectMode ? Math.ceil((Math.min(appGridIndicator.width * 0.8, units.gu(50))) / (dotWidth + spacing))
-                                                    : Math.ceil((appGridIndicator.width * 0.6) / (dotWidth + spacing))
+        readonly property int normalColumns: Math.ceil((Math.min(appGridIndicator.width * 0.8, units.gu(50))) / (dotWidth + spacing))
         readonly property real highlightScale: 1.5
         readonly property int rowCount: Math.ceil(itemRepeater.count / columns)
 
@@ -417,6 +419,7 @@ Item {
             readonly property real mouseX: point.position.x
             readonly property real mouseY: point.position.y
 
+            enabled: appGridIndicator.mouseHoverEnabled && !swipeHandler.pressed
             acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
             margin: units.gu(2)
         }

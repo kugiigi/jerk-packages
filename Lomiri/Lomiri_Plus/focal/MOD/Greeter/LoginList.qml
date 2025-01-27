@@ -19,6 +19,9 @@ import QtGraphicalEffects 1.0
 import Lomiri.Components 1.3
 import "../Components"
 import "." 0.1
+// ENH205 - Device account personalization
+import Qt.labs.platform 1.0 as LabsPlatform
+// ENH205 - End
 
 StyledItem {
     id: root
@@ -188,6 +191,10 @@ StyledItem {
                 Icon {
                     id: userIcon
                     name: "account"
+                    // ENH205 - Device account personalization
+                    source: shell.settings.useCustomAccountIcon ? LabsPlatform.StandardPaths.writableLocation(LabsPlatform.StandardPaths.HomeLocation).toString()
+                                                                    + "/Pictures/lomiriplus/user.svg" : "image://theme/account"
+                    // ENH205 - End
                     height: userList.currentIndex === index ? units.gu(4.5) : units.gu(3)
                     width: height
                     color: theme.palette.normal.raisedSecondaryText

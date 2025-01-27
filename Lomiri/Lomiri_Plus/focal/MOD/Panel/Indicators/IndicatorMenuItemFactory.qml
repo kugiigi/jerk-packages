@@ -498,7 +498,29 @@ Item {
 
             text: menuData && menuData.label || ""
             iconSource: menuData && menuData.icon || ""
-            enabled: menuData && menuData.sensitive || false
+            // ENH201 - Disable toggles in lockscreen
+            readonly property bool disableOnLockscreen:  {
+                switch (disableOnLockscreenWhen) {
+                    case 0:
+                        return true
+                    case 1:
+                        return checked
+                    case 2:
+                        return !checked
+                    default:
+                        return false
+                }
+            }
+            property int disableOnLockscreenWhen: -1
+            /*
+             * -1 - Never
+             *  0 - Always
+             *  1 - When turned on
+             *  2 - When turned off
+            */
+            // enabled: menuData && menuData.sensitive || false
+            enabled: (menuData && menuData.sensitive || false) && !(shell.showingGreeter && disableOnLockscreen)
+            // ENH201 - End
             checked: serverChecked
             highlightWhenPressed: false
 

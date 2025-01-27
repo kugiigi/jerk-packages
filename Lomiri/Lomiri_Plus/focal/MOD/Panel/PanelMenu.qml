@@ -234,10 +234,21 @@ Showable {
         MouseArea {
             id: quickToggles
 
+            readonly property real swipeThreshold: units.gu(5)
             readonly property real toggleHeight: units.gu(6)
             readonly property real rowHeight: quickToggles.toggleHeight + units.gu(3)
             readonly property real rowMargins: gridLayout.anchors.margins * 2
             readonly property bool multiRows: rowHeight + rowMargins !== gridLayout.height + rowMargins
+            readonly property real expandedHeight: Math.min(gridLayout.height + rowMargins, root.height - bar.height - handle.height)
+            readonly property real collapsedHeight: {
+                if (shell.settings.quickTogglesCollapsedRowCount > 1 && root.height > units.gu(60)) {
+                    let _availableRows = Math.floor(gridLayout.height / rowHeight)
+                    let _multiplier = Math.min(_availableRows - 1, shell.settings.quickTogglesCollapsedRowCount) // Do not allow full rows as collapsed rows
+                    return (rowHeight * _multiplier) + rowMargins
+                } else {
+                    return rowHeight + rowMargins
+                }
+            }
 
             property bool editMode: false
             property bool expanded: false
@@ -267,7 +278,7 @@ Showable {
                                         , "iconOn": "transfer-progress", "iconOff": "transfer-none"}                       
                 /* Wifi */              , {"identifier": "wifi", "text": "Wi-Fi", "type": 7, "controlType": "toggle", "slot": 1, "toggleObj": root.wifiToggle, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": root.wifiIcon, "iconOff": "wifi-none"}                                
-                /* Bluetooth */         , {"identifier": "bluetooth", "text": "Bluetooth", "type": 8, "controlType": "toggle", "slot": 1, "toggleObj": root.bluetoothToggle, "holdActionType": "external"
+                /* Bluetooth */         , {"identifier": "bluetooth", "text": "Bluetooth", "type": 8, "controlType": "toggle", "slot": 1, "toggleObj": root.bluetoothToggle, "holdActionType": "indicator"
                                         , "holdActionUrl": "settings:///system/bluetooth"
                                         , "iconOn": root.bluetoothIcon, "iconOff": "bluetooth-disabled"}
                 /* Location */          , {"identifier": "location", "text": "Location", "type": 9, "controlType": "toggle", "slot": 1, "toggleObj": root.locationToggle, "holdActionType": "external"
@@ -290,7 +301,7 @@ Showable {
                                         , "holdActionType": "indicator", "holdActionUrl": ""
                 // ENH116 - End
                                         , "iconOn": "weather-few-clouds-night-symbolic", "iconOff": "weather-few-clouds-night-symbolic"}            
-                /* Media Player */      , {"identifier": "mediaplayer", "text": "Media Player", "type": 14, "controlType": "media", "slot": 0, "toggleObj": root.silentModeToggle, "holdActionType": "indicator", "holdActionUrl": ""
+                /* Media Player */      , {"identifier": "mediaplayer", "text": "Media Player", "type": 14, "controlType": "media", "slot": 0, "toggleObj": { parentMenuIndex: root.silentModeToggle ? root.silentModeToggle.parentMenuIndex : -1 }, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "", "iconOff": ""} 
                 /* Brightness */        , {"identifier": "brightness", "text": "Brightness", "type": 15, "controlType": "slider", "slot": 0, "toggleObj": root.brightnessSlider, "holdActionType": "indicator", "holdActionUrl": ""
                                         , "iconOn": "", "iconOff": ""} 
@@ -314,14 +325,14 @@ Showable {
 
             z: 2
             visible: content.visible && root.enableQuickToggles
-            
+
             hoverEnabled: true
             acceptedButtons: Qt.AllButtons
             onWheel: {
                 let _deltaY = wheel.angleDelta.y
                 if (_deltaY >= 120) {
                     quickToggles.expanded = true
-                } else if (_deltaY <= -120) {
+                } else if (_deltaY <= -120 && quickTogglesFlickable.contentY === 0) {
                     quickToggles.expanded = false
                 }
                 wheel.accepted = true;
@@ -331,16 +342,38 @@ Showable {
 
             height: {
                 if (visible) {
-                    if (expanded || editMode) {
-                        return gridLayout.height + rowMargins
-                    } else {
-                        if (shell.settings.quickTogglesCollapsedRowCount > 1 && root.height > units.gu(60)) {
-                            let _availableRows = Math.floor(gridLayout.height / rowHeight)
-                            let _multiplier = Math.min(_availableRows - 1, shell.settings.quickTogglesCollapsedRowCount) // Do not allow full rows as collapsed rows
-                            return (rowHeight * _multiplier) + rowMargins
+                    if (swipeArea.dragging) {
+                        let _height = expanded ? expandedHeight - swipeArea.distance : collapsedHeight + swipeArea.distance
+                        let _defaultHeight = expanded ? expandedHeight : collapsedHeight
+
+                        if (_height <= expandedHeight && _height >= collapsedHeight) {
+                            return _height
+                        } else if (_height > expandedHeight) {
+                            return expandedHeight
+                        } else if (_height < collapsedHeight) {
+                            return collapsedHeight
                         } else {
-                            return rowHeight + rowMargins
+                            return _defaultHeight
                         }
+                    }
+                    if (quickTogglesFlickable.interactive && quickTogglesFlickable.verticalOvershoot < 0) {
+                        let _height = expandedHeight + quickTogglesFlickable.verticalOvershoot
+                        let _defaultHeight = expandedHeight
+
+                        if (_height <= expandedHeight && _height >= collapsedHeight) {
+                            return _height
+                        } else if (_height > expandedHeight) {
+                            return expandedHeight
+                        } else if (_height < collapsedHeight) {
+                            return collapsedHeight
+                        } else {
+                            return _defaultHeight
+                        }
+                    }
+                    if (expanded || editMode) {
+                        return expandedHeight
+                    } else {
+                        return collapsedHeight
                     }
                 } else {
                     return 0
@@ -359,7 +392,9 @@ Showable {
                 editMode = !editMode
                 shell.haptics.playSubtle()
             }
-            
+
+            onExpandedChanged: if (!expanded) quickTogglesFlickable.reset()
+
             function arrMove(arr, oldIndex, newIndex) {
                 if (newIndex >= arr.length) {
                     let i = newIndex - arr.length + 1;
@@ -379,341 +414,342 @@ Showable {
                 }
             }
 
-            GridLayout {
-                id: gridLayout
+            Flickable {
+                id: quickTogglesFlickable
 
-                columns: Math.floor((width - (anchors.margins * 2)) / (quickToggles.toggleHeight + units.gu(2)))
-                columnSpacing: 0
-                rowSpacing: 0
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    right: parent.right
-                    margins: units.gu(1)
-                }
-
-                Repeater {
-                    id: togglesRepeater
-
-                    model: shell.settings.quickToggles
-
-                    Item {
-                        id: itemContainer
-
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: quickToggles.rowHeight
-                        Layout.columnSpan: itemData.slot == 0 && gridLayout.columns > 0 ? gridLayout.columns : itemData.slot
-
-                        readonly property bool isMediaPlayer: itemControlType == "media"
-                        property var itemData: quickToggles.toggleItems[modelData.type]
-                        property int itemIndex: index
-                        property int itemType: modelData.type
-                        property string itemControlType: itemData.controlType
-                        property var toggleObj: itemData ? itemData.toggleObj : null
-
-                        visible: opacity > 0
-                        opacity: isMediaPlayer ? shell.playbackItemIndicator && (shell.playbackItemIndicator.canPlay || quickToggles.editMode)
-                                                            && (modelData.enabled || quickToggles.editMode) ? 1 : 0
-                                               : toggleObj && (modelData.enabled || quickToggles.editMode) ? 1 : 0
-
-                        Behavior on opacity {
-                            LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                        }
-                        
-                        Item {
-                            id: toggleContainer
-
-                            property int type: (index >= 0) ? togglesRepeater.model[index].type : -1
-
-                            x: 0
-                            y: 0
-                            width: parent.width
-                            height: parent.height
-
-                            states: [
-                                State {
-                                    name: "active"; when: gridArea.activeId == toggleContainer.type
-                                    PropertyChanges {target: toggleContainer; x: gridArea.mouseX - parent.x - width / 2; y: gridArea.mouseY - parent.y - height - units.gu(3); z: 10}
-                                }
-                            ]
-                            
-                            Behavior on x {
-                                LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                            }
-                            Behavior on y {
-                                LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                            }
-
-                            Loader {
-                                id: itemLoader
-
-                                property alias itemData: itemContainer.itemData
-                                property alias itemIndex: itemContainer.itemIndex
-                                property alias itemType: itemContainer.itemType
-                                property alias toggleObject: itemContainer.toggleObj
-                                property var modelItemData: modelData
-
-                                sourceComponent: {
-                                    switch (itemContainer.itemControlType) {
-                                        case "media":
-                                            return mediaPlayerComponent
-                                        case "slider":
-                                            return sliderComponent
-                                        default:
-                                            return quickToggleComponent
-                                    }
-                                }
-                                asynchronous: true
-                                visible: status == Loader.Ready
-                                anchors.fill: parent
-                            }
-                        }
-                    }
-                }
-
-                Item {
-                    id: activeScreenToggle
-
-                    readonly property bool checked: shell.isScreenActive
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.isScreenActive = !shell.isScreenActive
-                }
-
-                // ENH128 - OSK Quick toggle
-                Item {
-                    id: oskToggle
-
-                    readonly property bool checked: lomiriSettings.alwaysShowOsk
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-keyboard"
-
-                    signal clicked
-
-                    onClicked: lomiriSettings.alwaysShowOsk = !lomiriSettings.alwaysShowOsk
-                }
-                // ENH128 - End
-
-                // ENH129 - Color overlay
-                Item {
-                    id: colorOverlayToggle
-
-                    readonly property bool checked: shell.settings.enableColorOverlay
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.settings.enableColorOverlay = !shell.settings.enableColorOverlay
-                }
-                // ENH129 - End
-                // ENH190 - Keypad backlight settings
-                Item {
-                    id: keypadBacklightToggle
-
-                    readonly property bool checked: shell.settings.enableKeyboardBacklight
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.settings.enableKeyboardBacklight = !shell.settings.enableKeyboardBacklight
-                }
-                // ENH190 - End
-
-                // ENH115 - Standalone Immersive mode
-                Item {
-                    id: immersiveModeToggle
-
-                    readonly property bool checked: shell.settings.immersiveMode
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.settings.immersiveMode = !shell.settings.immersiveMode
-                }
-                // ENH115 - End
-
-                // ENH116 - Standalone Dark mode toggle
-                Item {
-                    id: darkModeToggle
-
-                    readonly property bool checked: shell.themeSettings.isDarkMode
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.themeSettings.toggleTheme()
-                }
-                Item {
-                    id: autoDarkModeToggle
-
-                    readonly property bool checked: shell.settings.enableAutoDarkMode
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.settings.enableAutoDarkMode = !shell.settings.enableAutoDarkMode
-                }
-                // ENH116 - End
-
-                // ENH136 - Separate desktop mode per screen
-                Item {
-                    id: shellDesktopModeToggle
-
-                    readonly property bool checked: shell.isDesktopMode
-                    readonly property bool enabled: true
-                    readonly property string parentMenuIndex: "ayatana-indicator-session"
-
-                    signal clicked
-
-                    onClicked: shell.isDesktopMode = !shell.isDesktopMode
-                }
-                // ENH136 - End
-
-                Component {
-                    id: quickToggleComponent
-
-                    Item {
-                        LPQuickToggleButton {
-                            id: toggleButton
-
-                            anchors.centerIn: parent
-                            editMode: quickToggles.editMode
-                            toggleObj: toggleObject
-                            checked: toggleObj ? quickToggles.editMode ? modelItemData.enabled : toggleObj.checked  
-                                               : false
-                            enabled: toggleObj ? toggleObj.enabled || quickToggles.editMode : false
-                            iconName: checked || quickToggles.editMode ? controlData.iconOn : controlData.iconOff
-                            height: quickToggles.toggleHeight
-                            width: height
-                            controlData: itemData
-                            controlIndex: itemIndex
-                            
-                            onClicked: {
-                                if (!editMode) {
-                                    toggleObj.clicked()
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Component {
-                    id: sliderComponent
-
-                    Item {
-                        LPSliderMenu {
-                            anchors {
-                                fill: parent
-                                topMargin: units.gu(0.5)
-                                bottomMargin: anchors.topMargin
-                                leftMargin: units.gu(1.5)
-                                rightMargin: anchors.leftMargin
-                            }
-                            // Specifically disable brightness when auto brightness is enabled
-                            enabled: {
-                                if (editMode) {
-                                    return true
-                                } else {
-                                    switch (toggleObj) {
-                                        case root.brightnessSlider:
-                                            return !root.autoBrightnessToggle || (root.autoBrightnessToggle && !root.autoBrightnessToggle.checked)
-                                            break
-                                        default:
-                                            return true
-                                    }
-                                }
-                            }
-                            sliderObj: toggleObject
-                            toggleObj: toggleObject
-                            editMode: quickToggles.editMode
-                            checked: modelItemData.enabled
-                            controlData: itemData
-                            controlIndex: itemIndex
-                        }
-                    }
-                }
-                Component {
-                    id: mediaPlayerComponent
-
-                    Item {
-                        LPMediaControls {
-                            anchors {
-                                fill: parent
-                                topMargin: units.gu(0.5)
-                                bottomMargin: anchors.topMargin
-                                leftMargin: units.gu(1.5)
-                                rightMargin: anchors.leftMargin
-                            }
-                            mediaPlayerObj: shell.mediaPlayerIndicator
-                            playBackObj: shell.playbackItemIndicator
-                            toggleObj: toggleObject
-                            editMode: quickToggles.editMode
-                            checked: modelItemData.enabled
-                            controlData: itemData
-                            controlIndex: itemIndex
-                            
-                            onClicked: {
-                                if (!editMode) {
-                                     playPause()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            MouseArea {
-                id: gridArea
-
-                property var currentItem: gridLayout.childAt(mouseX, mouseY) //item underneath cursor
-                // For offset to the top
-                //property var currentItem: isDragActive ? gridLayout.childAt(mouseX, mouseY - quickToggles.toggleHeight) : gridLayout.childAt(mouseX, mouseY) //item underneath cursor
-                property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
-                property int activeId: -1 //type of active item
-                property int activeIndex //current position of active item
-                readonly property bool isDragActive: activeId > -1
-
-                enabled: quickToggles.editMode
-                anchors.fill: gridLayout
-                hoverEnabled: true
-                propagateComposedEvents: true
-
-                onPressAndHold: {
-                    if (currentItem) {
-                        activeIndex = index
-                        activeId = currentItem.itemType
-                    } else {
-                        quickToggles.editMode = !quickToggles.editMode
-                    }
-                    shell.haptics.play()
-                }
-                onReleased: {
-                    activeId = -1
-                    shell.settings.quickToggles = togglesRepeater.model.slice()
-                    togglesRepeater.model = Qt.binding( function () { return shell.settings.quickToggles } )
-                }
-                onPositionChanged: {
-                    if (activeId != -1 && index != -1 && index != activeIndex) {
-                        togglesRepeater.model = quickToggles.arrMove(togglesRepeater.model, activeIndex, activeIndex = index)
-                        shell.haptics.playSubtle()
-                    }
-                }
-            }
-
-            SwipeArea {
-                enabled: !quickToggles.editMode
                 anchors.fill: parent
-                direction: quickToggles.expanded ? SwipeArea.Downwards : SwipeArea.Upwards
+                bottomMargin: units.gu(1)
+                boundsBehavior: Flickable.DragOverBounds
+                boundsMovement: Flickable.StopAtBounds
+                contentHeight: gridLayout.height
+                interactive: quickToggles.expanded && gridLayout.height > menuContainer.height && !gridArea.isDragActive
+
+                function reset() {
+                    contentY = 0
+                }
+
                 onDraggingChanged: {
-                    if (dragging) {
+                    if (!dragging && verticalOvershoot <= -quickToggles.swipeThreshold) {
+                        quickToggles.expanded = false
+                    }
+                }
+
+                GridLayout {
+                    id: gridLayout
+
+                    columns: Math.floor((width - (anchors.margins * 2)) / (quickToggles.toggleHeight + units.gu(2)))
+                    columnSpacing: 0
+                    rowSpacing: 0
+                    anchors {
+                        top: parent.top
+                        left: parent.left
+                        right: parent.right
+                        margins: units.gu(1)
+                    }
+
+                    Repeater {
+                        id: togglesRepeater
+
+                        model: shell.settings.quickToggles
+
+                        Item {
+                            id: itemContainer
+
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: quickToggles.rowHeight
+                            Layout.columnSpan: itemData.slot == 0 && gridLayout.columns > 0 ? gridLayout.columns : itemData.slot
+
+                            readonly property bool isMediaPlayer: itemControlType == "media"
+                            property var itemData: quickToggles.toggleItems[modelData.type]
+                            property int itemIndex: index
+                            property int itemType: modelData.type
+                            property string itemControlType: itemData.controlType
+                            property var toggleObj: itemData ? itemData.toggleObj : null
+
+                            visible: opacity > 0
+                            opacity: isMediaPlayer ? shell.playbackItemIndicator && (shell.playbackItemIndicator.canPlay || quickToggles.editMode)
+                                                                && (modelData.enabled || quickToggles.editMode) ? 1 : 0
+                                                   : toggleObj && (modelData.enabled || quickToggles.editMode) ? 1 : 0
+
+                            Behavior on opacity {
+                                LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
+                            }
+                            
+                            Item {
+                                id: toggleContainer
+
+                                property int type: (index >= 0) ? togglesRepeater.model[index].type : -1
+
+                                x: 0
+                                y: 0
+                                width: parent.width
+                                height: parent.height
+
+                                states: [
+                                    State {
+                                        name: "active"; when: gridArea.activeId == toggleContainer.type
+                                        PropertyChanges {target: toggleContainer; x: gridArea.mouseX - parent.x - width / 2; y: gridArea.mouseY - parent.y - height - units.gu(3); z: 10}
+                                    }
+                                ]
+                                
+                                Behavior on x {
+                                    LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
+                                }
+                                Behavior on y {
+                                    LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
+                                }
+
+                                Loader {
+                                    id: itemLoader
+
+                                    property alias itemData: itemContainer.itemData
+                                    property alias itemIndex: itemContainer.itemIndex
+                                    property alias itemType: itemContainer.itemType
+                                    property alias toggleObject: itemContainer.toggleObj
+                                    property var modelItemData: modelData
+
+                                    sourceComponent: {
+                                        switch (itemContainer.itemControlType) {
+                                            case "media":
+                                                return mediaPlayerComponent
+                                            case "slider":
+                                                return sliderComponent
+                                            default:
+                                                return quickToggleComponent
+                                        }
+                                    }
+                                    asynchronous: true
+                                    visible: status == Loader.Ready
+                                    anchors.fill: parent
+                                }
+                            }
+                        }
+                    }
+
+                    LPToggleItem {
+                        id: activeScreenToggle
+
+                        checked: shell.isScreenActive
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.isScreenActive = !shell.isScreenActive
+                    }
+
+                    // ENH128 - OSK Quick toggle
+                    LPToggleItem {
+                        id: oskToggle
+
+                        checked: lomiriSettings.alwaysShowOsk
+                        parentMenuIndex: "ayatana-indicator-keyboard"
+
+                        onClicked: lomiriSettings.alwaysShowOsk = !lomiriSettings.alwaysShowOsk
+                    }
+                    // ENH128 - End
+
+                    // ENH129 - Color overlay
+                    LPToggleItem {
+                        id: colorOverlayToggle
+
+                        checked: shell.settings.enableColorOverlay
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.settings.enableColorOverlay = !shell.settings.enableColorOverlay
+                    }
+                    // ENH129 - End
+                    // ENH190 - Keypad backlight settings
+                    LPToggleItem {
+                        id: keypadBacklightToggle
+
+                        checked: shell.settings.enableKeyboardBacklight
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.settings.enableKeyboardBacklight = !shell.settings.enableKeyboardBacklight
+                    }
+                    // ENH190 - End
+
+                    // ENH115 - Standalone Immersive mode
+                    LPToggleItem {
+                        id: immersiveModeToggle
+
+                        checked: shell.settings.immersiveMode
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.settings.immersiveMode = !shell.settings.immersiveMode
+                    }
+                    // ENH115 - End
+
+                    // ENH116 - Standalone Dark mode toggle
+                    LPToggleItem {
+                        id: darkModeToggle
+
+                        checked: shell.themeSettings.isDarkMode
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.themeSettings.toggleTheme()
+                    }
+                    LPToggleItem {
+                        id: autoDarkModeToggle
+
+                        checked: shell.settings.enableAutoDarkMode
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.settings.enableAutoDarkMode = !shell.settings.enableAutoDarkMode
+                    }
+                    // ENH116 - End
+
+                    // ENH136 - Separate desktop mode per screen
+                    LPToggleItem {
+                        id: shellDesktopModeToggle
+
+                        checked: shell.isDesktopMode
+                        parentMenuIndex: "ayatana-indicator-session"
+
+                        onClicked: shell.isDesktopMode = !shell.isDesktopMode
+                    }
+                    // ENH136 - End
+
+                    Component {
+                        id: quickToggleComponent
+
+                        Item {
+                            LPQuickToggleButton {
+                                id: toggleButton
+
+                                anchors.centerIn: parent
+                                editMode: quickToggles.editMode
+                                toggleObj: toggleObject
+                                checked: toggleObj ? quickToggles.editMode ? modelItemData.enabled : toggleObj.checked  
+                                                   : false
+                                enabled: toggleObj ? toggleObj.enabled || quickToggles.editMode : false
+                                iconName: checked || quickToggles.editMode ? controlData.iconOn : controlData.iconOff
+                                height: quickToggles.toggleHeight
+                                width: height
+                                controlData: itemData
+                                controlIndex: itemIndex
+                                
+                                onClicked: {
+                                    if (!editMode) {
+                                        toggleObj.clicked()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Component {
+                        id: sliderComponent
+
+                        Item {
+                            LPSliderMenu {
+                                anchors {
+                                    fill: parent
+                                    topMargin: units.gu(0.5)
+                                    bottomMargin: anchors.topMargin
+                                    leftMargin: units.gu(1.5)
+                                    rightMargin: anchors.leftMargin
+                                }
+                                // Specifically disable brightness when auto brightness is enabled
+                                enabled: {
+                                    if (editMode) {
+                                        return true
+                                    } else {
+                                        switch (toggleObj) {
+                                            case root.brightnessSlider:
+                                                return !root.autoBrightnessToggle || (root.autoBrightnessToggle && !root.autoBrightnessToggle.checked)
+                                                break
+                                            default:
+                                                return true
+                                        }
+                                    }
+                                }
+                                sliderObj: toggleObject
+                                toggleObj: toggleObject
+                                editMode: quickToggles.editMode
+                                checked: modelItemData.enabled
+                                controlData: itemData
+                                controlIndex: itemIndex
+                            }
+                        }
+                    }
+                    Component {
+                        id: mediaPlayerComponent
+
+                        Item {
+                            LPMediaControls {
+                                anchors {
+                                    fill: parent
+                                    topMargin: units.gu(0.5)
+                                    bottomMargin: anchors.topMargin
+                                    leftMargin: units.gu(1.5)
+                                    rightMargin: anchors.leftMargin
+                                }
+                                mediaPlayerObj: shell.mediaPlayerIndicator
+                                playBackObj: shell.playbackItemIndicator
+                                toggleObj: toggleObject
+                                editMode: quickToggles.editMode
+                                checked: modelItemData.enabled
+                                controlData: itemData
+                                controlIndex: itemIndex
+                                
+                                onClicked: {
+                                    if (!editMode) {
+                                         playPause()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: gridArea
+
+                    property var currentItem: gridLayout.childAt(mouseX, mouseY) //item underneath cursor
+                    // For offset to the top
+                    //property var currentItem: isDragActive ? gridLayout.childAt(mouseX, mouseY - quickToggles.toggleHeight) : gridLayout.childAt(mouseX, mouseY) //item underneath cursor
+                    property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
+                    property int activeId: -1 //type of active item
+                    property int activeIndex //current position of active item
+                    readonly property bool isDragActive: activeId > -1
+
+                    enabled: quickToggles.editMode
+                    anchors.fill: gridLayout
+                    hoverEnabled: true
+                    propagateComposedEvents: true
+
+                    onPressAndHold: {
+                        if (currentItem) {
+                            activeIndex = index
+                            activeId = currentItem.itemType
+                        } else {
+                            quickToggles.editMode = !quickToggles.editMode
+                        }
+                        shell.haptics.play()
+                    }
+                    onReleased: {
+                        activeId = -1
+                        shell.settings.quickToggles = togglesRepeater.model.slice()
+                        togglesRepeater.model = Qt.binding( function () { return shell.settings.quickToggles } )
+                    }
+                    onPositionChanged: {
+                        if (activeId != -1 && index != -1 && index != activeIndex) {
+                            togglesRepeater.model = quickToggles.arrMove(togglesRepeater.model, activeIndex, activeIndex = index)
+                            shell.haptics.playSubtle()
+                        }
+                    }
+                }
+            }
+
+            LPSwipeGestureHandler {
+                id: swipeArea
+
+                enabled: !quickToggles.editMode && !quickTogglesFlickable.interactive
+                anchors.fill: parent
+                immediateRecognition: false
+                direction: quickToggles.expanded ? SwipeArea.Downwards : SwipeArea.Upwards
+
+                onDraggingChanged: {
+                    if (!dragging && towardsDirection && distance >= quickToggles.swipeThreshold) {
                         quickToggles.expanded = !quickToggles.expanded
                     }
                 }

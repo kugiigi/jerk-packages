@@ -172,6 +172,48 @@ MouseArea {
         property var previousSourceComponent: undefined
         property var previousFocusedItem: undefined
     }
+    // ENH218 - Disable power off/restart in Lockscreen
+    Loader {
+        id: disablePowerRebootLoader
+
+        active: shell.settings.disablePowerRebootInLockscreen && shell.showingGreeter
+        asynchronous: true
+        anchors.fill: parent
+        sourceComponent: disablePowerRebootInLockscreenComponent
+    }
+
+    Component {
+        id: disablePowerRebootInLockscreenComponent
+
+        Item {
+            readonly property bool bothAreDragging: leftSwipeArea.dragging && rightSwipeArea.dragging
+
+            SwipeArea {
+                id: leftSwipeArea
+
+                direction: SwipeArea.Rightwards
+                width: units.gu(2)
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    bottom: parent.bottom
+                }
+            }
+
+            SwipeArea {
+                id: rightSwipeArea
+
+                direction: SwipeArea.Leftwards
+                width: units.gu(2)
+                anchors {
+                    right: parent.right
+                    top: parent.top
+                    bottom: parent.bottom
+                }
+            }
+        }
+    }
+    // ENH218 - End
 
     Component {
         id: logoutDialogComponent
@@ -251,6 +293,8 @@ MouseArea {
                 focus: true
                 text: i18n.ctr("Button: Power off the system", "Power off")
                 onClicked: {
+                    // ENH218 - Disable power off/restart in Lockscreen
+                    /*
                     doOnClosedAllWindows = function(root, powerDialog) {
                         return function() {
                             powerDialog.hide();
@@ -258,6 +302,20 @@ MouseArea {
                         }
                     }(root, powerDialog);
                     topLevelSurfaceList.closeAllWindows();
+                    */ 
+                    if (shell.settings.disablePowerRebootInLockscreen && shell.showingGreeter
+                            && (!disablePowerRebootLoader.item || (disablePowerRebootLoader.item && !disablePowerRebootLoader.item.bothAreDragging))) {
+                        console.log("You shall not shutdown")
+                    } else {
+                        doOnClosedAllWindows = function(root, powerDialog) {
+                            return function() {
+                                powerDialog.hide();
+                                root.powerOffClicked();
+                            }
+                        }(root, powerDialog);
+                        topLevelSurfaceList.closeAllWindows();
+                    }
+                    // ENH218 - End
                 }
                 color: theme.palette.normal.negative
                 Component.onCompleted: if (root.hasKeyboard) forceActiveFocus(Qt.TabFocusReason)
@@ -266,6 +324,8 @@ MouseArea {
                 width: parent.width
                 text: i18n.ctr("Button: Restart the system", "Restart")
                 onClicked: {
+                    // ENH218 - Disable power off/restart in Lockscreen
+                    /*
                     doOnClosedAllWindows = function(lomiriSessionService, powerDialog) {
                         return function() {
                             lomiriSessionService.reboot();
@@ -273,6 +333,20 @@ MouseArea {
                         }
                     }(lomiriSessionService, powerDialog);
                     topLevelSurfaceList.closeAllWindows();
+                    */
+                    if (shell.settings.disablePowerRebootInLockscreen && shell.showingGreeter
+                            && (!disablePowerRebootLoader.item || (disablePowerRebootLoader.item && !disablePowerRebootLoader.item.bothAreDragging))) {
+                        console.log("You shall not reboot")
+                    } else {
+                        doOnClosedAllWindows = function(lomiriSessionService, powerDialog) {
+                            return function() {
+                                lomiriSessionService.reboot();
+                                powerDialog.hide();
+                            }
+                        }(lomiriSessionService, powerDialog);
+                        topLevelSurfaceList.closeAllWindows();
+                    }
+                    // ENH218 - End
                 }
             }
             Button {

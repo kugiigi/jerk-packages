@@ -9,6 +9,7 @@ MKBaseDialog {
     default property alias data: contentColumn.data
     readonly property real preferredHeight: contentColumn.height + units.gu(12)
 
+    property alias contentSpacing: contentColumn.spacing
     property real contentHorizontalMargin: units.gu(2)
     property bool destroyOnClose: false
 

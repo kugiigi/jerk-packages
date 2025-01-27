@@ -1868,6 +1868,9 @@ FocusScope {
             // ENH172 - Shorten Side Stage Handle
             availableDesktopAreaHeight: root.availableDesktopArea.height
             // ENH172 - End
+            // ENH212 - Side-stage focus indicator
+            isFocused: priv.focusedAppDelegate && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage
+            // ENH212 - End
             visible: false
             Behavior on opacity { LomiriNumberAnimation {} }
             z: {
@@ -3556,7 +3559,83 @@ FocusScope {
         // width: root.dragAreaWidth
         //anchors { top: parent.top; right: parent.right; bottom: parent.bottom; rightMargin: shell.isBuiltInScreen ? -170 : 0 }
         //width: root.dragAreaWidth + (shell.isBuiltInScreen ? 170 : 0)
-        anchors { top: parent.top; right: parent.right; bottom: parent.bottom; rightMargin: shell.isBuiltInScreen ? -shell.deviceConfiguration.notchHeightMargin : 0 }
+        // ENH216 - Right Edge gesture for Waydroid
+        //anchors { top: parent.top; right: parent.right; bottom: parent.bottom; rightMargin: shell.isBuiltInScreen ? -shell.deviceConfiguration.notchHeightMargin : 0 }
+
+        readonly property bool disableForWaydroid: shell.settings.disableRigheEdgeForWaydroid
+        readonly property real heightMultiplier: shell.settings.disableRigheEdgeForWaydroidHeight / 100
+        readonly property int disableTopSection: shell.settings.disableRigheEdgeForWaydroidEdge === 0
+
+        onHeightMultiplierChanged: if (shell.settingsShown) previewHintRec.show()
+
+        Rectangle {
+            id: previewHintRec
+
+            color: theme.palette.normal.activity
+            anchors {
+                top: parent.top
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                topMargin: {
+                    if (shell.foregroundAppIsWaydroid) {
+                        if (rightEdgeDragArea.disableTopSection) {
+                            return -(stage.height - rightEdgeDragArea.height)
+                        } else {
+                            return rightEdgeDragArea.height
+                        }
+                    } else {
+                        if (rightEdgeDragArea.disableTopSection) {
+                            return 0
+                        } else {
+                            return rightEdgeDragArea.height - (parent.height * rightEdgeDragArea.heightMultiplier)
+                        }
+                    }
+                }
+                bottomMargin: {
+                    if (shell.foregroundAppIsWaydroid) {
+                        if (rightEdgeDragArea.disableTopSection) {
+                            return rightEdgeDragArea.height
+                        } else {
+                            return -(stage.height - rightEdgeDragArea.height)
+                        }
+                    } else {
+                        if (rightEdgeDragArea.disableTopSection) {
+                            return rightEdgeDragArea.height - (parent.height * rightEdgeDragArea.heightMultiplier)
+                        } else {
+                            return 0
+                        }
+                    }
+                }
+            }
+            visible: false
+
+            function show() {
+                visible = true
+                timeoutTimer.restart()
+            }
+
+            function hide() {
+                visible = false
+            }
+
+            Timer {
+                id: timeoutTimer
+
+                interval: 1000
+                onTriggered: previewHintRec.hide()
+            }
+        }
+
+        anchors {
+            top: parent.top
+            right: parent.right
+            bottom: parent.bottom
+            topMargin: disableForWaydroid && shell.foregroundAppIsWaydroid && disableTopSection ? parent.height * heightMultiplier : 0
+            bottomMargin: disableForWaydroid && shell.foregroundAppIsWaydroid && !disableTopSection ? parent.height * heightMultiplier : 0
+            rightMargin: shell.isBuiltInScreen ? -shell.deviceConfiguration.notchHeightMargin : 0
+        }
+        // ENH216 - End
         width: root.dragAreaWidth + (shell.isBuiltInScreen ? shell.deviceConfiguration.notchHeightMargin : 0)
         // ENH002 - End
         // ENH018 - Immersive mode
@@ -3759,7 +3838,7 @@ FocusScope {
         visible: !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
         sourceItem: {
             if (enableBlur || shell.settings.enableTopPanelMatchAppTopColor) {
-                if (shell.settings.useWallpaperForBlur && !useMatchingAppsColor) {
+                if ((shell.settings.useWallpaperForBlur && !useMatchingAppsColor) || root.desktopShown) {
                     return stage.wallpaperSurface
                 }
 

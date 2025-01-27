@@ -34,7 +34,10 @@ IndicatorDelegate {
     property bool selected: false
     property real iconHeight: units.gu(2)
     readonly property color color: {
-        if (!expanded) return theme.palette.normal.backgroundText;
+        // ENH199 - Indicators custom colors
+        // if (!expanded) return theme.palette.normal.backgroundText;
+        if (!expanded) return shell.settings.useCustomTopBarIconTextColor && shell.showingGreeter ? shell.settings.customTopBarIconTextColor : theme.palette.normal.backgroundText;
+        // ENH199 - End
         if (!selected) return theme.palette.disabled.backgroundText;
         return theme.palette.normal.backgroundText;
     }

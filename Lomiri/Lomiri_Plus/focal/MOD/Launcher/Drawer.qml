@@ -426,6 +426,7 @@ FocusScope {
                 launcherInverted: root.launcherInverted
                 viewMargin: searchFieldContainer.fullyShown ? units.gu(2) : 0
                 rawModel: appDrawerModel
+                mouseHoverOfSelectorIndicatorEnabled: !searchSwipeArea.dragging
                 onApplicationSelected: root.applicationSelected(appId)
                 onApplicationContextMenu: {
                     // PopupUtils is not used because it doesn't follow the orientation properly and not shown in screenshots
@@ -809,7 +810,7 @@ FocusScope {
                                                                          (element) => (element.actionId == contextMenu.appId && element.type == Root.LPDirectActions.Type.App)) > -1
                                                             : false
 
-                    text: isInDirectActions ? "Remove from Direct Actions" : "Add to Direct Actions"
+                    text: isInDirectActions ? "Remove from Quick Actions" : "Add to Quick Actions"
                     iconName: isInDirectActions ? "list-remove" : "add"
                     visible: shell.settings.enableDirectActions
                     onTriggered: {
@@ -1001,5 +1002,50 @@ FocusScope {
         }
         */
         // ENH105 - End
+    }
+
+    Item {
+        id: searchHoverHandler
+
+        visible: shell.hasMouse && shell.settings.hideDrawerSearch
+        height: units.gu(2)
+        anchors {
+            left: parent.left
+            right: parent.right
+        }
+
+        states: [
+            State {
+                name: "bottom"
+                when: root.inverted
+                
+                AnchorChanges {
+                    target: searchHoverHandler
+                    anchors.top: undefined
+                    anchors.bottom: parent.bottom
+                }
+            }
+            , State {
+                name: "top"
+                when: !root.inverted
+
+                AnchorChanges {
+                    target: searchHoverHandler
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+            }
+        ]
+
+        HoverHandler {
+            id: hoverHandler
+        }
+
+        Timer {
+            id: delayHoverTimer
+            running: hoverHandler.hovered
+            interval: 200
+            onTriggered: root.focusInput()
+        }
     }
 }

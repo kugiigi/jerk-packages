@@ -17,6 +17,11 @@
 import QtQuick 2.4
 import Lomiri.Components 1.3
 import "keys/key_constants.js" as UI
+// ENH120 - Saved Texts
+import "keys" as Keys
+import QtQuick.Controls 2.12 as QQC2
+import QtQuick.Layouts 1.12
+// ENH120 - End
 
 Rectangle {
 
@@ -24,10 +29,55 @@ Rectangle {
     objectName: "wordRibbenCanvas"
     state: "NORMAL"
 
+    // ENH215 - Shortcuts bar
+    property bool enableShortcutsToolbar: false
+    property list<MKBaseAction> leadingActions
+    property list<MKBaseAction> trailingActions
+
+    function showTempActionsInToolbar(_leadingActions, _trailingActions) {
+        shortcutsToolbarLoader.showTempActions(_leadingActions, _trailingActions)
+    }
+
+    function resetToolbarActions() {
+        shortcutsToolbarLoader.resetActions()
+    }
+    // ENH215 - End
+
     Rectangle {
         anchors.fill: parent
         color: fullScreenItem.theme.backgroundColor
     }
+
+    // TODO: Check again why visible count gets binding loop when loader is used
+    MKActionsToolbar {
+        id: shortcutsToolbarLoader
+
+        visible: wordRibbonCanvas.enableShortcutsToolbar
+        anchors.fill: parent
+
+        function showTempActions(_leadingActions, _trailingActions) {
+                leadingActions = _leadingActions
+                trailingActions = _trailingActions
+        }
+
+        function resetActions() {
+                leadingActions = Qt.binding( function() { return  wordRibbonCanvas.leadingActions } )
+                trailingActions = Qt.binding( function() { return  wordRibbonCanvas.trailingActions } )
+        }
+
+        leadingActions: wordRibbonCanvas.leadingActions
+        trailingActions: wordRibbonCanvas.trailingActions
+    }
+
+    // Background for the word suggestions
+    Rectangle {
+        anchors.fill: listView
+        color: fullScreenItem.theme.backgroundColor
+        // For some reason count is always 1 even when empty after initial typing
+        // 42 is the width when empty
+        visible: listView.visible
+    }
+    // ENH215 - End
 
     ListView {
         id: listView
@@ -39,6 +89,11 @@ Rectangle {
 
         orientation: ListView.Horizontal
         delegate: wordCandidateDelegate
+        // ENH215 - Shortcuts bar
+        // For some reason count is always 1 even when empty after initial typing
+        // 42 is the width when empty
+        visible: contentWidth > 100
+        // ENH215 - End
 
     }
 

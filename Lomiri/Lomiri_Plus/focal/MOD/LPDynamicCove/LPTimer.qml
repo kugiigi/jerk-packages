@@ -542,7 +542,7 @@ LPDynamicCoveItem {
         function escapeRegExp(stringToGoIntoTheRegex) {
             return stringToGoIntoTheRegex.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         }
-        
+
         function unitsdisplay(units) {
             if (units > 59){
                 units = (units % 60) - 60

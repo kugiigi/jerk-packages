@@ -71,7 +71,19 @@ Item {
         }
         // ENH081 - End
         asynchronous: false
-        source: panel.state === "CHARACTERS" ? internal.characterKeypadSource : internal.symbolKeypadSource
+        // ENH214 - Emoji mode
+        // source: panel.state === "CHARACTERS" ? internal.characterKeypadSource : internal.symbolKeypadSource
+        source: {
+            switch (panel.state) {
+                case "CHARACTERS":
+                    return internal.characterKeypadSource
+                case "EMOJI":
+                    return internal.emojiKeypadSource
+                default: 
+                    return internal.symbolKeypadSource
+            }
+        }
+        // ENH214 - End
         onLoaded: {
             if (delayedAutoCaps) {
                 activeKeypadState = "SHIFTED";
@@ -133,6 +145,11 @@ Item {
         State {
             name: "SYMBOLS"
         }
+        // ENH214 - Emoji mode
+        , State {
+            name: "EMOJI"
+        }
+        // ENH214 - End
     ]
 
     onStateChanged: {
@@ -146,6 +163,9 @@ Item {
         property string characterKeypadSource: loadLayout(maliit_input_method.contentType,
                                                           maliit_input_method.activeLanguage)
         property string symbolKeypadSource: activeKeypad ? activeKeypad.symbols : ""
+        // ENH214 - Emoji mode
+        property string emojiKeypadSource: "MKEmoji.qml"
+        // ENH214 - End
 
         onCharacterKeypadSourceChanged: {
             panel.state = "CHARACTERS";

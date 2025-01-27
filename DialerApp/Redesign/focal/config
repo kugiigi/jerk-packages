@@ -1,0 +1,2 @@
+target_component="dialer-app"
+package_description="This package applies the redesigned layout that was already merged but will possibly be only available in Noble"

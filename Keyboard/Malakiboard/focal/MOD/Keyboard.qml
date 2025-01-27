@@ -185,7 +185,11 @@ Item {
         property alias flickReplacedLanguage: settingsObj.flickReplacedLanguage
         property alias customBottomMargin: settingsObj.customBottomMargin
         property alias customSideMargin: settingsObj.customSideMargin
-        
+        property alias alwaysShowWordRibbon: settingsObj.alwaysShowWordRibbon
+        property alias customThemes: settingsObj.customThemes
+        property alias useCustomOneHandedWidth: settingsObj.useCustomOneHandedWidth
+        property alias customOneHandedWidth: settingsObj.customOneHandedWidth
+
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
         property alias enableSelectWord: settingsObj.enableSelectWord
@@ -201,6 +205,10 @@ Item {
 
         // Advanced
         property alias enableSwipeToDelete: settingsObj.enableSwipeToDelete
+        property alias enableTextPreviewWhenFloating: settingsObj.enableTextPreviewWhenFloating
+        property alias enableEmojiShortcut: settingsObj.enableEmojiShortcut
+        property alias enableShortcutsBar: settingsObj.enableShortcutsBar
+        property alias shortcutBarActions: settingsObj.shortcutBarActions
 
         // Quick actions
         property alias enableQuickActions: settingsObj.enableQuickActions
@@ -247,6 +255,13 @@ Item {
         // ENH079 - End
         // ENH082 - Custom theme
         onCustomThemeChanged: fullScreenItem.loadTheme()
+        onCustomThemesChanged: {
+            if (fullScreenItem.settings.followSystemTheme) {
+                fullScreenItem.systemThemeUpdate()
+            } else {
+                fullScreenItem.loadTheme()
+            }
+        }
         onCustomLightThemeChanged: {
             if (fullScreenItem.settings.followSystemTheme) {
                 fullScreenItem.systemThemeUpdate()
@@ -271,6 +286,22 @@ Item {
             }
         }
         // ENH124 - End
+        // ENH215 - Shortcuts bar
+        // Automatically enables shortcut bars and add the action to the right actions
+        onEnableSavedTextsChanged: {
+            if (enableSavedTexts) {
+                fullScreenItem.settings.enableShortcutsBar = true
+                let _inLeftActions = fullScreenItem.findIndexFromArray(fullScreenItem.settings.shortcutBarActions[0], "id", "notebook") > -1
+                let _inRightActions = fullScreenItem.findIndexFromArray(fullScreenItem.settings.shortcutBarActions[1], "id", "notebook") > -1
+
+                if (!_inLeftActions && !_inRightActions) {
+                    let _arr = fullScreenItem.settings.shortcutBarActions[1].slice()
+                    _arr.push({ "id": "notebook"})
+                    fullScreenItem.settings.shortcutBarActions = [ fullScreenItem.settings.shortcutBarActions[0], _arr ]
+                }
+            }
+        }
+        // ENH215 - End
 
         Settings {
             id: settingsObj
@@ -368,6 +399,25 @@ Item {
             property real customBottomMargin: 2 // in gu
             property real customSideMargin: 0 // in gu
             property bool enableSwipeToDelete: false
+            property bool enableTextPreviewWhenFloating: false
+            property bool alwaysShowWordRibbon: false
+            property var customThemes: []
+            property bool enableEmojiShortcut: true // Not used
+            property var shortcutBarActions: [
+                [
+                    { "id": "mkSettings" }
+                    , { "id": "ohLeft" }
+                    , { "id": "ohRight" }
+                    , { "id": "ohTurnOff" }
+                ]
+                , [
+                    { "id": "notebook" }
+                    , { "id": "emoji" }
+                ]
+            ]
+            property bool enableShortcutsBar: false
+            property bool useCustomOneHandedWidth: false
+            property real customOneHandedWidth: 2.5 // In inch
         }
     }
 
@@ -404,6 +454,7 @@ Item {
     // ENH079 - End
 
     // ENH082 - Custom theme
+    readonly property string customThemeCode: "[CUSTOM] "
     function loadTheme() {
         if (fullScreenItem.useCustomTheme) {
             Theme.load(fullScreenItem.settings.customTheme)
@@ -435,18 +486,109 @@ Item {
     }
 
     // ENH120 - Saved Texts
+    property alias tooltip: tooltip
+
+    function sortArray(_array, _prop, _asc = true) {
+        if (_asc) {
+            return _array.sort(
+                (a, b) => {
+                    if (_prop) {
+                        if (a[_prop] < b[_prop]) {
+                            return -1
+                        }
+
+                        if (a[_prop] > b[_prop]) {
+                            return 1
+                        }
+
+                        return 0
+                    } else {
+                        if (a < b) {
+                            return -1
+                        }
+
+                        if (a > b) {
+                            return 1
+                        }
+
+                        return 0
+                    }
+                }
+            )
+        } else {
+            return _array.sort(
+                (a, b) => {
+                    if (_prop) {
+                        if (a[_prop] > b[_prop]) {
+                            return -1
+                        }
+
+                        if (a[_prop] < b[_prop]) {
+                            return 1
+                        }
+
+                        return 0
+                    } else {
+                        if (a > b) {
+                            return -1
+                        }
+
+                        if (a < b) {
+                            return 1
+                        }
+
+                        return 0
+                    }
+                }
+            )
+        }
+    }
+
+    readonly property bool savedTextsShown: savedTextsArea.visible
+
     function showSavedTexts() {
+        fullScreenItem.exitSwipeMode();
         savedTextsArea.show()
     }
     function hideSavedTexts() {
         savedTextsArea.hide()
     }
+    function toggleSavedTexts() {
+        savedTextsArea.toggle()
+    }
+    function toggleSavedTextsSort() {
+        savedTextsArea.toggleSort()
+    }
     // ENH120 - End
+    // ENH213 - Text preview when foating
+    readonly property bool textPreviewIsEnabled: previewTextLoader.active
+
+    function updateTextPreview() {
+        // Delay so that the correct values are set
+        delayTextPreviewTimer.restart()
+    }
+
+    Timer {
+        id: delayTextPreviewTimer
+        interval: 1
+        onTriggered: {
+            if (previewTextLoader.item) {
+                const _preeditText = input_method.preedit ? "[" + input_method.preedit + "]" : ""
+                const _cursorPos = _preeditText === "" ? input_method.surroundingLeft.length : (input_method.surroundingLeft + _preeditText).length
+                previewTextLoader.item.text = input_method.surroundingLeft + _preeditText + input_method.surroundingRight
+                previewTextLoader.item.cursorPosition = _cursorPos
+            }
+        }
+    }
+    // ENH213 - End
 
     // ENH070 - Keyboard settings
+    function convertFromInch(value) {
+        return (Screen.pixelDensity * 25.4) * value
+    }
     Loader {
         id: settingsLoader
-        
+
         property bool keyboardPreview: false
 
         active: false
@@ -900,13 +1042,16 @@ Item {
                 text: "Cursor Mode"
                 onClicked: settingsLoader.item.stack.push(cursorModePage, {"title": text})
             }
-            /*
+            MKSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Shortcuts Bar"
+                onClicked: settingsLoader.item.stack.push(shortcutsBarPage, {"title": text})
+            }
             MKSettingsNavItem {
                 Layout.fillWidth: true
                 text: "Notebook"
-                onClicked: settingsLoader.item.stack.push(savedTextsPage, {"title": text})
+                onClicked: settingsLoader.item.stack.push(notebookPage, {"title": text})
             }
-            */
             QQC2.CheckDelegate {
                 id: enableSwipeToDelete
                 Layout.fillWidth: true
@@ -916,6 +1061,17 @@ Item {
                     target: enableSwipeToDelete
                     property: "checked"
                     value: fullScreenItem.settings.enableSwipeToDelete
+                }
+            }
+            QQC2.CheckDelegate {
+                id: enableTextPreviewWhenFloating
+                Layout.fillWidth: true
+                text: "Enable text preview when floating"
+                onCheckedChanged: fullScreenItem.settings.enableTextPreviewWhenFloating = checked
+                Binding {
+                    target: enableTextPreviewWhenFloating
+                    property: "checked"
+                    value: fullScreenItem.settings.enableTextPreviewWhenFloating
                 }
             }
             QQC2.CheckDelegate {
@@ -950,6 +1106,7 @@ Item {
                 minimumValue: 1
                 maximumValue: 30
                 resetValue: 10
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.hapticsDuration = value
                 Binding {
                     target: hapticsDuration
@@ -967,11 +1124,94 @@ Item {
                 minimumValue: 100
                 maximumValue: 1000
                 resetValue: 300
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.longPressDelay = value
                 Binding {
                     target: longPressDelay
                     property: "value"
                     value: fullScreenItem.settings.longPressDelay
+                }
+            }
+        }
+    }
+    Component {
+        id: shortcutsBarPage
+
+        MKSettingsPage {
+            QQC2.SwitchDelegate {
+                id: enableShortcutsBar
+
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: fullScreenItem.settings.enableShortcutsBar = checked
+                Binding {
+                    target: enableShortcutsBar
+                    property: "checked"
+                    value: fullScreenItem.settings.enableShortcutsBar
+                }
+            }
+            MKSettingsNavItem {
+                Layout.fillWidth: true
+                visible: fullScreenItem.settings.enableShortcutsBar
+                text: "Left Shortcuts"
+                onClicked: settingsLoader.item.stack.push(leftShortcutsBarPage, {"title": text})
+            }
+            MKSettingsNavItem {
+                Layout.fillWidth: true
+                visible: fullScreenItem.settings.enableShortcutsBar
+                text: "Right Shortcuts"
+                onClicked: settingsLoader.item.stack.push(rightShortcutsBarPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: leftShortcutsBarPage
+        
+        MKShortcutsBarPage {
+            model: fullScreenItem.settings.shortcutBarActions[0]
+            onModelDataChanged: {
+                fullScreenItem.settings.shortcutBarActions = [ newModelData, fullScreenItem.settings.shortcutBarActions[1] ]
+            }
+        }
+    }
+    Component {
+        id: rightShortcutsBarPage
+        
+        MKShortcutsBarPage {
+            model: fullScreenItem.settings.shortcutBarActions[1]
+            onModelDataChanged: {
+                fullScreenItem.settings.shortcutBarActions = [ fullScreenItem.settings.shortcutBarActions[0], newModelData ]
+            }
+        }
+    }
+    Component {
+        id: notebookPage
+        
+        MKSettingsPage {
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("This feature allows you to save texts and be able to paste them whenever you need them.")
+                + i18n.tr(" When adding a new text, the whole text in the current text field will be saved.")
+                + i18n.tr("\n\nIt can be accessed via Shortcuts Bar or Quick Actions.")
+                + i18n.tr("\n\nWhen enabling this, Shortcuts Bar is automatically enabled and the action to open will be added as well.")
+                + "\n\n\n" + i18n.tr("You can also add texts with a description/title by using the format below:")
+                + "\n\n" + i18n.tr('{ text: "<INSERT TEXT HERE>", "descr" "<INSERT DESCRIPTION OR TITLE HERE>" }')
+                + "\n\n\n" + i18n.tr("NOTE: Saved texts are visible and accessible from the lockscreen so do not put private or sensitive data")
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+            }
+            QQC2.SwitchDelegate {
+                id: enableSavedTexts
+
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: fullScreenItem.settings.enableSavedTexts = checked
+                Binding {
+                    target: enableSavedTexts
+                    property: "checked"
+                    value: fullScreenItem.settings.enableSavedTexts
                 }
             }
         }
@@ -1014,7 +1254,8 @@ Item {
                 maximumValue: 5
                 resetValue: 3
                 stepSize: 0.5
-                roundDecimal: 2
+                roundingDecimal: 2
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.quickActionsHeight = value
                 Binding {
                     target: quickActionsHeight
@@ -1049,6 +1290,7 @@ Item {
                 maximumValue: 100
                 resetValue: 20
                 stepSize: 5
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.savedTextsLimit = value
                 Binding {
                     target: savedTextsLimit
@@ -1154,6 +1396,7 @@ Item {
                 minimumValue: 1
                 maximumValue: 30
                 resetValue: 3
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.swipeHapticsDuration = value
                 Binding {
                     target: swipeHapticsDuration
@@ -1185,6 +1428,7 @@ Item {
                 maximumValue: 7
                 resetValue: 1
                 showCurrentValue: false
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.horizontalSwipeCursorSensitivity = value
                 Binding {
                     target: horizontalSwipeCursorSensitivity
@@ -1204,6 +1448,7 @@ Item {
                 maximumValue: 10
                 resetValue: 4
                 showCurrentValue: false
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.verticalSwipeCursorSensitivity = value
                 Binding {
                     target: verticalSwipeCursorSensitivity
@@ -1222,6 +1467,7 @@ Item {
                 maximumValue: 10000
                 resetValue: 5000
                 stepSize: 500
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.cursorMoverTimeout = value
                 Binding {
                     target: cursorMoverTimeout
@@ -1262,8 +1508,8 @@ Item {
                     , "Floating"
                 ]
                 containerHeight: itemHeight * 6
-                selectedIndex: model.indexOf(internal.findFromArray(usageModeValues, "value", fullScreenItem.settings.usageMode).label)
-                onSelectedIndexChanged: fullScreenItem.settings.usageMode = internal.findFromArray(usageModeValues, "label", model[selectedIndex]).value
+                selectedIndex: model.indexOf(fullScreenItem.findFromArray(usageModeValues, "value", fullScreenItem.settings.usageMode).label)
+                onSelectedIndexChanged: fullScreenItem.settings.usageMode = fullScreenItem.findFromArray(usageModeValues, "label", model[selectedIndex]).value
             }
             QQC2.SwitchDelegate {
                 id: enableFlickLayout
@@ -1385,6 +1631,11 @@ Item {
             }
             MKSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Custom One Handed Width"
+                onClicked: settingsLoader.item.stack.push(customOneHandedWidthPage, {"title": text})
+            }
+            MKSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Custom Margins"
                 onClicked: settingsLoader.item.stack.push(customMarginsPage, {"title": text})
             }
@@ -1394,6 +1645,8 @@ Item {
         id: themePage
         
         MKSettingsPage {
+            id: themePageItem
+
             QQC2.CheckDelegate {
                 id: followSystemTheme
                 Layout.fillWidth: true
@@ -1411,32 +1664,60 @@ Item {
                 visible: fullScreenItem.settings.followSystemTheme
                 text: i18n.tr("Light theme")
                 model: [
-                    "Ambiance"
-                    , "JustWhite"
-                    , "BorderedWhite"
-                    , "CustomLight"
+                    { "name": "Ambiance" }
+                    , { "name": "JustWhite" }
+                    , { "name": "BorderedWhite" }
+                    , { "name": "CustomLight" }
+                    , ...fullScreenItem.settings.customThemes
                 ]
+                delegate: selectorDelegate
                 containerHeight: itemHeight * 6
-                selectedIndex: model.indexOf(fullScreenItem.settings.lightTheme)
-                onSelectedIndexChanged: fullScreenItem.settings.lightTheme = model[selectedIndex]
+                selectedIndex: {
+                    if (settingsLoader.item && settingsLoader.item.stack.currentItem === themePageItem) {
+                        return fullScreenItem.findIndexFromArray(model, "name", fullScreenItem.settings.lightTheme)
+                    }
+                    return 0
+                }
+                onSelectedIndexChanged: {
+                    if (settingsLoader.item && settingsLoader.item.stack.currentItem === themePageItem) {
+                        fullScreenItem.settings.lightTheme = model[selectedIndex].name
+                    }
+                }
             }
             OptionSelector {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 visible: fullScreenItem.settings.followSystemTheme
                 text: i18n.tr("Dark theme")
+
                 model: [
-                    "SuruDark"
-                    , "SuruBlack"
-                    , "JustBlack"
-                    , "JustGrey"
-                    , "BorderedBlack"
-                    , "BorderedGrey"
-                    , "CustomDark"
+                    { "name": "SuruDark" }
+                    , { "name": "SuruBlack" }
+                    , { "name": "JustBlack" }
+                    , { "name": "JustGrey" }
+                    , { "name": "BorderedBlack" }
+                    , { "name": "BorderedGrey" }
+                    , { "name": "CustomDark" }
+                    , ...fullScreenItem.settings.customThemes
                 ]
+                delegate: selectorDelegate
                 containerHeight: itemHeight * 6
-                selectedIndex: model.indexOf(fullScreenItem.settings.darkTheme)
-                onSelectedIndexChanged: fullScreenItem.settings.darkTheme = model[selectedIndex]
+                selectedIndex: {
+                    if (settingsLoader.item && settingsLoader.item.stack.currentItem === themePageItem) {
+                        return fullScreenItem.findIndexFromArray(model, "name", fullScreenItem.settings.darkTheme)
+                    }
+                    return 0
+                }
+                onSelectedIndexChanged: {
+                    if (settingsLoader.item && settingsLoader.item.stack.currentItem === themePageItem) {
+                        return fullScreenItem.settings.darkTheme = model[selectedIndex].name
+                    }
+                    return 0
+                }
+            }
+            Component {
+                id: selectorDelegate
+                OptionSelectorDelegate { text: modelData.name }
             }
             QQC2.CheckDelegate {
                 id: useCustomTheme
@@ -1455,13 +1736,30 @@ Item {
                 Layout.margins: units.gu(2)
                 visible: fullScreenItem.useCustomTheme
                 text: i18n.tr("Custom theme")
+
                 model: [
-                    "CustomLight"
-                    , "CustomDark"
+                    { "name": "CustomLight" }
+                    , { "name": "CustomDark" }
+                    , ...fullScreenItem.settings.customThemes
                 ]
+                delegate: selectorDelegate
                 containerHeight: itemHeight * 6
-                selectedIndex: model.indexOf(fullScreenItem.settings.customTheme)
-                onSelectedIndexChanged: fullScreenItem.settings.customTheme = model[selectedIndex]
+                selectedIndex: {
+                    if (settingsLoader.item && settingsLoader.item.stack.currentItem === themePageItem) {
+                        return fullScreenItem.findIndexFromArray(model, "name", fullScreenItem.settings.customTheme)
+                    }
+                    return 0
+                }
+                onSelectedIndexChanged: {
+                    if (settingsLoader.item && settingsLoader.item.stack.currentItem === themePageItem) {
+                        fullScreenItem.settings.customTheme = model[selectedIndex].name
+                    }
+                }
+            }
+            MKSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Custom Themes"
+                onClicked: settingsLoader.item.stack.push(customThemesPage, {"title": text})
             }
             MKSettingsNavItem {
                 Layout.fillWidth: true
@@ -1493,6 +1791,16 @@ Item {
                 containerHeight: itemHeight * 6
                 selectedIndex: model.indexOf(fullScreenItem.settings.customFont)
                 onSelectedIndexChanged: fullScreenItem.settings.customFont = model[selectedIndex]
+            }
+        }
+    }
+    Component {
+        id: customThemesPage
+        
+        MKCustomThemesPage {
+            model: fullScreenItem.settings.customThemes
+            onModelDataChanged: {
+                fullScreenItem.settings.customThemes = newModelData
             }
         }
     }
@@ -2018,6 +2326,7 @@ Item {
                 maximumValue: 0.7
                 resetValue: 0.31
                 percentageValue: true
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.customPortraitHeight = value
                 Binding {
                     target: customPortraitHeight
@@ -2035,6 +2344,7 @@ Item {
                 maximumValue: 0.7
                 resetValue: 0.49
                 percentageValue: true
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.customLandscapeHeight = value
                 Binding {
                     target: customLandscapeHeight
@@ -2056,6 +2366,7 @@ Item {
                 minimumValue: 0
                 maximumValue: 10
                 resetValue: 2
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.customBottomMargin = value
                 Binding {
                     target: customBottomMargin
@@ -2071,11 +2382,48 @@ Item {
                 minimumValue: 0
                 maximumValue: 5
                 resetValue: 0
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.customSideMargin = value
                 Binding {
                     target: customSideMargin
                     property: "value"
                     value: fullScreenItem.settings.customSideMargin
+                }
+            }
+        }
+    }
+    Component {
+        id: customOneHandedWidthPage
+        
+        MKSettingsPage {
+            QQC2.CheckDelegate {
+                id: useCustomOneHandedWidth
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: fullScreenItem.settings.useCustomOneHandedWidth = checked
+                Binding {
+                    target: useCustomOneHandedWidth
+                    property: "checked"
+                    value: fullScreenItem.settings.useCustomOneHandedWidth
+                }
+            }
+            MKSliderItem {
+                id: customOneHandedWidth
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: fullScreenItem.settings.useCustomOneHandedWidth
+                title: "Width (inch)"
+                minimumValue: 1
+                maximumValue: 7
+                resetValue: 2.5
+                stepSize: 0.1
+                roundingDecimal: 2
+                enableFineControls: true
+                onValueChanged: fullScreenItem.settings.customOneHandedWidth = value
+                Binding {
+                    target: customOneHandedWidth
+                    property: "value"
+                    value: fullScreenItem.settings.customOneHandedWidth
                 }
             }
         }
@@ -2104,6 +2452,7 @@ Item {
                 minimumValue: 2
                 maximumValue: 10
                 resetValue: 6
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.customRibbonHeight = value
                 Binding {
                     target: customRibbonHeight
@@ -2120,6 +2469,7 @@ Item {
                 minimumValue: 10
                 maximumValue: 30
                 resetValue: 17
+                enableFineControls: true
                 onValueChanged: fullScreenItem.settings.customRibbonFontSize = value
                 Binding {
                     target: customRibbonFontSize
@@ -2130,7 +2480,6 @@ Item {
         }
     }
     // ENH070 - End
-    
 
     Rectangle {
         id: canvas
@@ -2243,14 +2592,132 @@ Item {
             }
         }
 
+        // ENH213 - Text preview when foating
+        Connections {
+            target: input_method
+
+            onPreeditChanged: {
+                if (fullScreenItem.textPreviewIsEnabled) {
+                    fullScreenItem.updateTextPreview()
+                }
+            }
+        }
+        Connections {
+            target: event_handler
+
+            onKeyReleased: {
+                if (fullScreenItem.textPreviewIsEnabled) {
+                    fullScreenItem.updateTextPreview()
+                }
+            }
+            onWordCandidatePressed: {
+                if (fullScreenItem.textPreviewIsEnabled) {
+                    fullScreenItem.updateTextPreview()
+                }
+            }
+        }
+
+        Loader {
+            id: previewTextLoader
+
+            active: fullScreenItem.settings.enableTextPreviewWhenFloating && fullScreenItem.keyboardFloating
+            asynchronous: true
+
+            anchors {
+                bottom: keyboardSurface.top
+                bottomMargin: units.gu(1)
+                left: keyboardSurface.left
+                right: keyboardSurface.right
+            }
+
+            onLoaded: fullScreenItem.updateTextPreview()
+
+            sourceComponent: Item {
+                property alias cursorPosition: previewTextField.cursorPosition
+                property alias text: previewTextField.text
+                
+                height: previewTextField.height
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: fullScreenItem.theme.backgroundColor
+                    border {
+                        color: fullScreenItem.theme.charKeyBorderColor
+                        width: units.dp(1)
+                    }
+                }
+
+                TextArea {
+                    id: previewTextField
+
+                    anchors {
+                        bottom: parent.bottom
+                        left: parent.left
+                        right: parent.right
+                    }
+                    autoSize: true
+                    maximumLineCount: 3
+                    wrapMode: TextEdit.WordWrap
+                    color: fullScreenItem.theme.fontColor
+                    cursorVisible: true
+                    readOnly: true
+                    // TODO: Texts are clipped when setting custom font size
+                    /*
+                    font.pixelSize: {
+                        if (fullScreenItem.settings.useCustomRibbonHeight) {
+                            return units.dp(fullScreenItem.settings.customRibbonFontSize)
+                        } else {
+                            if (fullScreenItem.tablet) {
+                                return units.dp(UI.tabletWordRibbonFontSize)
+                            } else {
+                                return units.dp(UI.phoneWordRibbonFontSize)
+                            }
+                        }
+                    }
+                    */
+                }
+            }
+        }
+        // ENH213 - End
+
         Item {
             id: keyboardSurface
             objectName: "keyboardSurface"
 
-            readonly property real oneHandedWidth: Math.min(canvas.width
-                                    * (fullScreenItem.tablet ? fullScreenItem.landscape ? UI.tabletOneHandedPreferredWidthLandscape : UI.tabletOneHandedPreferredWidthPortrait
-                                                    : fullScreenItem.landscape ? UI.phoneOneHandedPreferredWidthLandscape : UI.phoneOneHandedPreferredWidthPortrait)
-                                    , fullScreenItem.tablet ? units.gu(UI.tabletOneHandedMaxWidth) : units.gu(UI.phoneOneHandedMaxWidth))
+            readonly property real oneHandedWidth: {
+                if (fullScreenItem.settings.useCustomOneHandedWidth) {
+                    let _widthInPixel = fullScreenItem.convertFromInch(fullScreenItem.settings.customOneHandedWidth)
+                    if (_widthInPixel <= fullScreenItem.width) {
+                        return _widthInPixel
+                    }
+                }
+
+                const _isTablet = fullScreenItem.tablet
+                const _isLandscape = fullScreenItem.landscape
+
+                let _screenPercentage = 1
+                let _maxWidth = 60 // GU
+                
+                if (_isTablet) {
+                    if (_isLandscape) {
+                        _screenPercentage = UI.tabletOneHandedPreferredWidthLandscape
+                    } else {
+                        _screenPercentage = UI.tabletOneHandedPreferredWidthPortrait
+                    }
+
+                    _maxWidth = UI.tabletOneHandedMaxWidth
+                } else {
+                    if (_isLandscape) {
+                        _screenPercentage = UI.phoneOneHandedPreferredWidthLandscape
+                    } else {
+                        _screenPercentage = UI.phoneOneHandedPreferredWidthPortrait
+                    }
+
+                    _maxWidth = UI.phoneOneHandedMaxWidth
+                }
+
+                return Math.min(canvas.width * _screenPercentage, units.gu(_maxWidth))
+            }
 
             // Additional bottom margin when in floating mode to make it easier to use bottom swipe
             readonly property real addBottomMargin: fullScreenItem.keyboardFloating ? units.gu(2) : 0
@@ -2689,7 +3156,18 @@ Item {
                     id: wordRibbon
                     objectName: "wordRibbon"
 
-                    visible: canvas.wordribbon_visible
+                    // ENH120 - Saved Texts
+                    // visible: canvas.wordribbon_visible
+                    // ENH215 - Shortcuts bar
+                    //visible: canvas.wordribbon_visible || fullScreenItem.settings.enableSavedTexts
+                    visible: canvas.wordribbon_visible || fullScreenItem.settings.enableSavedTexts || fullScreenItem.settings.enableShortcutsBar
+                    enableShortcutsToolbar: fullScreenItem.settings.enableShortcutsBar
+                    leadingActions: fullScreenItem.settings.shortcutBarActions[0] ? actionsFactory.getActionsModel(fullScreenItem.settings.shortcutBarActions[0])
+                                        : []
+                    trailingActions: fullScreenItem.settings.shortcutBarActions[1] ? actionsFactory.getActionsModel(fullScreenItem.settings.shortcutBarActions[1])
+                                        : []
+                    // ENH215 - End
+                    // ENH120 - End
 
                     anchors {
                         bottom: parent.bottom
@@ -2701,7 +3179,10 @@ Item {
                     //                                                            : units.gu(UI.phoneWordribbonHeight))
                     //                                   : 0
                     height: {
-                        if (canvas.wordribbon_visible) {
+                        // ENH120 - Saved Texts
+                        //if (canvas.wordribbon_visible) {
+                        if (visible) {
+                        // ENH120 - End
                             if (fullScreenItem.settings.useCustomRibbonHeight) {
                                 return units.gu(fullScreenItem.settings.customRibbonHeight)
                             } else {
@@ -2753,30 +3234,6 @@ Item {
                     left: keyboardComp.left
                     right: keyboardComp.right
                 }
-                // ENH120 - Saved Texts
-                /*
-                readonly property var defaultLeadingActions: [                
-                    Action { text: i18n.tr("Select All"); iconName: "edit-select-all"; onTriggered: fullScreenItem.selectAll(); },
-                    Action { text: i18n.tr("Redo"); iconName: "redo"; onTriggered: fullScreenItem.redo();},
-                    Action { text: i18n.tr("Undo"); iconName: "undo"; onTriggered: fullScreenItem.undo();},
-                    Action { text: i18n.tr("Notebook"); iconName: "notebook"; onTriggered: fullScreenItem.showSavedTexts(); }
-                ]
-                readonly property var defaultTrailingActions: [
-                    Action { text: i18n.tr("Paste"); iconName: "edit-paste"; onTriggered: fullScreenItem.paste(); },
-                    Action { text: i18n.tr("Copy"); iconName: "edit-copy"; onTriggered: {fullScreenItem.copy(); fullScreenItem.sendLeftKey();} },
-                    Action { text: i18n.tr("Cut"); iconName: "edit-cut"; onTriggered: fullScreenItem.cut(); }
-                ]
-                readonly property var savedTextsLeadingActions: [                
-                    Action { text: i18n.tr("Back"); iconName: "back"; onTriggered: fullScreenItem.hideSavedTexts(); }
-                ]
-                readonly property var savedTextsTrailingActions: [
-                    Action { text: i18n.tr("Clear"); iconName: "delete"; onTriggered: {fullScreenItem.copy(); fullScreenItem.sendLeftKey();} },
-                    Action { text: i18n.tr("Add"); iconName: "add"; onTriggered: fullScreenItem.savedTexts.addItem(); }
-                ]
-                leadingActions: savedTextsArea.visible ? savedTextsLeadingActions : defaultLeadingActions
-                trailingActions: savedTextsArea.visible ? savedTextsTrailingActions : defaultTrailingActions
-                */
-                // ENH120 - End
             }
                 
 
@@ -2954,22 +3411,11 @@ Item {
                 }
             }
             // ENH120 - Saved Texts
-            Loader {
+            MKSavedTextList {
                 id: savedTextsArea
-                
-                active: fullScreenItem.settings.enableSavedTexts
-                asynchronous: true
-                visible: false
-                function show() {
-                    visible = true
-                }
-                function hide() {
-                    visible = false
-                }
+
+                z: floatingActions.z
                 anchors.fill: cursorSwipeArea
-                sourceComponent: Rectangle {
-                    color: fullScreenItem.theme.backgroundColor
-                }
             }
             // ENH120 - End
 
@@ -3031,6 +3477,9 @@ Item {
                         immediateRecognition: false
                         grabGesture: false
                         visible: (keyboardSurface.state !== "ONE-HANDED-LEFT" || fullScreenItem.keyboardFloating) && !fullScreenItem.cursorSwipe
+                        // ENH120 - Saved Texts
+                        enabled: !fullScreenItem.savedTextsShown
+                        // ENH120 - End
 
                         onDraggingCustomChanged: {
                             if (draggingCustom && touchPosition.y >= 0) {
@@ -3064,6 +3513,9 @@ Item {
                         immediateRecognition: false
                         grabGesture: false
                         visible: (keyboardSurface.state !== "ONE-HANDED-RIGHT" || fullScreenItem.keyboardFloating) && !fullScreenItem.cursorSwipe
+                        // ENH120 - Saved Texts
+                        enabled: !fullScreenItem.savedTextsShown
+                        // ENH120 - End
 
                         onDraggingCustomChanged: {
                             if (draggingCustom && touchPosition.y >= 0) {
@@ -3234,6 +3686,11 @@ Item {
                         fullScreenItem.settings.usageMode = "Floating"
                     }
                     // ENH118 - End
+                    // ENH213 - Text preview when foating
+                    if (fullScreenItem.textPreviewIsEnabled) {
+                        fullScreenItem.updateTextPreview()
+                    }
+                    // ENH213 - End
                     if (canvas.firstShow) {
                         keyboardSurface.state = keyboardSurface.settingsToState(fullScreenItem.usageMode)
                     }
@@ -3264,9 +3721,12 @@ Item {
                         keypad.switchBack = false;
                         maliit_input_method.activeLanguage = maliit_input_method.previousLanguage;
                     }
-                    
+
                     // Exit cursor swipe mode when the keyboard hides
                     fullScreenItem.exitSwipeMode();
+                    // ENH120 - Saved Texts
+                    fullScreenItem.hideSavedTexts();
+                    // ENH120 - End
                 }
                 // Wait for the first show operation to complete before
                 // allowing hiding, as the conditions when the keyboard
@@ -3317,6 +3777,8 @@ Item {
             , { "id": "cut", "title": i18n.tr("Cut"), "component": actionCut }
             , { "id": "copy", "title": i18n.tr("Copy"), "component": actionCopy }
             , { "id": "paste", "title": i18n.tr("Paste"), "component": actionPaste }
+            , { "id": "moveToLeft", "title": i18n.tr("Move cursor to the left"), "component": actionMoveCursorToLeft }
+            , { "id": "moveToRight", "title": i18n.tr("Move cursor to the right"), "component": actionMoveCursorToRight }
             , { "id": "goToStartLine", "title": i18n.tr("Go to start of line"), "component": actionGoToStartLine }
             , { "id": "goToEndLine", "title": i18n.tr("Go to end of line"), "component": actionGoToEndLine }
             , { "id": "goToStartDoc", "title": i18n.tr("Go to start of document"), "component": actionGoToStartDoc }
@@ -3326,6 +3788,7 @@ Item {
             , { "id": "selectNextWord", "title": i18n.tr("Select next word"), "component": actionSelectNextWord }
             , { "id": "copyAll", "title": i18n.tr("Copy all"), "component": actionCopyAll }
             , { "id": "cutAll", "title": i18n.tr("Cut all"), "component": actionCutAll }
+            , { "id": "deleteAll", "title": i18n.tr("Delete all"), "component": actionDeleteAll }
             , { "id": "selectAllAndPaste", "title": i18n.tr("Select all and paste"), "component": actionSelectAllAndPaste }
             , { "id": "tab", "title": i18n.tr("Tab"), "component": actionTab }
             , { "id": "settings", "title": i18n.tr("Keyboard settings"), "component": actionSettings }
@@ -3333,6 +3796,8 @@ Item {
             , { "id": "ohLeft", "title": i18n.tr("One-handed Left"), "component": actionOHLeft }
             , { "id": "ohRight", "title": i18n.tr("One-handed Right"), "component": actionOHRight }
             , { "id": "ohTurnOff", "title": i18n.tr("Turn off one-handed"), "component": actionTurnOffOH }
+            , { "id": "notebook", "title": i18n.tr("Notebook"), "component": actionNotebook }
+            , { "id": "emoji", "title": i18n.tr("Emoji"), "component": actionEmoji }
         ]
 
         function getActionsModel(actionIDsList) {
@@ -3398,6 +3863,34 @@ Item {
             iconName: "go-first"
             text: i18n.tr("Go to start of line")
             onTrigger: fullScreenItem.moveToStartOfLine()
+        }
+
+        MKBaseAction {
+            id: actionMoveCursorToLeft
+
+            iconName: "previous"
+            text: i18n.tr("Move cursor to the left")
+            onTrigger: {
+                if (cursorSwipeArea.selectionMode || input_method.hasSelection) {
+                    fullScreenItem.selectLeft();
+                } else {
+                    fullScreenItem.sendLeftKey();
+                }
+            }
+        }
+
+        MKBaseAction {
+            id: actionMoveCursorToRight
+
+            iconName: "next"
+            text: i18n.tr("Move cursor to the right")
+            onTrigger: {
+                if (cursorSwipeArea.selectionMode || input_method.hasSelection) {
+                    fullScreenItem.selectRight();
+                } else {
+                    fullScreenItem.sendRightKey();
+                }
+            }
         }
 
         MKBaseAction {
@@ -3467,6 +3960,14 @@ Item {
         }
 
         MKBaseAction {
+            id: actionDeleteAll
+
+            iconName: "edit-clear"
+            text: i18n.tr("Delete all")
+            onTrigger: fullScreenItem.deleteAll()
+        }
+
+        MKBaseAction {
             id: actionSelectAllAndPaste
 
             iconName: "edit-paste"
@@ -3518,6 +4019,82 @@ Item {
             visible: fullScreenItem.settings.usageMode !== "Full"
             text: i18n.tr("Return to full layout")
             onTrigger: fullScreenItem.settings.usageMode = "Full"
+        }
+        MKBaseAction {
+            id: actionNotebook
+
+            readonly property list<MKBaseAction> leadingActions: [
+                MKBaseAction {
+                    text: i18n.tr("Clear")
+                    iconName: "delete"
+                    // Hide for now since it's annoying when you accidentally delete all
+                    // Just delete one by one manually! XD
+                    // visible: fullScreenItem.settings.savedTexts.length > 0
+                    visible: false
+                    onTrigger: fullScreenItem.tooltip.display(i18n.tr("Long press to clear all"))
+                    onPressAndHold: fullScreenItem.savedTexts.clear()
+                }, MKBaseAction {
+                    text: i18n.tr("Sort")
+                    iconName: "sort-listitem"
+                    visible: fullScreenItem.settings.savedTexts.length > 0
+                    onTrigger: {
+                        fullScreenItem.toggleSavedTextsSort()
+                    }
+                }
+            ]
+            readonly property list<MKBaseAction> trailingActions: [
+                MKBaseAction {
+                    text: i18n.tr("Notebook")
+                    iconName: "notebook"
+                    checkable: true
+                    checked: fullScreenItem.savedTextsShown
+
+                    onTrigger: {
+                        fullScreenItem.hideSavedTexts();
+                        wordRibbon.resetToolbarActions()
+                    }
+                }
+                , MKBaseAction {
+                    text: i18n.tr("Add")
+                    iconName: "add"
+                    onTrigger: {
+                        fullScreenItem.commitPreedit()
+                        fullScreenItem.savedTexts.addItem(input_method.surroundingLeft + input_method.surroundingRight)
+                    }
+                }
+            ]
+            iconName: "notebook"
+            visible: fullScreenItem.settings.enableSavedTexts
+            text: i18n.tr("Notebook")
+            onTrigger: fullScreenItem.toggleSavedTexts()
+        }
+        Connections {
+            target: fullScreenItem
+            onSavedTextsShownChanged: {
+                if (target.savedTextsShown) {
+                    wordRibbon.showTempActionsInToolbar(actionNotebook.leadingActions, actionNotebook.trailingActions)
+                } else {
+                    wordRibbon.resetToolbarActions()
+                }
+            }
+        }
+        MKBaseAction {
+            id: actionEmoji
+
+            property string previousKeypadState: "CHARACTERS"
+
+            iconName: "bot"
+            text: i18n.tr("Emoji")
+            checkable: true
+            checked: keypad.state === "EMOJI"
+            onTrigger: {
+                if (keypad.state === "EMOJI") {
+                    keypad.state = previousKeypadState
+                } else {
+                    previousKeypadState = keypad.state
+                    keypad.state = "EMOJI"
+                }
+            }
         }
     }
     // ENH089 - End
@@ -3630,6 +4207,11 @@ Item {
         if (cursorSwipe && input_method.hasSelection) {
             cursorSwipeArea.selectionMode = true
         }
+        // ENH120 - Saved Texts
+        if (cursorSwipe) {
+            fullScreenItem.hideSavedTexts()
+        }
+        // ENH120 - End
 
         fullScreenItem.keyFeedback();
     }
@@ -3733,7 +4315,8 @@ Item {
             }
             // ENH121 - End
             // Report visible height of the keyboard to support anchorToKeyboard
-            obj.height = fullScreenItem.height - obj.y;
+            // obj.height = fullScreenItem.height - obj.y;
+            obj.height = fullScreenItem.keyboardFloating ? vheight : fullScreenItem.height - obj.y;
 
             // Work around QT bug: https://bugreports.qt-project.org/browse/QTBUG-20435
             // which results in a 0 height being reported incorrectly immediately prior
@@ -3752,6 +4335,11 @@ Item {
     // doesn't provide arrow keys (e.g. in phone mode)
     function commitPreedit() {
         event_handler.onKeyReleased("", "commit");
+        // ENH213 - Text preview when foating
+        if (fullScreenItem.textPreviewIsEnabled) {
+            fullScreenItem.updateTextPreview()
+        }
+        // ENH213 - End
     }
     function sendLeftKey() {
         event_handler.onKeyReleased("", "left");
@@ -3871,6 +4459,21 @@ Item {
         event_handler.onKeyReleased("SelectAll", "keysequence");
         event_handler.onKeyReleased("Cut", "keysequence");
     }
+    function deleteAll() {
+        commitPreedit();
+        event_handler.onKeyReleased("SelectAll", "keysequence");
+
+        // For some reason some texts are still remains without a delay
+        deletaAllDelay.restart()
+    }
+    Timer {
+        id: deletaAllDelay
+        interval: 100
+        onTriggered: {
+            event_handler.onKeyPressed("", "backspace");
+            event_handler.onKeyReleased("", "backspace");
+        }
+    }
     function selectAllAndPaste() {
         commitPreedit();
         event_handler.onKeyReleased("SelectAll", "keysequence");
@@ -3979,31 +4582,88 @@ Item {
     }
 
     // ENH070 - Keyboard settings
-    QtObject {
-        id: internal
-        function findFromArray(arr, prop, value) {
-            return arr.find(item => item[prop] == value)
+    function findFromArray(arr, prop, value) {
+        return arr.find(item => item[prop] == value)
+    }
+    function findIndexFromArray(arr, prop, value) {
+        return arr.findIndex(item => item[prop] == value)
+    }
+    function countFromArray(_arr, _itemProp, _itemValue) {
+        let _counter = 0;
+        for (let i = 0; i < _arr.length; i++) {
+            if (_arr[i][_itemProp] == _itemValue) {
+                _counter++;
+            }
         }
+        return _counter
     }
     // ENH070 - End
     // ENH120 - Saved Texts
+    MKGlobalTooltip {
+        id: tooltip
+    }
+
     QtObject {
         id: savedTextsObj
+
+        function tryToParseStringToJSON(_str) {
+            try {
+                return JSON.parse(_str);
+            } catch (e) {
+                return null;
+            }
+        }
+
         function addItem(_text) {
-            let tempArr = fullScreenItem.setting.savedTexts.slice()
-            tempArr.unshift( { "text": _text } )
-            fullScreenItem.setting.savedTexts = tempArr.slice()
-            cleanup()
+            const _trimmedText = _text.trim()
+            let _textToSave = ""
+            let _descrToSave = ""
+
+            // Check if input is a valid JSON
+            const _objJSON = tryToParseStringToJSON(_trimmedText)
+
+            if (_objJSON) {
+                let _hasText = _objJSON.hasOwnProperty("text")
+                let _hasDescr = _objJSON.hasOwnProperty("descr")
+
+                if (_hasText) {
+                    _textToSave = _objJSON.text.trim()
+                }
+                if (_hasDescr) {
+                    _descrToSave = _objJSON.descr.trim()
+                }
+            } else {
+                _textToSave = _trimmedText
+            }
+            
+            if (_textToSave !== "" && !fullScreenItem.findFromArray(fullScreenItem.settings.savedTexts, "text", _textToSave)) {
+                let _tempArr = fullScreenItem.settings.savedTexts.slice()
+                _tempArr.unshift( { "text": _textToSave, "descr": _descrToSave } )
+                fullScreenItem.settings.savedTexts = _tempArr.slice()
+                tooltip.display(i18n.tr("Text saved"))
+            } else {
+                tooltip.display(i18n.tr("Invalid or already existing text"))
+            }
         }
-        function deleteItem(_index) {
-            let tempArr = fullScreenItem.setting.savedTexts.slice()
-            tempArr.splice(_index, 1)
-            fullScreenItem.setting.savedTexts = tempArr.slice()
+
+        function clear() {
+            fullScreenItem.settings.savedTexts = []
+            tooltip.display(i18n.tr("Saved texts cleared"))
         }
+
+        function deleteItem(_text) {
+            const _tempArr = fullScreenItem.settings.savedTexts.slice()
+            const _index = _tempArr.findIndex(item => item.text === _text)
+            if (_index > -1) {
+                _tempArr.splice(_index, 1)
+                fullScreenItem.settings.savedTexts = _tempArr.slice()
+            }
+        }
+
         function cleanup() {
-            if (fullScreenItem.setting.savedTextsLimit > 0) {
-                if (fullScreenItem.setting.savedTexts.length > fullScreenItem.setting.savedTextsLimit) {
-                    fullScreenItem.setting.savedTexts = fullScreenItem.setting.savedTexts.slice(0, fullScreenItem.setting.savedTextsLimit);
+            if (fullScreenItem.settings.savedTextsLimit > 0) {
+                if (fullScreenItem.settings.savedTexts.length > fullScreenItem.settings.savedTextsLimit) {
+                    fullScreenItem.settings.savedTexts = fullScreenItem.settings.savedTexts.slice(0, fullScreenItem.settings.savedTextsLimit);
                 }
             }
         }
