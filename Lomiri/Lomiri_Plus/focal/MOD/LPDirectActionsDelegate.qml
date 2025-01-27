@@ -178,7 +178,7 @@ Item {
                     return
                     break
                 case LPDirectActions.Type.Toggle:
-                    if (toggleObj) {
+                    if (toggleObj && toggleObj.enabled) {
                         toggleObj.clicked()
                     }
                     return
@@ -194,7 +194,7 @@ Item {
             }
         }
 
-        console.log("Unknown Direct Action triggered")
+        console.log("Unknown Quick Action triggered")
     }
 
     onShouldBeHighlightedChanged: {

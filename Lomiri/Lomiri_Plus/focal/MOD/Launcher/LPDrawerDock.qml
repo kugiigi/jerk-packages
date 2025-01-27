@@ -3,10 +3,12 @@ import QtQuick 2.12
 import Lomiri.Components 1.3
 import Lomiri.Components.ListItems 1.3 as ListItems
 import QtQuick.Layouts 1.12
+import "../Components" as Components
 
 Item {
     id: bottomDock
 
+    readonly property real swipeThreshold: units.gu(5)
     property real verticalPadding: units.gu(4)
     readonly property real horizontalPadding: isIntegratedDock ? 0 : units.gu(0.5)
     readonly property alias rowHeight: dockedAppGrid.rowHeight
@@ -18,6 +20,7 @@ Item {
     readonly property bool appDragIsActive: editMode && gridArea.isDragActive
     property bool expanded: false
     property bool expandingFinished: false
+    property real availableHeight: units.gu(60)
     property real delegateHeight: units.gu(10)
     property real delegateWidth: units.gu(10)
     property var rawModel
@@ -57,6 +60,8 @@ Item {
             expanded = false
         }
     }
+
+    onExpandedChanged: if (!expanded) drawerDockFlickable.reset()
 
     Loader {
         active: showThinDivider
@@ -101,7 +106,11 @@ Item {
         opacity: bottomDock.expanded ? 1 : 0.6
         visible: !bottomDock.isIntegratedDock
         radius: units.gu(3)
-        anchors.fill: parent
+        anchors {
+            fill: parent
+            topMargin: dockedAppGrid.anchors.verticalCenterOffset
+        }
+
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.FastDuration } }
     }
 
@@ -113,7 +122,7 @@ Item {
         width: height
         color: theme.palette.normal.backgroundText
         anchors {
-            top: parent.top
+            top: bg.top
             horizontalCenter: parent.horizontalCenter
         }
         MouseArea {
@@ -147,6 +156,11 @@ Item {
         readonly property real rowHeight: bottomDock.delegateHeight
         readonly property real rowMargins: 0
         readonly property bool multiRows: rowHeight + rowMargins !== gridLayout.height + rowMargins
+        readonly property real expandedHeight: Math.min(gridLayout.height + rowMargins + bottomDock.verticalPadding / 2, maxHeight)
+        readonly property real collapsedHeight: rowHeight + rowMargins + bottomDock.verticalPadding / 2
+        readonly property real availableHeight: bottomDock.availableHeight - bottomDock.verticalPadding
+        readonly property real maxHeightFromSettings: shell.convertFromInch(shell.settings.drawerDockMaxHeight)
+        readonly property real maxHeight: shell.settings.enableMaxHeightInDrawerDock ?  Math.min(maxHeightFromSettings, availableHeight) : availableHeight
 
         z: 2
         hoverEnabled: true
@@ -154,10 +168,41 @@ Item {
         clip: !bottomDock.editMode
 
         height: {
-            if (bottomDock.isIntegratedDock || bottomDock.expanded || bottomDock.editMode) {
-                return gridLayout.height + rowMargins + bottomDock.verticalPadding / 2
+            if (bottomDock.isIntegratedDock) return gridLayout.height + rowMargins + bottomDock.verticalPadding / 2
+
+            if (swipeArea.dragging) {
+                let _height = expanded ? expandedHeight - swipeArea.distance : collapsedHeight + swipeArea.distance
+                let _defaultHeight = expanded ? expandedHeight : collapsedHeight
+
+                if (_height <= expandedHeight && _height >= collapsedHeight) {
+                    return _height
+                } else if (_height > expandedHeight) {
+                    return expandedHeight
+                } else if (_height < collapsedHeight) {
+                    return collapsedHeight
+                } else {
+                    return _defaultHeight
+                }
+            }
+            if (drawerDockFlickable.interactive && drawerDockFlickable.verticalOvershoot < 0) {
+                let _height = expandedHeight + drawerDockFlickable.verticalOvershoot
+                let _defaultHeight = expandedHeight
+
+                if (_height <= expandedHeight && _height >= collapsedHeight) {
+                    return _height
+                } else if (_height > expandedHeight) {
+                    return expandedHeight
+                } else if (_height < collapsedHeight) {
+                    return collapsedHeight
+                } else {
+                    return _defaultHeight
+                }
+            }
+
+            if (bottomDock.expanded || bottomDock.editMode) {
+                return expandedHeight
             } else {
-                return rowHeight + rowMargins + bottomDock.verticalPadding / 2
+                return collapsedHeight
             }
         }
         onHeightChanged: {
@@ -197,155 +242,179 @@ Item {
             return arr;
         }
 
-        GridLayout  {
-            id: gridLayout
+        Flickable {
+            id: drawerDockFlickable
 
-            columnSpacing: 0
-            rowSpacing: 0
-            LayoutMirroring.enabled: rotation == 180
-            rotation: bottomDock.isIntegratedDock && bottomDock.inverted ? 180 : 0
-
-            anchors {
-                top: parent.top
-                topMargin: bottomDock.verticalPadding / 2
-                left: parent.left
-                right: parent.right
-                leftMargin: bottomDock.horizontalPadding
-                rightMargin: bottomDock.horizontalPadding
-            }
-
-            Repeater {
-                id: appsRepeater
-
-                model: bottomDock.appModel
-
-                delegate: Item {
-                    id: itemContainer
-
-                    property var appData: modelData ? bottomDock.getAppItem(modelData) : null
-                    property string appId: modelData
-                    property int itemIndex: index
-
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: dockedAppGrid.rowHeight
-                    // Very slow when rotating and toggling
-                    //Layout.preferredHeight: bottomDock.hideLabel && bottomDock.isIntegratedDock ? width : dockedAppGrid.rowHeight
-                    // Slightly slow when rotating and toggling but not sure if it's actually square
-                    //Layout.preferredHeight: bottomDock.hideLabel && bottomDock.isIntegratedDock ? bottomDock.delegateWidth : dockedAppGrid.rowHeight
-
-                    rotation: gridLayout.rotation
-
-                    Connections {
-                        target: bottomDock.rawModel
-                        onRefreshingChanged: {
-                            if (!target.refreshing) {
-                                itemContainer.appData = Qt.binding( function() { return itemContainer.appId ? bottomDock.getAppItem(itemContainer.appId) : null } )
-                            }
-                        }
-                    }
-
-                    LPDrawerAppDelegate {
-                        id: toggleContainer
-
-                        focused: (bottomDock.contextMenuItem && bottomDock.contextMenuItem.appId == itemContainer.appId
-                                        && (
-                                                (!bottomDock.isIntegratedDock && bottomDock.contextMenuItem.fromDocked)
-                                                ||
-                                                (bottomDock.isIntegratedDock && bottomDock.contextMenuItem.fromCustomAppGrid)
-                                            )
-                                 )
-                                 ||
-                                 itemContainer.itemIndex == bottomDock.currentIndex
-                        objectName: "drawerDockItem_" + itemContainer.appId
-                        delegateWidth: bottomDock.delegateWidth
-                        appId: itemContainer.appId
-                        appName: itemContainer.appData ? itemContainer.appData.name : itemContainer.appId
-                        iconSource: itemContainer.appData ? itemContainer.appData.icon : ""
-                        x: 0
-                        y: 0
-                        width: parent.width
-                        height: parent.height
-                        editMode: bottomDock.editMode
-                        hideLabel: bottomDock.hideLabel
-                        // ENH132 - App drawer icon size settings
-                        delegateSizeMultiplier: bottomDock.delegateSizeMultiplier
-                        // ENH132 - End
-
-                        states: [
-                            State {
-                                name: "active"; when: gridArea.activeId == itemContainer.appId
-                                PropertyChanges {target: toggleContainer; x: gridArea.mouseX - parent.x - width / 2; y: gridArea.mouseY - parent.y - height - units.gu(3); z: 10}
-                            }
-                        ]
-                        
-                        Behavior on x {
-                            LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                        }
-                        Behavior on y {
-                            LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
-                        }
-
-                        onApplicationSelected: {
-                            if (!editMode) {
-                                bottomDock.applicationSelected(appId)
-                            } else {
-                                bottomDock.editMode = false
-                            }
-                        }
-
-                        onApplicationContextMenu: bottomDock.applicationContextMenu(appId, this)
-                    }
-                }
-            }
-        }
-
-        MouseArea {
-            id: gridArea
-
-            property var currentItem: gridLayout.childAt(mouseX, mouseY) //item underneath cursor
-            // For offset to the top
-            //property var currentItem: isDragActive ? gridLayout.childAt(mouseX, mouseY - dockedAppGrid.toggleHeight) : gridLayout.childAt(mouseX, mouseY) //item underneath cursor
-            property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
-            property string activeId: "" // app Id of active item
-            property int activeIndex: -1 //current position of active item
-            readonly property bool isDragActive: activeId !== ""
-
-            enabled: bottomDock.editMode
-            anchors.fill: gridLayout
-            hoverEnabled: true
-            propagateComposedEvents: true
-            rotation: gridLayout.rotation
-
-            onWheel: wheel.accepted = true
-            onPressAndHold: {
-                if (currentItem) {
-                    activeIndex = index
-                    activeId = currentItem.appId
-                } else {
-                    bottomDock.editMode = !bottomDock.editMode
-                }
-                shell.haptics.play()
-            }
-            onReleased: {
-                activeId = ""
-                activeIndex = -1
-                bottomDock.appOrderChanged(appsRepeater.model)
-                appsRepeater.model = Qt.binding( function () { return bottomDock.appModel } )
-            }
-            onPositionChanged: {
-                if (activeId != "" && index != -1 && index != activeIndex) {
-                    appsRepeater.model = dockedAppGrid.arrMove(appsRepeater.model, activeIndex, activeIndex = index)
-                    shell.haptics.playSubtle()
-                }
-            }
-        }
-
-        SwipeArea {
-            enabled: !bottomDock.editMode && !bottomDock.isIntegratedDock
             anchors.fill: parent
+            bottomMargin: units.gu(1)
+            boundsBehavior: Flickable.DragOverBounds
+            boundsMovement: Flickable.StopAtBounds
+            contentHeight: gridLayout.height
+            interactive: bottomDock.expanded && contentHeight > dockedAppGrid.maxHeight && !gridArea.isDragActive
+
+            function reset() {
+                contentY = 0
+            }
+
+            onDraggingChanged: {
+                if (!dragging && verticalOvershoot <= -bottomDock.swipeThreshold) {
+                    bottomDock.expanded = false
+                }
+            }
+
+            GridLayout  {
+                id: gridLayout
+
+                columnSpacing: 0
+                rowSpacing: 0
+                LayoutMirroring.enabled: rotation == 180
+                rotation: bottomDock.isIntegratedDock && bottomDock.inverted ? 180 : 0
+
+                anchors {
+                    top: parent.top
+                    topMargin: bottomDock.verticalPadding / 2
+                    left: parent.left
+                    right: parent.right
+                    leftMargin: bottomDock.horizontalPadding
+                    rightMargin: bottomDock.horizontalPadding
+                }
+
+                Repeater {
+                    id: appsRepeater
+
+                    model: bottomDock.appModel
+
+                    delegate: Item {
+                        id: itemContainer
+
+                        property var appData: modelData ? bottomDock.getAppItem(modelData) : null
+                        property string appId: modelData
+                        property int itemIndex: index
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: dockedAppGrid.rowHeight
+                        // Very slow when rotating and toggling
+                        //Layout.preferredHeight: bottomDock.hideLabel && bottomDock.isIntegratedDock ? width : dockedAppGrid.rowHeight
+                        // Slightly slow when rotating and toggling but not sure if it's actually square
+                        //Layout.preferredHeight: bottomDock.hideLabel && bottomDock.isIntegratedDock ? bottomDock.delegateWidth : dockedAppGrid.rowHeight
+
+                        rotation: gridLayout.rotation
+
+                        Connections {
+                            target: bottomDock.rawModel
+                            onRefreshingChanged: {
+                                if (!target.refreshing) {
+                                    itemContainer.appData = Qt.binding( function() { return itemContainer.appId ? bottomDock.getAppItem(itemContainer.appId) : null } )
+                                }
+                            }
+                        }
+
+                        LPDrawerAppDelegate {
+                            id: toggleContainer
+
+                            focused: (bottomDock.contextMenuItem && bottomDock.contextMenuItem.appId == itemContainer.appId
+                                            && (
+                                                    (!bottomDock.isIntegratedDock && bottomDock.contextMenuItem.fromDocked)
+                                                    ||
+                                                    (bottomDock.isIntegratedDock && bottomDock.contextMenuItem.fromCustomAppGrid)
+                                                )
+                                     )
+                                     ||
+                                     itemContainer.itemIndex == bottomDock.currentIndex
+                            objectName: "drawerDockItem_" + itemContainer.appId
+                            delegateWidth: bottomDock.delegateWidth
+                            appId: itemContainer.appId
+                            appName: itemContainer.appData ? itemContainer.appData.name : itemContainer.appId
+                            iconSource: itemContainer.appData ? itemContainer.appData.icon : ""
+                            x: 0
+                            y: 0
+                            width: parent.width
+                            height: parent.height
+                            editMode: bottomDock.editMode
+                            hideLabel: bottomDock.hideLabel
+                            // ENH132 - App drawer icon size settings
+                            delegateSizeMultiplier: bottomDock.delegateSizeMultiplier
+                            // ENH132 - End
+
+                            states: [
+                                State {
+                                    name: "active"; when: gridArea.activeId == itemContainer.appId
+                                    PropertyChanges {target: toggleContainer; x: gridArea.mouseX - parent.x - width / 2; y: gridArea.mouseY - parent.y - height - units.gu(3); z: 10}
+                                }
+                            ]
+                            
+                            Behavior on x {
+                                LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
+                            }
+                            Behavior on y {
+                                LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
+                            }
+
+                            onApplicationSelected: {
+                                if (!editMode) {
+                                    bottomDock.applicationSelected(appId)
+                                } else {
+                                    bottomDock.editMode = false
+                                }
+                            }
+
+                            onApplicationContextMenu: bottomDock.applicationContextMenu(appId, this)
+                        }
+                    }
+                }
+            }
+
+            MouseArea {
+                id: gridArea
+
+                property var currentItem: gridLayout.childAt(mouseX, mouseY) //item underneath cursor
+                // For offset to the top
+                //property var currentItem: isDragActive ? gridLayout.childAt(mouseX, mouseY - dockedAppGrid.toggleHeight) : gridLayout.childAt(mouseX, mouseY) //item underneath cursor
+                property int index: currentItem ? currentItem.itemIndex : -1 //item underneath cursor
+                property string activeId: "" // app Id of active item
+                property int activeIndex: -1 //current position of active item
+                readonly property bool isDragActive: activeId !== ""
+
+                enabled: bottomDock.editMode
+                anchors.fill: gridLayout
+                hoverEnabled: true
+                propagateComposedEvents: true
+                rotation: gridLayout.rotation
+
+                onWheel: wheel.accepted = true
+                onPressAndHold: {
+                    if (currentItem) {
+                        activeIndex = index
+                        activeId = currentItem.appId
+                    } else {
+                        bottomDock.editMode = !bottomDock.editMode
+                    }
+                    shell.haptics.play()
+                }
+                onReleased: {
+                    activeId = ""
+                    activeIndex = -1
+                    bottomDock.appOrderChanged(appsRepeater.model)
+                    appsRepeater.model = Qt.binding( function () { return bottomDock.appModel } )
+                }
+                onPositionChanged: {
+                    if (activeId != "" && index != -1 && index != activeIndex) {
+                        appsRepeater.model = dockedAppGrid.arrMove(appsRepeater.model, activeIndex, activeIndex = index)
+                        shell.haptics.playSubtle()
+                    }
+                }
+            }
+        }
+
+        Components.LPSwipeGestureHandler {
+            id: swipeArea
+
+            enabled: !bottomDock.editMode && !bottomDock.isIntegratedDock && !drawerDockFlickable.interactive
+            anchors.fill: parent
+            immediateRecognition: false
             direction: bottomDock.expanded ? SwipeArea.Downwards : SwipeArea.Upwards
             onDraggingChanged: {
-                if (dragging) {
+                if (!dragging && towardsDirection && distance >= bottomDock.swipeThreshold) {
                     bottomDock.expanded = !bottomDock.expanded
                 }
             }

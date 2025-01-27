@@ -125,7 +125,11 @@ WebView {
 
         onClicked: {
             if (mouse.button == Qt.BackButton) {
-                webview.goBack()
+                if (webview.canGoBack) {
+                    webview.goBack()
+                } else if (chrome.isPopupOverlay) {
+                    chrome.closeOverlay()
+                }
             } else if (mouse.button == Qt.ForwardButton) {
                 webview.goForward()
             }
@@ -666,6 +670,11 @@ WebView {
     function scrollToBottom(){
         runJavaScript("window.scrollTo(0, " + webview.contentsSize.height +"); ")
     }
+
+    function scrollTo(_newX, _newY){
+        runJavaScript("window.scrollTo(" + _newX + ", " + _newY +"); ")
+    }
+
 
     function gotoUrl(urlText) {
         var query = urlText.trim()

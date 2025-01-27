@@ -53,6 +53,9 @@ Showable {
     // ENH172 - Shorten Side Stage Handle
     property real availableDesktopAreaHeight: 0
     // ENH172 - End
+    // ENH212 - Side-stage focus indicator
+    property bool isFocused: false
+    // ENH212 - End
     readonly property alias dragging: hideSideStageDragArea.dragging
     readonly property real progress: width / panelWidth
     readonly property real handleWidth: units.gu(2)
@@ -76,6 +79,9 @@ Showable {
         // ENH172 - Shorten Side Stage Handle
         height: root.availableDesktopAreaHeight
         // ENH172 - End
+        // ENH212 - Side-stage focus indicator
+        color: root.isFocused ? theme.palette.highlighted.foreground : theme.palette.normal.foreground
+        // ENH212 - End
         width: root.handleWidth
         active: hideSideStageDragArea.pressed
 

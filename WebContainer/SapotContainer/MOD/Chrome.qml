@@ -52,6 +52,7 @@ Sapot.ChromeBase {
         settingsButton.iconColor = color;
         accountsButton.iconColor = color;
 
+        readerModeButton.iconColor = Qt.binding(function(){ return chrome.webview && chrome.webview.readerMode ? theme.palette.normal.focus : color})
         downloadsButton.iconColor = Qt.binding(function(){ return downloadNotify ? theme.palette.normal.focus : color})
     }
 
@@ -207,13 +208,33 @@ Sapot.ChromeBase {
 
             anchors {
                 left: faviconContainer.right
-                right: reloadButton.left
+                right: readerModeButton.left
                 rightMargin: units.gu(1)
                 verticalCenter: parent.verticalCenter
             }
 
             text: chrome.webview.title ? chrome.webview.title : chrome.webview.url
             elide: Text.ElideRight
+        }
+
+        ChromeButton {
+            id: readerModeButton
+            objectName: "readerModeButton"
+
+            iconName: "stock_ebook"
+            iconSize: 0.6 * height
+            iconColor: chrome.webview && chrome.webview.readerMode ? theme.palette.normal.focus : chrome.iconColor
+
+            height: parent.height
+            visible: chrome.webview && (chrome.webview.isReaderable || chrome.webview.readerMode)
+            width: visible ? height : 0
+
+            anchors {
+                right: reloadButton.left
+                verticalCenter: parent.verticalCenter
+            }
+
+            onTriggered: chrome.webview.toggleReaderMode()
         }
 
         ChromeButton {
@@ -327,6 +348,7 @@ Sapot.ChromeBase {
 
             iconName: "contact"
             iconSize: 0.6 * height
+            iconColor: chrome.iconColor
 
             height: parent.height
             width: visible ? height : 0
@@ -354,6 +376,7 @@ Sapot.ChromeBase {
 
             iconName: "external-link"
             iconSize: 0.6 * height
+            iconColor: chrome.iconColor
 
             enabled: true
             visible: chrome.isPopupOverlay

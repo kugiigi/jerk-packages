@@ -498,19 +498,37 @@ Item {
     // ENH037 - End
 
     // ENH129 - Color overlay
-    Loader {
-        active: shell.settings.enableColorOverlay
-        asynchronous: true
+    Rectangle {
+        readonly property bool sensorBasedEnable: shell.lightSensorValue > -1 && shell.lightSensorValue <= shell.settings.colorOverlaySensorThreshold
+        readonly property bool shouldShow: shell.settings.enableColorOverlay
+                                        || (shell.settings.enableColorOverlaySensor && sensorBasedEnable)
+
+        color: shell.settings.overlayColor
+        opacity: shouldShow ? shell.settings.colorOverlayOpacity : 0
+        visible: opacity > 0
         z: shell.z + 1
         anchors.fill: parent
-        sourceComponent: Rectangle {
-            color: shell.settings.overlayColor
-            opacity: shell.settings.colorOverlayOpacity
+
+        Behavior on opacity {
+            LomiriNumberAnimation {
+                duration: shell.settings.enableColorOverlay ? 500 : 5000
+            }
         }
     }
     // ENH129 - End
 
     Shell {
+        // ENH198 - Pocket Mode
+        Loader {
+            active: shell.settings.enablePocketModeSecurity && shell.isPocketMode
+            asynchronous: true
+            z: 9999
+            anchors.fill: parent
+            sourceComponent: LPPocketMode {
+                onActivated: shell.isPocketMode = false
+            }
+        }
+        // ENH198 - End
         id: shell
         objectName: "shell"
         width: root.width

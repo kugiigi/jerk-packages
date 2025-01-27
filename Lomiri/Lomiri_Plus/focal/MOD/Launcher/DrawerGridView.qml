@@ -63,6 +63,7 @@ FocusScope {
     property bool showDock: false
     property bool showCustomAppGrids: false
     property bool fullAppGridLast: false
+    property bool mouseHoverOfSelectorIndicatorEnabled: true
     readonly property bool appGridEditMode: swipeView.currentItem && swipeView.currentItem.editMode
     readonly property var customAppGridsList: shell.settings.customAppGrids
     readonly property int currentPageIndex: swipeView.currentIndex
@@ -1142,7 +1143,7 @@ FocusScope {
                     }
                     */
 
-                    sourceComponent: LPDrawerDock {
+                    sourceComponent: LPAppGrid {
                         // ENH132 - App drawer icon size settings
                         delegateSizeMultiplier: root.delegateSizeMultiplier
                         // ENH132 - End
@@ -1277,7 +1278,7 @@ FocusScope {
         
         readonly property bool swipeSelectMode: item && item.swipeSelectMode
         readonly property bool isHovered: item && item.isHovered
-        readonly property real defaultBottomMargin: units.gu(1)
+        readonly property real defaultBottomMargin: bottomDockLoader.active ? units.gu(3) : units.gu(1)
         //bottomMargin for views
         readonly property real viewBottomMargin: item ? (swipeSelectMode ? item.storedHeightBeforeSwipeSelectMode : height) + appGridIndicatorLoader.defaultBottomMargin
                                                       : 0
@@ -1302,6 +1303,7 @@ FocusScope {
             fullAppGridLast: root.fullAppGridLast
             model: swipeView.count
             currentIndex: swipeView.currentIndex
+            mouseHoverEnabled: root.mouseHoverOfSelectorIndicatorEnabled
             onNewIndexSelected: root.showAppGrid(newIndex)
             onAddNewAppGrid: root.addNewAppGrid()
             onAddAppsToCurrentGrid: root.addAppsToAppGrid(root.currentCustomPageIndex)
@@ -1334,6 +1336,7 @@ FocusScope {
             shown: root.showDock && !gridView.activeFocus
             isIntegratedDock: false
             inverted: root.inverted
+            availableHeight: root.height
             delegateHeight: root.delegateHeight
             delegateWidth: root.delegateWidth
             rawModel: root.rawModel

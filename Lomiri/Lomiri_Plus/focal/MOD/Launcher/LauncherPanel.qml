@@ -82,10 +82,6 @@ Rectangle {
                     : shell.settings.useCustomLauncherColor
                         || shell.settings.useCustomLauncherOpacity ? Qt.hsla(panelColor.hslHue, panelColor.hslSaturation, panelColor.hslLightness, colorOpacity)
                                                                    : "#F2111111"
-    Behavior on color {
-        enabled: gestureDragging
-        ColorAnimation { duration: LomiriAnimation.BriskDuration }
-    }
     // ENH167 - End
     // ENH164 - End
     // ENH167 - Behavior changes for custom opacity/color of components

@@ -22,7 +22,8 @@ ColumnLayout {
     property bool enableFineControls: false
     property real resetValue: -1
     property string unitsLabel: percentageValue ? "%" : ""
-    property bool locked: true
+    property bool locked: !alwaysUnlocked
+    property bool alwaysUnlocked: false
 
     function formatDisplayValue(v) {
         if (sliderItem.percentageValue) {
@@ -116,6 +117,7 @@ ColumnLayout {
             Layout.fillHeight: true
             icon.width: units.gu(2)
             icon.height: units.gu(2)
+            visible: !sliderItem.alwaysUnlocked
             action: QQC2.Action {
                 icon.name:  sliderItem.locked ? "lock-broken" : "lock"
                 onTriggered: sliderItem.locked = !sliderItem.locked

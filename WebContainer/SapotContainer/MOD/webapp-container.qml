@@ -309,6 +309,12 @@ Sapot.BrowserWindow {
         property bool autoDeskMobSwitch: true
         property bool autoDeskMobSwitchReload: true
         property int defaultSearchEngine: 0
+        property bool enableFloatingScrollButton: false
+        property int floatingScrollButtonSideMargin: 2 // In Grid Units
+        property int floatingScrollButtonSize: 6 // In Grid Units
+        property bool enableFloatingScrollButtonAsPositioner: false
+        property int floatingScrollButtonVerticalMargin: 2 // In Grid Units
+
 
         Component.onCompleted: Sapot.Haptics.enabled = Qt.binding( function() { return enableHaptics } )
 
@@ -359,6 +365,11 @@ Sapot.BrowserWindow {
             autoDeskMobSwitch = true;
             autoDeskMobSwitchReload = true;
             defaultSearchEngine = 0;
+            enableFloatingScrollButton = false;
+            floatingScrollButtonSideMargin = 2;
+            floatingScrollButtonSize = 6;
+            enableFloatingScrollButtonAsPositioner = false;
+            floatingScrollButtonVerticalMargin = 2;
         }
 
         function restoreDefault_searchEngine() {

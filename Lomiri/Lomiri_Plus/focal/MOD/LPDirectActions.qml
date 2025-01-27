@@ -139,7 +139,7 @@ Item {
         property bool showWithoutSwipe: false
         readonly property real highlightMargin: 0
         property var highlightedItem: {
-            if (!directActions.noSwipeCommit) {
+            if (!directActions.noSwipeCommit && directActionsItems.isFullyShown) {
                 let _mappedPos = Qt.point(-gridLayout.width,-gridLayout.height)
 
                 if (leftSwipeArea.isDragging) {
@@ -150,7 +150,23 @@ Item {
                     _mappedPos = rightSwipeArea.mapToItem(gridLayout, rightSwipeArea.touchPosition.x, rightSwipeArea.touchPosition.y - swipeAreaHeight - highlightMargin)
                 }
 
-                let _found = gridLayout.childAt(_mappedPos.x, _mappedPos.y)
+                let _mappedX = _mappedPos.x
+                let _mappedY = _mappedPos.y
+
+                // When swipe exceeds on either side, we select the edge item instead
+                if (_mappedX > gridLayout.width) {
+                    _mappedX = gridLayout.width - 1
+                }
+
+                if (_mappedX < 0) {
+                    _mappedX = 1
+                }
+
+                if (_mappedY > gridLayout.height) {
+                    _mappedY = gridLayout.height - 1
+                }
+
+                let _found = gridLayout.childAt(_mappedX, _mappedY)
                 return _found
             }
 
@@ -299,6 +315,9 @@ Item {
                                                             ? internal.usePhysicalSize ? directActions.sideMargins : units.gu(2)
                                                             : -width
         readonly property real defaultVerticalMargin: internal.usePhysicalSize ? directActions.swipeAreaHeight : units.gu(4)
+        readonly property bool isFullyShown: (!internal.openedViaToggle && anchors.leftMargin === defaultSideMargin)
+                                                || (!relativePositionShowAnimation.running && opacity === 1)
+
         property bool delayedAnimation: false
         property real relativePosAnimationScale: 1
 

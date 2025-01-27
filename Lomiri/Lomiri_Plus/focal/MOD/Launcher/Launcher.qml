@@ -633,7 +633,24 @@ FocusScope {
 
             onTouchPositionChanged: {
                 if (panel.isActuallyReady) {
-                    let _mappedY = root.inverted ? panel.height - target.touchPosition.y - panel.bfbHeight : target.touchPosition.y - panel.bfbHeight
+                    // ENH216 - Right Edge gesture for Waydroid
+                    // let _mappedY = root.inverted ? panel.height - target.touchPosition.y - panel.bfbHeight : target.touchPosition.y - panel.bfbHeight
+                    let _adjustedForWaydroidGestures = dragArea.height !== root.height
+                    let _heightAdjustment = 0
+                    let _disabledAreaHeight = root.height * dragArea.heightMultiplier
+                    if (_adjustedForWaydroidGestures) {
+                        if (dragArea.disableTopSection) {
+                            if (root.inverted) {
+                                _heightAdjustment = -_disabledAreaHeight
+                            } else {
+                                _heightAdjustment = _disabledAreaHeight
+                            }
+                        } else {
+                            _heightAdjustment = dragArea.y
+                        }
+                    }
+                    let _mappedY = root.inverted ? panel.height - target.touchPosition.y - panel.bfbHeight + _heightAdjustment : target.touchPosition.y - panel.bfbHeight + _heightAdjustment - root.topPanelHeight
+                    // ENH216 - End
                     // ENH169 - Launcher bottom margin for rounded corners
                     //let _hoveredItem = panel.listview.itemAt(panel.width / 2, _mappedY + panel.listview.realContentY)
                     let _hoveredItem = panel.listview.itemAt(panel.width / 2, _mappedY + panel.listview.realContentY - panel.panelBottomMargin)
@@ -782,7 +799,90 @@ FocusScope {
         x: -root.x - (shell.isBuiltInScreen ? shell.deviceConfiguration.notchHeightMargin : 0) // so if launcher is adjusted relative to screen, we stay put (like tutorial does when teasing)
         width: root.dragAreaWidth + (shell.isBuiltInScreen ? shell.deviceConfiguration.notchHeightMargin : 0)
         // ENH002 - End
-        height: root.height
+        // ENH216 - Right Edge gesture for Waydroid
+        // height: root.height
+
+        height: {
+            if (disableForWaydroid && shell.foregroundAppIsWaydroid) {
+                 return root.height - (root.height * heightMultiplier)
+             }
+
+             return root.height
+        }
+        
+        y: {
+            if (disableForWaydroid && shell.foregroundAppIsWaydroid && disableTopSection) {
+                return root.height - height
+            }
+
+            return 0
+        }
+
+        readonly property bool disableForWaydroid: shell.settings.disableLeftEdgeForWaydroid
+        readonly property real heightMultiplier: shell.settings.disableLeftEdgeForWaydroidHeight / 100
+        readonly property int disableTopSection: shell.settings.disableLeftEdgeForWaydroidEdge === 0
+
+        onHeightMultiplierChanged: if (shell.settingsShown) previewHintRec.show()
+
+        Rectangle {
+            id: previewHintRec
+
+            color: theme.palette.normal.activity
+            anchors {
+                top: parent.top
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                topMargin: {
+                    if (shell.foregroundAppIsWaydroid) {
+                        if (dragArea.disableTopSection) {
+                            return -(root.height - dragArea.height)
+                        } else {
+                            return dragArea.height
+                        }
+                    } else {
+                        if (dragArea.disableTopSection) {
+                            return 0
+                        } else {
+                            return dragArea.height - (parent.height * dragArea.heightMultiplier)
+                        }
+                    }
+                }
+                bottomMargin: {
+                    if (shell.foregroundAppIsWaydroid) {
+                        if (dragArea.disableTopSection) {
+                            return dragArea.height
+                        } else {
+                            return -(root.height - dragArea.height)
+                        }
+                    } else {
+                        if (dragArea.disableTopSection) {
+                            return dragArea.height - (parent.height * dragArea.heightMultiplier)
+                        } else {
+                            return 0
+                        }
+                    }
+                }
+            }
+            visible: false
+
+            function show() {
+                visible = true
+                timeoutTimer.restart()
+            }
+
+            function hide() {
+                visible = false
+            }
+
+            Timer {
+                id: timeoutTimer
+
+                interval: 1000
+                onTriggered: previewHintRec.hide()
+            }
+        }
+        // ENH216 - End
 
         function easeInOutCubic(t) { return t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1 }
 

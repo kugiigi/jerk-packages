@@ -887,6 +887,13 @@ Item {
             }
             locked: unlockAction.valid ? unlockAction.state : false
 
+            property var imsIconAction: AyatanaMenuAction {
+                model: menuModel
+                index: menuIndex
+                name: getExtendedProperty(extendedData, "xLomiriModemImsIconAction", "")
+            }
+            imsIcon: imsIconAction.valid ? imsIconAction.state : ""
+
             onMenuModelChanged: {
                 loadAttributes();
             }
@@ -901,7 +908,8 @@ Item {
                                                              'x-lomiri-modem-connectivity-icon-action': 'string',
                                                              'x-lomiri-modem-sim-identifier-label-action': 'string',
                                                              'x-lomiri-modem-roaming-action': 'string',
-                                                             'x-lomiri-modem-locked-action': 'string'});
+                                                             'x-lomiri-modem-locked-action': 'string',
+                                                             'x-lomiri-modem-ims-icon-action': 'string'});
             }
         }
     }

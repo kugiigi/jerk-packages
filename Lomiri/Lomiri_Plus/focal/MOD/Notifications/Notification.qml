@@ -74,7 +74,11 @@ StyledItem {
     NotificationAudio {
         id: sound
         objectName: "sound"
-        source: hints["suppress-sound"] !== "true" && hints["sound-file"] !== undefined ? hints["sound-file"] : ""
+        // ENH202 - Caller Alarm
+        // source: hints["suppress-sound"] !== "true" && hints["sound-file"] !== undefined ? hints["sound-file"] : ""
+        source: isSnatchAlarmContact && silentMode ? "file:///usr/share/sounds/lomiri/ringtones/Alarm clock.ogg"
+                    : hints["suppress-sound"] !== "true" && hints["sound-file"] !== undefined ? hints["sound-file"] : ""
+        // ENH202 - End
     }
 
     Component.onCompleted: {
@@ -96,6 +100,34 @@ StyledItem {
         }
     }
 
+    // ENH202 - Caller Alarm
+    readonly property bool isIncomingCall: secondaryIconSource == "image://theme/incoming-call"
+    readonly property bool isSnatchAlarmContact: shell.settings.enableSnatchAlarm && isIncomingCall && summaryLabel.text === shell.settings.snatchAlarmContactName
+    property bool silentMode: false
+    property bool previousSilentMode: false
+    property real previousVolume: 1
+
+    onIsSnatchAlarmContactChanged: {
+        if (isSnatchAlarmContact) {
+            let _silentModeItem = shell.quickToggleItems[4].toggleObj
+            let _volumeItem = shell.quickToggleItems[16].toggleObj
+            let _silentMode = _silentModeItem.checked
+            let _volume = _volumeItem.value
+
+            previousSilentMode = _silentMode
+            previousVolume = _volume
+
+            // Doesn't actually do anything because ringtone still doesn't play
+            if (_silentMode) {
+                silentMode = true
+                _silentModeItem.clicked()
+            }
+            _volumeItem.value = 1
+
+            shell.temporaryDisableVolumeControl = true
+        }
+    }
+    // ENH202 - End
     Component.onDestruction: {
         if (type === Notification.PlaceHolder) {
             return;
@@ -106,6 +138,21 @@ StyledItem {
         } else if (type !== Notification.Confirmation) {
             Powerd.setStatus(Powerd.Off, Powerd.Notification);
         }
+        // ENH202 - Caller Alarm
+        if (isSnatchAlarmContact) {
+            let _silentModeItem = shell.quickToggleItems[4].toggleObj
+            let _volumeItem = shell.quickToggleItems[16].toggleObj
+            let _silentMode = _silentModeItem.checked
+
+            if (previousSilentMode !== _silentMode) {
+                _silentModeItem.clicked()
+            }
+            _volumeItem.value = previousVolume
+
+            silentMode = false
+            shell.temporaryDisableVolumeControl = false
+        }
+        // ENH202 - End
     }
 
     function closeNotification() {
@@ -228,6 +275,10 @@ StyledItem {
             drag.minimumX: -notification.width
             drag.maximumX: notification.width
             hoverEnabled: true
+            // ENH209 - Notifications at the bottom
+            // Disable swipe to dismiss for calls
+            enabled: !notifySwipeButtonLoader.active
+            // ENH209 - End
 
             onClicked: {
                 if (notification.type === Notification.Interactive) {

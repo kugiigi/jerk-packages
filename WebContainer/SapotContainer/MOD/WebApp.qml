@@ -122,10 +122,10 @@ Common.BrowserView {
     }
     readonly property var searchEngines: [
         { "name" : "DuckDuckGo", "url": "https://duckduckgo.com/?q={searchTerms}", "home": "https://duckduckgo.com" } 
-        , { "name" : "Baidu", "url": "https://www.baidu.com/s?ie=utf-8&amp;f=8&amp;rsv_bp=0&amp;wd={searchTerms}", "home": "https://www.baidu.com" }
+        , { "name" : "Baidu", "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=0&wd={searchTerms}", "home": "https://www.baidu.com" }
         , { "name" : "Bing", "url": "https://www.bing.com/search?q={searchTerms}", "home": "https://www.bing.com" }
         , { "name" : "Brave", "url": "https://search.brave.com/search?q={searchTerms}", "home": "https://search.brave.com" }
-        , { "name" : "Google", "url": "https://google.com/search?client=ubuntu&amp;q={searchTerms}&amp;ie=utf-8&amp;oe=utf-8", "home": "https://google.com" }
+        , { "name" : "Google", "url": "https://google.com/search?client=ubuntu&q={searchTerms}&ie=utf-8&oe=utf-8", "home": "https://google.com" }
         , { "name" : "StartPage", "url": "https://www.startpage.com/do/dsearch?query={searchTerms}&amp;language=auto", "home": "https://www.startpage.com" }
         , { "name" : "Yahoo", "url": "https://search.yahoo.com/yhs/search?ei=UTF-8&amp;p={searchTerms}", "home": "https://search.yahoo.com" }
     ]
@@ -419,6 +419,38 @@ Common.BrowserView {
     }
 
     Item {
+        id: hoverShowHeader
+
+        z: 1000
+        visible: chrome.floating && chrome.state == "hidden"
+        height: units.gu(2)
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
+
+        HoverHandler {
+            id: hoverHander
+
+            onHoveredChanged: {
+                if (hovered) {
+                    showHeaderOnHoverTimer.restart()
+                } else {
+                    showHeaderOnHoverTimer.stop()
+                }
+            }
+        }
+
+        Timer {
+            id: showHeaderOnHoverTimer
+            running: false
+            interval: 200
+            onTriggered: chrome.state = "shown"
+        }
+    }
+
+    Item {
         id: webviewContainer
 
         anchors {
@@ -577,9 +609,8 @@ Common.BrowserView {
             availableHeight: containerWebView.height
 
             wide: webapp.wide
-            autoHide: settings.headerHide == 1 && (webapp.height < units.gu(100) || (webapp.height >= units.gu(100) && !webapp.wide)) && !floating
-            floating: webapp.isFullScreen || ( settings.headerHide >= 2 && (webapp.height < units.gu(100) || (webapp.height >= units.gu(100) && !webapp.wide))
-                                              )
+            autoHide: settings.headerHide == 1 && !floating
+            floating: webapp.isFullScreen || settings.headerHide >= 2
             alwaysHidden: settings.headerHide == 3
             timesOut: floating
 
@@ -681,11 +712,44 @@ Common.BrowserView {
         onVisibleChanged: if (!visible) containerWebView.forceActiveFocus()
     }
 
+    // Pages background
+    Rectangle {
+        z: webappSettingsViewLoader.z - 1
+        anchors.fill: parent
+        color: "black"
+        visible: opacity > 0
+        opacity: webappSettingsViewLoader.active || downloadsViewLoader.active ? 0.7 : 0
+        Behavior on opacity { LomiriNumberAnimation {} }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                if (downloadsViewLoader.active) {
+                    downloadsViewLoader.active = false
+                }
+                if (webappSettingsViewLoader.active) {
+                    webappSettingsViewLoader.active = false
+                }
+            }
+        }
+    }
+
+
     Loader {
         id: webappSettingsViewLoader
 
         z: 1000
-        anchors.fill: parent
+        readonly property real maxWidth: units.gu(60)
+        readonly property real maxHeight: units.gu(90)
+        readonly property real sideMargin: webapp.width > maxWidth + units.gu(20) ? (webapp.width - maxWidth) / 2 : 0
+        readonly property real topMargin: webapp.height > maxHeight && sideMargin > 0 ? units.gu(5) : 0
+
+        anchors {
+            fill: parent
+            leftMargin: sideMargin
+            rightMargin: sideMargin
+            topMargin: topMargin
+        }
         active: false
         asynchronous: false
         Component.onCompleted: {
@@ -740,7 +804,13 @@ Common.BrowserView {
         id: downloadsViewLoader
 
         z: 1000
-        anchors.fill: parent
+        anchors {
+            fill: parent
+            leftMargin: webappSettingsViewLoader.sideMargin
+            rightMargin: webappSettingsViewLoader.sideMargin
+            topMargin: webappSettingsViewLoader.topMargin
+        }
+
         active: false
         asynchronous: true
         Component.onCompleted: {

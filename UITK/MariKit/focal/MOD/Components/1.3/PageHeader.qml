@@ -87,7 +87,141 @@ Header {
      */
     property Item contents
 
-    Component.onCompleted: contentsHolder.updateContents()
+    // ENH192 - Swipe gesture in the header
+    property var bottomGestureItem
+    // Component.onCompleted: contentsHolder.updateContents()
+    Component.onCompleted: {
+        contentsHolder.updateContents()
+
+        if (settingsItem.enableForcedBottomGestureFromHeader) {
+            let _parent = parent
+            let _previous = this
+
+            while (_parent) {
+                // Do not force if Page was already used
+                if (_parent instanceof Page) {
+                    break
+                }
+                _previous = _parent
+                _parent = _parent.parent
+
+                if (!_parent) {
+                    let _inc = bottomGestureComponent.incubateObject(_previous)
+                    if (_inc.status != Component.Ready) {
+                        _inc.onStatusChanged = function(status) {
+                            if (status == Component.Ready) {
+                                bottomGestureItem = _inc.object
+                            }
+                        }
+                    } else {
+                        // Object was ready immediately
+                        bottomGestureItem = _inc.object
+                    }
+                }
+            }
+        }
+    }
+    Component.onDestruction: {
+        if (bottomGestureItem) {
+            bottomGestureItem.destroy()
+        }
+    }
+    Component {
+        id: bottomGestureComponent
+
+        MariKitHorizontalSwipeHandle {
+            // Visual for debugging
+            /*
+            Rectangle {
+                color: "blue"
+                height: units.gu(10)
+                anchors.fill: parent
+            }
+            */
+
+            leftAction: goBackIcon
+            rightAction: goForwardIcon
+            immediateRecognition: false
+            usePhysicalUnit: true
+            swipeHoldDuration: 700
+            height: units.gu(2)
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+            }
+
+            rightSwipeHoldEnabled: false
+            leftSwipeHoldEnabled: false
+
+            onRightSwipe: {
+                if (header.leadingActionsVisibleCount == 1) {
+                    leadingActionVisible.trigger()
+                } else if (header.leadingActionsVisibleCount > 1) {
+                    if (header.leadingActionBar.__styleInstance.overFlowAction) {
+                        header.leadingActionBar.__styleInstance.overFlowAction.trigger()
+                    }
+                }
+            }
+            onLeftSwipe: {
+                if (header.trailingActionsVisibleCount == 1) {
+                    trailingActionVisible.trigger()
+                } else if (header.trailingActionsVisibleCount > 1) {
+                    PopupUtils.open(rightActionsPopoverComponent, this)
+                }
+            }
+
+            onPressedChanged: {
+                if (pressed) {
+                    if (header.parent instanceof Page) {
+                        // Maybe animate too?
+                    }
+                    header.leadingActionsVisibleCount = 0
+                    header.trailingActionsVisibleCount = 0
+
+                    let leadingActionBarActions = header.leadingActionBar.actions
+
+                    if (leadingActionBarActions.length > 0) {
+                        for (let i = 0; i < leadingActionBarActions.length; i++) {
+                            if (leadingActionBarActions[i].visible
+                                    && leadingActionBarActions[i].enabled) {
+                                header.leadingActionsVisibleCount += 1
+                                header.leadingActionVisible = leadingActionBarActions[i]
+                            }
+                        }
+                    }
+                    if (header.leadingActionsVisibleCount == 1) {
+                        goBackIcon.iconName = header.leadingActionVisible.iconName
+                    } else if (header.leadingActionsVisibleCount > 1) {
+                        goBackIcon.iconName = "navigation-menu"
+                    } else {
+                        goBackIcon.iconName = "go-previous"
+                    }
+                    
+                    let trailingActionBarActions = header.trailingActionBar.actions
+
+                    if (trailingActionBarActions.length > 0) {
+                        for (let i = 0; i < trailingActionBarActions.length; i++) {
+
+                            if (trailingActionBarActions[i].visible
+                                    && trailingActionBarActions[i].enabled) {
+                                header.trailingActionsVisibleCount += 1
+                                header.trailingActionVisible = trailingActionBarActions[i]
+                            }
+                        }
+                    }
+                    if (header.trailingActionsVisibleCount == 1) {
+                        goForwardIcon.iconName = header.trailingActionVisible.iconName
+                    } else if (header.trailingActionsVisibleCount > 1) {
+                        goForwardIcon.iconName = "navigation-menu"
+                    } else {
+                        goForwardIcon.iconName = "go-next"
+                    }
+                }
+            }
+        }
+    }
+    // ENH192 - End
     onContentsChanged: contentsHolder.updateContents()
     onSubtitleChanged: contentsHolder.updateContents()
 
@@ -327,6 +461,7 @@ Header {
         category: "marikit"
         fileName: "/home/phablet/.config/lomiri-ui-toolkit/marikit.conf"
         property bool enableHeaderSwipeGesture: true
+        property bool enableForcedBottomGestureFromHeader: true
     }
     readonly property real headerTrailingActionWidth: header ? header.trailingActionBar.children[0].children[1].children[0].width : units.gu(4)
     readonly property real headerLeadingActionWidth: header ? header.leadingActionBar.children[0].children[1].children[0].width : units.gu(4)
@@ -427,7 +562,7 @@ Header {
 
             iconName: "go-next"
             enabled: header.trailingActionBar.width > 0
-            swipeProgress: bottomBackForwardHandle.swipeProgress
+            swipeProgress: bottomGestureItem && bottomGestureItem.dragging ? bottomGestureItem.swipeProgress : bottomBackForwardHandle.swipeProgress
             defaultWidth: units.gu(2.8)
             anchors {
                 right: parent.right
@@ -441,7 +576,7 @@ Header {
 
             iconName: "go-previous"
             enabled: header.leadingActionBar.width > 0
-            swipeProgress: bottomBackForwardHandle.swipeProgress
+            swipeProgress: bottomGestureItem && bottomGestureItem.dragging ? bottomGestureItem.swipeProgress : bottomBackForwardHandle.swipeProgress
             defaultWidth: units.gu(2.8)
             anchors {
                 left: parent.left

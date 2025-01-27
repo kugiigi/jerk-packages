@@ -29,6 +29,9 @@ import "../OuterWilds"
 // ENH034 - Separate wallpaper lockscreen and desktop
 import Qt.labs.platform 1.0 as LabsPlatform
 // ENH034 - End
+// ENH203 - I’m awake
+import QtQuick.Controls 2.12 as QQC2
+// ENH203 - End
 
 Showable {
     id: root
@@ -360,6 +363,38 @@ Showable {
         }
         // ENH032 - End
     }
+    // ENH203 - I’m awake
+    Loader {
+        active: infographicsLoader.active && shell.awakeTracking && !shell.awakeTracking.isAwake
+        asynchronous: true
+        z: infographicsLoader.z + 1
+        anchors {
+            horizontalCenter: chargingHint.horizontalCenter
+            bottom: chargingHint.top
+            bottomMargin: units.gu(4)
+        }
+
+        sourceComponent: QQC2.DelayButton {
+            width: units.gu(15)
+            height: units.gu(8)
+            delay: 1500
+
+            onActivated: {
+                if (shell.awakeTracking) {
+                    shell.awakeTracking.isAwake = true
+                    shell.awakeTracking.disableAlarms()
+                }
+                shell.haptics.play()
+            }
+
+            Label {
+                anchors.centerIn: parent
+                text: "I'm awake!"
+                textSize: Label.Large
+            }
+        }
+    }
+    // ENH203 - End
 
     Label {
         id: chargingHint

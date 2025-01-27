@@ -285,6 +285,8 @@ PageTreeNode {
     property bool backWasTriggered: false
     property int animationDuration: LomiriAnimation.BriskDuration
 
+    property bool forceDisableBottmGesture: false // Force disable the gestures
+
     MariKitGoIndicator {
         id: goForwardIcon
 
@@ -357,7 +359,7 @@ PageTreeNode {
                 interval: page.animationDuration
                 onTriggered: leadingActionVisible.trigger()
             }
-            enabled: page.header && settingsItem.enableBottomSwipeGesture
+            enabled: page.header && settingsItem.enableBottomSwipeGesture && !page.forceDisableBottmGesture
             // Sometimes header is hidden but should still work
             // && ((page.header.leadingActionBar && page.header.leadingActionBar.visible)
             //                                 || (page.header.trailingActionBar && page.header.trailingActionBar.visible))

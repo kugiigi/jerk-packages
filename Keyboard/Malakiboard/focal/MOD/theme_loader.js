@@ -19,7 +19,12 @@ var defaultTheme = {
 
 var load = function (jsonName){
 	// ENH082 - Custom theme
-	if (jsonName == "CustomLight") {
+    if (jsonName.startsWith(fullScreenItem.customThemeCode)) {
+        let _obj = fullScreenItem.findFromArray(fullScreenItem.settings.customThemes, "name", jsonName)
+        if (_obj) {
+            fullScreenItem.theme = Object.assign({}, _obj)
+        }
+	} else if (jsonName == "CustomLight") {
 		fullScreenItem.theme = Object.assign({}, fullScreenItem.settings.customLightTheme)
 	} else if (jsonName == "CustomDark") {
 		fullScreenItem.theme = Object.assign({}, fullScreenItem.settings.customDarkTheme)

@@ -74,6 +74,74 @@ LPDynamicCoveItem {
         anchors.centerIn: parent
     }
 
+    Loader {
+        id: ambientLoader
+
+        readonly property real normalOpacity: 0.6
+
+        active: shell.settings.enableAmbientModeInCDPlayer
+        asynchronous: true
+        sourceComponent: ambientComponent
+        opacity: normalOpacity
+        anchors {
+            fill: parent
+            margins: -cdRec.width
+        }
+
+        SequentialAnimation {
+            id: ambientChangeAnimation
+
+            LomiriNumberAnimation {
+                running: false
+                target: ambientLoader
+                property: "opacity"
+                duration: LomiriAnimation.SlowDuration
+                from: ambientLoader.normalOpacity
+                to: 0
+            }
+
+            LomiriNumberAnimation {
+                running: false
+                target: ambientLoader
+                property: "opacity"
+                duration: LomiriAnimation.SleepyDuration
+                from: 0
+                to: ambientLoader.normalOpacity
+            }
+        }
+
+        Connections {
+            target: img
+            onNextAlbumArtChanged: {
+                ambientChangeAnimation.restart()
+            }
+        }
+    }
+
+    Component {
+        id: ambientComponent
+
+        Item {
+            RadialGradient {
+                id: radialGradient
+
+                anchors.fill: parent
+                visible: false
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "white" }
+                    GradientStop { position: 0.1; color: "white" }
+                    GradientStop { position: 0.5; color: "transparent" }
+                }
+            }
+
+            OpacityMask {
+                anchors.fill: parent
+                source: shaderEffectSource.enabled ? shaderEffectSource : img
+                maskSource: radialGradient
+            }
+        }
+    }
+
     Rectangle {
         id: cdRec
 
@@ -104,7 +172,8 @@ LPDynamicCoveItem {
             
             return img.noAlbumArt ? "#716e6d" : "transparent"
         }
-        opacity: !playBackObj || (playBackObj && !playBackObj.canPlay) || cdPlayer.screenIsOff || openAnimationRec.width !== openAnimationRec.parent.width ? 0
+
+        opacity: !playBackObj || (playBackObj && !playBackObj.canPlay) || (shell.settings.hideCDPlayerWhenScreenOff && cdPlayer.screenIsOff) || openAnimationRec.width !== openAnimationRec.parent.width ? 0
                         : cdPlayer.swipeArea.dragging ? Math.max(currentDragOpacity, minimumDragOpacity) : cdPlayer.cdPlayerOpacity
 
         Behavior on color { ColorAnimation { duration: LomiriAnimation.SlowDuration } }
@@ -183,6 +252,7 @@ LPDynamicCoveItem {
             live: !cdPlayer.screenIsOff
             enabled: sourceItem != null
         }
+
         FastBlur {
             id: fastBlur
             anchors.fill: parent

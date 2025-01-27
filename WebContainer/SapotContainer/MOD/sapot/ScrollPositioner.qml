@@ -12,6 +12,9 @@ QQC2.RoundButton {
     property string mode: "Up"
     property bool hidden: true
     property bool forceHide: false
+    property bool scrollerMode: false
+    property bool positionerMode: true
+    property bool enableHover: true
 
     width: units.gu(8)
     height: width
@@ -27,11 +30,14 @@ QQC2.RoundButton {
         }
     }
 
+    onScrollerModeChanged: if (!scrollerMode) timer.restart()
     onHoveredChanged: {
-        if (hovered) {
-            timer.stop()
-        } else {
-            timer.restart()
+        if (enableHover) {
+            if (hovered) {
+                timer.stop()
+            } else {
+                timer.restart()
+            }
         }
     }
 
@@ -72,36 +78,39 @@ QQC2.RoundButton {
         anchors.centerIn: root
         height: root.height / 2
         width: height
-        name: "go-first"
-        rotation: mode === "Up" ? 90 : mode === "Down" ? 270 : 90
+        name: root.positionerMode && !root.scrollerMode ? "go-first": "sort-listitem"
+        rotation: root.positionerMode && !root.scrollerMode ? mode === "Up" ? 90 : mode === "Down" ? 270 : 90
+                                                            : 0
         color: theme.palette.normal.backgroundText
         Behavior on rotation { RotationAnimation { duration: LomiriAnimation.SnapDuration; direction: RotationAnimation.Shortest } }
     }
 
     onClicked: {
-        timer.restart()
-        
-        if (root.target instanceof WebEngineView) {
-            if (mode === "Up") {
-                root.target.scrollToTop();
-            } else {
-                root.target.scrollToBottom();
+        if (root.positionerMode) {
+            timer.restart()
+            
+            if (root.target instanceof WebEngineView) {
+                if (mode === "Up") {
+                    root.target.scrollToTop();
+                } else {
+                    root.target.scrollToBottom();
+                }
+            } else if (root.target instanceof ListView || root.target instanceof GridView) {
+                if (mode === "Up") {
+                    root.target.positionViewAtBeginning()
+                } else {
+                    root.target.positionViewAtEnd()
+                }
+            } else if (root.target instanceof Flickable) {
+                if (mode === "Up") {
+                    root.target.contentY = 0
+                } else {
+                    root.target.contentY = root.target.contentHeight - (root.target.height * 1)
+                }
             }
-        } else if (root.target instanceof ListView || root.target instanceof GridView) {
-            if (mode === "Up") {
-                root.target.positionViewAtBeginning()
-            } else {
-                root.target.positionViewAtEnd()
-            }
-        } else if (root.target instanceof Flickable) {
-            if (mode === "Up") {
-                root.target.contentY = 0
-            } else {
-                root.target.contentY = root.target.contentHeight - (root.target.height * 1)
-            }
-        }
 
-        Sapot.Haptics.playSubtle()
+            Sapot.Haptics.playSubtle()
+        }
     }
 
     Timer {
@@ -111,7 +120,7 @@ QQC2.RoundButton {
         running: true
 
         onTriggered: {
-            if (!root.hovered) {
+            if (!root.hovered || (!root.scrollerMode && !root.enableHover)) {
                 root.hidden = true
             }
         }
