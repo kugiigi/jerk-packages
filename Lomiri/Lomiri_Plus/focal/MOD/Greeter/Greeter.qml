@@ -799,7 +799,11 @@ Showable {
         property var operation: null
         readonly property bool idEnabled: root.active &&
                                           root.allowFingerprint &&
-                                          Powerd.status === Powerd.On &&
+                                          // ENH219 - Fingerprint Improvements
+                                          // Powerd.status === Powerd.On &&
+                                          (shell.settings.enableFingerprintWhileDisplayOff
+                                            || !shell.settings.enableFingerprintWhileDisplayOff && Powerd.status === Powerd.On) &&
+                                          // ENH219 - End
                                           Biometryd.available &&
                                           AccountsService.enableFingerprintIdentification
 
@@ -843,6 +847,12 @@ Showable {
         onSucceeded: {
             if (!d.secureFingerprint) {
                 failOperation("fingerprint reader is locked");
+                // ENH219 - Fingerprint Improvements
+                // Turn on display when locked out
+                if (shell.settings.enableFingerprintWhileDisplayOff && Powerd.status === Powerd.Off) {
+                    Powerd.setStatus(Powerd.On, Powerd.SnapDecision)
+                }
+                // ENH219 - End
                 return;
             }
             if (result !== LightDMService.users.data(d.currentIndex, LightDMService.userRoles.UidRole)) {
@@ -852,19 +862,48 @@ Showable {
             }
             console.log("Identified user by fingerprint:", result);
             if (loader.item) {
-                loader.item.showFakePassword();
+                // ENH219 - Fingerprint Improvements
+                // loader.item.showFakePassword();
+                if (!shell.settings.enableFingerprintWhileDisplayOff
+                        || (shell.settings.enableFingerprintWhileDisplayOff
+                                && !shell.settings.onlyTurnOnDisplayWhenFingerprintDisplayOff)
+                   ) {
+                    loader.item.showFakePassword();
+                }
+                // ENH219 - End
             }
             if (root.active)
+                // ENH219 - Fingerprint Improvements
+                if (shell.settings.enableFingerprintWhileDisplayOff && Powerd.status === Powerd.Off) {
+                    Powerd.setStatus(Powerd.On, Powerd.SnapDecision)
+
+                    // Display on only and do not unlock
+                    if (shell.settings.onlyTurnOnDisplayWhenFingerprintDisplayOff) {
+                        restartOperation();
+                        return;
+                    }
+                }
+                // ENH219 - End
                 // ENH032 - Infographics Outer Wilds
                 // root.forcedUnlock = true;
-                delayUnlock.restart()
+                delayUnlock.restart()           
                 // ENH032 - End
         }
         onFailed: {
             if (!d.secureFingerprint) {
                 failOperation("fingerprint reader is locked");
             } else if (reason !== "ERROR_CANCELED") {
-                AccountsService.failedFingerprintLogins++;
+                // ENH219 - Fingerprint Improvements
+                // AccountsService.failedFingerprintLogins++;
+                if (!shell.settings.enableFingerprintWhileDisplayOff
+                        || (shell.settings.enableFingerprintWhileDisplayOff && !shell.settings.failedFingerprintAttemptsWhileDisplayOffWontCount)
+                    ) {
+                    AccountsService.failedFingerprintLogins++;
+                }
+                if (shell.settings.enableFingerprintHapticWhenFailed) {
+                    shell.haptics.playLong()
+                }
+                // ENH219 - End
                 failOperation(reason);
             }
         }

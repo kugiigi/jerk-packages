@@ -1035,6 +1035,10 @@ StyledItem {
         property alias enableSnatchAlarm: settingsObj.enableSnatchAlarm
         property alias snatchAlarmContactName: settingsObj.snatchAlarmContactName
         property alias disablePowerRebootInLockscreen: settingsObj.disablePowerRebootInLockscreen
+        property alias enableFingerprintWhileDisplayOff: settingsObj.enableFingerprintWhileDisplayOff
+        property alias enableFingerprintHapticWhenFailed: settingsObj.enableFingerprintHapticWhenFailed
+        property alias onlyTurnOnDisplayWhenFingerprintDisplayOff: settingsObj.onlyTurnOnDisplayWhenFingerprintDisplayOff
+        property alias failedFingerprintAttemptsWhileDisplayOffWontCount: settingsObj.failedFingerprintAttemptsWhileDisplayOffWontCount
 
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
@@ -1974,6 +1978,10 @@ StyledItem {
             property bool alwaysPromptchargingAlarm: false
             property bool chargingAlarmPromptTimesout: false
             property bool enableChargingAlarmByDefault: true
+            property bool enableFingerprintWhileDisplayOff: false
+            property bool enableFingerprintHapticWhenFailed: false
+            property bool onlyTurnOnDisplayWhenFingerprintDisplayOff: false
+            property bool failedFingerprintAttemptsWhileDisplayOffWontCount: false
         }
     }
 
@@ -2711,6 +2719,21 @@ StyledItem {
         id: privacyPage
         
         LPSettingsPage {
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Fingerprint"
+                onClicked: settingsLoader.item.stack.push(fingerprintPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Disable toggles when locked"
+                onClicked: settingsLoader.item.stack.push(disableTogglesPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Snatch Alarm"
+                onClicked: settingsLoader.item.stack.push(snatchAlarmPage, {"title": text})
+            }
             LPSettingsCheckBox {
                 id: onlyShowLomiriSettingsWhenUnlocked
                 Layout.fillWidth: true
@@ -2798,15 +2821,90 @@ StyledItem {
                 font.italic: true
                 textSize: Label.Small
             }
-            LPSettingsNavItem {
+        }
+    }
+    Component {
+        id: fingerprintPage
+
+        LPSettingsPage {
+            Label {
                 Layout.fillWidth: true
-                text: "Disable toggles when locked"
-                onClicked: settingsLoader.item.stack.push(disableTogglesPage, {"title": text})
+                Layout.margins: units.gu(2)
+                text: "These settings are untested on most devices and may not work properly or at all. These may also impact battery life so use with caution and be observant."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
-            LPSettingsNavItem {
+            LPSettingsCheckBox {
+                id: enableFingerprintHapticWhenFailed
                 Layout.fillWidth: true
-                text: "Snatch Alarm"
-                onClicked: settingsLoader.item.stack.push(snatchAlarmPage, {"title": text})
+                text: "Haptic feedback on failed attempts"
+                onCheckedChanged: shell.settings.enableFingerprintHapticWhenFailed = checked
+                Binding {
+                    target: enableFingerprintHapticWhenFailed
+                    property: "checked"
+                    value: shell.settings.enableFingerprintHapticWhenFailed
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableFingerprintWhileDisplayOff
+                Layout.fillWidth: true
+                text: "Enable even while display is off"
+                onCheckedChanged: shell.settings.enableFingerprintWhileDisplayOff = checked
+                Binding {
+                    target: enableFingerprintWhileDisplayOff
+                    property: "checked"
+                    value: shell.settings.enableFingerprintWhileDisplayOff
+                }
+            }
+            LPSettingsCheckBox {
+                id: onlyTurnOnDisplayWhenFingerprintDisplayOff
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                text: "Only turn on display. Do not unlock when display is off"
+                visible: shell.settings.enableFingerprintWhileDisplayOff
+                onCheckedChanged: shell.settings.onlyTurnOnDisplayWhenFingerprintDisplayOff = checked
+                Binding {
+                    target: onlyTurnOnDisplayWhenFingerprintDisplayOff
+                    property: "checked"
+                    value: shell.settings.onlyTurnOnDisplayWhenFingerprintDisplayOff
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: onlyTurnOnDisplayWhenFingerprintDisplayOff.visible
+                text: "This can be helpful if you often want to see the lockscreen instead of going straight to unlocked state"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: failedFingerprintAttemptsWhileDisplayOffWontCount
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                text: "Failed attempts while display off won't count"
+                visible: shell.settings.enableFingerprintWhileDisplayOff
+                onCheckedChanged: shell.settings.failedFingerprintAttemptsWhileDisplayOffWontCount = checked
+                Binding {
+                    target: failedFingerprintAttemptsWhileDisplayOffWontCount
+                    property: "checked"
+                    value: shell.settings.failedFingerprintAttemptsWhileDisplayOffWontCount
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: failedFingerprintAttemptsWhileDisplayOffWontCount.visible
+                text: "This means failed attempts while display off won't lock out the fingerprint authentication."
+                + " May be helpful to avoid accidental touches to the sensor locking out Fingerprint authentication."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
         }
     }
