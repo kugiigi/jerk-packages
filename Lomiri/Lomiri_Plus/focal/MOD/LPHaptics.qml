@@ -14,6 +14,10 @@ Item {
         if (enabled) subtleHaptics.start()
     }
 
+    function playLong() {
+        if (enabled) longHaptics.start()
+    }
+
     HapticsEffect {
         id: normalHaptics
 
@@ -32,6 +36,17 @@ Item {
         attackTime: 50
         intensity: 1.0
         duration: 3
+        fadeTime: 50
+        fadeIntensity: 0.0
+    }
+
+    HapticsEffect {
+        id: longHaptics
+
+        attackIntensity: 0.0
+        attackTime: 50
+        intensity: 1.0
+        duration: 200
         fadeTime: 50
         fadeIntensity: 0.0
     }
