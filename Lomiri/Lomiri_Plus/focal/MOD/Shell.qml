@@ -3344,7 +3344,7 @@ StyledItem {
                             autoBrightnessLoader.temporaryDisable = false
                             
                             // Restore system auto brightness settings after the dialog is closed
-                            if (autoBrightnessDialog.systemAutoBrightness !== panel.indicators.autoBrightnessToggle.checked) {
+                            if (panel.indicators.autoBrightnessToggle && autoBrightnessDialog.systemAutoBrightness !== panel.indicators.autoBrightnessToggle.checked) {
                                 panel.indicators.autoBrightnessToggle.clicked()
                             }
                             PopupUtils.close(autoBrightnessDialog)
