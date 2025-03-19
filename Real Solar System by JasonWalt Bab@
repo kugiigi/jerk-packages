@@ -1,0 +1,86 @@
+import QtQuick 2.5
+import QtQuick.Controls 2.2
+//Kugi hates my work
+ApplicationWindow {
+    visible: true
+    width: 800
+    height: 600
+    title: "Солнечная система"
+
+    Canvas {
+        id: canvas
+        anchors.fill: parent
+        onPaint: {
+            var ctx = canvas.getContext('2d');
+
+            // Очистка канваса
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Рисуем солнце
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(width / 2, height / 2, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Функция для рисования планет
+            function drawPlanet(color, orbitRadius, angle, radius) {
+                var x = width / 2 + orbitRadius * Math.cos(angle);
+                var y = height / 2 + orbitRadius * Math.sin(angle);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+                return {x: x, y: y}; // Возвращаем координаты планеты
+            }
+
+            // Время для анимации
+            var time = Date.now() / 1000;
+
+            // Параметры планет (цвет, радиус орбиты, скорость вращения, радиус)
+            var planets = [
+                {color: "gray", orbitRadius: 70, speed: 4.15, radius: 5},   // Меркурий
+                {color: "yellow", orbitRadius: 100, speed: 1.6, radius: 10}, // Венера
+                {color: "blue", orbitRadius: 130, speed: 1, radius: 15},    // Земля
+                {color: "red", orbitRadius: 160, speed: 0.8, radius: 10},   // Марс
+                {color: "orange", orbitRadius: 230, speed: 0.5, radius: 20}, // Юпитер
+                {color: "lightyellow", orbitRadius: 280, speed: 0.3, radius: 15}, // Сатурн
+                {color: "lightblue", orbitRadius: 320, speed: 0.2, radius: 12}, // Уран
+                {color: "darkblue", orbitRadius: 360, speed: 0.1, radius: 10} // Нептун
+            ];
+
+            // Рисуем остальные планеты и сохраняем позицию Земли
+            var earthPosition;
+            for (var i = 0; i < planets.length; i++) {
+                if (i === 2) { // Если это Земля
+                    earthPosition = drawPlanet(planets[i].color, planets[i].orbitRadius, time * planets[i].speed, planets[i].radius);
+                } else {
+                    drawPlanet(planets[i].color, planets[i].orbitRadius, time * planets[i].speed, planets[i].radius);
+                }
+            }
+
+            // Параметры Луны (цвет и радиус)
+            var moonColor = "gray";
+            var moonRadius = 5;
+            var moonOrbitRadius = 25; // Радиус орбиты Луны относительно Земли
+            var moonAngle = time * (1.0 / 0.3); // Луна делает полный оборот за ~27.3 дня
+
+            // Позиция Луны относительно Земли
+            var moonX = earthPosition.x + moonOrbitRadius * Math.cos(moonAngle);
+            var moonY = earthPosition.y + moonOrbitRadius * Math.sin(moonAngle);
+
+            // Рисуем Луну
+            ctx.fillStyle = moonColor;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    Timer {
+        interval: 16 // около 60 кадров в секунду
+        running: true
+        repeat: true
+        onTriggered: canvas.requestPaint()
+    }
+}
+
