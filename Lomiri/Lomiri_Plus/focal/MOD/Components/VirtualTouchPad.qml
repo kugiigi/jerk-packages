@@ -23,6 +23,7 @@ import "../Components"
 // ENH141 - Air mouse in virtual touchpad
 import QtSensors 5.12
 import QtFeedback 5.0
+import ".." 0.1
 // ENH141 - End
 
 Item {
@@ -37,6 +38,7 @@ Item {
                                         (typeof settingsObj.value("enableAirMouse", 0) === "boolean" && settingsObj.value("enableAirMouse", 0) === true)
                                     )
     property bool enableGyroMode: false
+    onGyroModeChanged: ShellNotifier.inAirMouseMode = gyroMode
     // ENH141 - End
 
     Component.onCompleted: {
@@ -500,6 +502,9 @@ Item {
         enabled: root.oskEnabled && settings.oskEnabled && !tutorial.running
         objectName: "inputMethod"
         anchors.fill: parent
+        // ENH224 - Brightness control in Virtual Touchpad mode
+        onVisibleChanged: ShellNotifier.oskDisplayedInTouchpad = visible
+        // ENH224 - End
     }
 
     Label {

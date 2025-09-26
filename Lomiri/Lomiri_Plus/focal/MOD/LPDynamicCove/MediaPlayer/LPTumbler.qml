@@ -59,4 +59,28 @@ T.Tumbler {
 
         property real delegateHeight: control.availableHeight / control.visibleItemCount
     }
+
+    MouseArea {
+        z: 9999
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        onWheel: {
+            const _deltaY = wheel.angleDelta.y
+            if (_deltaY >= 120) {
+                if (control.currentIndex === 0) {
+                    control.currentIndex = control.count - 1
+                } else {
+                    control.currentIndex -= 1
+                }
+            } else if (_deltaY <= -120) {
+                if (control.currentIndex === control.count - 1) {
+                    control.currentIndex = 0
+                } else {
+                    control.currentIndex += 1
+                }
+            }
+            wheel.accepted = true;
+        }
+    }
 }

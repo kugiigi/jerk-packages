@@ -24,6 +24,7 @@ RowLayout {
 		implicitHeight: width
 		indicator: Icon {
 			name: "edit"
+            asynchronous: true
 			width: units.gu(2)
 			height: width
 			color: theme.palette.normal.foregroundText

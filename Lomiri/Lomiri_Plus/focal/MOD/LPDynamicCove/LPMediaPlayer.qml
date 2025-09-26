@@ -12,7 +12,8 @@ LPDynamicCoveItem {
     readonly property string allSongId: "dc-all"
     readonly property var mediaPlayerObj: shell.mediaPlayer
     readonly property bool playing: mediaPlayerObj && mediaPlayerObj.isPlaying
-    readonly property bool aboutToTakeAction: swipeArea.dragging && swipeArea.draggingCustom
+    readonly property bool controlIsHovered: playHoverHandler.hovered || clearHoverHandler.hovered
+    readonly property bool aboutToTakeAction: (swipeArea.dragging && swipeArea.draggingCustom) || controlIsHovered
     readonly property bool noMedia: mediaPlayerObj && mediaPlayerObj.noMedia
     readonly property bool paused: mediaPlayerObj && mediaPlayerObj.isPaused
     readonly property bool stopped: mediaPlayerObj && mediaPlayerObj.isStopped
@@ -55,6 +56,16 @@ LPDynamicCoveItem {
         mediaPlayerObj.playRandomSong(playlistTracksModel)
     }
 
+    function tryToPlay() {
+        if (!mediaPlayer.playing) {
+            if (mediaPlayer.paused) {
+                mediaPlayer.continuePlayback()
+            } else {
+                mediaPlayer.shuffle()
+            }
+        }
+    }
+
     // Reload media player object when loaded and no playlist is on queue
     // This might solve issue when playing a playlist doesn't work until reloaded
     Component.onCompleted: {
@@ -69,13 +80,7 @@ LPDynamicCoveItem {
             if (target.goingNegative) {
                 mediaPlayer.clearQueue()
             } else if (target.goingPositive) {
-                if (!mediaPlayer.playing) {
-                    if (mediaPlayer.paused) {
-                        mediaPlayer.continuePlayback()
-                    } else {
-                        mediaPlayer.shuffle()
-                    }
-                }
+                mediaPlayer.tryToPlay()
             }
         }
     }
@@ -100,7 +105,7 @@ LPDynamicCoveItem {
         anchors.centerIn: parent
         width: mediaPlayer.mouseArea.width
         height: width
-        hoverEnabled: true
+        hoverEnabled: false
     }
 
     Item {
@@ -144,7 +149,7 @@ LPDynamicCoveItem {
 
             Label {
                 text: {
-                    if (mediaPlayer.swipeArea.goingPositive) {
+                    if (mediaPlayer.swipeArea.goingPositive || playHoverHandler.hovered) {
                         if (mediaPlayer.paused) {
                             return "Continue playback"
                         } else {
@@ -155,7 +160,8 @@ LPDynamicCoveItem {
                             }
                         }
                     }
-                    if (mediaPlayer.swipeArea.goingNegative) {
+
+                    if (mediaPlayer.swipeArea.goingNegative || clearHoverHandler.hovered) {
                         if (mediaPlayer.noQueue) {
                             return "Nothing to clear"
                         } else {
@@ -179,13 +185,25 @@ LPDynamicCoveItem {
                     margins: parent.width * 0.2
                 }
 
-                opacity: mediaPlayer.aboutToTakeAction ? 0 : 1
+                opacity: mediaPlayer.aboutToTakeAction && !mediaPlayer.controlIsHovered ? 0 : 1
                 Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration } }
 
                 Label {
                     Layout.alignment: Qt.AlignVCenter
                     text: "《"
                     color: theme.palette.normal.negative
+
+                    TapHandler {
+                        id: clearTapHandler
+                        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                        //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                        onSingleTapped: mediaPlayer.clearQueue()
+                    }
+
+                    HoverHandler {
+                        id: clearHoverHandler
+                        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                    }
                 }
                 
                 ColumnLayout {
@@ -193,6 +211,7 @@ LPDynamicCoveItem {
                     Layout.fillWidth: true
 
                     visible: !playlists.visible
+                    opacity: !playlists.visible && !mediaPlayer.controlIsHovered ? 1 : 0
                     spacing: 0
 
                     Label {
@@ -222,10 +241,10 @@ LPDynamicCoveItem {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
 
-                    visibleItemCount: 3
+                    visibleItemCount: 5
                     currentIndex: 0
                     model: playlistsModel.model
-                    visible: mediaPlayer.noQueue
+                    visible: mediaPlayer.noQueue && !mediaPlayer.controlIsHovered
                     delegate: QQC2.AbstractButton {
                         id: tumblerDelegate
                         
@@ -239,6 +258,7 @@ LPDynamicCoveItem {
                         width: parent.width
                         // Needed otherwise height will be zero when only 1 item and you reload the component or switch dynamic cove item
                         height: playlists.availableHeight / playlists.visibleItemCount
+                        hoverEnabled: false
 
                         onClicked: QQC2.Tumbler.tumbler.currentIndex = index
 
@@ -251,7 +271,7 @@ LPDynamicCoveItem {
                             wrapMode: Text.WordWrap
                             maximumLineCount: 2
                             anchors.fill: parent
-                            color: theme.palette.normal.backgroundText
+                            font.weight: tumblerDelegate.highlighted ? Font.DemiBold : Font.Normal
                             scale: highlighted ? 1.0 : 0.8
                             text: itemText
                             Behavior on scale { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
@@ -259,15 +279,25 @@ LPDynamicCoveItem {
                         
                     }
 
-                    onCurrentIndexChanged: {
-                        shell.haptics.playSubtle()
-                    }
+                    onCurrentIndexChanged: shell.haptics.playSubtle()
                 }
 
                 Label {
                     Layout.alignment: Qt.AlignVCenter
                     text: "》"
                     color: theme.palette.normal.positive
+
+                    TapHandler {
+                        id: playTapHandler
+                        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                        //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                        onSingleTapped: mediaPlayer.tryToPlay()
+                    }
+
+                    HoverHandler {
+                        id: playHoverHandler
+                        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                    }
                 }
             }
         }

@@ -21,11 +21,34 @@ LPQuickToggleButton {
     readonly property string artist: mediaPlayerObj ? mediaPlayerObj.artist : ""
     readonly property string album: mediaPlayerObj ? mediaPlayerObj.album : ""
     readonly property var albumArt: mediaPlayerObj ? mediaPlayerObj.albumArt : ""
-	
+    readonly property bool gestureMode : shell.settings.gestureMediaControls && !delayedHovered
+
     checkedColor: theme.palette.normal.foreground
     bgOpacity: 0.3
     iconName: "stock_music"
     noIcon: !editMode
+
+    // TODO: Work around since hover is broken in Lomiri
+    // We delay hovered state so touch presses won't trigger it
+    property bool delayedHovered: false
+    onHoveredChanged: {
+        if (hovered) {
+            hoveredTimer.restart()
+        } else {
+            hoveredTimer.stop()
+            delayedHovered = false
+        }
+    }
+    Timer {
+        id: hoveredTimer
+
+        interval: 300
+        onTriggered: {
+            if (!nextPrevSwipe.dragging) {
+                mediaPlayer.delayedHovered = true
+            }
+        }
+    }
 
     function playPause() {
         if (mediaPlayer.playBackObj) {
@@ -42,6 +65,12 @@ LPQuickToggleButton {
     function previous() {
         if (mediaPlayer.playBackObj) {
             mediaPlayer.playBackObj.previous()
+        }
+    }
+
+    onClicked: {
+        if (!editMode && gestureMode) {
+             playPause()
         }
     }
     
@@ -106,7 +135,7 @@ LPQuickToggleButton {
                 }
             }
 
-			visible: !mainLayout.narrowWidth || shell.settings.gestureMediaControls
+			visible: !mainLayout.narrowWidth || mediaPlayer.gestureMode
             sourceFillMode: LomiriShape.PreserveAspectCrop
 			source: Image {
 				id: albumArtImage
@@ -185,7 +214,7 @@ LPQuickToggleButton {
 		RowLayout {
 			Layout.alignment: Qt.AlignVCenter
 
-            visible: !shell.settings.gestureMediaControls
+            visible: !mediaPlayer.gestureMode
 
 			LPQuickToggleButton {
 				Layout.preferredHeight: quickToggles.toggleHeight
@@ -214,10 +243,11 @@ LPQuickToggleButton {
 		}
         
         Icon {
-            Layout.preferredHeight: units.gu(3)
-            Layout.preferredWidth: height
+            implicitHeight: units.gu(3)
+            implicitWidth: implicitHeight
+            asynchronous: true
             name: mediaPlayer.playing ? "media-playback-pause" : "media-playback-start"
-            visible: shell.settings.gestureMediaControls
+            visible: mediaPlayer.gestureMode
             color: theme.palette.normal.foregroundText
         }
 	}
@@ -267,7 +297,7 @@ LPQuickToggleButton {
         signal triggered
 
         anchors.fill: parent
-        enabled: !mediaPlayer.editMode && shell.settings.gestureMediaControls
+        enabled: !mediaPlayer.editMode && mediaPlayer.gestureMode
         direction: SwipeArea.Horizontal
 
         onDraggingChanged: {

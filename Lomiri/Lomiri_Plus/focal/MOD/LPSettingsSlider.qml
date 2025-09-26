@@ -68,7 +68,14 @@ ColumnLayout {
             icon.height: units.gu(2)
             action: QQC2.Action {
                 icon.name:  "go-previous"
-                onTriggered: slider.value -= slider.stepSize
+                onTriggered: {
+                    let newValue = slider.value - slider.stepSize
+                    if (newValue >= slider.minimumValue) {
+                        slider.value = newValue
+                    } else {
+                        slider.value = slider.minimumValue
+                    }
+                }
             }
         }
         Slider {
@@ -99,7 +106,14 @@ ColumnLayout {
             icon.height: units.gu(2)
             action: QQC2.Action {
                 icon.name:  "go-next"
-                onTriggered: slider.value += slider.stepSize
+                onTriggered: {
+                    let newValue = slider.value + slider.stepSize
+                    if (newValue <= slider.maximumValue) {
+                        slider.value = newValue
+                    } else {
+                        slider.value = slider.maximumValue
+                    }
+                }
             }
         }
         QQC2.ToolButton {

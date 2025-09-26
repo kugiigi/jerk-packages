@@ -121,6 +121,7 @@ Item {
         height: units.gu(1.5)
         width: height
         color: theme.palette.normal.backgroundText
+        asynchronous: true
         anchors {
             top: bg.top
             horizontalCenter: parent.horizontalCenter

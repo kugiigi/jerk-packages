@@ -64,6 +64,9 @@ PageStack {
     property var volumeSlider
     property var dateItem
     property var lockItem
+    property bool quickTogglesExpanded: false
+
+    signal headerExpandedChanged(bool expanded)
     // ENH056 - End
     // ENH064 - Dynamic Cove
     property var mediaPlayer
@@ -175,12 +178,13 @@ PageStack {
                 id: labelHeader
                     
                 readonly property real maximumHeightWhenInverted: units.gu(50)
-                readonly property real idealRechableHeight: shell.convertFromInch(shell.settings.pullDownHeight)
+                readonly property real idealRechableHeight: shell.isBuiltInScreen ? shell.convertFromInch(shell.settings.pullDownHeight)
+                                                                    : shell.height * 0.7
                 readonly property real idealMaxHeight: shell.height - idealRechableHeight
                 readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 
                 z: page.header.z + 1
-                expandable: shell.height >= idealExpandableHeight && (shell.settings.enablePanelHeaderExpand || root.inverted)
+                expandable: shell.height >= idealExpandableHeight && shell.settings.enablePanelHeaderExpand
                 defaultHeight: root.topPanelMargin
                 maxHeight: idealMaxHeight
 
@@ -190,16 +194,40 @@ PageStack {
                     right: parent.right
                 }
 
+                onExpandedChanged: root.headerExpandedChanged(expanded)
+
+                // Collapse header when OSK is displayed
+                Connections {
+                    target: Qt.inputMethod
+                    onVisibleChanged: {
+                        if (target.visible) {
+                            labelHeader.collapse()
+                        }
+                    }
+                }
+
                 Connections {
                     target: root
                     onInvertedChanged: {
                         labelHeader.collapse()
 
                         if (target.inverted && labelHeader.expandable) {
-                            if (shell.settings.expandPanelHeaderWhenBottom) {
+                            if (shell.settings.expandPanelHeaderWhenBottom
+                                || (
+                                       !shell.settings.expandPanelHeaderWhenBottom
+                                       && (shell.settings.autoExpandWhenThereAreNotif && root.identifier === "ayatana-indicator-messages" && listView.count > 0)
+                                   )
+                               ) {
                                 labelHeader.expand()
                             }
                         } else {
+                            labelHeader.collapse()
+                        }
+                    }
+
+                    // Collaps header when quick toggle is expanded
+                    onQuickTogglesExpandedChanged: {
+                        if (target.quickTogglesExpanded) {
                             labelHeader.collapse()
                         }
                     }
@@ -297,6 +325,41 @@ PageStack {
                         
                         ColumnLayout {
                             spacing: 0
+                            // ENH220 - Detox mode
+                            Menus.SwitchMenu {
+                                id: detoxModeEnabledSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.settings.enableDetoxModeToggleIndicator
+                                text: "Detox Mode"
+                                iconSource: "image://theme/thumb-up"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: {
+                                    if (!checked) {
+                                        const _canBeDisabled = shell.checkDetoxModeEnablement()
+                                        if (_canBeDisabled) {
+                                            shell.settings.detoxModeEnabled = checked
+                                        } else {
+                                            checked = true
+                                            shell.showCannotDisableDetoxModeDialog()
+                                        }
+                                    } else {
+                                        if (!shell.settings.detoxModeEnabled) {
+                                            shell.showDetoxModeEnableDialog()
+                                            checked = false
+                                        }
+                                    }
+                                }
+
+                                Binding {
+                                    target: detoxModeEnabledSwitch
+                                    property: "checked"
+                                    value: shell.settings.detoxModeEnabled
+                                }
+                            }
+                            // ENH220 - End
                             // ENH102 - App suspension indicator
                             Menus.SwitchMenu {
                                 id: appSuspensionSwitch
@@ -427,6 +490,7 @@ PageStack {
                                     value: shell.themeSettings.isDarkMode
                                 }
                             }
+                            // ENH116 - End
                             // ENH136 - Separate desktop mode per screen
                             Menus.SwitchMenu {
                                 id: desktopModeSwitch
@@ -447,7 +511,6 @@ PageStack {
                                 }
                             }
                             // ENH136 - End
-                            // ENH116 - End
                             Menus.BaseLayoutMenu {
                                 property QtObject menuData: null
                                 property int menuIndex: -1

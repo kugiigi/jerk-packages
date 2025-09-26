@@ -13,6 +13,10 @@ Item {
     readonly property real storedHeightBeforeSwipeSelectMode: internal.storedHeightBeforeSwipeSelectMode
     // WORKAROUND: !swipeHandler.pressed is a workaround for touch since it's still triggering hover when long pressing
     readonly property bool isHovered: bgHoverHandler.hovered && !swipeHandler.pressed
+    property bool noExpandWithMouse: false
+
+    property alias indicatorWidth: mainRowLayout.dotNormalWidth
+    property alias indicatorExpandedWidth: mainRowLayout.dotExpandedWidth
 
     property bool editMode: false
     property bool mouseHoverEnabled: true
@@ -33,10 +37,10 @@ Item {
     height: mainRowLayout.height
 
     onIsHoveredChanged: {
-        if (isHovered) {
-            internal.swipeSelectMode = true
+        if (!noExpandWithMouse) {
+            internal.swipeSelectMode = isHovered
         } else {
-            internal.swipeSelectMode = false
+            titleRec.hide()
         }
     }
 
@@ -52,7 +56,7 @@ Item {
         property real storedHeightBeforeSwipeSelectMode: mainRowLayout.height
         readonly property real highlightMargin: mainRowLayout.dotWidth + units.gu(2)
         property var highlightedItem: {
-            if (swipeSelectMode && (allowSelection || mainRowLayout.rowCount > 1)) {
+            if (swipeSelectMode && (allowSelection || mainRowLayout.rowCount > 1) || (appGridIndicator.noExpandWithMouse && appGridIndicator.isHovered)) {
                 let _targetItem = bgHoverHandler.hovered ? bgHoverHandler : swipeHandler
                 let _isMouse = _targetItem === bgHoverHandler
                 let _highlightMargin = _isMouse ? 0 : highlightMargin
@@ -246,7 +250,9 @@ Item {
     Grid {
         id: mainRowLayout
 
-        property real dotWidth: appGridIndicator.swipeSelectMode ? units.gu(5) : units.gu(2)
+        property real dotNormalWidth: units.gu(2)
+        property real dotExpandedWidth: units.gu(5)
+        property real dotWidth: appGridIndicator.swipeSelectMode ? dotExpandedWidth : dotNormalWidth
         readonly property int normalColumns: Math.ceil((Math.min(appGridIndicator.width * 0.8, units.gu(50))) / (dotWidth + spacing))
         readonly property real highlightScale: 1.5
         readonly property int rowCount: Math.ceil(itemRepeater.count / columns)
@@ -272,12 +278,13 @@ Item {
                 readonly property bool isSwipeSelected: this == internal.highlightedItem
                 readonly property int itemIndex: index
                 readonly property string itemTitle: appGridIndicator.dataModel.currentIndex > -1 ? appGridIndicator.dataModel.itemAt(indicatorRec.itemIndex).gridName : ""
+                property bool isMouseHovered: appGridIndicator.noExpandWithMouse && appGridIndicator.isHovered
 
-                z: appGridIndicator.swipeSelectMode ? isSwipeSelected ? 2 : 1
+                z: appGridIndicator.swipeSelectMode || isMouseHovered ? isSwipeSelected ? 2 : 1
                                                     : indicatorRec.isCurrent ? 2 : 1
                 color: isCurrent ? theme.palette.normal.baseText : theme.palette.normal.base
                 radius: width / 2
-                scale: appGridIndicator.swipeSelectMode ? isSwipeSelected ? mainRowLayout.highlightScale : 1
+                scale: appGridIndicator.swipeSelectMode || isMouseHovered ? isSwipeSelected ? mainRowLayout.highlightScale : 1
                                                         : indicatorRec.isCurrent ? mainRowLayout.highlightScale : 1
                 width: mainRowLayout.dotWidth
                 height: width

@@ -74,6 +74,10 @@ FocusScope {
     signal fastModeToggle
     signal owToggle
     // ENH032 - End
+    // ENH226 - Infographics on the desktop
+    property alias lockscreen: lockscreen
+    property alias coverPage: coverPage
+    // ENH226 - End
 
     function notifyAuthenticationFailed() {
         loginList.showError();
@@ -90,7 +94,10 @@ FocusScope {
         } else {
             coverPage.hide();
         }
-        if (root.locked) {
+        // ENH219 - Fingerprint Improvements
+        // if (root.locked) {
+        if (root.locked && !root.temporaryUnlocked) {
+        // ENH219 - End
             lockscreen.show();
             loginList.tryToUnlock();
             return false;
@@ -108,6 +115,33 @@ FocusScope {
         }
         coverPage.hide();
     }
+    // ENH219 - Fingerprint Improvements
+    // Unlocked with Fingerprint but does not hide the Greeter view until coverpage is swiped
+    property alias showLockIcon: coverPage.showLockIcon
+    property alias temporaryUnlocked: coverPage.temporaryUnlocked
+
+    onTemporaryUnlockedChanged: {
+        if (temporaryUnlocked) {
+            hideLockscreen()
+        } else {
+            showLockscreen()
+        }
+    }
+
+    function showLockscreen() {
+        lockscreen.showNow();
+        // For some reason opacity is not restored when coming from hide()
+        loginList.opacity = 1;
+    }
+
+    function hideLockscreen() {
+        if (coverPage.visible) {
+            lockscreen.hideNow();
+        } else {
+            lockscreen.hide();
+        }
+    }
+    // ENH219 - End
 
     function showFakePassword() {
         loginList.showFakePassword();
@@ -231,6 +265,7 @@ FocusScope {
                         width: units.gu(5)
                         height: width
                         anchors.centerIn: parent
+                        asynchronous: true
                     }
                     Rectangle {
                         id: rotatingCircle
@@ -284,7 +319,10 @@ FocusScope {
                                inputMethodRect.height) / 2
             Behavior on boxVerticalOffset { LomiriNumberAnimation {} }
 
-            enabled: !coverPage.shown && visible
+            // ENH219 - Fingerprint Improvements
+            // enabled: !coverPage.shown && visible
+            enabled: !coverPage.shown && visible && !root.temporaryUnlocked
+            // ENH219 - End
             visible: !delayedLockscreen.visible
 
             model: root.userModel
@@ -505,8 +543,9 @@ FocusScope {
         fastModeOW: root.fastModeOW
         onOwToggle: root.owToggle()
         onFastModeToggle: root.fastModeToggle()
-        readonly property bool isLargeScreen: isLandscape ? root.height >= units.gu(70)
-                                                          : root.width >= units.gu(70)
+
+        readonly property bool isLargeScreen: isLandscape ? root.height >= units.gu(80)
+                                                          : root.width >= units.gu(80)
         // ENH032 - End
 
         Clock {
@@ -538,6 +577,7 @@ FocusScope {
                 left: clock.left
                 right: clock.right
             }
+
             states: [
                 State {
                     name: "landscape"

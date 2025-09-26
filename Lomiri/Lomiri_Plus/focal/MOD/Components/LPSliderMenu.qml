@@ -9,6 +9,14 @@ LPQuickToggleButton {
     readonly property var minIcon: sliderObj ? sliderObj.minIcon : ""
     readonly property var maxIcon: sliderObj ? sliderObj.maxIcon : ""
 
+    property bool sliderEnabled: true
+    property bool enabledMinMaxButtons: true
+    property alias toggleIcon: toggleButton.name
+    property alias toggleSource: toggleButton.source
+    property alias toggleColor: toggleButton.color
+
+    signal toggleButtonClicked
+
     checkedColor: editMode ? theme.palette.normal.foreground : "transparent"
     checkedDisabledColor: editMode ? theme.palette.disabled.foreground : "transparent"
     bgOpacity: 1
@@ -25,11 +33,12 @@ LPQuickToggleButton {
         }
         Icon {
             id: leftButton
+            enabled: slideMenu.sliderEnabled
             source: slideMenu.minIcon
-            visible: source !== ""
+            visible: source !== "" && slideMenu.enabledMinMaxButtons
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredHeight: units.gu(3)
-            width: height
+            implicitWidth: height
             color: theme.palette.normal.foregroundText
 
             AbstractButton {
@@ -44,6 +53,7 @@ LPQuickToggleButton {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignVCenter
 
+            enabled: slideMenu.sliderEnabled
             minimumValue: slideMenu.sliderObj ? slideMenu.sliderObj.minimumValue : 0
             maximumValue: slideMenu.sliderObj ? slideMenu.sliderObj.maximumValue : 100
             live: true
@@ -74,16 +84,32 @@ LPQuickToggleButton {
         }
         Icon {
             id: rightButton
+
+            enabled: slideMenu.sliderEnabled
             source: slideMenu.maxIcon
-            visible: source !== ""
+            visible: source !== "" && slideMenu.enabledMinMaxButtons
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredHeight: units.gu(3)
-            width: height
+            implicitWidth: height
             color: theme.palette.normal.foregroundText
 
             AbstractButton {
                 anchors.fill: parent
                 onClicked: slider.value = slider.maximumValue
+            }
+        }
+        Icon {
+            id: toggleButton
+
+            visible: source.toString() !== "" || name !== ""
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredHeight: units.gu(3)
+            implicitWidth: height
+            color: theme.palette.normal.foregroundText
+
+            AbstractButton {
+                anchors.fill: parent
+                onClicked: slideMenu.toggleButtonClicked()
             }
         }
     }

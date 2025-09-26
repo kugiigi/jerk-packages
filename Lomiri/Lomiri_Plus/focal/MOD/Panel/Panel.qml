@@ -906,6 +906,8 @@ Item {
                 objectName: modelData.identifier + "-page"
                 submenuIndex: 0
                 // ENH056 - Quick toggles
+                id: indicatorsPanelMenuPage
+
                 menuIndex: modelData.index
                 identifier: modelData.identifier
                 onRotationToggleChanged: __indicators.rotationToggle = rotationToggle
@@ -924,6 +926,14 @@ Item {
                 onAutoBrightnessToggleChanged: __indicators.autoBrightnessToggle = autoBrightnessToggle
                 onBrightnessSliderChanged: __indicators.brightnessSlider = brightnessSlider
                 onVolumeSliderChanged: __indicators.volumeSlider = volumeSlider
+                readonly property bool isCurrent: modelIndex == __indicators.currentMenuIndex
+                quickTogglesExpanded: __indicators.quickTogglesExpanded
+                // Collapse quick toggles when header is expanded
+                onHeaderExpandedChanged: {
+                    if (expanded) {
+                        __indicators.expandCollapseQuickToggles(false)
+                    }
+                }
                 // ENH056 - End
                 // ENH064 - Dynamic Cove
                 onMediaPlayerChanged: root.mediaPlayer = mediaPlayer

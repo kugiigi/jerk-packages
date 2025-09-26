@@ -13,6 +13,7 @@ Item {
     property int quantumMoonLoc: 1
 
     property bool fastMode: false
+    property bool paused: false
     
     property int startVisibility: 0
     property int endVisibility: 22
@@ -123,6 +124,7 @@ Item {
     SequentialAnimation {
         id: sizeAnim
         running: true
+        paused: orbit.paused
         loops: Animation.Infinite
 
         NumberAnimation {
@@ -154,6 +156,7 @@ Item {
     PathAnimation {
         id: orbitPathAnim
         running: true
+        paused: orbit.paused
         target: orbit.orbitingObject
         loops: Animation.Infinite
         duration: orbit.orbitDurationOverride > 0 ? orbit.orbitDurationOverride
@@ -233,7 +236,7 @@ Item {
     RotationAnimation {
         id: rotateAnim
 
-        running: true
+        running: !orbit.paused
         loops: Animation.Infinite
         target: orbitingObject
         property: "rotation"

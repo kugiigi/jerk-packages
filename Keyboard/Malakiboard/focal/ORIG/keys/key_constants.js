@@ -80,10 +80,10 @@ var tabletWordRibbonFontSize = 17 // dp
 var phoneWordRibbonFontSize = 14 // dp
 
 var phoneKeyboardHeightPortrait = 0.40; // percent of screen
-var phoneKeyboardHeightLandscape = 0.49; // percent of screen
+var phoneKeyboardHeightLandscape = 0.57; // percent of screen
 
 var tabletKeyboardHeightPortrait = 0.31; // percent of screen
-var tabletKeyboardHeightLandscape = 0.34; // percent of screen
+var tabletKeyboardHeightLandscape = 0.47; // percent of screen
 
 /* for UITK Components */
 var toolkitTheme = "Lomiri.Components.Themes.Ambiance" 

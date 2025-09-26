@@ -36,8 +36,7 @@ Item {
 
     property string mode : "staged"
     // ENH185 - Workspace spread UI fixes
-    property bool launcherLockedVisible: false
-    property real topPanelHeight
+    property Item availableDesktopArea
     // ENH185 - End
 
     signal closeSpread();
@@ -240,8 +239,7 @@ Item {
                     screen: model.screen
                     background: root.background
                     // ENH185 - Workspace spread UI fixes
-                    launcherLockedVisible: root.launcherLockedVisible
-                    topPanelHeight: root.topPanelHeight
+                    availableDesktopArea: root.availableDesktopArea
                     // ENH185 - End
 
                     workspaceModel: model.screen.workspaces

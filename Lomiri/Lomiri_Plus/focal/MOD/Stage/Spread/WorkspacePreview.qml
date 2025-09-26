@@ -57,6 +57,7 @@ Item {
         // ENH185 - Workspace spread UI fixes
         fillMode: Image.PreserveAspectCrop
         autoTransform: true
+        asynchronous: true
         // ENH185 - End
 
         Repeater {
@@ -204,8 +205,15 @@ Item {
                     title: model.window && model.window.surface ? model.window.surface.name : ""
                     z: 3
                     // ENH180 - Match window titlebar with app
+                    // ENH225 - Clean Windowed Mode
+                    property bool cleanMode: shell.settings.noDecorationWindowedMode && !delegateItem.isMainStage && !delegateItem.isSideStage
+                                                && !delegateItem.isFullscreen && !delegateItem.isMaximized
+                    //visible: !delegateItem.isMainStage && !delegateItem.isSideStage && !delegateItem.isFullscreen && !delegateItem.isMaximized
                     visible: !delegateItem.isMainStage && !delegateItem.isSideStage && !delegateItem.isFullscreen && !delegateItem.isMaximized
-                    blurSource: surfaceItem
+                                    && !cleanMode
+                    //blurSource: surfaceItem
+                    blurSource: cleanMode ? null : surfaceItem
+                    // ENH225 - End
                     blurUpdates: false
                     // ENH180 - End
                 }

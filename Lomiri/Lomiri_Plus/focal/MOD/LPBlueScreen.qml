@@ -8,9 +8,21 @@ Rectangle {
 
     readonly property bool isCompact: width <= units.gu(80)
 
+    property bool dismissEnabled: true
+    property int duration: 30000
+
     signal close
 
     color: "#0078d7"
+    
+    // Eat mouse events when taphandler is disabled
+    MouseArea {
+        enabled: !rootRec.dismissEnabled
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.AllButtons
+        onWheel: wheel.accepted = true;
+    }
 
     ColumnLayout {
         anchors {
@@ -49,7 +61,7 @@ Rectangle {
             textSize: Label.XLarge
             NumberAnimation on percentage {
                 to: 100
-                duration: 30000
+                duration: rootRec.duration
                 easing.type: Easing.OutInExpo
             }
         }
@@ -76,6 +88,7 @@ Rectangle {
     }
 
     TapHandler {
+        enabled: rootRec.dismissEnabled
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         onLongPressed: {

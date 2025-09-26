@@ -70,6 +70,7 @@ Item {
                 width: parent.width * 0.8
                 height: width
                 name: "gestures"
+                asynchronous: true
                 color: {
                     if (root.isReadyToActivate) return theme.palette.normal.backgroundText
                     if (dragMouseArea.pressed)  return "transparent"

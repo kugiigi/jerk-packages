@@ -64,7 +64,12 @@ FocusScope {
     property bool dlcOW: false
     property bool eyeOpened: false
     property bool blinkComplete: false
+    property int maximizedWindowCount: 0
+    property int fullScreenWindowCount: 0
     // ENH032 - End
+    // ENH226 - Infographics on the desktop
+    property alias infographicsArea: infographicsArea
+    // ENH226 - End
     // ENH102 - App suspension indicator
     readonly property string focusedAppName: priv.focusedAppDelegate ? priv.focusedAppDelegate.appName : ""
     readonly property url focusedAppIcon: priv.focusedAppDelegate ? priv.focusedAppDelegate.application.icon : ""
@@ -106,6 +111,14 @@ FocusScope {
                 return mainApp.supportedOrientations;
             case "stagedWithSideStage":
                 var orientations = mainApp.supportedOrientations;
+                // ENH221 - Fix Never games orientation
+                // Add Screen.primaryOrientation to supported orientations
+                // when the app only supports the primary orientaion
+                // Possibly ana ctual issue with the apps because primary isn't really supported
+                if (orientations === Qt.PrimaryOrientation) {
+                    orientations |= Screen.primaryOrientation;
+                }
+                // ENH221 - End
                 orientations |= Qt.LandscapeOrientation | Qt.InvertedLandscapeOrientation;
                 if (priv.sideStageItemId) {
                     // If we have a sidestage app, support Portrait orientation
@@ -128,10 +141,6 @@ FocusScope {
     }
 
     property int launcherLeftMargin : 0
-    // ENH185 - Workspace spread UI fixes
-    property bool launcherLockedVisible: false
-    property real topPanelHeight
-    // ENH185 - End
     // ENH041 - Hide side-stage when main app go fullscreen
     Connections {
         property bool sideStageTempHidden: false
@@ -459,7 +468,7 @@ FocusScope {
         }
         active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? root.state == "windowed" && priv.focusedAppDelegate
                                 && (willBeMaximizedTopRight || willBeMaximizedTopLeft || willBeMaximizedRight || willBeMaximizedLeft || willBeMaximized || willBeRestored
-                                        || willBeMaximizedTop || willBeMaximizedBottom)
+                                        || willBeMaximizedTop)
                         : root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximized)
         // ENH156 - End
     }
@@ -814,7 +823,10 @@ FocusScope {
         shortcut: Qt.ControlModifier|Qt.AltModifier|Qt.Key_T
         onTriggered: {
             // try in this order: snap pkg, new deb name, old deb name
-            var candidates = ["lomiri-terminal-app_lomiri-terminal-app", "lomiri-terminal-app", "com.lomiri.terminal_terminal"];
+            // ENH223 - Fix terminal shortcut
+            // var candidates = ["lomiri-terminal-app_lomiri-terminal-app", "lomiri-terminal-app", "com.lomiri.terminal_terminal"];
+            var candidates = ["terminal.ubports_terminal", "lomiri-terminal-app_lomiri-terminal-app", "lomiri-terminal-app", "com.lomiri.terminal_terminal"];
+            // ENH223 - End
             for (var i = 0; i < candidates.length; i++) {
                 if (priv.startApp(candidates[i]))
                     break;
@@ -1507,6 +1519,9 @@ FocusScope {
                 }
                 //source: root.enableOW ? "../OuterWilds/graphics/home.png" : fallbackSource
                 source: {
+                    if (solarSystemLoader.show) {
+                        return "../OuterWilds/graphics/lockscreen.png"
+                    }
                     if (root.enableOW && root.alternateOW) {
                         return "../OuterWilds/graphics/desktop_timberhearth_tall.png"
                     }
@@ -1528,7 +1543,8 @@ FocusScope {
 
             Loader {
                 id: movingItems
-                active: root.enableOW && root.alternateOW && !root.suspended
+
+                active: root.enableOW && root.alternateOW && !root.suspended && !solarSystemLoader.show
                 anchors.fill: parent
                 asynchronous: true
                 z: wallpaper.z + 1
@@ -1628,6 +1644,7 @@ FocusScope {
             Loader {
                 active: root.enableOW && !root.alternateOW && !root.dlcOW
                             && !root.suspended && ((priv.focusedAppDelegate == priv.sideStageDelegate && !sideStage.shown) || appContainer.showDesktop)
+                            && !solarSystemLoader.show
                 sourceComponent: scoutComponent
                 asynchronous: true
                 z: wallpaper.z + 1
@@ -1643,7 +1660,7 @@ FocusScope {
             
             Loader {
                 id: ow_overlayLoader
-                active: root.enableOW && root.alternateOW
+                active: root.enableOW && root.alternateOW && !solarSystemLoader.show
                 asynchronous: true
                 anchors.fill: parent
                 z: wallpaper.z + 2
@@ -1653,8 +1670,127 @@ FocusScope {
                     }
                 }
             }
+
+            Loader {
+                id: solarSystemLoader
+
+                property bool fastMode: false
+                readonly property bool paused: {
+                    if (shell.settings.ow_showSolarSystemOnDesktopRunAllTime || appContainer.showDesktop)
+                        return false
+
+                    switch (root.state) {
+                        case "staged":
+                            return priv.focusedAppDelegate ? true : false
+                        case "stagedWithSideStage":
+                            return priv.focusedAppDelegate && priv.focusedAppDelegate == priv.mainStageDelegate
+                        case "windowed":
+                            return root.maximizedWindowCount > 0 || root.fullScreenWindowCount > 0
+                        default:
+                            return false
+                    }
+                }
+                readonly property bool suspended: root.suspended && !shell.settings.ow_showSolarSystemOnDesktopRunAllTime
+                property bool enableItem: true
+                property bool show: shell.settings.ow_showSolarSystemOnDesktop
+
+                active: show && enableItem && !suspended
+                asynchronous: true
+                anchors.fill: parent
+                sourceComponent: solarSystemComp
+                /*
+                onPausedChanged: {
+                    if (paused) {
+                        console.log("PAUSED!!!!!!")
+                    } else {
+                        console.log("RESUME!!!!!!")
+                    }
+                }
+                */
+            }
+            Component {
+                id: solarSystemComp
+                SolarSystem {
+                    id: solarSystem
+                    fastMode: solarSystemLoader.fastMode
+                    paused: solarSystemLoader.paused
+                    whiteHoleCloser: true
+                }
+            }
+            MouseArea {
+                anchors.fill: parent
+                enabled: solarSystemLoader.item && !root.spreadShown ? true : false
+
+                //onDoubleClicked: {
+                onPressAndHold: {
+                    solarSystemLoader.fastMode = !solarSystemLoader.fastMode
+                    solarSystemLoader.enableItem = false
+                    solarSystemLoader.enableItem = true
+                }
+            }
         }
         // ENH032 - End
+        // ENH226 - Infographics on the desktop
+        // Darkens wallpaper so that we can read text on it and see infographic
+        Rectangle {
+            id: backgroundShade
+            objectName: "backgroundShade"
+            anchors.fill: parent
+            color: "black"
+            opacity: shell.settings.darkenWallpaperWhenInfographicsOpacity / 100
+            visible: shell.settings.darkenWallpaperWhenInfographics && shell.settings.showInfographics
+        }
+        Item {
+            id: infographicsArea
+
+            anchors {
+                top: parent.top
+                bottom: parent.bottom
+                left: parent.left
+                right: parent.right
+            }
+        }
+        Loader {
+            active: shell.settings.showInfographicsOnDesktop
+            height: units.gu(2)
+            anchors {
+                bottom: parent.bottom
+                left: parent.left
+                right: parent.right
+            }
+            sourceComponent: SwipeArea {
+                id: bottomSwipeArea
+
+                readonly property real longSwipeThreshold: units.gu(20)
+                readonly property real shortSwipeThreshold: units.gu(5)
+                readonly property bool longSwipe: distance > longSwipeThreshold
+                readonly property bool shortSwipe: distance > shortSwipeThreshold
+                direction: SwipeArea.Upwards
+                onLongSwipeChanged: {
+                    if (longSwipe) {
+                        shell.haptics.playSubtle()
+                    }
+                }
+                onShortSwipeChanged: {
+                    if (shortSwipe) {
+                        shell.haptics.playSubtle()
+                    }
+                }
+                onDraggingChanged: {
+                    if (!dragging) {
+                        if (longSwipe) {
+                            //shell.showSettings()
+                            shell.settings.showInfographics = !shell.settings.showInfographics
+                            shell.haptics.play()
+                        } else if (shortSwipe) {
+                            shell.settings.showInfographics = !shell.settings.showInfographics
+                            shell.haptics.play()
+                        }
+                    }
+                }
+            }
+        }
+        // ENH226 - End
 
         BlurLayer {
             id: blurLayer
@@ -1676,8 +1812,7 @@ FocusScope {
             enabled: workspaceEnabled
             mode: root.mode
             // ENH185 - Workspace spread UI fixes
-            launcherLockedVisible: root.launcherLockedVisible
-            topPanelHeight: root.topPanelHeight
+            availableDesktopArea: root.availableDesktopArea
             // ENH185 - End
             onCloseSpread: priv.goneToSpread = false;
         }
@@ -2212,6 +2347,22 @@ FocusScope {
                 }
 */
 
+                // ENH032 - Infographics Outer Wilds
+                onMaximizedChanged: {
+                    if (maximized) {
+                        root.maximizedWindowCount += 1
+                    } else {
+                        root.maximizedWindowCount -= 1
+                    }
+                }
+                onFullscreenChanged: {
+                    if (fullscreen) {
+                        root.fullScreenWindowCount += 1
+                    } else {
+                        root.fullScreenWindowCount -= 1
+                    }
+                }
+                // ENH032 - End
                 function activate() {
                     if (model.window.focused) {
                         updateQmlFocusFromMirSurfaceFocus();
@@ -2224,6 +2375,9 @@ FocusScope {
                             topLevelSurfaceList.raiseId(model.window.id);
                         }
                     }
+                    // ENH135 - Show Desktop
+                    appContainer.showDesktop = false
+                    // ENH135 - End
                 }
                 function requestMaximize() { model.window.requestState(Mir.MaximizedState); }
                 function requestMaximizeVertically() { model.window.requestState(Mir.VertMaximizedState); }
@@ -3216,7 +3370,15 @@ FocusScope {
                     active: model.window.focused
                     focus: true
                     interactive: root.interactive
-                    showDecoration: 1
+                    // ENH225 - Clean Windowed Mode
+                    // showDecoration: 1
+                    showDecoration: cleanMode ? forceDecor ? 1 : 0
+                                              : 1
+
+                    cleanMode: shell.settings.noDecorationWindowedMode && root.mode === "windowed"
+                                    && !appDelegate.fullscreen && !appDelegate.maximized
+                    hasDecoration: !cleanMode
+                    // ENH225 - End
                     decorationHeight: priv.windowDecorationHeight
                     maximizeButtonShown: appDelegate.canBeMaximized
                     overlayShown: touchControls.overlayShown
@@ -3532,8 +3694,7 @@ FocusScope {
         height: units.gu(35)
         // ENH154 - End
         // ENH185 - Workspace spread UI fixes
-        launcherLockedVisible: root.launcherLockedVisible
-        topPanelHeight: root.topPanelHeight
+        availableDesktopArea: root.availableDesktopArea
         // ENH185 - End
         background: root.background
         onActiveChanged: {
@@ -3815,8 +3976,7 @@ FocusScope {
     BackgroundBlur {
         readonly property bool enableBlur: shell.lomiriGSettings.enableBlur && shell.settings.enableTopPanelBlur
         // ENH174 - Top panel background based on current app
-        readonly property bool useMatchingAppsColor: shell.settings.enableTopPanelMatchAppTopColor && root.rightEdgePushProgress === 0
-                                                        && !rightEdgeDragArea.dragging
+        readonly property bool useMatchingAppsColor: shell.settings.enableTopPanelMatchAppTopColor
                                                         && !root.desktopShown
                                                         && (
                                                                 root.mode !== "windowed"
@@ -3824,9 +3984,14 @@ FocusScope {
                                                                         && root.mode === "windowed")
                                                             )
         readonly property bool useCurrentAppAsSource: shell.settings.enableTopPanelMatchAppTopColor && shell.settings.topPanelMatchAppBehavior === 0
-                                                        && root.focusedAppDelegate && root.rightEdgePushProgress === 0
-                                                        && !rightEdgeDragArea.dragging && !root.spreadShown
+                                                        && root.focusedAppDelegate
+                                                        && !noAppVisible
+                                                        && !root.spreadShown
                                                         && root.mode !== "windowed"
+        readonly property bool forDrawerAndIndicatorPanel: (!shell.launcher.drawerFullyClosed || !shell.panel.fullyClosed)// && !shell.settings.extendDrawerOverTopBar
+                                                                && shell.settings.matchTopPanelToDrawerIndicatorPanels && shell.settings.useWallpaperForBlur
+        // When there's no app visible because there's no main stage app and side stage is hidden
+        readonly property bool noAppVisible: !priv.mainStageDelegate && !sideStage.shown
         // ENH174 - End
         anchors {
             top: parent.top
@@ -3837,19 +4002,28 @@ FocusScope {
         height: root.height - root.availableDesktopArea.height
         visible: !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
         sourceItem: {
-            if (enableBlur || shell.settings.enableTopPanelMatchAppTopColor) {
-                if ((shell.settings.useWallpaperForBlur && !useMatchingAppsColor) || root.desktopShown) {
+            if (enableBlur) {
+                // When drawer or indicator panel is open and we use wallpaper as blur source
+                if (forDrawerAndIndicatorPanel) {
                     return stage.wallpaperSurface
                 }
 
-                return useCurrentAppAsSource ? root.focusedAppDelegate : appContainer
+                if (shell.settings.enableTopPanelMatchAppTopColor) {
+                    if ((shell.settings.useWallpaperForBlur && !useMatchingAppsColor) || root.desktopShown) {
+                        return stage.wallpaperSurface
+                    }
+
+                    return useCurrentAppAsSource ? root.focusedAppDelegate : appContainer
+                }
+
+                return appContainer
             }
 
             return null
         }
         // ENH174 - Top panel background based on current app
         //blurRect: Qt.rect(0, 0, width, height)
-        blurRect: useMatchingAppsColor ? useCurrentAppAsSource ? Qt.rect(units.dp(2), units.gu(1), units.dp(1), units.dp(1))
+        blurRect: useMatchingAppsColor && !forDrawerAndIndicatorPanel ? useCurrentAppAsSource ? Qt.rect(units.dp(2), units.gu(1), units.dp(1), units.dp(1))
                                                                : Qt.rect(0, height, width, units.dp(1))
                                        : Qt.rect(0, 0, width, height)
         // ENH174 - End

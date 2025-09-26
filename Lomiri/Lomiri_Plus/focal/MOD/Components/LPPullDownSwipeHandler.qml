@@ -5,9 +5,9 @@ LPSwipeGestureHandler {
     id: pullUpSwipeGesture
 
     property bool pullDownState: false
-    property int triggerStage: 3
+    property int triggerStage: 2
 
-    readonly property bool triggerStageReached: stage >= triggerStage
+    readonly property bool triggerStageReached: stage >= triggerStage && touchPosition.x >= -(width / 2)
 
     signal trigger
 
@@ -27,7 +27,7 @@ LPSwipeGestureHandler {
 
     onDraggingChanged: {
         if (!dragging && towardsDirection) {
-            if (stage >= triggerStage) {
+            if (triggerStageReached) {
                 trigger()
             }
         }

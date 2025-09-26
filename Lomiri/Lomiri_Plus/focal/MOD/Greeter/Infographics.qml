@@ -21,6 +21,7 @@ import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 import "../Components"
 import "../LPDynamicCove" as DynamicCove
+import QtGraphicalEffects 1.12
 // ENH064 - End
 
 Item {
@@ -137,8 +138,11 @@ Item {
         // ENH032 - End
         // ENH064 - Dynamic Cove
         // width: Math.min(parent.height, parent.width) / divisor
-        readonly property real maxWidth: units.gu(45)
-        width: Math.min(maxWidth, (Math.min(parent.height, parent.width) / divisor))
+        readonly property real maxWidth: minShellSize >= units.gu(80) ? units.gu(45) : units.gu(35)
+        readonly property real minShellSize: Math.min(shell.height, shell.width)
+        readonly property real minParentSize: Math.min(parent.height, parent.width)
+
+        width: Math.min(maxWidth, (minParentSize / divisor))
         // ENH064 - End
         height: width
 
@@ -179,6 +183,14 @@ Item {
             id: circularMenuMouseArea
 
             property bool delayedPressed: false
+            //readonly property bool isMouseOnEdge: containsMouse && isOuter(mouseX, mouseY)
+
+            function isOuter(_x, _y) {
+                const _centerX = width / 2;
+                const _centerY = height / 2;
+                const _distance = Math.sqrt(Math.pow(_x - _centerX, 2) + Math.pow(_y - _centerY, 2));
+                return _distance >= (height / 2) - units.gu(3)
+            }
 
             anchors {
                 fill: parent
@@ -197,6 +209,29 @@ Item {
                 }
             }
 
+            /*
+            onIsMouseOnEdgeChanged: {
+                if (isMouseOnEdge) {
+                    hoverDelay.restart()
+                } else {
+                    delayedPressed = false
+                    hoverDelay.stop()
+                }
+            }
+
+            Timer {
+                id: hoverDelay
+
+                interval: 300
+                running: false
+                onTriggered: {
+                    if (circularMenuMouseArea.containsMouse) {
+                        circularMenuMouseArea.delayedPressed = true
+                    }
+                }
+            }
+            */
+
             Timer {
                 id: pressedDelay
 
@@ -208,6 +243,44 @@ Item {
                     }
                 }
             }
+            // TODO: Enable and finish when hover is fixed in UT
+            /*
+            Item {
+                anchors.fill: parent
+                visible: circularMenuMouseArea.isMouseOnEdge
+
+                Rectangle {
+                    id: circularBorder
+                    visible: false
+                    anchors.fill: parent
+                    opacity: 0.5
+                    color: "transparent"
+                    radius: width / 2
+                    border {
+                        color: "blue"
+                        width: units.gu(3)
+                    }
+                }
+
+                RadialGradient {
+                    id: radialGradient
+
+                    anchors.fill: parent
+                    visible: false
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "white" }
+                        GradientStop { position: 0.1; color: "white" }
+                        GradientStop { position: 0.5; color: "transparent" }
+                    }
+                }
+
+                OpacityMask {
+                    anchors.fill: parent
+                    source: radialGradient //shaderEffectSource.enabled ? shaderEffectSource : img
+                    maskSource: circularBorder
+                }
+            }
+            */
             /*
             Rectangle {
                 id: bg
@@ -244,6 +317,7 @@ Item {
                         width: defaultSize
                         height: implicitHeight
                         color: theme.palette.normal.foregroundText
+                        asynchronous: true
                         // WORKAROUND: Icon becomes big after initial selection
                         onNameChanged: {
                             width = defaultSize
@@ -382,7 +456,12 @@ Item {
                     height: dataCircle.height / divisor
                     opacity: 0.0
                     circleScale: 0.0
-                    visible: modelData !== undefined
+                    // ENH064 - Dynamic Cove
+                    // visible: modelData !== undefined
+                    visible: shell.settings.hideCirclesWhenCDPlayer && dynamicCove.isCDPlayer &&  dynamicCove.item
+                                    && dynamicCove.item.playBackObj && dynamicCove.item.playBackObj.canPlay
+                                ? false : modelData !== undefined
+                    // ENH064 - End
                     color: "transparent"
                     centerCircle: dataCircle
 
@@ -504,7 +583,12 @@ Item {
                     height: dataCircle.height / divisor
                     opacity: 0.0
                     circleScale: 0.0
-                    visible: modelData !== undefined
+                    // ENH064 - Dynamic Cove
+                    // visible: modelData !== undefined
+                    visible: shell.settings.hideCirclesWhenCDPlayer && dynamicCove.isCDPlayer &&  dynamicCove.item
+                                    && dynamicCove.item.playBackObj && dynamicCove.item.playBackObj.canPlay
+                                ? false : modelData !== undefined
+                    // ENH064 - End
                     color: "transparent"
                     centerCircle: dataCircle
 
@@ -606,9 +690,8 @@ Item {
             objectName: "dots"
             // ENH064 - Dynamic Cove
             // model: infographic.model.firstMonth
-            model: dynamicCove.isCDPlayer &&  dynamicCove.item
-                        && dynamicCove.item.playBackObj && dynamicCove.item.playBackObj.canPlay ? 0
-                                : !dynamicCove.isClock && !dynamicCove.isTimer ? infographic.model.firstMonth : 12
+            model: !dynamicCove.isClock && !dynamicCove.isTimer ? infographic.model.firstMonth : 12
+
             onModelChanged: {
                 infographic.startHideAnimation()
                 infographic.startShowAnimation()
@@ -630,6 +713,12 @@ Item {
                 halfSize: dot.width / 2
                 posOffset: radius / dot.width / 3
                 state: dot.state
+                // ENH064 - Dynamic Cove
+                // Hide dots in CD Player and do it here and not in the model
+                // so that the animation sequence still happens
+                visible: dynamicCove.isCDPlayer &&  dynamicCove.item
+                        && dynamicCove.item.playBackObj && dynamicCove.item.playBackObj.canPlay ? false : true
+                // ENH064 - End
 
                 Dot {
                     id: dot
@@ -749,7 +838,7 @@ Item {
         height: 0.7 * dataCircle.width
         width: height
         propagateComposedEvents: true
-        hoverEnabled: true
+        hoverEnabled: false
         /*
         Rectangle {
             color: "red"
@@ -783,9 +872,10 @@ Item {
     LPRoundMouseArea {
         id: secondMouseArea
 
-        enabled: dataCircle.visible && dynamicCove.item && dynamicCove.item.secondaryMouseArea == this
+        enabled: dataCircle.visible && dynamicCove.item && dynamicCove.item.secondaryMouseArea == this && dynamicCove.item.enableSecondaryMouseArea
         propagateComposedEvents: true
         anchors.centerIn: dataCircle
+        hoverEnabled: false
         width: dynamicCove.item && dynamicCove.item.secondaryMouseAreaWidth > 0 ? dynamicCove.item.secondaryMouseAreaWidth
                                                                                : dataCircle.width / 2
         height: width
