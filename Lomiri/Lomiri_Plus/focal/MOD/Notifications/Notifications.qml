@@ -51,6 +51,9 @@ ListView {
     readonly property bool inverted: shell.settings.showNotificationBubblesAtTheBottom && shell.width <= shell.convertFromInch(2.5)
     verticalLayoutDirection: inverted ? ListView.BottomToTop : ListView.TopToBottom
     // ENH209 - End
+    // ENH220 - Detox mode
+    property bool thereIsNotificationButNotVolume: false
+    // ENH220 - End
 
     delegate: Notification {
         objectName: "notification" + index
@@ -71,7 +74,23 @@ ListView {
         hasMouse: notificationList.hasMouse
         background: notificationList.background
 
-        Component.onCompleted: topmostIsFullscreen = false; // async, the factory loader will set fullscreen to true later
+        // ENH220 - Detox mode
+        // Component.onCompleted: topmostIsFullscreen = false; // async, the factory loader will set fullscreen to true later
+        Component.onCompleted: {
+            topmostIsFullscreen = false; // async, the factory loader will set fullscreen to true later
+            if (model.summary == "Volume" && model.type == 1) {
+                notificationList.thereIsNotificationButNotVolume = false
+            } else {
+                notificationList.thereIsNotificationButNotVolume = true
+            }
+        }
+        Component.onDestruction: {
+            if (summary == "Volume" && type == 1)
+                return
+
+            notificationList.thereIsNotificationButNotVolume = false
+        }
+        // ENH220 - End
 
         property int theIndex: index
         onTheIndexChanged: {

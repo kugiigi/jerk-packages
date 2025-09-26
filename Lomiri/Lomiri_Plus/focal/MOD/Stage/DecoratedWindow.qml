@@ -89,8 +89,52 @@ FocusScope {
     property bool transparentDecoration: false
     // ENH179 - End
     // ENH180 - Match window titlebar with app
+    property bool matchTitleBartoApp: shell.settings.enableTitlebarMatchAppTopColor
     property alias blurSource: decoration.blurSource
     // ENH180 - End
+    // ENH225 - Clean Windowed Mode
+    readonly property alias topIsHovered: topHoverHandler.hovered
+    readonly property alias decorIsHovered: decorHoverHandler.hovered
+    property bool forceDecor: false
+    property bool cleanMode: false
+    readonly property Timer showDecorTimer: Timer {
+        interval: 200
+        onTriggered: root.forceDecor = true
+    }
+    readonly property Timer hideDecorTimer: Timer {
+        interval: 300
+        onTriggered: root.forceDecor = false
+    }
+
+    Item {
+        visible: root.cleanMode
+        z: 999
+        height: units.gu(1.5)
+        anchors {
+            verticalCenter: parent.top
+            left: parent.left
+            right: parent.right
+        }
+
+        HoverHandler {
+            id: topHoverHandler
+            enabled: root.cleanMode
+            acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+            onHoveredChanged: {
+                if (hovered) {
+                    root.hideDecorTimer.stop()
+                    root.showDecorTimer.restart()
+                } else {
+                    root.showDecorTimer.stop()
+                    if (!root.decorIsHovered) {
+                        root.hideDecorTimer.restart()
+                        root.showDecorTimer.stop()
+                    }
+                }
+            }
+        }
+    }
+    // ENH225 - End
 
     signal closeClicked()
     signal maximizeClicked()
@@ -189,7 +233,10 @@ FocusScope {
 //        onRequestedHeightChanged: oldRequestedHeight = requestedHeight
         focus: true
         // ENH180 - Match window titlebar with app
-        z: shell.settings.enableTitlebarMatchAppTopColor ? decoration.z + 1 : 0
+        // ENH225 - Clean Windowed Mode
+        //z: root.matchTitleBartoApp ? decoration.z + 1 : 0
+        z: root.matchTitleBartoApp && !root.cleanMode ? decoration.z + 1 : 0
+        // ENH225 - End
         // ENH180 - End
 
         property real itemScale: 1
@@ -238,7 +285,23 @@ FocusScope {
         // opacity: root.hasDecoration ? Math.min(1, root.showDecoration) : 0
         // Behavior on opacity { LomiriNumberAnimation { } }
         // visible: opacity > 0 // don't eat input when decoration is fully translucent
-        opacity: root.hasDecoration && !root.transparentDecoration ? Math.min(1, root.showDecoration) : 0        
+        // ENH225 - Clean Windowed Mode
+        //opacity: root.hasDecoration && !root.transparentDecoration ? Math.min(1, root.showDecoration) : 0        
+        opacity: (root.hasDecoration && !root.transparentDecoration) || root.cleanMode ? Math.min(1, root.showDecoration) : 0
+        HoverHandler {
+            id: decorHoverHandler
+            enabled: root.cleanMode
+            acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+            onHoveredChanged: {
+                if (hovered) {
+                    root.hideDecorTimer.stop()
+                } else if (!root.topIsHovered) {
+                    root.hideDecorTimer.restart()
+                    root.showDecorTimer.stop()
+                }
+            }
+        }
+        // ENH225 - End
         Behavior on opacity {
             // Disable to fix issue when dragging from maximized and breaking the drag
             //  when transparentDecoration is true
@@ -249,7 +312,10 @@ FocusScope {
         // ENH179 - End
         // ENH180 - Match window titlebar with app
         // Improves performance when entering the Spread
-        blurSource: opacity === 1 ? applicationWindow : null
+        // ENH225 - Clean Windowed Mode
+        //blurSource: opacity === 1 ? applicationWindow : null
+        blurSource: opacity === 1 && !root.cleanMode ? applicationWindow : null
+        // ENH225 - End
         blurUpdates: opacity === 1
         // ENH180 - End
 
@@ -308,7 +374,7 @@ FocusScope {
         cursorShape: undefined // don't interfere with the cursor shape set by the underlying MirSurfaceItem
         visible: enabled
         // ENH180 - Match window titlebar with app
-        z: shell.settings.enableTitlebarMatchAppTopColor ? applicationWindow.z + 1 : 0
+        z: root.matchTitleBartoApp ? applicationWindow.z + 1 : 0
         // ENH180 - End
         onPressed: {
             if (mouse.button == Qt.LeftButton && mouse.modifiers == Qt.AltModifier) {

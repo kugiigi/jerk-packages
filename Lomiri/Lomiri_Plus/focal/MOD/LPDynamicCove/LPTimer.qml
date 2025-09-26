@@ -1,6 +1,6 @@
 // Based and From https://gitlab.com/Danfro/timer
 // ENH064 - Dynamic Cove
-import QtQuick 2.9
+import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 import "Timer"
@@ -24,7 +24,8 @@ LPDynamicCoveItem {
     property int editMode: LPTimer.EditMode.Minute
 
     enableSwipeArea: root_timesetter.canStart || root_timesetter.canReset
-    enabled: root_timesetter.isInteractive
+    enableMouseArea: !resetHoverHandler.hovered && !startHoverHandler.hovered && root_timesetter.isInteractive
+    enableSecondaryMouseArea: !resetHoverHandler.hovered && !startHoverHandler.hovered
 
     secondaryMouseAreaWidth: centerButton.width
     swipeAreaWidth: centerButton.width
@@ -43,6 +44,50 @@ LPDynamicCoveItem {
             timeFinished = true
         }
     }
+
+    function tryToStart() {
+        timer.running = !timer.running
+        if (timer.running) {
+            root_timesetter.start()
+        } else {
+            root_timesetter.stop()
+        }
+    }
+
+    function changePosition() {
+        if (!swipeArea.dragging && timer.enabled) {
+            const _centerX = mouseArea.width / 2;
+            const _centerY = mouseArea.height / 2;
+            const _angle = Math.atan2(mouseArea.mouseY - _centerY, mouseArea.mouseX - _centerX)
+            let _strictangle = _angle  * (180 / Math.PI);
+            const _moduloVariable = timer.editMode == internal.maxEditMode ? 15 : 6
+            const _modulo = _strictangle % _moduloVariable
+
+            let newValue
+            let steps = 60
+            
+            if (timer.editMode == LPTimer.EditMode.Hour) {
+                steps = 24
+            }
+
+            _strictangle = (_strictangle + 90) % 360
+            if (_strictangle < 0) _strictangle += 360
+            newValue = (_strictangle - _modulo + _moduloVariable) / _moduloVariable
+            if (newValue == steps){ newValue = 0 }
+            
+            switch (timer.editMode) {
+                case LPTimer.EditMode.Second:
+                    root_timesetter.s = newValue
+                    break
+                case LPTimer.EditMode.Minute:
+                    root_timesetter.m = newValue
+                    break
+                case LPTimer.EditMode.Hour:
+                    root_timesetter.h = newValue
+                    break
+            }
+        }
+    }
     
     onTimeFinishedChanged: {
         if (timeFinished) {
@@ -58,12 +103,7 @@ LPDynamicCoveItem {
             if (target.goingNegative) {
                 root_timesetter.reset()
             } else if (target.goingPositive) {
-                timer.running = !timer.running
-                if (timer.running) {
-                    root_timesetter.start()
-                } else {
-                    root_timesetter.stop()
-                }
+                timer.tryToStart()
             }
             shell.haptics.play()
         }
@@ -86,40 +126,9 @@ LPDynamicCoveItem {
 
     Connections {
         target: mouseArea
-        onPressed: {
-            focus = true
-        }
-        onPositionChanged: {
-            if (!swipeArea.dragging && timer.enabled) {
-                let newValue
-                let steps = 60
-                
-                if (timer.editMode == LPTimer.EditMode.Hour) {
-                    steps = 24
-                }
-
-                if (internal.angle < 0){
-                    newValue = (internal.strictangle - internal.modulo + 360) / internal.moduloVariable
-                    if (newValue == steps) { newValue = 0 }
-                }
-                else {
-                    newValue = (internal.strictangle - internal.modulo + internal.moduloVariable) / internal.moduloVariable
-                    if (newValue == steps){ newValue = 0 }
-                }
-                
-                switch (timer.editMode) {
-                    case LPTimer.EditMode.Second:
-                        root_timesetter.s = newValue
-                        break
-                    case LPTimer.EditMode.Minute:
-                        root_timesetter.m = newValue
-                        break
-                    case LPTimer.EditMode.Hour:
-                        root_timesetter.h = newValue
-                        break
-                }
-            }
-        }
+        onPressed: focus = true
+        onClicked: timer.changePosition()
+        onPositionChanged: timer.changePosition()
     }
     
     Timer {
@@ -460,11 +469,46 @@ LPDynamicCoveItem {
 
                     Label {
                         Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: contentHeight
+                        Layout.preferredHeight: contentHeight
                         text: "》"
-                        rotation: -90
+                        rotation: resetIcon.visible ? 0 : -90
                         color: theme.palette.normal.negative
                         horizontalAlignment: Label.AlignHCenter
                         opacity: root_timesetter.canReset ? 1 : 0
+                        
+                        Rectangle {
+                            id: resetIcon
+
+                            anchors.centerIn: parent
+                            width: parent.width
+                            height: width
+                            radius: width / 2
+                            color: theme.palette.normal.negative
+                            opacity: resetHoverHandler.hovered ? 1 : 0
+                            visible: opacity > 0
+                            Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+
+                            Icon {
+                                anchors.centerIn: parent
+
+                                width: parent.width * 0.7
+                                name: resetHoverHandler.hovered ? "reset" : ""
+                                color: theme.palette.normal.negativeText
+                            }
+                        }
+
+                        TapHandler {
+                            id: resetTapHandler
+                            acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                            //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                            onSingleTapped: root_timesetter.reset()
+                        }
+
+                        HoverHandler {
+                            id: resetHoverHandler
+                            acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                        }
                     }
                     Label {
                         Layout.alignment: Qt.AlignHCenter
@@ -484,11 +528,46 @@ LPDynamicCoveItem {
                     }
                     Label {
                         Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: contentHeight
+                        Layout.preferredHeight: contentHeight
                         text: "《"
-                        rotation: -90
+                        rotation: startIcon.visible ? 0 : -90
                         horizontalAlignment: Label.AlignHCenter
                         color: timer.running ? theme.palette.normal.negative : theme.palette.normal.positive
                         opacity: root_timesetter.canStart ? 1 : 0
+
+                        Rectangle {
+                            id: startIcon
+
+                            anchors.centerIn: parent
+                            width: parent.width
+                            height: width
+                            radius: width / 2
+                            color: timer.running ? theme.palette.normal.negative : theme.palette.normal.positive
+                            opacity: startHoverHandler.hovered ? 1 : 0
+                            visible: opacity > 0
+                            Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+
+                            Icon {
+                                anchors.centerIn: parent
+
+                                width: parent.width * 0.7
+                                name: startHoverHandler.hovered ? timer.running ? "stop" : "media-preview-start" : ""
+                                color: timer.running ? theme.palette.normal.negativeText : theme.palette.normal.positiveText
+                            }
+                        }
+
+                        TapHandler {
+                            id: startTapHandler
+                            acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                            //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                            onSingleTapped: timer.tryToStart()
+                        }
+
+                        HoverHandler {
+                            id: startHoverHandler
+                            acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                        }
                     }
                 }
             }
@@ -519,12 +598,6 @@ LPDynamicCoveItem {
                     return timerhandhour.height
             }
         }
-        property real truex: mouseArea.mouseX - timer.width / 2
-        property real truey: timer.height / 2 - mouseArea.mouseY
-        property real angle: Math.atan2(truex, truey)
-        property real strictangle: Number(angle * 180 / Math.PI)
-        property real moduloVariable: timer.editMode == internal.maxEditMode ? 15 : 6
-        property real modulo: strictangle % moduloVariable
 
         function addZeroPrefix(str, totalLength) {
             let result = ("00000" + str)

@@ -27,6 +27,22 @@ Item {
 
     property bool actuallyAllowChange: !shell.settings.tryToStabilizeAutoBrightness || (shell.settings.tryToStabilizeAutoBrightness && allowChange)
     property bool allowChange: true
+    // ENH224 - Brightness control in Virtual Touchpad mode
+    property bool override: false
+    property real overrideValue: 0.5
+    onOverrideChanged: {
+        if (override) {
+            brightnessAnimation.startAnimation(overrideValue)
+        } else {
+            applyNewBrightness(shell.lightSensorValue)
+        }
+    }
+    onOverrideValueChanged: {
+        if (override) {
+            brightnessAnimation.startAnimation(overrideValue)
+        }
+    }
+    // ENH224 - End
 
     Timer {
         id: stabilityDelayTimer
@@ -53,11 +69,12 @@ Item {
         }
 
         onTriggered: {
-            if (root.valueToSet === valueToSet && root.actuallyAllowChange) {
+            // Do not change brightness when there's near proximity detected
+            if (root.valueToSet === valueToSet && root.actuallyAllowChange && !shell.proximitySensor.reading.near) {
                 brightnessAnimation.startAnimation(valueToSet)
 
                 if (shell.settings.tryToStabilizeAutoBrightness) {
-                    // Do not allow any more changes until a few seconds past
+                    // Do not allow any more changes until a few seconds passed
                     root.allowChange = false
                     stabilityDelayTimer.restart()
                 }
@@ -90,8 +107,15 @@ Item {
     }
 
     function applyNewBrightness(_lightValue) {
-        let _newBrightness = getNewBrightness(_lightValue)
-        setBrightness(_newBrightness)
+        // ENH224 - Brightness control in Virtual Touchpad mode
+        //let _newBrightness = getNewBrightness(_lightValue)
+        //setBrightness(_newBrightness)
+
+        if (!root.override) {
+            let _newBrightness = getNewBrightness(_lightValue)
+            setBrightness(_newBrightness)
+        }
+        // ENH224 - End
     }
 
     LomiriNumberAnimation {

@@ -85,6 +85,56 @@ Showable {
     property bool dlcOW: shell.settings.ow_theme == 2
     property bool fastModeOW: false
     // ENH032 - End
+    // ENH219 - Fingerprint Improvements
+    readonly property bool swipeToUnlockEnabled: shell.settings.swipeToUnlockFingerprint
+    readonly property bool swipeToUnlockTimeoutEnabled: shell.settings.swipeToUnlockEnableAutoLockTimeout
+    readonly property int swipeToUnlockTimeout: shell.settings.swipeToUnlockAutoLockTimeout
+    // When device was turned on with fingerprint but did not actually unlock
+    property bool temporaryUnlocked: false
+
+    onTemporaryUnlockedChanged: {
+        d.checkSwipeUnlock(false /* hideNow */)
+        if (temporaryUnlocked && Powerd.status === Powerd.On) {
+            shell.haptics.play()
+        }
+    }
+
+    onSwipeToUnlockTimeoutEnabledChanged: {
+        if (!swipeToUnlockTimeoutEnabled) {
+            d.relockTimer.stop()
+        }
+    }
+
+    Connections {
+        target: Powerd
+        onStatusChanged: {
+            if (target.status === Powerd.Off) {
+                root.temporaryUnlocked = false
+            }
+        }
+    }
+    
+    Loader {
+        z: Number.MAX_VALUE
+        active: root.swipeToUnlockEnabled && root.swipeToUnlockTimeoutEnabled && root.temporaryUnlocked
+        anchors.fill: parent
+
+        sourceComponent: MouseArea {
+            id: inactivityMouseArea
+
+            propagateComposedEvents: true
+            onPressed: {
+                d.relockTimer.restart()
+                mouse.accepted = false
+            }
+            onReleased: mouse.accepted = false
+            onClicked: mouse.accepted = false
+            onDoubleClicked: mouse.accepted = false
+            onPressAndHold: mouse.accepted = false
+            onWheel: wheel.accepted = false
+        }
+    }
+    // ENH219 - End
 
     function forceShow() {
         if (!active) {
@@ -250,6 +300,35 @@ Showable {
                 }
             }
         }
+        // ENH219 - Fingerprint Improvements
+        property Timer relockTimer: Timer {
+            interval: root.swipeToUnlockTimeout
+            onTriggered: root.temporaryUnlocked = false
+        }
+
+        function checkSwipeUnlock(hideNow) {
+            if (root.temporaryUnlocked && shown) {
+                hideLockscreen();
+                if (root.swipeToUnlockTimeoutEnabled) {
+                    relockTimer.restart()
+                }
+            } else {
+                if (root.locked) {
+                    showLockscreen()
+                }
+            }
+        }
+        function showLockscreen() {
+            if (loader.item) {
+                loader.item.temporaryUnlocked = false;
+            }
+        }
+        function hideLockscreen() {
+            if (loader.item) {
+                loader.item.temporaryUnlocked = true;
+            }
+        }
+        // ENH219 - End
 
         function showFingerprintMessage(msg) {
             d.selectUser(d.currentIndex);
@@ -278,6 +357,11 @@ Showable {
             // Stop delay timer if they logged in with fingerprint
             forcedDelayTimer.stop();
             forcedDelayTimer.delayMinutes = 0;
+            // ENH219 - Fingerprint Improvements
+            // Stop auto-lock of temporary unlock state
+            d.relockTimer.stop()
+            root.temporaryUnlocked = false
+            // ENH219 - End
         }
     }
 
@@ -361,6 +445,57 @@ Showable {
     // Nothing should leak to items behind the greeter
     MouseArea { anchors.fill: parent; hoverEnabled: true }
 
+    // ENH226 - Infographics on the desktop
+    Loader {
+        id: infographicsLoader
+        objectName: "infographicsLoader"
+        
+        readonly property bool isLandscape: root.orientation == Qt.LandscapeOrientation ||
+                                                   root.orientation == Qt.InvertedLandscapeOrientation ||
+                                                   root.usageMode == "desktop"
+
+        active: shell.settings.showInfographicsOnDesktop && parent.width > units.gu(32)
+        anchors.fill: parent
+
+        states: [
+            State {
+                name: "normal-coverpage"
+                when: loader.active && loader.item && loader.item.coverPage && loader.item.coverPage.showInfographic
+                // Rotation is important to avoid rotation mismatch when rotating the shell
+                ParentChange { target: infographicsLoader; parent: loader.item.coverPage.infographicsArea; rotation: 0;}
+            }
+            , State {
+                name: "normal-lockscreen"
+                when: loader.active && loader.item && loader.item.lockscreen && loader.item.lockscreen.showInfographic
+                ParentChange { target: infographicsLoader; parent: loader.item.lockscreen.infographicsArea; rotation: 0;}
+            }
+            , State {
+                name: "desktop"
+                when: !loader.active
+                ParentChange { target: infographicsLoader; parent: shell.stageInfographicsArea; rotation: 0;}
+            }
+        ]
+        sourceComponent:Infographics {
+            id: infographics
+            objectName: "infographics"
+            model: LightDMService.infographic
+            // ENH032 - Infographics Outer Wilds
+            // clip: true // clip large data bubbles
+            enableOW: false
+            showInfographics: shell.settings.showInfographics
+            // ENH032 - End
+        }
+
+        // ENH032 - Infographics Outer Wilds
+        Binding {
+            target: infographicsLoader.item
+            property: "enableOW"
+            value: root.enableOW
+        }
+        // ENH032 - End
+    }
+    // ENH226 - End
+
     Loader {
         id: loader
         objectName: "loader"
@@ -375,6 +510,9 @@ Showable {
             item.forceActiveFocus();
             d.selectUser(d.currentIndex);
             LightDMService.infographic.readyForDataChange();
+            // ENH219 - Fingerprint Improvements
+            item.showLockIcon = Qt.binding( function() { return root.swipeToUnlockEnabled } )
+            // ENH219 - End
         }
 
         Connections {
@@ -582,6 +720,7 @@ Showable {
         keyColor: "#000000"
         width: !show ? normalSize : successSize
         height: width
+        asynchronous: true
         anchors.centerIn: fpMarker
         
         Behavior on width {
@@ -879,19 +1018,36 @@ Showable {
 
                     // Display on only and do not unlock
                     if (shell.settings.onlyTurnOnDisplayWhenFingerprintDisplayOff) {
-                        restartOperation();
-                        return;
+                        if (!root.swipeToUnlockEnabled) {
+                            restartOperation();
+
+                            return;
+                        }
                     }
                 }
                 // ENH219 - End
                 // ENH032 - Infographics Outer Wilds
                 // root.forcedUnlock = true;
-                delayUnlock.restart()           
+                // ENH219 - Fingerprint Improvements
+                //delayUnlock.restart()
+                if (root.swipeToUnlockEnabled && !root.temporaryUnlocked) {
+                    root.temporaryUnlocked = true
+                    restartOperation();
+                } else {
+                    delayUnlock.restart()
+                }
+                // ENH219 - End
                 // ENH032 - End
         }
         onFailed: {
             if (!d.secureFingerprint) {
                 failOperation("fingerprint reader is locked");
+                // ENH219 - Fingerprint Improvements
+                // Turn on display when locked out
+                if (shell.settings.enableFingerprintWhileDisplayOff && Powerd.status === Powerd.Off) {
+                    Powerd.setStatus(Powerd.On, Powerd.SnapDecision)
+                }
+                // ENH219 - End
             } else if (reason !== "ERROR_CANCELED") {
                 // ENH219 - Fingerprint Improvements
                 // AccountsService.failedFingerprintLogins++;

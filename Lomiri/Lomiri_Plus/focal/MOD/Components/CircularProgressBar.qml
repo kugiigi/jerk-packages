@@ -18,7 +18,7 @@ Rectangle {
     radius: width / 2
     border {
         width: borderWidth
-        color: blackSpaceColor == "transparent" ? blackSpaceColor : "black"
+        color: "transparent"
     }
     Row {
         anchors.fill: parent

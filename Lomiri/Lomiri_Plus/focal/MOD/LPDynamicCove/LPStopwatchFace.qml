@@ -75,9 +75,10 @@ LPDynamicCoveItem {
     LPClockCircle {
         id: stopwatchCircle
 
+        readonly property bool isCleared: milliseconds === 0
         // Property to hold the total time (in milliseconds)
         property int milliseconds: 0
-        property bool aboutToClear: stopWatch.swipeArea.dragging && stopWatch.swipeArea.draggingCustom
+        property bool aboutToClear: (stopWatch.swipeArea.dragging && stopWatch.swipeArea.draggingCustom) || (clearHoverHandler.hovered && !isCleared)
         
         function start() {
             timer.restart()
@@ -195,10 +196,27 @@ LPDynamicCoveItem {
             text: "》"
             rotation: -90
             color: theme.palette.normal.negative
-            opacity: stopwatchCircle.aboutToClear ? 0 : 0.8
+            opacity: (stopwatchCircle.aboutToClear && !clearHoverHandler.hovered) || stopwatchCircle.isCleared ? 0 : 0.8
 
             Behavior on opacity {
                 LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+            }
+
+            TapHandler {
+                id: clearTapHandler
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                onSingleTapped: stopwatchCircle.clear()
+            }
+
+            HoverHandler {
+                id: clearHoverHandler
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+            }
+            Binding {
+                target: stopWatch
+                property: "enableMouseArea"
+                value: !clearHoverHandler.hovered
             }
         }
         

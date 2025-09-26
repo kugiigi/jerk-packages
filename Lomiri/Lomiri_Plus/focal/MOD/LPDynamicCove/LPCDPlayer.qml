@@ -15,6 +15,8 @@ LPDynamicCoveItem {
     property bool isSimpleMode: true
     property real cdPlayerOpacity: 1
 
+    enableMouseArea: !prevHoverHandler.hovered && !nextHoverHandler.hovered
+
     Connections {
         target: mouseArea
         onClicked: {
@@ -80,6 +82,7 @@ LPDynamicCoveItem {
         readonly property real normalOpacity: 0.6
 
         active: shell.settings.enableAmbientModeInCDPlayer
+                    && cdPlayer.playBackObj && cdPlayer.playBackObj.canPlay ? true : false
         asynchronous: true
         sourceComponent: ambientComponent
         opacity: normalOpacity
@@ -249,7 +252,7 @@ LPDynamicCoveItem {
             sourceItem: shell.settings.dcBlurredAlbumArt ? img : null
             hideSource: true
             sourceRect: Qt.rect(0,0,0,0)
-            live: !cdPlayer.screenIsOff
+            live: !(shell.settings.hideCDPlayerWhenScreenOff && cdPlayer.screenIsOff)
             enabled: sourceItem != null
         }
 
@@ -371,15 +374,50 @@ LPDynamicCoveItem {
         Label {
             Layout.alignment: Qt.AlignHCenter
             text: "》"
-            rotation: -90
-            color: theme.palette.normal.backgroundSecondaryText
-            opacity: cdPlayer.playBackObj && cdPlayer.playBackObj.canGoNext && !textContainer.toTransition ? 1 : 0
+            rotation: prevHoverHandler.hovered ? 0 : -90
+            color: prevHoverHandler.hovered ? "transparent" : theme.palette.normal.backgroundText
+            opacity: (cdPlayer.playBackObj && cdPlayer.playBackObj.canGoNext && !textContainer.toTransition) || prevHoverHandler.hovered ? 1 : 0
+            style: Text.Raised
+            styleColor: "black"
+            textSize: Label.Large
+            Layout.preferredWidth: contentHeight
             Layout.preferredHeight: !textContainer.toTransition ? contentHeight: 0 
+
             Behavior on Layout.preferredHeight {
                 LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
             }
             Behavior on opacity {
                 LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+            }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width
+                height: width
+                radius: width / 2
+                color: theme.palette.normal.background
+                opacity: prevHoverHandler.hovered ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.7
+                    name: prevHoverHandler.hovered ? "media-skip-backward" : ""
+                    color: theme.palette.normal.backgroundText
+                }
+            }
+
+            TapHandler {
+                id: prevTapHandler
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                onSingleTapped: cdPlayer.playBackObj.previous()
+            }
+
+            HoverHandler {
+                id: prevHoverHandler
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
             }
         }
 
@@ -424,11 +462,11 @@ LPDynamicCoveItem {
                 verticalAlignment: Text.AlignVCenter
                 textSize: Label.Large
                 color: textContainer.toTransition ? theme.palette.normal.activity : "white"
-                font.weight: textContainer.toTransition ? Font.Normal : Font.Medium
+                font.weight: textContainer.toTransition ? Font.Normal : Font.DemiBold
+                style: Text.Raised
+                styleColor: "black"
 
-                onNextTextChanged: {
-                    hideAnimiation.restart()
-                }
+                onNextTextChanged: hideAnimiation.restart()
             }
 
             Label {
@@ -441,8 +479,11 @@ LPDynamicCoveItem {
                 text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.artist : ""
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
-                textSize: Label.Small
-                color: theme.palette.normal.backgroundText
+                textSize: Label.Medium
+                color: LomiriColors.porcelain
+                style: Text.Raised
+                styleColor: "black"
+                font.weight: Font.Medium
                 Behavior on opacity {
                     LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
                 }
@@ -460,10 +501,13 @@ LPDynamicCoveItem {
                 visible: text !== ""
                 opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
                 text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.album : ""
-                textSize: Label.XSmall
+                textSize: Label.Small
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
-                color: theme.palette.normal.backgroundText
+                color: LomiriColors.porcelain
+                style: Text.Raised
+                styleColor: "black"
+                font.weight: Font.Medium
                 Behavior on opacity {
                     LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
                 }
@@ -477,15 +521,49 @@ LPDynamicCoveItem {
         Label {
             Layout.alignment: Qt.AlignHCenter
             text: "》"
-            rotation: 90
-            color: theme.palette.normal.backgroundSecondaryText
-            opacity: cdPlayer.playBackObj && cdPlayer.playBackObj.canGoPrevious && !textContainer.toTransition ? 1 : 0
+            rotation: nextHoverHandler.hovered ? 0 : 90
+            color: nextHoverHandler.hovered ? "transparent" : theme.palette.normal.backgroundText
+            opacity: (cdPlayer.playBackObj && cdPlayer.playBackObj.canGoPrevious && !textContainer.toTransition) || nextHoverHandler.hovered ? 1 : 0
+            style: Text.Raised
+            styleColor: "black"
+            textSize: Label.Large
+            Layout.preferredWidth: contentHeight
             Layout.preferredHeight: !textContainer.toTransition ? contentHeight: 0 
             Behavior on Layout.preferredHeight {
                 LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
             }
             Behavior on opacity {
                 LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+            }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width
+                height: width
+                radius: width / 2
+                color: theme.palette.normal.background
+                opacity: nextHoverHandler.hovered ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.7
+                    name: nextHoverHandler.hovered ? "media-skip-forward" : ""
+                    color: theme.palette.normal.backgroundText
+                }
+            }
+
+            TapHandler {
+                id: nextTapHandler
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                onSingleTapped: cdPlayer.playBackObj.next()
+            }
+
+            HoverHandler {
+                id: nextHoverHandler
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
             }
         }
     }

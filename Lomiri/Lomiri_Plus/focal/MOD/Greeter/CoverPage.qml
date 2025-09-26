@@ -74,8 +74,13 @@ Showable {
     signal owToggle
     // ENH032 - End
     // ENH064 - Dynamic Cove
-    property bool dynamicCoveClock: infographicsLoader.item && infographicsLoader.item.dynamicCoveClock
+    property bool dynamicCoveClock: infographicsLoader.item ? infographicsLoader.item.dynamicCoveClock
+                                        : infographicsArea.children.length > 0 ? infographicsArea.children[0].item.dynamicCoveClock
+                                                                               : false
     // ENH064 - End
+    // ENH226 - Infographics on the desktop
+    property alias infographicsArea: infographicsArea
+    // ENH226 - End
 
     function hideRight() {
         d.forceRightOnNextHideAnimation = true;
@@ -334,12 +339,21 @@ Showable {
             left: parent.left
             right: parent.right
         }
+        // ENH064 - Dynamic Cove
+        z: dragHandle.z + 1
+        // ENH064 - End
     }
 
     Loader {
         id: infographicsLoader
         objectName: "infographicsLoader"
-        active: root.showInfographic && infographicsArea.width > units.gu(32)
+        // ENH226 - Infographics on the desktop
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // MAKE SURE TO CHECK THE OTHER ONE IN Greeter.qml
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // active: root.showInfographic && infographicsArea.width > units.gu(32)
+        active: root.showInfographic && infographicsArea.width > units.gu(32) && !shell.settings.showInfographicsOnDesktop
+        // ENH226 - End
         anchors.fill: infographicsArea
         // ENH064 - Dynamic Cove
         z: dragHandle.z + 1
@@ -365,9 +379,9 @@ Showable {
     }
     // ENH203 - I’m awake
     Loader {
-        active: infographicsLoader.active && shell.awakeTracking && !shell.awakeTracking.isAwake
+        active: shell.awakeTracking && !shell.awakeTracking.isAwake
         asynchronous: true
-        z: infographicsLoader.z + 1
+        z: infographicsArea.z + 1
         anchors {
             horizontalCenter: chargingHint.horizontalCenter
             bottom: chargingHint.top
@@ -436,6 +450,82 @@ Showable {
         font.weight: Font.Light
         visible: gsettings.showChargingInformationWhileLocked && (BatteryMonitor.charging || BatteryMonitor.fullyCharged)
     }
+    // ENH219 - Fingerprint Improvements
+    property bool showLockIcon: false
+    property bool temporaryUnlocked: false
+    Icon {
+        id: lockIcon
+
+        readonly property bool isUnlock: temporaryUnlocked
+
+        visible: showLockIcon
+        name: isUnlock ? "lock-broken" : "lock"
+        color: shell.settings.useCustomLSClockColor ? shell.settings.customLSClockColor : "white"
+        height: units.gu(4)
+        width: height
+        opacity: isUnlock ? 1 : 0.6
+        anchors {
+            bottom: swipeHint.top
+            bottomMargin: units.gu(4)
+            horizontalCenter: parent.horizontalCenter
+        }
+
+        Behavior on opacity { LomiriNumberAnimation{ duration: LomiriAnimation.SleepyDuration } }
+
+        onIsUnlockChanged: {
+            if (isUnlock) {
+                wiggleAnimation.startSlow()
+                showLabelAnimation.start();
+                errorMessageAnimation.start()
+            } else {
+                wiggleAnimation.startFast()
+            }
+        }
+
+        SequentialAnimation {
+            id: wiggleAnimation
+
+            property int rotateDuration: 50
+
+            running: false
+            loops: 6
+            
+            function startSlow() {
+                rotateDuration = 100
+                start()
+            }
+
+            function startFast() {
+                rotateDuration = 50
+                start()
+            }
+
+            RotationAnimation {
+                target: lockIcon
+                duration: wiggleAnimation.rotateDuration
+                to: lockIcon.width < units.gu(10) ? 10 : 2
+                direction: RotationAnimation.Clockwise
+            }
+            RotationAnimation {
+                target: lockIcon
+                duration: wiggleAnimation.rotateDuration
+                to: lockIcon.width < units.gu(10) ? -10 : -2
+                direction: RotationAnimation.Counterclockwise
+            }
+
+            onFinished: resetAnimation.start()
+        }
+        RotationAnimation {
+            id: resetAnimation
+
+            running: false
+            target: lockIcon
+            duration: LomiriAnimation.SnapDuration
+            to: 0
+            direction: RotationAnimation.Shortest
+        }
+    }
+    // ENH219 - End
 
     Label {
         id: swipeHint
@@ -445,7 +535,10 @@ Showable {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: units.gu(5)
-        text: "《    " + (d.errorMessage ? d.errorMessage : i18n.tr("Unlock")) + "    》"
+        // ENH219 - Fingerprint Improvements
+        // text: "《    " + (d.errorMessage ? d.errorMessage : i18n.tr("Unlock")) + "    》"
+        text: "《    " + (d.errorMessage ? d.errorMessage : root.temporaryUnlocked ? i18n.tr("Swipe to unlock") : i18n.tr("Unlock")) + "    》"
+        // ENH219 - End
         color: "white"
         font.weight: Font.Light
         visible: !chargingHint.visible
@@ -623,10 +716,8 @@ Showable {
                     shell.showSettings()
                     shell.haptics.play()
                 } else if (shortSwipe) {
-                    if (infographicsLoader.item) {
-                        shell.settings.showInfographics = !shell.settings.showInfographics
-                        shell.haptics.play()
-                    }
+                    shell.settings.showInfographics = !shell.settings.showInfographics
+                    shell.haptics.play()
                 }
             }
         }

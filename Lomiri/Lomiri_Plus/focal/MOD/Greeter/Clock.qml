@@ -145,6 +145,8 @@ Item {
                                             : shell.settings.useCustomLSClockFont
                                                     && shell.settings.customLSClockFont ? shell.settings.customLSClockFont
                                                                                         : "Ubuntu"
+                style: shell.settings.lockScreenClockStyle
+                styleColor: shell.settings.lockScreenClockStyleColor
                 // ENH068 - End
                 text: Qt.formatTime(clock.currentDate)
                 font.weight: Font.Light
@@ -243,6 +245,8 @@ Item {
                                             : shell.settings.useCustomLSClockFont
                                                     && shell.settings.customLSClockFont ? shell.settings.customLSClockFont
                                                                                         : "Ubuntu"
+                style: shell.settings.lockScreenDateStyle
+                styleColor: shell.settings.lockScreenDateStyleColor
                 // ENH068 - End
                 text: Qt.formatDate(clock.currentDate, Qt.DefaultLocaleLongDate)
                 font.weight: Font.Light

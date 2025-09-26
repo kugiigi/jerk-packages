@@ -1,7 +1,7 @@
 import QtQuick 2.12
 import Lomiri.Components 1.3
 
-AbstractButton {
+Item {
     id: customButton
 
     property alias radius: bg.radius
@@ -21,6 +21,37 @@ AbstractButton {
     property bool noClick: false
 
     focus: false
+
+    property string iconName: ""
+    property url iconSource: ""
+    property alias pressed: tapHandler.pressed
+    property alias hovered: hoverHandler.hovered
+
+    signal clicked
+    signal pressAndHold
+    
+    TapHandler {
+        id: tapHandler
+
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+
+        onLongPressed: customButton.pressAndHold()
+
+        onSingleTapped: {
+            if ((eventPoint.event.device.pointerType === PointerDevice.Cursor || eventPoint.event.device.pointerType == PointerDevice.GenericPointer)
+                    && eventPoint.event.button === Qt.RightButton) {
+                customButton.pressAndHold()
+            } else {
+                customButton.clicked()
+            }
+        }
+    }
+
+    HoverHandler {
+        id: hoverHandler
+
+        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+    }
     
     onClicked: {
         if (!noClick) {
@@ -34,15 +65,17 @@ AbstractButton {
     }
     
     onPressAndHold: {
-        switch (controlData.holdActionType) {
-            case "external":
-                Qt.openUrlExternally(controlData.holdActionUrl)
-                break
-            default:
-                bar.setCurrentItemIndex(toggleObj.parentMenuIndex)
-                break
+        if (!customButton.editMode) {
+            switch (controlData.holdActionType) {
+                case "external":
+                    Qt.openUrlExternally(controlData.holdActionUrl)
+                    break
+                default:
+                    bar.setCurrentItemIndex(toggleObj.parentMenuIndex)
+                    break
+            }
+            shell.haptics.play()
         }
-        shell.haptics.play()
     }
 
     Item {
@@ -92,11 +125,13 @@ AbstractButton {
         }
 
         Icon {
-            name: customButton.iconName
-            source: customButton.iconSource
+            source: customButton.iconSource.toString() !== "" ? customButton.iconSource
+                                                              : customButton.iconName ? "image://theme/%1".arg(customButton.iconName)
+                                                                                      : ""
             height: units.gu(3)
             width: height
             visible: !customButton.noIcon
+            asynchronous: true
             color: {
                 if (customButton.enabled) {
                     theme.palette.normal.foregroundText

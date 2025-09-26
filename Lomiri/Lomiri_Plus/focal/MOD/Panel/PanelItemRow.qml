@@ -223,10 +223,15 @@ Item {
 
                     if (itemToExpandForNotch) {
                         let itemWidthUnderNotch = notchEndX - itemToExpandForNotch.x // Item width under the notch
+                        let sideMarginFromNotch = itemToExpandForNotch.width - itemWidthUnderNotch
 
-                        itemToExpandForNotch.notchMargin = notchWidth
+                        // Balance the empty space on the left and right side of the notch
+                        if (shell.settings.balanceMiddleNotchMargin) {
+                            sideMarginFromNotch = sideMarginFromNotch * 2
+                        }
+
+                        itemToExpandForNotch.notchMargin = notchWidth + sideMarginFromNotch
                                                                     // + itemWidthUnderNotch
-                                                                    + ((itemToExpandForNotch.width - itemWidthUnderNotch) * 2) // Item width not under the notch
                     }
                 }
             }

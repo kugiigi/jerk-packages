@@ -46,6 +46,7 @@ FocusScope {
                                 (width * (dragArea.touchPosition.x-panelWidth) / (width - panelWidth)) : 0
     // ENH167 - Behavior changes for custom opacity/color of components
     property real drawerProgress: (drawer.width - Math.abs(drawer.x)) / drawer.width
+    property bool drawerFullyClosed: drawer.fullyClosed
     // ENH167 - End
 
     property bool superPressed: false
@@ -233,6 +234,15 @@ FocusScope {
         else
             switchToNextState("drawer");
     }
+    // ENH139 - System Direct Actions
+    function searchInDrawer() {
+        if (root.drawerShown) {
+            drawer.focusInput();
+        } else {
+            toggleDrawer(true)
+        }
+    }
+    // ENH139 - End
 
     Keys.onPressed: {
         switch (event.key) {
@@ -410,11 +420,13 @@ FocusScope {
             // blurRect: Qt.rect(0,
             //                   root.topPanelHeight,
             blurRect: Qt.rect(0,
-                              (root.inverted ? 0 : root.topPanelHeight) + root.topMarginBlur,
+                              shell.settings.extendDrawerOverTopBar ? (root.inverted ? 0 : root.topPanelHeight) + root.topMarginBlur
+                                    : root.topPanelHeight,
             // ENH002 - End
                               drawer.width,
                               drawer.height)
-            occluding: (drawer.width == root.width) && drawer.fullyOpen
+            occluding: shell.settings.extendDrawerOverTopBar ? (drawer.width == root.width) && drawer.fullyOpen
+                                                             : false
         }
     }
 
@@ -447,12 +459,13 @@ FocusScope {
             top: parent.top
             // ENH131 - Extend drawer to behind top panel
             // topMargin: root.inverted ? root.topPanelHeight : 0
+            topMargin: shell.settings.extendDrawerOverTopBar ? 0 : root.inverted ? root.topPanelHeight : 0
             // ENH131 - End
             bottom: parent.bottom
             right: parent.left
         }
         // ENH131 - Extend drawer to behind top panel
-        topPanelHeight: root.topPanelHeight
+        topPanelHeight: shell.settings.extendDrawerOverTopBar ? root.topPanelHeight : 0
         // ENH131 - End
         background: root.background
         width: Math.min(root.width, units.gu(81))
@@ -533,7 +546,8 @@ FocusScope {
             // ENH002 - End
                               panel.width,
                               panel.height)
-            occluding: (drawer.width == root.width) && drawer.fullyOpen
+            occluding: shell.settings.extendDrawerOverTopBar ? (drawer.width == root.width) && drawer.fullyOpen
+                                                             : false
         }
     }
     // ENH171 - End

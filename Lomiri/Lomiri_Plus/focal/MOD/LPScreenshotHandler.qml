@@ -39,6 +39,7 @@ Item {
     readonly property alias toolbar: toolbarLoader.item
     property bool advancedMode: false
     property real topPanelHeight: 0
+    property bool silentMode: false
 
     ScreenshotDirectory {
         id: screenshotDirectory
@@ -76,8 +77,10 @@ Item {
     function capture(item) {
         d.target = item;
         show();
-        shutterSound.stop();
-        shutterSound.play();
+        if (!root.silentMode) {
+            shutterSound.stop();
+            shutterSound.play();
+        }
         fadeIn.start();
     }
 
@@ -85,7 +88,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         enabled: editorLoader.active || shareLoader.active
-        hoverEnabled: true
+        hoverEnabled: enabled
         acceptedButtons: Qt.AllButtons
         onWheel: wheel.accepted = true;
     }
@@ -255,10 +258,13 @@ Item {
                 property int maxSize: Math.min(parent.width, parent.height)
                 property int size: Math.min(maxSize, units.gu(50))
 
-                width: size
-                height: size
-                x: (parent.width - width) / 2
-                y: parent.width >= units.gu(90) ? (parent.height - height) / 2 : (parent.height - height)
+                anchors {
+                    fill: parent
+                    leftMargin: (parent.width - size) / 2
+                    rightMargin: anchors.leftMargin
+                    topMargin: parent.width >= units.gu(90) ? (parent.height - size) / 2 : (parent.height - size)
+                    bottomMargin: parent.width >= units.gu(90) ? (parent.height - size) / 2 : 0
+                }
 
                 header: PageHeader {
                     title: i18n.tr("Share to")

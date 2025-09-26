@@ -10,7 +10,8 @@ Item {
     property SwipeArea swipeArea
     property real swipeAreaWidth: 0
     property var mouseArea
-    property var enableMouseArea: true
+    property bool enableMouseArea: true
+    property bool enableSecondaryMouseArea: true
     property var secondaryMouseArea
     property real secondaryMouseAreaWidth: 0
     property bool enableSwipeArea: true

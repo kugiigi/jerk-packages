@@ -67,6 +67,7 @@ Showable {
     property int initialIndexOnInverted: -1
     // ENH028 - End
     // ENH056 - Quick toggles
+    readonly property bool quickTogglesExpanded: quickToggles.expanded
     property string wifiIcon: "network-wifi-symbolic"
     property string bluetoothIcon: "bluetooth-active"
     property bool enableQuickToggles: false
@@ -86,6 +87,10 @@ Showable {
     property var autoBrightnessToggle
     property var brightnessSlider
     property var volumeSlider
+
+    function expandCollapseQuickToggles(_expand) {
+        quickToggles.expanded = _expand
+    }
     // ENH056 - End
     // ENH028 - Open indicators via gesture
     property var dateItem
@@ -223,7 +228,7 @@ Showable {
         // eater
         MouseArea {
             anchors.fill: content
-            hoverEnabled: true
+            hoverEnabled: enabled
             acceptedButtons: Qt.AllButtons
             onWheel: wheel.accepted = true;
             enabled: root.state != "initial"
@@ -324,7 +329,16 @@ Showable {
             ]
 
             z: 2
-            visible: content.visible && root.enableQuickToggles
+
+            visible: {
+                if (shell.settings.quickTogglesOnlyShowInNotifications) {
+                    const _identifier = root.model.data(root.currentMenuIndex, 0)
+
+                    return content.visible && root.enableQuickToggles && _identifier == "ayatana-indicator-messages"
+                }
+
+                return content.visible && root.enableQuickToggles
+            }
 
             hoverEnabled: true
             acceptedButtons: Qt.AllButtons
@@ -474,6 +488,18 @@ Showable {
                             Behavior on opacity {
                                 LomiriNumberAnimation { duration: LomiriAnimation.FastDuration }
                             }
+
+                            // WORKAROUND: Click events on mouse area for dragging in edit mode
+                            // doesn't propagate to TapHandler of each quick toggle
+                            function clicked() {
+                                const _item = itemLoader.item
+                                if (_item) {
+                                    const _actualItem = _item.children[0]
+                                    if (_actualItem) {
+                                        _actualItem.clicked()
+                                    }
+                                }
+                            }
                             
                             Item {
                                 id: toggleContainer
@@ -550,10 +576,10 @@ Showable {
                     LPToggleItem {
                         id: colorOverlayToggle
 
-                        checked: shell.settings.enableColorOverlay
+                        checked: shell.settings.enableColorOverlaySensor
                         parentMenuIndex: "ayatana-indicator-session"
 
-                        onClicked: shell.settings.enableColorOverlay = !shell.settings.enableColorOverlay
+                        onClicked: shell.settings.enableColorOverlaySensor = !shell.settings.enableColorOverlaySensor
                     }
                     // ENH129 - End
                     // ENH190 - Keypad backlight settings
@@ -626,7 +652,7 @@ Showable {
                                 width: height
                                 controlData: itemData
                                 controlIndex: itemIndex
-                                
+
                                 onClicked: {
                                     if (!editMode) {
                                         toggleObj.clicked()
@@ -641,6 +667,10 @@ Showable {
 
                         Item {
                             LPSliderMenu {
+                                id: sliderMenu
+
+                                readonly property bool isBrightness: toggleObj == root.brightnessSlider
+
                                 anchors {
                                     fill: parent
                                     topMargin: units.gu(0.5)
@@ -648,26 +678,71 @@ Showable {
                                     leftMargin: units.gu(1.5)
                                     rightMargin: anchors.leftMargin
                                 }
-                                // Specifically disable brightness when auto brightness is enabled
-                                enabled: {
-                                    if (editMode) {
-                                        return true
-                                    } else {
-                                        switch (toggleObj) {
-                                            case root.brightnessSlider:
-                                                return !root.autoBrightnessToggle || (root.autoBrightnessToggle && !root.autoBrightnessToggle.checked)
-                                                break
-                                            default:
-                                                return true
-                                        }
-                                    }
-                                }
+
                                 sliderObj: toggleObject
                                 toggleObj: toggleObject
                                 editMode: quickToggles.editMode
                                 checked: modelItemData.enabled
                                 controlData: itemData
                                 controlIndex: itemIndex
+
+                                // Brightness Slider
+                                readonly property bool autoBrightnessAvailable: root.autoBrightnessToggle ? true : false
+                                readonly property bool autoBrightnessEnabled: autoBrightnessAvailable && root.autoBrightnessToggle.checked
+                                readonly property bool customAutoBrightnessEnabled: shell.settings.enableCustomAutoBrightness
+                                readonly property int currentState: {
+                                    switch (true) {
+                                        // System auto-brightness is enabled
+                                        case (autoBrightnessAvailable && autoBrightnessEnabled):
+                                            return 1
+                                        // Custom auto-brightness is enabled
+                                        case (!autoBrightnessEnabled && customAutoBrightnessEnabled):
+                                            return 2
+                                        // No auto-brightness enabled
+                                        default:
+                                            return 0
+                                    }
+                                } 
+
+                                sliderEnabled: !(isBrightness && autoBrightnessEnabled)
+                                enabledMinMaxButtons: !isBrightness
+                                toggleIcon: {
+                                    if (!isBrightness)
+                                        return ""
+
+                                    switch (currentState) {
+                                        case 1:
+                                            return "display-brightness-symbolic"
+                                        case 2:
+                                            return "display-brightness-max"
+                                        case 0:
+                                        default:
+                                            return "display-brightness-min"
+                                    }
+                                }
+
+                                onToggleButtonClicked: {
+                                    switch (currentState) {
+                                        case 0: // From No auto-brightness to System
+                                            if (!autoBrightnessEnabled) {
+                                                root.autoBrightnessToggle.clicked()
+                                            }
+                                            break
+                                        case 1: // From System auto-brightness to Custom
+                                            if (autoBrightnessEnabled) {
+                                                root.autoBrightnessToggle.clicked()
+                                            }
+                                            shell.settings.enableCustomAutoBrightness = true
+                                            break
+                                        case 2: // From Custom auto-brightness to No auto-brightness
+                                        default:
+                                            if (autoBrightnessEnabled) {
+                                                root.autoBrightnessToggle.clicked()
+                                            }
+                                            shell.settings.enableCustomAutoBrightness = false
+                                            break
+                                    }
+                                }
                             }
                         }
                     }
@@ -690,12 +765,6 @@ Showable {
                                 checked: modelItemData.enabled
                                 controlData: itemData
                                 controlIndex: itemIndex
-                                
-                                onClicked: {
-                                    if (!editMode) {
-                                         playPause()
-                                    }
-                                }
                             }
                         }
                     }
@@ -714,8 +783,14 @@ Showable {
 
                     enabled: quickToggles.editMode
                     anchors.fill: gridLayout
-                    hoverEnabled: true
+                    hoverEnabled: enabled
                     propagateComposedEvents: true
+
+                    onClicked: {
+                        if (currentItem) {
+                            currentItem.clicked()
+                        }
+                    }
 
                     onPressAndHold: {
                         if (currentItem) {
@@ -917,14 +992,77 @@ Showable {
         unitProgress: root.unitProgress
         // ENH028 - Open indicators via gesture
         inverted: root.inverted
+        visible: !root.useIndicatorSelector
         // ENH028 - End
 
         // ENH095 - Middle notch support
         // height: expanded ? expandedPanelHeight : minimizedPanelHeight
-        height: (expanded ? expandedPanelHeight : minimizedPanelHeight) + contentTopMargin
+        // ENH028 - Open indicators via gesture
+        //height: (expanded ? expandedPanelHeight : minimizedPanelHeight) + contentTopMargin
+        height: {
+            if (root.useIndicatorSelector) {
+                return units.gu(7)
+            }
+
+            return (expanded ? expandedPanelHeight : minimizedPanelHeight) + contentTopMargin
+        }
+        // ENH028 - End
         // ENH095 - End
         Behavior on height { NumberAnimation { duration: LomiriAnimation.SnapDuration; easing: LomiriAnimation.StandardEasing } }
     }
+
+    // ENH028 - Open indicators via gesture
+    readonly property bool useIndicatorSelector: shell.settings.useIndicatorSelectorForPanelBarWhenInverted && root.inverted
+    // So that clicking on empty space won't close the indicator panel
+    MouseArea {
+        anchors.fill: bar
+        acceptedButtons: Qt.AllButtons
+        onWheel: wheel.accepted = true;
+        enabled: indicatorSelectorLoader.active
+        visible: enabled
+        hoverEnabled: enabled
+    }
+    Loader {
+        id: indicatorSelectorLoader
+        
+        readonly property bool swipeSelectMode: item && item.swipeSelectMode
+        readonly property bool isHovered: item && item.isHovered
+        readonly property real defaultBottomMargin: units.gu(4)
+        //bottomMargin for views
+        readonly property real viewBottomMargin: item ? (swipeSelectMode ? item.storedHeightBeforeSwipeSelectMode : height) + indicatorSelectorLoader.defaultBottomMargin
+                                                      : 0
+
+        active: root.useIndicatorSelector
+        asynchronous: true
+        height: item ? item.height : 0 // Since height doesn't reset when inactive
+        focus: false
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+            bottomMargin: (swipeSelectMode && !isHovered ? shell.convertFromInch(0.3) : 0) + defaultBottomMargin
+            leftMargin: units.gu(1)
+            rightMargin: units.gu(1)
+        }
+
+        Behavior on anchors.bottomMargin { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
+
+        sourceComponent: LPIndicatorSelector {
+            id: indicatorSelector
+            swipeEnabled: true
+            mouseHoverEnabled: true
+            noExpandWithMouse: true
+            swipeHandlerOutsideMargin: 0
+            model: bar.model
+            currentIndex: bar.currentItemIndex
+            indicatorWidth: units.gu(2)
+            indicatorExpandedWidth: units.gu(2.5)
+
+            onNewIndexSelected: bar.setCurrentItemIndex(newIndex)
+        }
+    }
+    // ENH028 - End
 
     ScrollCalculator {
         id: leftScroller

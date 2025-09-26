@@ -181,7 +181,7 @@ FocusScope {
                                 (element) => (element.actionId == _appId && element.type == Root.LPDirectActions.Type.App)) == -1
                 ) {
             let _arrNewValues = shell.settings.directActionList.slice()
-            let _properties = { actionId: _appId, type: Root.LPDirectActions.Type.App }
+            let _properties = { actionId: _appId, type: Root.LPDirectActions.Type.App, customTitle: "", displayType: Root.LPDirectActions.DisplayType.Default, iconName: "" }
             _arrNewValues.push(_properties)
             shell.settings.directActionList = _arrNewValues
         }
@@ -908,7 +908,8 @@ FocusScope {
             LPHeader {
                 id: labelHeader
 
-                readonly property real idealRechableHeight: shell.convertFromInch(shell.settings.pullDownHeight)
+                readonly property real idealRechableHeight: shell.isBuiltInScreen ? shell.convertFromInch(shell.settings.pullDownHeight)
+                                                                : customAppGridItem.height * 0.7
                 readonly property real idealMaxHeight: root.height - idealRechableHeight
                 readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 
@@ -1279,6 +1280,9 @@ FocusScope {
         readonly property bool swipeSelectMode: item && item.swipeSelectMode
         readonly property bool isHovered: item && item.isHovered
         readonly property real defaultBottomMargin: bottomDockLoader.active ? units.gu(3) : units.gu(1)
+        readonly property real extraBottomMargin: addExtraBottomMargin ? units.gu(5) : 0
+        // Add extra bottom margin when in external displays and the screen is tall enough
+        readonly property bool addExtraBottomMargin: !shell.isBuiltInScreen && root.height >= units.gu(120)
         //bottomMargin for views
         readonly property real viewBottomMargin: item ? (swipeSelectMode ? item.storedHeightBeforeSwipeSelectMode : height) + appGridIndicatorLoader.defaultBottomMargin
                                                       : 0
@@ -1291,7 +1295,7 @@ FocusScope {
             left: parent.left
             right: parent.right
             bottom: bottomDockLoader.top
-            bottomMargin: (swipeSelectMode && !isHovered ? shell.convertFromInch(0.3) : 0) + defaultBottomMargin
+            bottomMargin: (swipeSelectMode && !isHovered ? shell.convertFromInch(0.3) : 0) + defaultBottomMargin + extraBottomMargin
             leftMargin: units.gu(1)
             rightMargin: units.gu(1)
         }
@@ -1303,6 +1307,9 @@ FocusScope {
             fullAppGridLast: root.fullAppGridLast
             model: swipeView.count
             currentIndex: swipeView.currentIndex
+            indicatorWidth: units.gu(2)
+            indicatorExpandedWidth: units.gu(shell.settings.appGridIndicatorExpandedSize)
+            noExpandWithMouse: shell.settings.appGridIndicatorDoNotExpandWithMouse
             mouseHoverEnabled: root.mouseHoverOfSelectorIndicatorEnabled
             onNewIndexSelected: root.showAppGrid(newIndex)
             onAddNewAppGrid: root.addNewAppGrid()

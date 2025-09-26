@@ -15,6 +15,12 @@ Item {
         , CustomURI
     }
 
+    enum DisplayType {
+        Default
+        , Icon
+        , CustomIcon
+    }
+
     enum AnimationSpeed {
         Fast
         , Brisk
@@ -28,6 +34,9 @@ Item {
     property real thresholdWidthForCentered: parent.width
     property alias swipeAreaHeight: swipeAreas.height
     property real swipeAreaWidth: units.gu(2)
+    property bool swipeUsePhysicalSize: false
+    property bool swipeDynamicPosition: false
+    property bool swipeOffsetSelection: true
     property real maximumWidthPhysical: shell.convertFromInch(2.5)
     property real maximumWidth: parent.width
     property real sideMargins: units.gu(2)
@@ -37,6 +46,12 @@ Item {
     property var actionsList: []
     property int showHideAnimationSpeed: LPDirectActions.AnimationSpeed.Fast
     property bool editMode: false
+    property int displayStyle: 0
+    /*
+     * 0 - Default
+     * 1 - Circular
+     * 2 - Rounded Square
+    */
 
     signal appOrderChanged(var newAppOrderArray)
 
@@ -134,24 +149,29 @@ Item {
         id: internal
 
         property bool openedViaToggle: false
+        property bool openedViaSwipe: false
         property point relativePoint: Qt.point(0,0)
         readonly property bool shouldUseRelativePosition: relativePoint !== Qt.point(0, 0)
         property bool showWithoutSwipe: false
         readonly property real highlightMargin: 0
+        readonly property real touchVerticalOffset: directActions.swipeDynamicPosition ? directActionsItems.defaultVerticalMargin : directActions.swipeAreaHeight
+        readonly property real selectVerticalOffset: directActions.swipeOffsetSelection ? internal.preferredActionItemWidth : 0
+        readonly property real mappedVerticalOffset: directActionsItems.defaultVerticalMargin - internal.selectVerticalOffset
+
         property var highlightedItem: {
             if (!directActions.noSwipeCommit && directActionsItems.isFullyShown) {
                 let _mappedPos = Qt.point(-gridLayout.width,-gridLayout.height)
 
                 if (leftSwipeArea.isDragging) {
-                    _mappedPos = leftSwipeArea.mapToItem(gridLayout, leftSwipeArea.touchPosition.x, leftSwipeArea.touchPosition.y - swipeAreaHeight - highlightMargin)
+                    _mappedPos = leftSwipeArea.mapToItem(gridLayout, leftSwipeArea.touchPosition.x, leftSwipeArea.touchPosition.y - touchVerticalOffset - highlightMargin)
                 }
 
                 if (rightSwipeArea.isDragging) {
-                    _mappedPos = rightSwipeArea.mapToItem(gridLayout, rightSwipeArea.touchPosition.x, rightSwipeArea.touchPosition.y - swipeAreaHeight - highlightMargin)
+                    _mappedPos = rightSwipeArea.mapToItem(gridLayout, rightSwipeArea.touchPosition.x, rightSwipeArea.touchPosition.y - touchVerticalOffset - highlightMargin)
                 }
 
                 let _mappedX = _mappedPos.x
-                let _mappedY = _mappedPos.y
+                let _mappedY = _mappedPos.y - mappedVerticalOffset
 
                 // When swipe exceeds on either side, we select the edge item instead
                 if (_mappedX > gridLayout.width) {
@@ -208,8 +228,12 @@ Item {
         id: visualHintComponent
 
         Rectangle {
-            color: theme.palette.normal.selection
-            radius: width * 0.2
+            color: LomiriColors.porcelain
+            radius: width * 0.5
+            border {
+                width: units.dp(1)
+                color: LomiriColors.silk
+            }
         }
     }
 
@@ -250,6 +274,11 @@ Item {
                 left: parent.left
             }
 
+            onPressedChanged: {
+                if (pressed && directActions.swipeDynamicPosition) {
+                    directActionsItems.swipeVerticalMargin = height - touchPosition.y + internal.selectVerticalOffset
+                }
+            }
             onDraggingChanged: {
                 if (!dragging && internal.highlightedItem && !directActions.noSwipeCommit) {
                     internal.highlightedItem.trigger()
@@ -261,11 +290,12 @@ Item {
                 active: directActions.enableVisualHint && leftSwipeArea.enabled
                 asynchronous: true
                 sourceComponent: visualHintComponent
-                width: parent.width * 2
+                width: units.gu(2)
                 anchors {
                     top: parent.top
                     bottom: parent.bottom
-                    right: parent.right
+                    left: parent.left
+                    leftMargin: item ? -item.radius : 0
                 }
             }
         }
@@ -286,6 +316,11 @@ Item {
                 right: parent.right
             }
 
+            onPressedChanged: {
+                if (pressed && directActions.swipeDynamicPosition) {
+                    directActionsItems.swipeVerticalMargin = height - touchPosition.y + internal.selectVerticalOffset
+                }
+            }
             onDraggingChanged: {
                 if (!dragging && internal.highlightedItem && !directActions.noSwipeCommit) {
                     internal.highlightedItem.trigger()
@@ -297,11 +332,12 @@ Item {
                 active: directActions.enableVisualHint && rightSwipeArea.enabled
                 asynchronous: true
                 sourceComponent: visualHintComponent
-                width: parent.width * 2
+                width: units.gu(2)
                 anchors {
                     top: parent.top
                     bottom: parent.bottom
-                    left: parent.left
+                    right: parent.right
+                    rightMargin: item ? -item.radius : 0
                 }
             }
         }
@@ -312,9 +348,20 @@ Item {
         
         readonly property bool shouldBeShown: swipeAreas.isDragging || internal.showWithoutSwipe
         readonly property real defaultSideMargin: shouldBeShown || internal.openedViaToggle
-                                                            ? internal.usePhysicalSize ? directActions.sideMargins : units.gu(2)
+                                                            ? internal.openedViaSwipe ? directActions.sideMargins : units.gu(2)
                                                             : -width
-        readonly property real defaultVerticalMargin: internal.usePhysicalSize ? directActions.swipeAreaHeight : units.gu(4)
+        readonly property real defaultVerticalMargin: {
+            if (!internal.openedViaSwipe) {
+                return units.gu(4)
+            }
+
+            if (directActions.swipeDynamicPosition) {
+                return swipeVerticalMargin
+            }
+
+            return directActions.swipeAreaHeight
+        }
+        property real swipeVerticalMargin: 0
         readonly property bool isFullyShown: (!internal.openedViaToggle && anchors.leftMargin === defaultSideMargin)
                                                 || (!relativePositionShowAnimation.running && opacity === 1)
 
@@ -359,8 +406,8 @@ Item {
                         return LomiriAnimation.BriskDuration
                     case LPDirectActions.AnimationSpeed.Snap:
                         return LomiriAnimation.SnapDuration
-
-                    return LomiriAnimation.FastDuration
+                    default:
+                        return LomiriAnimation.FastDuration
                 }
             }
         }
@@ -429,8 +476,13 @@ Item {
 
         onVisibleChanged: {
             if (visible) {
+                // These make sure changes in sizes and positions won't change until it is completely hidden
                 if (swipeAreas.isDragging) {
-                    internal.usePhysicalSize = true
+                    if (directActions.swipeUsePhysicalSize) {
+                        internal.usePhysicalSize = true
+                    }
+
+                    internal.openedViaSwipe = true
                 }
                 relativePosAnimationScale = 0
 
@@ -451,6 +503,7 @@ Item {
                 internal.openedViaToggle = false
                 directActions.editMode = false
                 internal.usePhysicalSize = false
+                internal.openedViaSwipe = false
             }
         }
 
@@ -526,12 +579,12 @@ Item {
 
             z: gridLayout.z + 1
             x: {
-                if (intendedX + directActionsItems.anchors.leftMargin < 0) {
-                    return -directActionsItems.anchors.leftMargin
+                if (intendedX + directActionsItems.x < 0) {
+                    return -directActionsItems.x
                 }
 
-                if (intendedX + width + directActionsItems.anchors.rightMargin > directActions.width) {
-                    return directActions.width - width - directActionsItems.anchors.rightMargin -  + units.gu(2)
+                if (intendedX + width + directActionsItems.x > directActions.width) {
+                    return directActions.width - width - directActionsItems.x -  + units.gu(2)
                 }
 
                 return intendedX
@@ -604,6 +657,8 @@ Item {
                     property int itemIndex: index
                     property alias itemTitle: itemDelegate.itemTitle
 
+                    z: itemDelegate.highlighted ? 2 : 1
+
                     rotation: gridLayout.rotation
 
                     function trigger() {
@@ -640,6 +695,9 @@ Item {
                         height: parent.height
                         itemId: itemContainer.itemData.actionId
                         type: itemContainer.itemData.type
+                        displayType: itemContainer.itemData.displayType ? itemContainer.itemData.displayType : LPDirectActions.DisplayType.Default
+                        itemIconName: itemContainer.itemData.iconName ? itemContainer.itemData.iconName : ""
+                        itemCustomTitle: itemContainer.itemData.customTitle ? itemContainer.itemData.customTitle : ""
                         editMode: directActions.editMode
                         highlighted: internal.highlightedItem == itemContainer
                         maximumSize: height * 0.8
@@ -647,6 +705,8 @@ Item {
                         displayedTop: directActions.state == "top"
                         displayedLeft: directActionsItems.state == "left"
                         mouseHoverEnabled: !swipeAreas.isDragging
+                        enableHaptics: internal.openedViaSwipe
+                        displayStyle: directActions.displayStyle
                         
                         states: [
                             State {

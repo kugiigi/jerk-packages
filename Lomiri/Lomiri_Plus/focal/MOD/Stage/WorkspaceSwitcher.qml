@@ -30,8 +30,7 @@ Item {
     property var screensProxy: Screens.createProxy();
     property string background
     // ENH185 - Workspace spread UI fixes
-    property bool launcherLockedVisible: false
-    property real topPanelHeight
+    property Item availableDesktopArea
     // ENH185 - End
 
     readonly property alias active: d.active
@@ -350,8 +349,7 @@ Item {
                         activeWorkspace: WMScreen.currentWorkspace
                         // ENH154 - End
                         // ENH185 - Workspace spread UI fixes
-                        launcherLockedVisible: root.launcherLockedVisible
-                        topPanelHeight: root.topPanelHeight
+                        availableDesktopArea: root.availableDesktopArea
                         // ENH185 - End
                     }
                 }

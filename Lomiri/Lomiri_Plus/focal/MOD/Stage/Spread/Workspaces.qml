@@ -17,9 +17,6 @@
 import QtQuick 2.12
 import Lomiri.Components 1.3
 import WindowManager 1.0
-// ENH185 - Workspace spread UI fixes
-import GSettings 1.0
-// ENH185 - End
 import "MathUtils.js" as MathUtils
 import "../../Components"
 
@@ -38,12 +35,7 @@ Item {
     property bool readOnly: true
     property var activeWorkspace: null
     // ENH185 - Workspace spread UI fixes
-    property bool launcherLockedVisible: false
-    property real topPanelHeight
-    GSettings {
-        id: settings
-        schema.id: "com.lomiri.Shell"
-    }
+    property Item availableDesktopArea
     // ENH185 - End
 
     signal commitScreenSetup();
@@ -159,9 +151,9 @@ Item {
                                                                            : screenSize.width >= screenSize.height ? screenSize.height : screenSize.width
             readonly property real screenHeight: screenIsLandscape ? screenSize.width >= screenSize.height ? screenSize.height : screenSize.width
                                                                             : screenSize.width >= screenSize.height ? screenSize.width : screenSize.height
-            readonly property real screenSpaceHeight: screenHeight - root.topPanelHeight
-            readonly property real launcherWidth: root.launcherLockedVisible ? units.gu(settings.launcherWidth) : 0
-            readonly property real screenSpaceWidth: screenWidth - launcherWidth
+            readonly property real screenSpaceHeight: root.availableDesktopArea.height
+            readonly property real screenSpaceWidth: root.availableDesktopArea.width
+            readonly property real launcherWidth: screenWidth - screenSpaceWidth
 
             property real itemWidth: height * screenSpaceWidth / screenSpaceHeight
             // ENH185 - End

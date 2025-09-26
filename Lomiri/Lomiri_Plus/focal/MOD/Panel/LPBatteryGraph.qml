@@ -52,6 +52,7 @@ Item {
         onStatusChanged: {
             if (Powerd.status === Powerd.On) {
                 canvas.requestPaint()
+                root.now = new Date().getTime()
             }
         }
     }

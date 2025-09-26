@@ -30,6 +30,7 @@ MouseArea {
             applicationContextMenu(appId)
             mouse.accepted = true
         }
+        Haptics.play()
     }
     onPressAndHold: applicationContextMenu(appId)
 

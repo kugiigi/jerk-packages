@@ -11,7 +11,10 @@ Item {
     id: root
 
     // ENH217 - Charging state notification
-    readonly property string fullChargeAlarmName: "[LOMIRIPLUS] Charging Alarm"
+    readonly property string alarmNameBase: "[LP] Fully Charged"
+    readonly property string fullChargeAlarmName: alarmNameBase
+    readonly property string chargingTimeAlarmName: alarmNameBase + ": %1"
+    property real lastChargingTime: 0
     // ENH217 - ENd
     property bool automaticUpdateValues: true
     property alias primaryBattery: batteryBackend.primaryBattery
@@ -62,19 +65,58 @@ Item {
     }
 
     function addData(_forcedValue) {
-        let _tempArr = shell.settings.batteryTrackingData.slice()
         let _datetime = new Date().getTime()
-        let _batteryLevel = primaryBattery.batteryLevel
-        let _powerStatus = _forcedValue ? _forcedValue : Powerd.status
-        let _batteryState = primaryBattery.state
-        let _newItem = {
-            datetime: _datetime
-            , batteryLevel: _batteryLevel
-            , powerStatus: _powerStatus
-            , batteryState: _batteryState
+        // Current datetime should be higher than the last entry
+        // This avoids creating entry when system time is not correct yet
+        // which creates negative values in the data
+        // 1757252207969 is just a random date when this was written
+        // This makes sure the date is valid and not an old date when there's no internet
+        if (_datetime > shell.settings.batteryTrackingLastDate
+                && _datetime > 1757252207969) {
+            let _tempArr = shell.settings.batteryTrackingData.slice()
+            let _batteryLevel = primaryBattery.batteryLevel
+            let _powerStatus = _forcedValue ? _forcedValue : Powerd.status
+            let _batteryState = primaryBattery.state
+            let _newItem = {
+                datetime: _datetime
+                , batteryLevel: _batteryLevel
+                , powerStatus: _powerStatus
+                , batteryState: _batteryState
+            }
+            _tempArr.push(_newItem)
+            shell.settings.batteryTrackingData = _tempArr.slice()
+            shell.settings.batteryTrackingLastDate = _datetime
+            delayedAddTimer.clear()
+            console.log("BATTERY TRACK ADDED!!! " + JSON.stringify(_newItem))
+        } else {
+            delayedAddTimer.startDelay(_forcedValue)
+            console.log("BATTERY TRACK DELAYED!!! " + JSON.stringify(_newItem))
         }
-        _tempArr.push(_newItem)
-        shell.settings.batteryTrackingData = _tempArr.slice()
+    }
+
+    // Retry until the system time is correct
+    // Stop after 5 tries to avoid infinite loops
+    Timer {
+        id: delayedAddTimer
+
+        property int forcedValue
+        property int numberOfTries: 0
+
+        function startDelay(_forcedValue) {
+            if (numberOfTries <= 5) {
+                forcedValue = _forcedValue
+                restart()
+                numberOfTries += 1
+            }
+        }
+
+        function clear() {
+            stop()
+            numberOfTries = 0
+        }
+
+        interval: 1000
+        onTriggered: addData(forcedValue)
     }
 
     function clear() {
@@ -465,7 +507,7 @@ Item {
                     let _alarm = _alarmModel.get(i)
                     let _alarmName = _alarm.message
 
-                    let _regex = new RegExp("^" + internal.escapeRegExp(root.fullChargeAlarmName), "g")
+                    let _regex = new RegExp("^" + internal.escapeRegExp(root.alarmNameBase), "g")
                     
                     if (_regex.test(_alarmName)) {
                         _alarm.cancel()
@@ -493,6 +535,10 @@ Item {
                 root.promptDialogObj.destroy()
             }
             if (shell.settings.enableChargingAlarm) {
+                if (target.state === Battery.Charging) {
+                    root.lastChargingTime = new Date().getTime()
+                }
+
                 if (shell.settings.alwaysPromptchargingAlarm && target.state === Battery.Charging) {
                     if (!root.promptDialogObj) {
                         root.promptDialogObj = promptDialog.createObject(shell.popupParent);
@@ -547,6 +593,7 @@ Item {
                 // Reset temporary values
                 shell.settings.temporaryEnableChargingAlarm = false
                 shell.settings.temporaryCustomTargetBatteryPercentage = false
+                shell.settings.forceSilentFullyChargedAlarm = false
 
                 let _newTarget = shell.settings.targetPercentageChargingAlarm
                 minimumTarget = primaryBattery.batteryLevel + 1
@@ -641,6 +688,15 @@ Item {
                     dialogue.accept()
                  }
              }
+            Button {
+                 text: i18n.tr("Notify me silently")
+                 color: theme.palette.normal.foreground
+                 visible: !shell.settings.silentChargingAlarm
+                 onClicked: {
+                    shell.settings.forceSilentFullyChargedAlarm = true
+                    dialogue.accept()
+                 }
+             }
              Button {
                  text: shell.settings.chargingAlarmPromptTimesout && !shell.settings.enableChargingAlarmByDefault
                             ? i18n.tr("No (%1)").arg(timeoutTimer.currentTime) : i18n.tr("No")
@@ -655,8 +711,17 @@ Item {
     Connections {
         target: shell
 
-        Component.onCompleted: root.addData(Powerd.On)
+        // Delay to allow the system to correct date and time
+        Component.onCompleted: {
+            onCompletedDelayTimer.restart()
+        }
         Component.onDestruction: root.addData(Powerd.Off)
+    }
+
+    Timer {
+        id: onCompletedDelayTimer
+        interval: 2000
+        onTriggered: root.addData(Powerd.On)
     }
 
     QtObject {
@@ -773,8 +838,17 @@ Item {
             _endTime.setSeconds(_endTime.getSeconds() + _delayInSec);
 
             _alarm.reset()
-            _alarm.sound = shell.settings.silentChargingAlarm ? "dummy" : _alarm.defaultSound
-            _alarm.message = root.fullChargeAlarmName
+            _alarm.sound = shell.settings.silentChargingAlarm || shell.settings.forceSilentFullyChargedAlarm ? "dummy" : _alarm.defaultSound
+
+            let _alarmName = root.fullChargeAlarmName
+            
+            if (shell.settings.displayChargingTimeInAlarm) {
+                const _now = new Date().getTime()
+                const _chargingTime = _now - root.lastChargingTime
+                _alarmName = root.chargingTimeAlarmName.arg(internal.msToTime(_chargingTime))
+            }
+            _alarm.message = _alarmName
+
             _alarm.date = _endTime
             _alarm.save()
 

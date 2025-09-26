@@ -335,167 +335,6 @@ Item {
         shellSnapshot: shellSnapshot
     }
 
-    // ENH037 - Manual screen rotation button
-    Rectangle {
-        id: rotateButton
-
-        readonly property real visibleOpacity: 0.8
-        readonly property bool rotateAvailable: root.orientationLocked && root.physicalOrientation !== root.orientation
-        
-        z: shell.z + 1
-        anchors.margins: units.gu(3)
-        states: [
-            State {
-                when: !rotateButton.rotateAvailable
-                AnchorChanges {
-                    target: rotateButton
-                    anchors.right: parent.left
-                    anchors.top: parent.bottom
-                }
-            }
-            , State {
-                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.InvertedLandscapeOrientation
-                AnchorChanges {
-                    target: rotateButton
-                    anchors.left: parent.left
-                    anchors.bottom: parent.bottom
-                }
-            }
-            , State {
-                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.LandscapeOrientation
-                AnchorChanges {
-                    target: rotateButton
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                }
-                PropertyChanges {
-                    target: rotateButton
-                    anchors.topMargin: shell.shellMargin
-                }
-            }
-            , State {
-                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.PortraitOrientation
-                AnchorChanges {
-                    target: rotateButton
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                }
-            }
-            , State {
-                when: rotateButton.rotateAvailable && root.physicalOrientation == Qt.InvertedPortraitOrientation
-                AnchorChanges {
-                    target: rotateButton
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                }
-                PropertyChanges {
-                    target: rotateButton
-                    anchors.topMargin: shell.shellMargin
-                }
-            }
-        ]
-        height: units.gu(4)
-        width: height
-        radius: width / 2
-        visible: opacity > 0
-        opacity: 0 //visibleOpacity
-        color: theme.palette.normal.background
-        
-        function show() {
-            if (!visible) {
-                showDelay.restart()
-            }
-        }
-        
-        function hide() {
-            hideAnimation.restart()
-            showDelay.stop()
-        }
-
-        Icon {
-            id: icon
-
-            implicitWidth: units.gu(3)
-            implicitHeight: implicitWidth
-            anchors.centerIn: parent
-            name: "view-rotate"
-            color: theme.palette.normal.backgroundText
-         }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {
-                rotateButton.hide()
-                orientationLock.savedOrientation = root.orientation
-                root.orientation = root.physicalOrientation
-            }
-        }
-        
-        LomiriNumberAnimation {
-            id: showAnimation
-
-            running: false
-            property: "opacity"
-            target: rotateButton
-            alwaysRunToEnd: true
-            to: rotateButton.visibleOpacity
-            duration: LomiriAnimation.SlowDuration
-        }
-
-        LomiriNumberAnimation {
-            id: hideAnimation
-
-            running: false
-            property: "opacity"
-            target: rotateButton
-            alwaysRunToEnd: true
-            to: 0
-            duration: LomiriAnimation.FastDuration
-        }
-        
-        SequentialAnimation {
-            running: rotateButton.visible
-            loops: 3
-            RotationAnimation {
-                target: rotateButton
-                duration: LomiriAnimation.SnapDuration
-                to: 0
-                direction: RotationAnimation.Shortest
-            }
-            NumberAnimation { target: icon; duration: LomiriAnimation.SnapDuration; property: "opacity"; to: 1 }
-            PauseAnimation { duration: LomiriAnimation.SlowDuration }
-            RotationAnimation {
-                target: rotateButton
-                duration: LomiriAnimation.SlowDuration
-                to: root.orientationLocked ? QtQuickWindow.Screen.angleBetween(root.orientation, root.physicalOrientation) : 0
-                direction: RotationAnimation.Shortest
-            }
-            PauseAnimation { duration: LomiriAnimation.SlowDuration }
-            NumberAnimation { target: icon; duration: LomiriAnimation.SnapDuration; property: "opacity"; to: 0 }
-
-            onFinished: rotateButton.hide()
-        }
-
-        Timer {
-            id: showDelay
-
-            running: false
-            interval: 500
-            onTriggered: {
-                showAnimation.restart()
-            }
-        }
-
-        Timer {
-            id: hideDelay
-
-            running: false
-            interval: 3000
-            onTriggered: rotateButton.hide()
-        }
-    }
-    
-    // ENH037 - End
 
     // ENH129 - Color overlay
     Rectangle {
@@ -588,19 +427,12 @@ Item {
             origin.x: shell.transformOriginX; origin.y: shell.transformOriginY; axis { x: 0; y: 0; z: 1 }
             angle: shell.transformRotationAngle
         }
-        // ENH037 - Manual screen rotation button
-        onIsFullScreenChanged: {
-            if (!isFullScreen && root.orientationLocked) {
-                //root.orientation = orientationLock.savedOrientation
-            }
-        }
-        // ENH037 - End
         // ENH100 - Camera button to toggle rotation and OSK
         onToggleRotation: root.toggleRotation()
         // ENH100 - End
         // ENH117 - Shell reachability
         readonly property real pullDownHeight: shell.convertFromInch(shell.settings.pullDownHeight)
-        readonly property bool pullDownEnabled: shell.height >= pullDownHeight * 1.2
+        readonly property bool pullDownEnabled: shell.isBuiltInScreen && shell.height >= pullDownHeight * 1.2
         property bool pulledDown: false
 
         onPulledDownChanged: {
@@ -608,43 +440,86 @@ Item {
                 let _newPos = nativeHeight - pullDownHeight
                 switch(Math.abs(transformRotationAngle)) {
                     case 0:
-                        y += _newPos
+                        shellYAnimation.startAnimation(y + _newPos)
                     break
                     case 90:
-                        x -= _newPos
+                        shellXAnimation.startAnimation(x - _newPos)
                     break
                     case 180:
-                        y -= _newPos
+                        shellYAnimation.startAnimation(y - _newPos)
                     break
                     case 270:
-                        x += _newPos
+                        shellXAnimation.startAnimation(x + _newPos)
                     break
                 }
             } else {
                 if (transformRotationAngle == 90 || transformRotationAngle == 270) {
                     let _heightWidth = nativeHeight - nativeWidth
                     if (_heightWidth) {
-                        x = -(_heightWidth / 2)
-                        y = _heightWidth / 2
+                        shellXAnimation.startAnimation(-(_heightWidth / 2))
+                        shellYAnimation.startAnimation(_heightWidth / 2)
                     } else {
-                        x = _heightWidth / 2
-                        y = -(_heightWidth / 2)
+                        shellXAnimation.startAnimation(_heightWidth / 2)
+                        shellYAnimation.startAnimation(-(_heightWidth / 2))
                     }
                 } else {
-                    x = 0
-                    y = 0
+                    shellXAnimation.startAnimation(0)
+                    shellYAnimation.startAnimation(0)
                 }
             }
         }
 
         onTransformRotationAngleChanged: pulledDown = false
 
+        LomiriNumberAnimation {
+            id: shellXAnimation
+
+            function startAnimation(_to) {
+                to = _to
+                restart()
+            }
+
+            target: shell
+            property: "x"
+            duration: LomiriAnimation.SnapDuration
+        }
+
+        LomiriNumberAnimation {
+            id: shellYAnimation
+
+            function startAnimation(_to) {
+                to = _to
+                restart()
+            }
+
+            target: shell
+            property: "y"
+            duration: LomiriAnimation.SnapDuration
+        }
+
         Loader {
             active: shell.settings.enablePullDownGesture
             asynchronous: true
             sourceComponent: swipeHandlersComponent
             anchors.fill: parent
-            anchors.bottomMargin: parent.height / 2
+            anchors.bottomMargin: shell.settings.pullDownAreaPosition === 0 ? parent.height / 2 : 0
+            anchors.topMargin: {
+                let _value = 0
+                switch (shell.settings.pullDownAreaPosition) {
+                    case 1: // Bottom half
+                        _value = shell.height - parent.height / 2
+                        break
+                    case 2: // Bottom custom height
+                        _value = shell.height - shell.convertFromInch(shell.settings.pullDownAreaCustomHeight)
+                        break
+                    case 0: // Top half
+                    default:
+                        _value = 0
+                        break
+                }
+
+                return shell.pulledDown ? 0 : _value
+            }
             z: 1000
         }
 
@@ -656,6 +531,14 @@ Item {
                     target: Powerd
                     onStatusChanged: {
                         if (target.status == Powerd.Off) {
+                            shell.pulledDown = false
+                        }
+                    }
+                }
+                Connections {
+                    target: shell.osk
+                    onVisibleChanged: {
+                        if (target.visible) {
                             shell.pulledDown = false
                         }
                     }
@@ -682,13 +565,13 @@ Item {
                         }
                     }
 
-                    /*
                     Rectangle {
-                        color: "red"
+                        visible: shell.pullDownSettingsShown
+                        color: theme.palette.normal.activity
                         opacity: 0.6
                         anchors.fill: parent
                     }
-                    */
+                    
                 }
 
                 LPPullDownSwipeHandler {
@@ -713,18 +596,31 @@ Item {
                         }
                     }
 
-                    /*
                     Rectangle {
-                        color: "blue"
+                        visible: shell.pullDownSettingsShown
+                        color: theme.palette.normal.activity
                         opacity: 0.6
                         anchors.fill: parent
                     }
-                    */
                 }
             }
         }
         // ENH117 - End
     }
+
+    // ENH037 - Manual screen rotation button
+    LPRotateButton {
+        id: rotateButton
+
+        screenOrientation: root.orientation
+        screenOrientationLocked: root.orientationLocked
+
+        onClicked: {
+            orientationLock.savedOrientation = root.orientation
+            root.orientation = root.physicalOrientation
+        }
+    }
+    // ENH037 - End
 
     Rectangle {
         id: shellCover

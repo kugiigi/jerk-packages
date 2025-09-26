@@ -4,11 +4,6 @@ import Lomiri.Components 1.3
 
 OrbitingObject {
 	id: quantumLocObj
-	
-//~ 	QuantumMoon {
-//~ 		visible: quantumLocObj.hasQuantumMoon
-//~ 		startingPosition: quantumLocObj.quantumMoonLoc
-//~ 	}
 }
 
 // ENH032 - End

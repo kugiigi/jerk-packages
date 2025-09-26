@@ -9,7 +9,9 @@ Item {
 
     property bool showCounterLabel: false
     property bool fastMode: false
-    
+    property bool paused: false
+    property bool whiteHoleCloser: false
+
     property int quamtumMoonLocation: solarSystem.randomize(1, 6)
     
     function randomize(start, end) {
@@ -21,7 +23,7 @@ Item {
     }
     
     Timer {
-        running: true
+        running: loopTimer.running
         repeat: true
         interval: loopTimer.interval * (solarSystem.fastMode ? 5 : 2)
         onTriggered: solarSystem.quamtumMoonLocation = solarSystem.randomize(1, 6)
@@ -34,7 +36,7 @@ Item {
         property bool fastMode: solarSystem.fastMode
         property int currentTimer: 0
 
-        running: true
+        running: !solarSystem.paused
         repeat: true
         interval: solarSystem.visible ? fastMode ? 1000
                                                 : 60000
@@ -120,12 +122,14 @@ Item {
         
         SequentialAnimation {
             id: supernova
-            running: false
 
             readonly property int earlySupernovaDuration: 5000
             readonly property int lateSupernovaDuration: 2500
             readonly property int explosionDuration: 8000
             readonly property int endExplosionDuration: 3000
+
+            running: false
+            paused: running && solarSystem.paused
 
             onFinished: {
                 restartDelay.restart()
@@ -304,7 +308,8 @@ Item {
     
     OrbitingObject {
         id: sunStation
-        
+
+        paused: solarSystem.paused
         zSystem: 2
         startVisibility: 0
         endVisibility: 10
@@ -326,7 +331,8 @@ Item {
     
     QuantumLocObj {
         id: hourglassTwins
-        
+
+        paused: solarSystem.paused
         zSystem: 3
         fastMode: loopTimer.fastMode
         bodyToOrbit: sunGlow
@@ -345,7 +351,8 @@ Item {
     
     QuantumLocObj {
         id: timberHearth
-        
+
+        paused: solarSystem.paused
         zSystem: 4
         fastMode: loopTimer.fastMode
         bodyToOrbit: sunGlow
@@ -362,8 +369,8 @@ Item {
         OrbitingObject {
             id: attlerock
             
+            paused: timberHearth.paused
             fastMode: loopTimer.fastMode
-    
             bodyToOrbit: timberHearth.orbitingObject
             orbitDuration: 105
             orbitDirection: 1
@@ -381,16 +388,17 @@ Item {
     
     OrbitingObject {
         id: interloper
-        
+
+        paused: solarSystem.paused
         zSystem: 5
         fastMode: loopTimer.fastMode
         startVisibility: 0
         endVisibility: 20
         bodyToOrbit: sunGlow
-        horizontalOrbitOffset: -units.gu(27)
+        horizontalOrbitOffset: solarSystem.whiteHoleCloser ? -units.gu(19) : -units.gu(27)
         orbitDurationOverride: (visibilityDuration * loopTimer.interval) / (fastMode ? 2 : 4) // Around 4 loops before supernova
         orbitDirection: 0
-        width: darkBramble.width * 0.7
+        width: solarSystem.whiteHoleCloser ? darkBramble.width * 0.55 : darkBramble.width * 0.7
         pathOrientation: PathAnimation.TopFirst
         pathExitDuration: orbitDurationOverride
         orbitTilt: 8
@@ -443,7 +451,7 @@ Item {
     }
 
     Timer {
-        running: true
+        running: !solarSystem.paused
         repeat: true
         interval: solarSystem.fastMode ? 2000 : 120000
         onTriggered: brittlePiecesModel.append({
@@ -456,7 +464,8 @@ Item {
 
     QuantumLocObj {
         id: brittleHollow
-        
+
+        paused: solarSystem.paused
         zSystem: 6
         fastMode: loopTimer.fastMode
         bodyToOrbit: sunGlow
@@ -472,7 +481,8 @@ Item {
         
         OrbitingObject {
             id: hollowLantern
-            
+
+            paused: brittleHollow.paused
             fastMode: loopTimer.fastMode
             bodyToOrbit: brittleHollow.orbitingObject
             orbitDuration: 105
@@ -508,7 +518,8 @@ Item {
     
     QuantumLocObj {
         id: giantsDeep
-        
+
+        paused: solarSystem.paused
         zSystem: 7
         fastMode: loopTimer.fastMode
         bodyToOrbit: sunGlow
@@ -525,7 +536,8 @@ Item {
     
     QuantumLocObj {
         id: darkBramble
-        
+
+        paused: solarSystem.paused
         zSystem: 8
         fastMode: loopTimer.fastMode
         bodyToOrbit: sunGlow
@@ -543,7 +555,7 @@ Item {
     
     RectangularGlow {
         id: strangerGlow
-        
+
         z: sunStation.zSystem + 1
         anchors.fill: stranger
         visible: loopTimer.currentTimer >= stranger.startVisibility && loopTimer.currentTimer <= stranger.endVisibility
@@ -590,6 +602,8 @@ Item {
         
         ParallelAnimation {
             id: moveAnim
+
+            paused: running && solarSystem.paused
             readonly property int animDuration: (stranger.visibilityDuration + 1) * (loopTimer.fastMode ? 1000 : 60000)
             running: false
             NumberAnimation { target: stranger; property: "x"; to: stranger.endPos.x; duration: moveAnim.animDuration }
