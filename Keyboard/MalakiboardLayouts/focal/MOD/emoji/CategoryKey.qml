@@ -27,7 +27,16 @@ CharKey {
     // ENH082 - End
     borderColor: normalColor
     pressedColor: normalColor
-    fontSize: fullScreenItem.keyboardLandscape ? height / 1.8 : height / 2.5
+    // ENH229 - Bigger Emoji font
+    // fontSize: fullScreenItem.keyboardLandscape ? height / 1.8 : height / 2.5
+    fontSize: {
+        if (fullScreenItem.settings.biggerEmojiFont) {
+            return fullScreenItem.keyboardLandscape ? height / 1.4 : height / 2.3
+        } else {
+            return fullScreenItem.keyboardLandscape ? height / 1.8 : height / 2.5
+        }
+    }
+    // ENH229 - End
     layer.enabled: !highlight
     layer.effect: ShaderEffect {
         fragmentShader: "

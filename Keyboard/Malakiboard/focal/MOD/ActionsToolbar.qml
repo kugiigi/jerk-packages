@@ -12,8 +12,8 @@ MKActionsToolbar {
     // ENH215 - Shortcuts bar
     leadingActions: [		
         MKBaseAction { text: i18n.tr("Select All"); iconName: "edit-select-all"; onTrigger: fullScreenItem.selectAll(); },
-        MKBaseAction { text: i18n.tr("Redo"); iconName: "redo"; onTrigger: fullScreenItem.redo();},
-        MKBaseAction { text: i18n.tr("Undo"); iconName: "undo"; onTrigger: fullScreenItem.undo();}
+        MKBaseAction { text: i18n.tr("Undo"); iconName: "undo"; onTrigger: fullScreenItem.undo();},
+        MKBaseAction { text: i18n.tr("Redo"); iconName: "redo"; onTrigger: fullScreenItem.redo();}
     ]
     trailingActions: [
         MKBaseAction { text: i18n.tr("Paste"); iconName: "edit-paste"; onTrigger: fullScreenItem.paste(); },

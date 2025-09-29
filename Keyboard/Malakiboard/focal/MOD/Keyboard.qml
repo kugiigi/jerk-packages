@@ -189,6 +189,9 @@ Item {
         property alias customThemes: settingsObj.customThemes
         property alias useCustomOneHandedWidth: settingsObj.useCustomOneHandedWidth
         property alias customOneHandedWidth: settingsObj.customOneHandedWidth
+        property alias replacePeriodExtendedDomainsEN: settingsObj.replacePeriodExtendedDomainsEN
+        property alias hideLanguageKey: settingsObj.hideLanguageKey
+        property alias biggerEmojiFont: settingsObj.biggerEmojiFont
 
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
@@ -224,6 +227,8 @@ Item {
         property alias savedTextsLimit: settingsObj.savedTextsLimit
         property alias savedTextsAutoCopy: settingsObj.savedTextsAutoCopy
         property alias savedTextsAutoCut: settingsObj.savedTextsAutoCut
+        property alias customClipboard: settingsObj.customClipboard
+        property alias customClipboardLimit: settingsObj.customClipboardLimit
 
         // Session data
         property string textClipboard: ""
@@ -418,6 +423,11 @@ Item {
             property bool enableShortcutsBar: false
             property bool useCustomOneHandedWidth: false
             property real customOneHandedWidth: 2.5 // In inch
+            property bool replacePeriodExtendedDomainsEN: false
+            property bool hideLanguageKey: false
+            property var customClipboard: []
+            property int customClipboardLimit: 20
+            property bool biggerEmojiFont: false
         }
     }
 
@@ -554,7 +564,11 @@ Item {
         savedTextsArea.hide()
     }
     function toggleSavedTexts() {
-        savedTextsArea.toggle()
+        if (savedTextsArea.visible) {
+            hideSavedTexts()
+        } else {
+            showSavedTexts()
+        }
     }
     function toggleSavedTextsSort() {
         savedTextsArea.toggleSort()
@@ -1052,7 +1066,7 @@ Item {
                 text: "Notebook"
                 onClicked: settingsLoader.item.stack.push(notebookPage, {"title": text})
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: enableSwipeToDelete
                 Layout.fillWidth: true
                 text: "Enable Swipe-To-Delete in Backspace key"
@@ -1063,7 +1077,7 @@ Item {
                     value: fullScreenItem.settings.enableSwipeToDelete
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: enableTextPreviewWhenFloating
                 Layout.fillWidth: true
                 text: "Enable text preview when floating"
@@ -1074,7 +1088,7 @@ Item {
                     value: fullScreenItem.settings.enableTextPreviewWhenFloating
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: disableKeyboardHeight
                 Layout.fillWidth: true
                 text: "Disable keyboard height"
@@ -1085,7 +1099,7 @@ Item {
                     value: fullScreenItem.settings.disableKeyboardHeight
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: redesignedLanguageKey
                 Layout.fillWidth: true
                 text: "Redesigned language key/switcher"
@@ -1194,9 +1208,11 @@ Item {
                 Layout.margins: units.gu(2)
                 text: i18n.tr("This feature allows you to save texts and be able to paste them whenever you need them.")
                 + i18n.tr(" When adding a new text, the whole text in the current text field will be saved.")
+                + i18n.tr(" You can save texts to your Favorites list (permanent) or the Custom clipboard (old ones will be deleted after reaching the limit).")
+                + i18n.tr("\n\nCustom clipboard is useful for apps that do not support the system clipboard.")
                 + i18n.tr("\n\nIt can be accessed via Shortcuts Bar or Quick Actions.")
                 + i18n.tr("\n\nWhen enabling this, Shortcuts Bar is automatically enabled and the action to open will be added as well.")
-                + "\n\n\n" + i18n.tr("You can also add texts with a description/title by using the format below:")
+                + "\n\n\n" + i18n.tr("Favorites can be added with a description/title by using the format below:")
                 + "\n\n" + i18n.tr('{ text: "<INSERT TEXT HERE>", "descr" "<INSERT DESCRIPTION OR TITLE HERE>" }')
                 + "\n\n\n" + i18n.tr("NOTE: Saved texts are visible and accessible from the lockscreen so do not put private or sensitive data")
                 verticalAlignment: Text.AlignVCenter
@@ -1214,13 +1230,31 @@ Item {
                     value: fullScreenItem.settings.enableSavedTexts
                 }
             }
+            MKSliderItem {
+                id: customClipboardLimit
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: fullScreenItem.settings.enableSavedTexts
+                title: "Max custom clipboard entries"
+                minimumValue: 0
+                maximumValue: 100
+                resetValue: 20
+                stepSize: 5
+                enableFineControls: true
+                onValueChanged: fullScreenItem.settings.customClipboardLimit = value
+                Binding {
+                    target: customClipboardLimit
+                    property: "value"
+                    value: fullScreenItem.settings.customClipboardLimit
+                }
+            }
         }
     }
     Component {
         id: quickActionsPage
         
         MKSettingsPage {
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: enableQuickActions
 
                 Layout.fillWidth: true
@@ -1269,7 +1303,7 @@ Item {
         id: savedTextsPage
         
         MKSettingsPage {
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: enableSavedTexts
                 Layout.fillWidth: true
                 text: "Enable saved texts"
@@ -1298,7 +1332,7 @@ Item {
                     value: fullScreenItem.settings.savedTextsLimit
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: savedTextsAutoCopy
                 Layout.fillWidth: true
                 visible: fullScreenItem.settings.enableSavedTexts
@@ -1310,7 +1344,7 @@ Item {
                     value: fullScreenItem.settings.savedTextsAutoCopy
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: savedTextsAutoCut
                 Layout.fillWidth: true
                 visible: fullScreenItem.settings.enableSavedTexts
@@ -1349,7 +1383,7 @@ Item {
         id: cursorModePage
         
         MKSettingsPage {
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: showBackSpaceEnter
 
                 Layout.fillWidth: true
@@ -1361,7 +1395,7 @@ Item {
                     value: fullScreenItem.settings.showBackSpaceEnter
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: enableSelectWord
 
                 Layout.fillWidth: true
@@ -1373,7 +1407,7 @@ Item {
                     value: fullScreenItem.settings.enableSelectWord
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: hapticsCursorMove
 
                 Layout.fillWidth: true
@@ -1404,16 +1438,30 @@ Item {
                     value: fullScreenItem.settings.swipeHapticsDuration
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: cursorMoverWorkaround
 
                 Layout.fillWidth: true
+                Layout.preferredHeight: cursorMoverWorkaroundText.visible ? contentHeight + cursorMoverWorkaroundText.height + cursorMoverWorkaroundText.anchors.margins : contentHeight
                 text: "Prevent moving to previous/next line with horizontal movement"
                 onCheckedChanged: fullScreenItem.settings.cursorMoverWorkaround = checked
                 Binding {
                     target: cursorMoverWorkaround
                     property: "checked"
                     value: fullScreenItem.settings.cursorMoverWorkaround
+                }
+
+                Label {
+                    id: cursorMoverWorkaroundText
+                    anchors {
+                        bottom: parent.bottom
+                        left: parent.left
+                        right: parent.right
+                        margins: units.gu(2)
+                    }
+                    text: "This prevents moving the cursor to the next or previous line when swiping/moving horizontally. This may have unpredictable behavior in apps or text boxes where current text isn't detected correctly i.e. Terminal app"
+                    wrapMode: Text.WordWrap
+                    font.italic: true
                 }
             }
             MKSliderItem {
@@ -1545,7 +1593,7 @@ Item {
                     value: fullScreenItem.settings.showNumberRow
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: hideNumberRowOnShortHeight
                 Layout.fillWidth: true
                 Layout.leftMargin: units.gu(2)
@@ -1558,7 +1606,7 @@ Item {
                     value: fullScreenItem.settings.hideNumberRowOnShortHeight
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: keyboardHeightAnimation
                 Layout.fillWidth: true
                 text: "Height change when swiping down"
@@ -1569,7 +1617,7 @@ Item {
                     value: fullScreenItem.settings.keyboardHeightAnimation
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: properOpacity
                 Layout.fillWidth: true
                 text: "Proper opacity (impacts performance)"
@@ -1580,7 +1628,7 @@ Item {
                     value: fullScreenItem.settings.properOpacity
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: hideCursorModeText
                 Layout.fillWidth: true
                 text: "Hide text in cursor mode"
@@ -1591,7 +1639,18 @@ Item {
                     value: fullScreenItem.settings.hideCursorModeText
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
+                id: biggerEmojiFont
+                Layout.fillWidth: true
+                text: "Bigger Emoji font"
+                onCheckedChanged: fullScreenItem.settings.biggerEmojiFont = checked
+                Binding {
+                    target: biggerEmojiFont
+                    property: "checked"
+                    value: fullScreenItem.settings.biggerEmojiFont
+                }
+            }
+            MKSettingsCheckBox {
                 id: hideUrlKey
                 Layout.fillWidth: true
                 text: "Disable domain key (key with .com, .org, .co.uk, etc)"
@@ -1602,7 +1661,45 @@ Item {
                     value: fullScreenItem.settings.hideUrlKey
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
+                id: hideLanguageKey
+                Layout.fillWidth: true
+                Layout.preferredHeight: hideLanguageKeyText.visible ? contentHeight + hideLanguageKeyText.height + hideLanguageKeyText.anchors.margins : contentHeight
+                text: "Disable language key"
+                onCheckedChanged: fullScreenItem.settings.hideLanguageKey = checked
+                Binding {
+                    target: hideLanguageKey
+                    property: "checked"
+                    value: fullScreenItem.settings.hideLanguageKey
+                }
+                Label {
+                    id: hideLanguageKeyText
+                    anchors {
+                        bottom: parent.bottom
+                        left: parent.left
+                        right: parent.right
+                        margins: units.gu(2)
+                    }
+
+                    color: "red"
+                    visible: fullScreenItem.settings.hideLanguageKey
+                    text: "Language Key is the default way to access Malakiboard Settings. Make sure you have alternative access to Malakiboard Settings such as via Quick Actions and Shortcuts Bar otherwise, you won't be able to access Malakioboard Settings until you manually modify the config file."
+                    wrapMode: Text.WordWrap
+                    font.italic: true
+                }
+            }
+            MKSettingsCheckBox {
+                id: replacePeriodExtendedDomainsEN
+                Layout.fillWidth: true
+                text: "Replace Period's extended keys with domains (EN)"
+                onCheckedChanged: fullScreenItem.settings.replacePeriodExtendedDomainsEN = checked
+                Binding {
+                    target: replacePeriodExtendedDomainsEN
+                    property: "checked"
+                    value: fullScreenItem.settings.replacePeriodExtendedDomainsEN
+                }
+            }
+            MKSettingsCheckBox {
                 id: bottomGesturehint
                 Layout.fillWidth: true
                 text: "Show bottom gesture hint"
@@ -1647,7 +1744,7 @@ Item {
         MKSettingsPage {
             id: themePageItem
 
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: followSystemTheme
                 Layout.fillWidth: true
                 text: "Follow system theme"
@@ -1719,7 +1816,7 @@ Item {
                 id: selectorDelegate
                 OptionSelectorDelegate { text: modelData.name }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: useCustomTheme
                 Layout.fillWidth: true
                 text: "Use custom theme"
@@ -1771,7 +1868,7 @@ Item {
                 text: "Custom Dark Theme"
                 onClicked: settingsLoader.item.stack.push(customDarkPage, {"title": text})
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: useCustomFont
                 Layout.fillWidth: true
                 text: "Use custom font"
@@ -1995,7 +2092,7 @@ Item {
                     value: fullScreenItem.settings.customLightTheme.popupBorderColor
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: keyBorderEnabled
                 Layout.fillWidth: true
                 text: "Enable key borders"
@@ -2237,7 +2334,7 @@ Item {
                     value: fullScreenItem.settings.customDarkTheme.popupBorderColor
                 }
             }
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: keyBorderEnabled
                 Layout.fillWidth: true
                 text: "Enable key borders"
@@ -2302,7 +2399,7 @@ Item {
             }
             Component.onCompleted: setResizeMode(true)
             Component.onDestruction: setResizeMode(false)
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: useCustomHeight
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2396,7 +2493,7 @@ Item {
         id: customOneHandedWidthPage
         
         MKSettingsPage {
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: useCustomOneHandedWidth
                 Layout.fillWidth: true
                 text: "Enable"
@@ -2432,7 +2529,7 @@ Item {
         id: customRibbonHeightPage
         
         MKSettingsPage {
-            QQC2.CheckDelegate {
+            MKSettingsCheckBox {
                 id: useCustomRibbonHeight
                 Layout.fillWidth: true
                 text: "Enable"
@@ -3798,6 +3895,7 @@ Item {
             , { "id": "ohTurnOff", "title": i18n.tr("Turn off one-handed"), "component": actionTurnOffOH }
             , { "id": "notebook", "title": i18n.tr("Notebook"), "component": actionNotebook }
             , { "id": "emoji", "title": i18n.tr("Emoji"), "component": actionEmoji }
+            , { "id": "languageKey", "title": i18n.tr("Language Switcher"), "component": actionLanguageKey }
         ]
 
         function getActionsModel(actionIDsList) {
@@ -4036,7 +4134,7 @@ Item {
                 }, MKBaseAction {
                     text: i18n.tr("Sort")
                     iconName: "sort-listitem"
-                    visible: fullScreenItem.settings.savedTexts.length > 0
+                    visible: fullScreenItem.settings.savedTexts.length > 0 && savedTextsArea.isFavorites
                     onTrigger: {
                         fullScreenItem.toggleSavedTextsSort()
                     }
@@ -4055,11 +4153,27 @@ Item {
                     }
                 }
                 , MKBaseAction {
+                    readonly property string entryText: '{"text": "TITLE", "descr": "DESCRIPTION"}'
+                    text: i18n.tr("New Entry")
+                    iconName: "notebook-new"
+                    onTrigger: {
+                        event_handler.onKeyReleased(entryText, "");
+                    }
+                }
+                , MKBaseAction {
                     text: i18n.tr("Add")
                     iconName: "add"
                     onTrigger: {
                         fullScreenItem.commitPreedit()
                         fullScreenItem.savedTexts.addItem(input_method.surroundingLeft + input_method.surroundingRight)
+                    }
+                }
+                , MKBaseAction {
+                    text: i18n.tr("New clipboard entry")
+                    iconName: "edit-copy"
+                    onTrigger: {
+                        fullScreenItem.commitPreedit()
+                        fullScreenItem.savedTexts.addToClipboard(input_method.surroundingLeft + input_method.surroundingRight)
                     }
                 }
             ]
@@ -4095,6 +4209,20 @@ Item {
                     keypad.state = "EMOJI"
                 }
             }
+        }
+        MKBaseAction {
+            id: actionLanguageKey
+
+            iconName: "language-chooser"
+            text: i18n.tr("Language Switcher")
+            onTrigger: {
+                if (maliit_input_method.previousLanguage && maliit_input_method.previousLanguage != maliit_input_method.activeLanguage) {
+                    maliit_input_method.activeLanguage = maliit_input_method.previousLanguage
+                } else {
+                    canvas.languageMenuShown = true
+                }
+            }
+            onPressAndHold: canvas.languageMenuShown = true
         }
     }
     // ENH089 - End
@@ -4646,6 +4774,21 @@ Item {
             }
         }
 
+        function addToClipboard(_text) {
+            const _textToSave = _text
+
+            if (_textToSave !== "") {
+                let _tempArr = fullScreenItem.settings.customClipboard.slice()
+                _tempArr.unshift(_textToSave)
+                fullScreenItem.settings.customClipboard = _tempArr.slice()
+                tooltip.display(i18n.tr("Text saved to custom clipboard"))
+            } else {
+                tooltip.display(i18n.tr("Text is empty"))
+            }
+
+            cleanupClipboard()
+        }
+
         function clear() {
             fullScreenItem.settings.savedTexts = []
             tooltip.display(i18n.tr("Saved texts cleared"))
@@ -4660,6 +4803,22 @@ Item {
             }
         }
 
+        function deleteClipboardItem(_text) {
+            const _tempArr = fullScreenItem.settings.customClipboard.slice()
+            const _index = _tempArr.findIndex(item => item === _text)
+            if (_index > -1) {
+                _tempArr.splice(_index, 1)
+                fullScreenItem.settings.customClipboard = _tempArr.slice()
+            }
+        }
+
+        function cleanupClipboard() {
+            if (fullScreenItem.settings.customClipboardLimit > 0) {
+                if (fullScreenItem.settings.customClipboard.length > fullScreenItem.settings.customClipboardLimit) {
+                    fullScreenItem.settings.customClipboard = fullScreenItem.settings.customClipboard.slice(0, fullScreenItem.settings.customClipboardLimit);
+                }
+            }
+        }
         function cleanup() {
             if (fullScreenItem.settings.savedTextsLimit > 0) {
                 if (fullScreenItem.settings.savedTexts.length > fullScreenItem.settings.savedTextsLimit) {

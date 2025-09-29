@@ -3,6 +3,7 @@ import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12 as QQC2
+import QtQuick.Controls.Suru 2.2
 
 ColumnLayout {
     id: sliderItem
@@ -24,6 +25,7 @@ ColumnLayout {
     property string unitsLabel: percentageValue ? "%" : ""
     property bool locked: !alwaysUnlocked
     property bool alwaysUnlocked: false
+    property bool showDivider: true
 
     function formatDisplayValue(v) {
         if (sliderItem.percentageValue) {
@@ -122,6 +124,12 @@ ColumnLayout {
                 onTriggered: sliderItem.locked = !sliderItem.locked
             }
         }
+    }
+    Rectangle {
+        visible: sliderItem.showDivider
+        Layout.fillWidth: true
+        implicitHeight: units.dp(1)
+        color: Suru.neutralColor
     }
 }
 // ENH070 - End

@@ -184,7 +184,10 @@ KeyPad {
                 normalColor: fullScreenItem.theme.backgroundColor
                 borderColor: normalColor
                 pressedColor: fullScreenItem.theme.backgroundColor
-                fontSize: units.gu(2.5)
+                // ENH229 - Bigger Emoji font
+                // fontSize: units.gu(2.5)
+                fontSize: fullScreenItem.settings.biggerEmojiFont ? units.gu(3) : units.gu(2.5)
+                // ENH229 - End
                 onKeySent: {
                     internal.updateRecent(key);
                     // Automatically commit since we can't disable preedit as we area not loading a language
