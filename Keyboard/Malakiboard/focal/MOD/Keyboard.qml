@@ -3513,6 +3513,7 @@ Item {
 
                 z: floatingActions.z
                 anchors.fill: cursorSwipeArea
+                Suru.theme: dummy.theme.name == "Lomiri.Components.Themes.SuruDark" ? Suru.Dark : Suru.Light
             }
             // ENH120 - End
 

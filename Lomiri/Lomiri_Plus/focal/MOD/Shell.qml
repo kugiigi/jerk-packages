@@ -641,7 +641,13 @@ StyledItem {
         name: "searchdrawer"
         text: "Search Drawer"
         iconName: "search"
-        onTriggered: launcher.searchInDrawer()
+        onTriggered: {
+            if (greeter.locked) {
+                shell.showHome(true)
+            } else {
+                launcher.searchInDrawer()
+            }
+        }
     }
     Action {
         id: playPauseAction
@@ -11200,7 +11206,7 @@ StyledItem {
                             return theme.palette.normal.negative
                             break
                         case progress <= 50:
-                            return LomiriColors.orange
+                            return "#F5D412"
                             break
                         case progress <= 75:
                             return theme.palette.normal.activity
@@ -11980,6 +11986,9 @@ StyledItem {
             item.objectName = "greeter"
         }
         property bool toggleDrawerAfterUnlock: false
+        // ENH139 - System Direct Actions
+        property bool searchDrawerAfterUnlock: false
+        // ENH139 - End
         Connections {
             target: greeter
             onActiveChanged: {
@@ -11988,7 +11997,15 @@ StyledItem {
 
                 // Show drawer in case showHome() requests it
                 if (greeterLoader.toggleDrawerAfterUnlock) {
-                    launcher.toggleDrawer(false);
+                    // ENH139 - System Direct Actions
+                    // launcher.toggleDrawer(false);
+                    if (greeterLoader.searchDrawerAfterUnlock) {
+                        launcher.searchInDrawer()
+                        greeterLoader.searchDrawerAfterUnlock = false;
+                    } else {
+                        launcher.toggleDrawer(false);
+                    }
+                    // ENH139 - End
                     greeterLoader.toggleDrawerAfterUnlock = false;
                 } else {
                     launcher.hide();
@@ -12098,7 +12115,10 @@ StyledItem {
         }
     }
 
-    function showHome() {
+// ENH139 - System Direct Actions
+    // function showHome() {
+    function showHome(_search = false) {
+// ENH139 - End
         greeter.notifyUserRequestedApp();
 
         if (shell.mode === "greeter") {
@@ -12107,6 +12127,11 @@ StyledItem {
             if (!greeter.active) {
                 launcher.toggleDrawer(false);
             } else {
+                // ENH139 - System Direct Actions
+                if (_search) {
+                    greeterLoader.searchDrawerAfterUnlock = true;
+                }
+                // ENH139 - End
                 greeterLoader.toggleDrawerAfterUnlock = true;
             }
         }
