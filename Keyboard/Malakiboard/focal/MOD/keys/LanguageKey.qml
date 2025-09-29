@@ -35,7 +35,12 @@ ActionKey {
 
     padding: 0
 
-    width: panel.keyWidth
+    // ENH228 - Option to hide Language key
+    property bool doNotHide: false
+    // width: panel.keyWidth
+    width: fullScreenItem.settings.hideLanguageKey && !doNotHide ? 0 : panel.keyWidth
+    visible: !fullScreenItem.settings.hideLanguageKey || doNotHide
+    // ENH228 - End
     // ENH119 - Extended selector language key
     id: languageKey
 
