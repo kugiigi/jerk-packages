@@ -201,8 +201,8 @@ FocusScope {
                     objectName: "incognitoOverlay"
 
                     ListItemLayout {
-                        title.text: i18n.tr("Incognito Overlay")
-                        subtitle.text: i18n.tr("Overlay will be in incognito mode")
+                        title.text: i18n.tr("Incognito Overlay (External links)")
+                        subtitle.text: i18n.tr("External links opened in the overlay will be in incognito mode")
                         CheckBox {
                             id: incognitoOverlay
                             SlotsLayout.position: SlotsLayout.Trailing
@@ -429,7 +429,7 @@ FocusScope {
                     visible: settingsObject.appWideScrollPositioner
 
                     height: units.gu(7)
-                    text: i18n.tr("Scroll positioner position")
+                    text: i18n.tr("Position")
                     model: [
                         i18n.tr("Right")
                         ,i18n.tr("Left")
@@ -445,6 +445,39 @@ FocusScope {
                         target: scrollPositionerPosition
                         property: "settingIndex"
                         value: settingsObject.scrollPositionerPosition
+                    }
+                }
+
+                Sapot.ComboBoxItem {
+                    id: scrollPositionerPositionWide
+
+                    property int settingIndex: -1
+
+                    anchors {
+                        left: parent.left
+                        leftMargin: units.gu(3)
+                        right: parent.right
+                        rightMargin: units.gu(2)
+                    }
+                    visible: settingsObject.appWideScrollPositioner
+
+                    height: units.gu(7)
+                    text: i18n.tr("Position (wide layout)")
+                    model: [
+                        i18n.tr("Right")
+                        ,i18n.tr("Left")
+                        ,i18n.tr("Middle")
+                    ]
+                    currentIndex: settingIndex
+
+                    onCurrentIndexChanged: {
+                        settingsObject.scrollPositionerPositionWide = currentIndex
+                    }
+
+                    Binding {
+                        target: scrollPositionerPositionWide
+                        property: "settingIndex"
+                        value: settingsObject.scrollPositionerPositionWide
                     }
                 }
 

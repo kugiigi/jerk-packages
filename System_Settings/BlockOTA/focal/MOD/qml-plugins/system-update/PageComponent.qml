@@ -20,8 +20,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QMenuModel 1.0
 import QtQuick 2.4
+import QtQuick.Layouts 1.1
 import SystemSettings 1.0
 import Lomiri.Components 1.3
 import Lomiri.Components.ListItems 1.3 as ListItem
@@ -59,6 +59,7 @@ ItemPage {
                     dialog.accepted.connect(function() {
                         PopupUtils.close(dialog)
                         UpdateManager.reset()
+                        releaseUpgradeManager.check(/* force */ true)
                     });
                 }
             }
@@ -67,8 +68,8 @@ ItemPage {
 
 
     property bool batchMode: false
-    property bool havePower: (indicatorPower.deviceState === "charging") ||
-                             (indicatorPower.batteryLevel > 25)
+    property bool havePower: (Battery.state === Battery.Charging) ||
+                             (Battery.batteryLevel > 25)
     property bool online: NetworkingStatus.online
     property bool forceCheck: false
 
@@ -90,16 +91,12 @@ ItemPage {
                 UpdateManager.check(UpdateManager.CheckIfNecessary);
             }
         }
+
+        releaseUpgradeManager.check(force);
     }
 
-    QDBusActionGroup {
-        id: indicatorPower
-        busType: 1
-        busName: "org.ayatana.indicator.power"
-        objectPath: "/org/ayatana/indicator/power"
-        property var batteryLevel: action("battery-level").state || 0
-        property var deviceState: action("device-state").state
-        Component.onCompleted: start()
+    ReleaseUpgradeManager {
+        id: releaseUpgradeManager
     }
 
     Component {
@@ -206,7 +203,10 @@ ItemPage {
                     right: parent.right
                     rightMargin: units.gu(2)
                 }
-                visible: placeholder.text
+                // Block OTA
+                // visible: placeholder.text
+                visible: false
+                // End
                 color: theme.palette.normal.background
                 height: units.gu(10)
 
@@ -221,7 +221,9 @@ ItemPage {
                         var s = UpdateManager.status;
                         if (!root.online) {
                             return I18nd.tr("Connect to the Internet to check for updates.");
-                        } else if (s === UpdateManager.StatusIdle && updatesCount === 0) {
+                        } else if (s === UpdateManager.StatusIdle &&
+                                   !updatesAvailableHeader.visible)
+                        {
                             return I18nd.tr("Software is up to date");
                         } else if (s === UpdateManager.StatusServerError ||
                                    s === UpdateManager.StatusNetworkError) {
@@ -235,7 +237,9 @@ ItemPage {
             SettingsItemTitle {
                 id: updatesAvailableHeader
                 text: I18nd.tr("Updates Available")
-                visible: imageUpdateCol.visible || clickUpdatesCol.visible
+                visible: imageUpdateCol.visible ||
+                         clickUpdatesCol.visible ||
+                         releaseUpgradeItem.visible
             }
 
             // Block OTA
@@ -243,13 +247,148 @@ ItemPage {
                 anchors { left: parent.left; right: parent.right; margins: units.gu(2) }
                 font.bold: true
                 color: theme.palette.normal.negative
-                text: "OTA updates were blocked by Jerk Installer. \
-                        \nRun 'jerk reset all' to reset all known components and unblock OTA updates. \
-                        \nor Run 'jerk unblock-ota' to unblock if you uninstalled all packages manually."
-                horizontalAlignment: Label.AlignHCenter
+                text: "OTA updates are being blocked by Ambot/Jerk Installer to avoid possible conflicts between the new OTA update and your installed packages. \
+                        \n\nReset all components or uninstall all packages to unblock OTA updates. You can reinstall them again after the update. \
+                        \n\nvia Ambot Installer app:\
+                        \n - Actions > Reset Components > All Components \
+                        \nvia Jerk Installer script: \
+                        \n - Run 'jerk reset all' \
+                        \n\nOr simply unblock OTA at the risk of encountering conflicts and rendering your device unusable until you reflash a clean system\
+                        \n\nvia Ambot Installer app:\
+                        \n - Actions > OTA Updates > Unblock \
+                        \nvia Jerk Installer script: \
+                        \n -Run 'jerk unblock-ota'"
                 wrapMode: Text.WordWrap
             }
             // End
+
+            ColumnLayout {
+                id: releaseUpgradeItem
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                }
+                spacing: units.gu(2)
+
+                // Block OTA
+                visible: false
+                /*
+                visible: releaseUpgradeManager.availableUpgrade &&
+                         updatesCount == 0 &&
+                         online
+                */
+                // End
+
+                Icon {
+                    name: "distributor-logo"
+                    width: units.gu(10)
+                    height: width
+                    Layout.alignment: Qt.AlignHCenter
+
+                    LomiriShape {
+                        anchors {
+                            bottom: parent.bottom
+                            bottomMargin: units.gu(-1.5)
+                            right: parent.right
+                            rightMargin: units.gu(-1.5)
+                        }
+                        width: units.gu(4)
+                        height: width
+                        backgroundColor: theme.palette.normal.positive
+ 
+                        Icon {
+                            width: units.gu(3)
+                            height: width
+                            anchors {
+                                bottom: parent.bottom
+                                bottomMargin: units.gu(0.5)
+                                right: parent.right
+                                rightMargin: units.gu(0.5)
+                            }
+
+                            name: "save"
+                            color: theme.palette.normal.positiveText
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: units.gu(2)
+                    Layout.rightMargin: units.gu(2)
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: releaseUpgradeManager.availableUpgrade
+                            // TRANSLATORS: %1 is OS name e.g. "Ubuntu Touch",
+                            // %2 is OS version e.g. "24.04-1.0 RC 3".
+                            ? I18nd.tr("%1 %2")
+                                .arg("Ubuntu Touch") // TODO: don't hardcode this.
+                                .arg(releaseUpgradeManager.availableUpgradeVersion)
+                            : ''
+                        wrapMode: Text.Wrap
+                        textSize: Label.Large
+                    }
+
+                    Button {
+                        id: releaseUpgradeBtn
+                        Layout.alignment: Qt.AlignHCenter
+                        text: I18nd.tr("Upgrade");
+                        color: theme.palette.normal.positive
+                        onClicked: {
+                            releaseUpgradeBtn.enabled = false;
+                            releaseUpgradeManager.startUpgrade().then(
+                            function () {
+                                // Normally this won't be visible, as the entry
+                                // should be replaced by normal update by then.
+                                // But if s-i-dbus stops in between, we want to
+                                // be able to re-trigger this.
+                                releaseUpgradeBtn.enabled = true;
+                            }).catch(function(error) {
+                                // TODO: there's not really an error handling...
+                                console.error(error);
+                                releaseUpgradeBtn.enabled = true;
+                            });
+                        }
+                    }
+                }
+
+                ActivityIndicator {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: releaseUpgradeManager.releaseHighlight === null
+                    running: visible
+                }
+
+                Label {
+                    id: releaseUpgradeHighlight
+
+                    Layout.fillWidth: true
+                    Layout.leftMargin: units.gu(2)
+                    Layout.rightMargin: units.gu(2)
+
+                    visible: releaseUpgradeManager.releaseHighlight &&
+                             releaseUpgradeManager.releaseHighlight.length > 0
+                    textSize: Label.Medium
+                    wrapMode: Text.WordWrap
+                    text: releaseUpgradeManager.releaseHighlight
+                    textFormat: Text.StyledText
+                    // A blue-ish color that adapts to theme. The same color as
+                    // an activity indicator/progress indicator.
+                    linkColor: theme.palette.normal.activity
+
+                    onLinkActivated: function (link) {
+                        Qt.openUrlExternally(link);
+                    }
+                }
+
+                // A wrapper item to put ThinDivider into a Layout, as it sets
+                // anchors implicitly.
+                Item {
+                    Layout.fillWidth: true
+                    
+                    ListItem.ThinDivider {}
+                }
+            }
 
             Column {
                 id: imageUpdateCol

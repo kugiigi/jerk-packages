@@ -327,8 +327,6 @@ WebView {
         {
             contextMenuObj = contextMenuComponent.createObject(webview)
 
-            // Not sure why binding doesn't work properly so we set it here
-            contextMenuObj.showAsCenteredModal = !webview.wide
             if (webview.wide) {
                 contextMenuObj.popup(request.x + units.gu(2), request.y)
             } else {
@@ -354,8 +352,6 @@ WebView {
             } else {
                 contextMenuObj = generalContextMenuComponent.createObject(webview)
 
-                // Not sure why binding doesn't work properly so we set it here
-                contextMenuObj.showAsCenteredModal = !webview.wide
                 if (webview.wide) {
                     contextMenuObj.popup(request.x + units.gu(2), request.y)
                 } else {
@@ -469,6 +465,13 @@ WebView {
                 text: isWebApp ? i18n.tr("Open link in overlay") : i18n.tr("Open link in new window")
                 enabled: !incognito && contextMenu.linkUrl
                 onTriggered: webview.triggerWebAction(WebEngineView.OpenLinkInNewWindow)
+            }
+            CustomizedMenuItem {
+                id: openIncgonitoOverlayMenuItem
+                objectName: "openIncgonitoOverlayMenuItem"
+                text: isWebApp ? i18n.tr("Open link in incognito overlay") : i18n.tr("Open link in incognito window")
+                enabled: !incognito && contextMenu.linkUrl
+                onTriggered: webview.openOverlayForUrl(contextMenu.linkUrl, true)
             }
             CustomizedMenuItem {
                 id: openExternallyMenuItem

@@ -390,6 +390,10 @@ Common.BrowserView {
         containerWebView.openOverlayForUrl(webapp.searchPageUrl, true)
     }
 
+    function goHome() {
+        actionsFactory.navigateToUrl(homeURL)
+    }
+
     onFindInPageModeChanged: {
         if (findInPageMode) {
             if (!findLoader.active) {

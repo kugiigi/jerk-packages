@@ -72,7 +72,7 @@ WebappWebview {
     }
 */
     function openOverlayForUrl(overlayUrl, _incognito = false) {
-        let _context = webapp.settings.incognitoOverlay || _incognito ? SharedWebContext.sharedIncognitoContext : context
+        let _context = _incognito ? SharedWebContext.sharedIncognitoContext : context
         if (popupController) {
             popupController.createPopupViewForUrl(
                         overlayViewsParent,
@@ -141,7 +141,7 @@ WebappWebview {
         }
 
         function openLinkInOverlay(url, _isExternalLink = false) {
-            let _context = webapp.settings.incognitoOverlay || _isExternalLink ? SharedWebContext.sharedIncognitoContext : webview.context
+            let _context = webapp.settings.incognitoOverlay && _isExternalLink ? SharedWebContext.sharedIncognitoContext : webview.context
             popupController.createPopupViewForUrl(overlayViewsParent, url, true, _context)
         }  
     }
@@ -157,7 +157,7 @@ WebappWebview {
       
       if(request.userInitiated && shouldAllowNavigationTo(request.requestedUrl.toString()))
       {
-        let _context = webapp.settings.incognitoOverlay ? SharedWebContext.sharedIncognitoContext : context
+        let _context = context
         popupController.createPopupViewForUrl(overlayViewsParent,request.requestedUrl,true,_context)
       }
       else
