@@ -33,7 +33,6 @@ Sapot.WebViewImpl {
     property Sapot.ChromeBase chrome
     property alias scrollTracker: scrollTrackerItem
     property Item scrollPositionerParent: webappWebview
-    property bool wide: false
     property bool webviewPulledDown: false
     readonly property real contentHeight: contentsSize.height / scaleFactor
 
@@ -293,7 +292,7 @@ Sapot.WebViewImpl {
         z: webappWebview.z + 1
         sideMargin: units.gu(2)
         bottomMargin: units.gu(5)
-        position: webapp.settings.scrollPositionerPosition
+        position: webappWebview.wide ? webapp.settings.scrollPositionerPositionWide : webapp.settings.scrollPositionerPosition
         buttonWidthGU: webapp.settings.scrollPositionerSize
         mode: scrollTrackerItem.scrollingUp ? "Up" : "Down"
         forceHide: webappWebview.isFullScreen
@@ -318,4 +317,13 @@ Sapot.WebViewImpl {
         forceHide: webappWebview.isFullScreen
     }
 
+    // Pull up webview when onscreen keyboard is displayed
+    Connections {
+        target: webapp.osk
+        onVisibleChanged: {
+            if (visible) {
+                webappWebview.pullUpWebview()
+            }
+        }
+    }
 }

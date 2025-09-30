@@ -57,7 +57,7 @@ StyledItem {
         }
     ]
 
-    state: "shown"
+    state: alwaysHidden ? "hidden" : "shown"
 
     y: (state == "shown") ? 0 : yWhenHidden
     Behavior on y {

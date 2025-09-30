@@ -29,8 +29,30 @@ QQC2.ToolTip {
 
         let timeoutToUse = customTimeout ? customTimeout : timeout
 
+        hideTimer.startTimer(timeoutToUse)
         show(customText, timeoutToUse)
     }
 
     timeout: 3000
+
+    // WORKAROUND: Sometimes tooltip won't hide anymore
+    // We use this to hide it after the same timeout
+    onYChanged: hideTimer.stop()
+    onTextChanged: hideTimer.stop()
+    onVisibleChanged: {
+        if (!visible) {
+            hideTimer.stop()
+        }
+    }
+    Timer {
+        id: hideTimer
+
+        function startTimer(_timeout) {
+            // Add a bit more delay just because?
+            interval = _timeout + 100
+            restart()
+        }
+
+        onTriggered: tooltip.hide()
+    }
 }

@@ -314,6 +314,12 @@ Sapot.BrowserWindow {
         property int floatingScrollButtonSize: 6 // In Grid Units
         property bool enableFloatingScrollButtonAsPositioner: false
         property int floatingScrollButtonVerticalMargin: 2 // In Grid Units
+        property int scrollPositionerPositionWide: Sapot.ScrollPositionerItem.Position.Right
+        /*
+         * ScrollPositionerItem.Position.Right
+         * ScrollPositionerItem.Position.Left
+         * ScrollPositionerItem.Position.Middle
+        */
 
 
         Component.onCompleted: Sapot.Haptics.enabled = Qt.binding( function() { return enableHaptics } )
@@ -327,6 +333,7 @@ Sapot.BrowserWindow {
             enableHaptics = true;
             appWideScrollPositioner = false;
             scrollPositionerPosition = Sapot.ScrollPositionerItem.Position.Right;
+            scrollPositionerPositionWide = Sapot.ScrollPositionerItem.Position.Right;
             scrollPositionerSize = 8;
             enableWebviewPullDownGestures = false;
             physicalForGestures = false;

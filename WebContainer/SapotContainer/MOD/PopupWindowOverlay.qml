@@ -29,6 +29,7 @@ import QtQuick.Layouts 1.12
 FocusScope {
     id: popup
 
+    readonly property bool incognito: webContext === SharedWebContext.sharedIncognitoContext
     property var popupWindowController
     property var webContext
     property alias currentWebview: popupWebview
@@ -190,6 +191,7 @@ FocusScope {
         accountSwitcher: webapp.accountSwitcher
         availableHeight: popup.height
         wide: webapp.wide
+        incognito: popup.incognito
 
         anchors {
             top: parent.top

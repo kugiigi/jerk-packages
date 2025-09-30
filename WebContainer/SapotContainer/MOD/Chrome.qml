@@ -37,6 +37,7 @@ Sapot.ChromeBase {
     property color iconColor: theme.palette.normal.baseText
 
     property bool isPopupOverlay: false
+    property bool incognito: false
     property string searchUrl
 
     loading: webview && webview.loading && webview.loadProgress !== 100
@@ -198,7 +199,7 @@ Sapot.ChromeBase {
             Favicon {
                 anchors.centerIn: parent
                 source: chrome.webview ? chrome.webview.icon : null
-                shouldCache: chrome.isPopupOverlay && webapp.settings.incognitoOverlay ? false : true
+                shouldCache: chrome.isPopupOverlay && chrome.incognito ? false : true
             }
         }
 
@@ -230,11 +231,32 @@ Sapot.ChromeBase {
             width: visible ? height : 0
 
             anchors {
-                right: reloadButton.left
+                right: homeButton.left
                 verticalCenter: parent.verticalCenter
             }
 
             onTriggered: chrome.webview.toggleReaderMode()
+        }
+
+        ChromeButton {
+            id: homeButton
+            objectName: "homeButton"
+
+            iconName: "go-home"
+            iconSize: 0.6 * height
+            iconColor: chrome.iconColor
+
+            height: parent.height
+            visible: chrome.navigationButtonsVisible && !chrome.isPopupOverlay
+            width: visible ? height : 0
+
+            anchors {
+                right: reloadButton.left
+                verticalCenter: parent.verticalCenter
+            }
+
+            enabled: chrome.webview.url && chrome.webview.url !== ""
+            onTriggered: webapp.goHome()
         }
 
         ChromeButton {
