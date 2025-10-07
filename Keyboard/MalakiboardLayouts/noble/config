@@ -1,0 +1,2 @@
+target_component="maliit-keyboard-layouts"
+package_description="This package includes all experiments and fun by Kugi but specific for the layouts/languages since they are now separate in focal."

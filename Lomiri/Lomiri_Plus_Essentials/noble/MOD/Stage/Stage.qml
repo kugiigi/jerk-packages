@@ -15,7 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.12
+import QtQuick 2.15
+import QtQml 2.15
 import QtQuick.Window 2.2
 import Lomiri.Components 1.3
 import QtMir.Application 0.1
@@ -48,6 +49,7 @@ FocusScope {
     property bool spreadEnabled: true // If false, animations and right edge will be disabled
     property bool suspended
     property bool oskEnabled: false
+    property bool lightMode: false
     property rect inputMethodRect
     property real rightEdgePushProgress: 0
     property Item availableDesktopArea
@@ -118,6 +120,7 @@ FocusScope {
 
     Binding {
         target: topLevelSurfaceList
+        restoreMode: Binding.RestoreBinding
         property: "rootFocus"
         value: interactive
     }
@@ -287,7 +290,7 @@ FocusScope {
     GlobalShortcut {
         id: showWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Left
-        active: !workspaceSwitcher.active
+        active: !workspaceSwitcher.active && root.workspaceEnabled
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showLeft()
@@ -296,7 +299,7 @@ FocusScope {
     GlobalShortcut {
         id: showWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Right
-        active: !workspaceSwitcher.active
+        active: !workspaceSwitcher.active && root.workspaceEnabled
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showRight()
@@ -305,7 +308,7 @@ FocusScope {
     GlobalShortcut {
         id: showWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Up
-        active: !workspaceSwitcher.active
+        active: !workspaceSwitcher.active && root.workspaceEnabled
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showUp()
@@ -314,10 +317,47 @@ FocusScope {
     GlobalShortcut {
         id: showWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Down
-        active: !workspaceSwitcher.active
+        active: !workspaceSwitcher.active && root.workspaceEnabled
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showDown()
+        }
+    }
+
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutLeft
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Left
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutRight
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Right
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutUp
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Up
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showUpMoveApp(root.focusedAppDelegate.surface)
+        }
+    }
+    GlobalShortcut {
+        id: moveAppShowWorkspaceSwitcherShortcutDown
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Down
+        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        onTriggered: {
+            root.focus = true;
+            workspaceSwitcher.showDownMoveApp(root.focusedAppDelegate.surface)
         }
     }
 
@@ -460,19 +500,21 @@ FocusScope {
 
     Connections {
         target: panelState
-        onCloseClicked: { if (priv.focusedAppDelegate) { priv.focusedAppDelegate.close(); } }
-        onMinimizeClicked: { if (priv.focusedAppDelegate) { priv.focusedAppDelegate.requestMinimize(); } }
-        onRestoreClicked: { if (priv.focusedAppDelegate) { priv.focusedAppDelegate.requestRestore(); } }
+        function onCloseClicked() { if (priv.focusedAppDelegate) { priv.focusedAppDelegate.close(); } }
+        function onMinimizeClicked() { if (priv.focusedAppDelegate) { priv.focusedAppDelegate.requestMinimize(); } }
+        function onRestoreClicked() { if (priv.focusedAppDelegate) { priv.focusedAppDelegate.requestRestore(); } }
     }
 
     Binding {
         target: panelState
+        restoreMode: Binding.RestoreBinding
         property: "decorationsVisible"
-        value: mode == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.maximized && !root.spreadShown
+        value: mode == "windowed" && priv.focusedAppDelegate !== null && priv.focusedAppDelegate.maximized && !root.spreadShown
     }
 
     Binding {
         target: panelState
+        restoreMode: Binding.RestoreBinding
         property: "title"
         value: {
             if (priv.focusedAppDelegate !== null) {
@@ -488,6 +530,7 @@ FocusScope {
 
     Binding {
         target: panelState
+        restoreMode: Binding.RestoreBinding
         property: "focusedPersistentSurfaceId"
         value: {
             if (priv.focusedAppDelegate !== null) {
@@ -502,12 +545,14 @@ FocusScope {
 
     Binding {
         target: panelState
+        restoreMode: Binding.RestoreBinding
         property: "dropShadow"
         value: priv.focusedAppDelegate && !priv.focusedAppDelegate.maximized && priv.foregroundMaximizedAppDelegate !== null && mode == "windowed"
     }
 
     Binding {
         target: panelState
+        restoreMode: Binding.RestoreBinding
         property: "closeButtonShown"
         value: priv.focusedAppDelegate && priv.focusedAppDelegate.maximized
     }
@@ -540,22 +585,25 @@ FocusScope {
                 target: model.application
                 property: "requestedState"
                 value: applicationDelegate.requestedState
+                restoreMode: Binding.RestoreBinding
             }
 
             property var lifecycleBinding: Binding {
                 target: model.application
                 property: "exemptFromLifecycle"
+                restoreMode: Binding.RestoreBinding
                 value: model.application
                             ? (!model.application.isTouchApp ||
                                isExemptFromLifecycle(model.application.appId) ||
                                applicationDelegate.temporaryAwaken)
                             : false
+
             }
 
             property var focusRequestedConnection: Connections {
                 target: model.application
 
-                onFocusRequested: {
+                function onFocusRequested() {
                     // Application emits focusRequested when it has no surface (i.e. their processes died).
                     // Find the topmost window for this application and activate it, after which the app
                     // will be requested to be running.
@@ -586,7 +634,7 @@ FocusScope {
             PropertyChanges { target: noAppsRunningHint; visible: (root.topLevelSurfaceList.count < 1) }
             PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
             PropertyChanges { target: wallpaper; visible: false }
-            PropertyChanges { target: screensAndWorkspaces; opacity: 1 }
+            PropertyChanges { target: screensAndWorkspaces.showTimer; running: true }
         },
         State {
             name: "stagedRightEdge"; when: root.spreadEnabled && (rightEdgeDragArea.dragging || rightEdgePushProgress > 0) && root.mode == "staged"
@@ -642,14 +690,12 @@ FocusScope {
             PropertyAction { target: spreadItem; property: "highlightedIndex"; value: -1 }
             PropertyAction { target: screensAndWorkspaces; property: "activeWorkspace"; value: WMScreen.currentWorkspace }
             PropertyAnimation { target: blurLayer; properties: "brightness,blurRadius"; duration: priv.animationDuration }
-            LomiriNumberAnimation { target: screensAndWorkspaces; property: "opacity"; duration: priv.animationDuration }
         },
         Transition {
             to: "spread"
             PropertyAction { target: screensAndWorkspaces; property: "activeWorkspace"; value: WMScreen.currentWorkspace }
             PropertyAction { target: spreadItem; property: "highlightedIndex"; value: appRepeater.count > 1 ? 1 : 0 }
             PropertyAction { target: floatingFlickable; property: "contentX"; value: 0 }
-            LomiriNumberAnimation { target: screensAndWorkspaces; property: "opacity"; duration: priv.animationDuration }
         },
         Transition {
             from: "spread"
@@ -715,11 +761,33 @@ FocusScope {
             anchors { left: parent.left; top: parent.top; right: parent.right; leftMargin: root.launcherLeftMargin }
             height: Math.max(units.gu(30), parent.height * .3)
             background: root.background
-            opacity: 0
-            visible: workspaceEnabled ? opacity > 0 : false
+            visible: showAllowed
             enabled: workspaceEnabled
             mode: root.mode
+            availableDesktopArea: root.availableDesktopArea
             onCloseSpread: priv.goneToSpread = false;
+            // Clicking a workspace should put it front and center
+            onActiveWorkspaceChanged: activeWorkspace.activate()
+            opacity: visible ? 1.0 : 0.0
+            Behavior on opacity {
+                NumberAnimation { duration: priv.animationDuration }
+            }
+
+            property bool showAllowed : false
+            property var showTimer: Timer {
+                running: false
+                repeat: false
+                interval: priv.animationDuration
+                onTriggered: {
+                    if (!priv.goneToSpread)
+                        return;
+                    screensAndWorkspaces.showAllowed = root.workspaceEnabled;
+                }
+            }
+            Connections {
+                target: priv
+                onGoneToSpreadChanged: if (!priv.goneToSpread) screensAndWorkspaces.showAllowed = false
+            }
         }
 
         Spread {
@@ -734,7 +802,7 @@ FocusScope {
             leftMargin: root.availableDesktopArea.x
             model: root.topLevelSurfaceList
             spreadFlickable: floatingFlickable
-            z: 10
+            z: root.topLevelSurfaceList.count
 
             onLeaveSpread: {
                 priv.goneToSpread = false;
@@ -840,11 +908,12 @@ FocusScope {
             wrapMode: Label.WordWrap
             fontSize: "large"
             text: i18n.tr("No running apps")
+            color: "#FFFFFF"
         }
 
         Connections {
             target: root.topLevelSurfaceList
-            onListChanged: priv.updateMainAndSideStageIndexes()
+            function onListChanged() { priv.updateMainAndSideStageIndexes() }
         }
 
 
@@ -860,7 +929,7 @@ FocusScope {
 
             onDropped: {
                 drop.source.appDelegate.saveStage(ApplicationInfoInterface.MainStage);
-                drop.source.appDelegate.focus = true;
+                drop.source.appDelegate.activate();
             }
             keys: "SideStage"
         }
@@ -872,6 +941,7 @@ FocusScope {
             height: appContainer.height
             x: appContainer.width - width
             visible: false
+            showHint: !priv.sideStageDelegate
             Behavior on opacity { LomiriNumberAnimation {} }
             z: {
                 if (!priv.mainStageItemId) return 0;
@@ -921,7 +991,7 @@ FocusScope {
                 onDropped: {
                     if (drop.keys == "MainStage") {
                         drop.source.appDelegate.saveStage(ApplicationInfoInterface.SideStage);
-                        drop.source.appDelegate.focus = true;
+                        drop.source.appDelegate.activate();
                     }
                 }
                 drag {
@@ -946,6 +1016,7 @@ FocusScope {
             Behavior on opacity { LomiriNumberAnimation {} }
             visible: opacity > 0
             enabled: workspaceSwitcher
+            smooth: true
 
             Drag.active: surface != null
             Drag.keys: ["application"]
@@ -1016,11 +1087,13 @@ FocusScope {
                     value: Qt.point(appDelegate.requestedX + appDelegate.clientAreaItem.x + screenOffsetX,
                                     appDelegate.requestedY + appDelegate.clientAreaItem.y + screenOffsetY)
                     when: root.mode == "windowed"
+                    restoreMode: Binding.RestoreBinding
                 }
                 Binding {
                     target: model.window; property: "requestedPosition"
                     value: Qt.point(screenOffsetX, screenOffsetY)
                     when: root.mode != "windowed"
+                    restoreMode: Binding.RestoreBinding
                 }
 
                 // In those are for windowed mode. Those values basically store the window's properties
@@ -1060,10 +1133,10 @@ FocusScope {
 
                 Connections {
                     target: appDelegate
-                    onXChanged: appDelegate.updateNormalGeometry();
-                    onYChanged: appDelegate.updateNormalGeometry();
-                    onWidthChanged: appDelegate.updateNormalGeometry();
-                    onHeightChanged: appDelegate.updateNormalGeometry();
+                    function onXChanged() { appDelegate.updateNormalGeometry(); }
+                    function onYChanged() {  appDelegate.updateNormalGeometry(); }
+                    function onWidthChanged() {  appDelegate.updateNormalGeometry(); }
+                    function onHeightChanged() {  appDelegate.updateNormalGeometry(); }
                 }
 
                 // True when the Stage is focusing this app and playing its own animation.
@@ -1081,15 +1154,16 @@ FocusScope {
                                     Math.max(0, priv.virtualKeyboardHeight - (appContainer.height - (appDelegate.requestedY + appDelegate.height))))
                     when: root.oskEnabled && appDelegate.focus && (appDelegate.state == "normal" || appDelegate.state == "restored")
                           && root.inputMethodRect.height > 0
+                    restoreMode: Binding.RestoreBinding
                 }
 
                 Behavior on x { id: xBehavior; enabled: priv.closingIndex >= 0; LomiriNumberAnimation { onRunningChanged: if (!running) priv.closingIndex = -1} }
 
                 Connections {
                     target: root
-                    onShellOrientationAngleChanged: {
+                    function onShellOrientationAngleChanged() {
                         // at this point decoratedWindow.surfaceOrientationAngle is the old shellOrientationAngle
-                        if (application && application.rotatesWindowContents) {
+                        if (appDelegate.application && appDelegate.application.rotatesWindowContents) {
                             if (root.state == "windowed") {
                                 var angleDiff = decoratedWindow.surfaceOrientationAngle - shellOrientationAngle;
                                 angleDiff = (360 + angleDiff) % 360;
@@ -1176,6 +1250,7 @@ FocusScope {
                 }
 */
 
+
                 function activate() {
                     if (model.window.focused) {
                         updateQmlFocusFromMirSurfaceFocus();
@@ -1240,16 +1315,16 @@ FocusScope {
 
                 Connections {
                     target: model.window
-                    onFocusedChanged: {
+                    function onFocusedChanged() {
                         updateQmlFocusFromMirSurfaceFocus();
                         if (!model.window.focused) {
                             inhibitSlideAnimation = false;
                         }
                     }
-                    onFocusRequested: {
+                    function onFocusRequested() {
                         appDelegate.activate();
                     }
-                    onStateChanged: {
+                    function onStateChanged(value) {
                         if (value == Mir.MinimizedState) {
                             appDelegate.minimize();
                         } else if (value == Mir.MaximizedState) {
@@ -1427,8 +1502,6 @@ FocusScope {
                             rightEdgeFocusAnimation.targetX = appDelegate.stage == ApplicationInfoInterface.SideStage ? sideStage.x : 0
                             rightEdgeFocusAnimation.start()
                         }
-                    } else if (state == "windowedRightEdge" || state == "windowed") {
-                        activate();
                     } else {
                         focusAnimation.start()
                     }
@@ -1972,6 +2045,7 @@ FocusScope {
                     target: panelState
                     property: "decorationsAlwaysVisible"
                     value: appDelegate && appDelegate.maximized && touchControls.overlayShown
+                    restoreMode: Binding.RestoreBinding
                 }
 
                 WindowResizeArea {
@@ -2017,6 +2091,7 @@ FocusScope {
                     boundsItem: root.availableDesktopArea
                     panelState: root.panelState
                     altDragEnabled: root.mode == "windowed"
+                    lightMode: root.lightMode
 
                     requestedWidth: appDelegate.requestedWidth
                     requestedHeight: appDelegate.requestedHeight
@@ -2234,6 +2309,7 @@ FocusScope {
         height: units.gu(20)
         width: root.width - units.gu(8)
         background: root.background
+        availableDesktopArea: root.availableDesktopArea
         onActiveChanged: {
             if (!active) {
                 appContainer.focus = true;
@@ -2343,6 +2419,10 @@ FocusScope {
                 }
             }
         }
+
+        GestureAreaSizeHint {
+            anchors.fill: parent
+        }
     }
 
     TabletSideStageTouchGesture {
@@ -2377,6 +2457,13 @@ FocusScope {
             // If we're dragging to the sidestage.
             if (!sideStage.shown) {
                 sideStage.show();
+            }
+        }
+
+        onDropped: {
+            // Hide side stage if the app drag was cancelled
+            if (!priv.sideStageDelegate) {
+                sideStage.hide();
             }
         }
 
