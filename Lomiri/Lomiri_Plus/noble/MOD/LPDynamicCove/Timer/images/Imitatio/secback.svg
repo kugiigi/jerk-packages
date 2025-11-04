@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 803.00001 803.00001"
+   height="803"
+   width="803"
+   version="1.1"
+   id="svg28"
+   sodipodi:docname="secback.svg"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs32">
+    <filter
+       inkscape:label="Opacity"
+       style="color-interpolation-filters:sRGB;"
+       id="filter928"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 5 -1 "
+         result="colormatrix"
+         id="feColorMatrix924" />
+      <feComposite
+         in2="colormatrix"
+         operator="arithmetic"
+         k2="0.556676"
+         result="composite"
+         id="feComposite926" />
+    </filter>
+    <filter
+       inkscape:label="Opacity"
+       style="color-interpolation-filters:sRGB;"
+       id="filter1150"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 5 -1 "
+         result="colormatrix"
+         id="feColorMatrix1146" />
+      <feComposite
+         in2="colormatrix"
+         operator="arithmetic"
+         k2="0.421664"
+         result="composite"
+         id="feComposite1148" />
+    </filter>
+    <filter
+       inkscape:label="Opacity"
+       style="color-interpolation-filters:sRGB;"
+       id="filter1235"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 5 -1 "
+         result="colormatrix"
+         id="feColorMatrix1231" />
+      <feComposite
+         in2="colormatrix"
+         operator="arithmetic"
+         k2="0.490819"
+         result="composite"
+         id="feComposite1233" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     id="namedview30"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     showgrid="false"
+     inkscape:zoom="0.68861458"
+     inkscape:cx="238.15935"
+     inkscape:cy="458.16631"
+     inkscape:window-width="1868"
+     inkscape:window-height="1016"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg28" />
+  <circle
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="401.57941"
+     cy="72.000191"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#f32c36"
+     id="circle2" />
+  <circle
+     transform="rotate(30)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="547.7049"
+     cy="-184.18568"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle4" />
+  <circle
+     transform="rotate(60)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="549.27716"
+     cy="-479.59723"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle6" />
+  <circle
+     transform="rotate(90)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="400.80371"
+     cy="-734.48993"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#f32c36"
+     id="circle8" />
+  <circle
+     transform="rotate(120)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="146.94316"
+     cy="-880.62653"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle10" />
+  <circle
+     transform="rotate(150)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="-146.85756"
+     cy="-880.33136"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle12" />
+  <circle
+     transform="scale(-1)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="-401.58221"
+     cy="-733.66809"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#f32c36"
+     id="circle14" />
+  <circle
+     transform="rotate(-150)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="-548.11145"
+     cy="-478.58124"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle16" />
+  <circle
+     transform="rotate(-120)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="-548.80011"
+     cy="-184.31528"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle18" />
+  <circle
+     transform="rotate(-90)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="-401.88046"
+     cy="69.590752"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#f32c36"
+     id="circle20" />
+  <circle
+     transform="rotate(-60)"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     cx="-147.68907"
+     cy="216.46341"
+     r="8"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle22" />
+  <circle
+     transform="rotate(-30)"
+     r="8"
+     cy="216.06107"
+     cx="146.50108"
+     style="color:#000000;isolation:auto;mix-blend-mode:normal"
+     overflow="visible"
+     solid-color="#000000"
+     fill="#666666"
+     id="circle24" />
+</svg>

@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2016 Canonical Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 3.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+import QtQuick 2.15
+import QtQml 2.15
+import Lomiri.Components 1.3
+import GSettings 1.0
+import "../Components"
+
+FocusScope {
+    id: root
+    implicitHeight: units.gu(5)
+    focus: true
+
+    property bool isPrompt
+    property bool isPinPrompt
+    property string text
+    property bool isSecret
+    property bool interactive: true
+    property bool loginError: false
+    readonly property string enteredText: loader.item ? loader.item.enteredText : ""
+    // ENH038 - Directly type password/passcode in lockscreen
+    property alias prompt: loader.item
+    // ENH038 - End
+    property bool hasKeyboard: false
+    property bool waitingToAccept: false
+    property string pinCodeManager: "PinPrompt.qml"
+
+    signal clicked()
+    signal canceled()
+    signal accepted()
+
+    GSettings {
+        id: lomiriSettings
+        schema.id: "com.lomiri.Shell"
+    }
+
+    onEnteredTextChanged: if (waitingToAccept) root.accepted()
+
+    function showFakePassword() {
+        // Just a silly hack for looking like 4 pin numbers got entered, if
+        // a fingerprint was used and we happen to be using a pin.  This was
+        // a request from Design.
+        if (isSecret) {
+            loader.item.enteredText = "...."; // actual text doesn't matter
+        }
+    }
+
+    Loader {
+        id: loader
+        objectName: "promptLoader"
+
+        focus: true
+
+        anchors.fill: parent
+
+        Connections {
+            target: loader.item
+            function onClicked() { root.clicked() }
+            function onCanceled() { root.canceled() }
+            function onAccepted(response) {
+                if (response == root.enteredText)
+                    root.accepted();
+                else
+                    root.waitingToAccept = true;
+            }
+        }
+
+        Binding {
+            target: loader.item
+            property: "text"
+            value: root.text
+        }
+
+        Binding {
+            target: loader.item
+            property: "isSecret"
+            value: root.isSecret
+        }
+
+        Binding {
+            target: loader.item
+            property: "interactive"
+            value: root.interactive
+        }
+
+        Binding {
+            target: loader.item
+            property: "loginError"
+            value: root.loginError
+        }
+
+        Binding {
+            target: loader.item
+            property: "hasKeyboard"
+            value: root.hasKeyboard
+        }
+
+        onLoaded: loader.item.focus = true
+    }
+
+    states: [
+        State {
+            name: "ButtonPrompt"
+            when: !root.isPrompt
+            PropertyChanges { target: loader; source: "ButtonPrompt.qml" }
+        },
+        State {
+            name: "PinPrompt"
+            when: root.isPinPrompt
+            PropertyChanges { target: loader; source: root.pinCodeManager  }
+        },
+        State {
+            name: "TextPrompt"
+            when: !root.isPinPrompt
+            PropertyChanges { target: loader; source: "TextPrompt.qml" }
+        }
+    ]
+}
