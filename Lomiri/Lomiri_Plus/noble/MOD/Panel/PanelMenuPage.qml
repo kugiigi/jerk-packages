@@ -726,6 +726,7 @@ PageStack {
                                     spacing: 0
 
                                     property int dataToDisplay: LPBatteryChart.DataToDisplay.Both
+                                    property bool listViewMode: false
 
                                     function navigateDisplay() {
                                         if (dataToDisplay < 2) {
@@ -733,6 +734,10 @@ PageStack {
                                         } else {
                                             dataToDisplay = 0
                                         }
+                                    }
+
+                                    function toggleMode() {
+                                        listViewMode = !listViewMode
                                     }
 
                                     Menus.EventMenu {
@@ -779,7 +784,9 @@ PageStack {
                                             dataToDisplay: historyChartsLayout.dataToDisplay
                                             type: LPBatteryChart.Type.Day
                                             modelData: shell.batteryTracking ? shell.batteryTracking.daysData : []
+                                            listViewMode: historyChartsLayout.listViewMode
                                             onClicked: historyChartsLayout.navigateDisplay()
+                                            onToggleMode: historyChartsLayout.toggleMode()
                                         }
                                         LPBatteryChart {
                                             screenOnAverage: shell.batteryTracking ? shell.batteryTracking.screenOnTimeFullyChargedAverage : 0
@@ -787,7 +794,9 @@ PageStack {
                                             dataToDisplay: historyChartsLayout.dataToDisplay
                                             type: LPBatteryChart.Type.FullyCharged
                                             modelData: shell.batteryTracking ? shell.batteryTracking.fullyChargedData : []
+                                            listViewMode: historyChartsLayout.listViewMode
                                             onClicked: historyChartsLayout.navigateDisplay()
+                                            onToggleMode: historyChartsLayout.toggleMode()
                                         }
                                         LPBatteryChart {
                                             screenOnAverage: shell.batteryTracking ? shell.batteryTracking.screenOnTimeLastChargeAverage : 0
@@ -795,29 +804,52 @@ PageStack {
                                             dataToDisplay: historyChartsLayout.dataToDisplay
                                             type: LPBatteryChart.Type.LastCharge
                                             modelData: shell.batteryTracking ? shell.batteryTracking.lastChargeData : []
+                                            listViewMode: historyChartsLayout.listViewMode
                                             onClicked: historyChartsLayout.navigateDisplay()
+                                            onToggleMode: historyChartsLayout.toggleMode()
                                         }
                                     }
 
-                                    Menus.EventMenu {
-                                        Layout.fillWidth: true
+                                    RowLayout {
+                                        Layout.preferredHeight: units.gu(6)
+                                        Layout.leftMargin: units.gu(2)
+                                        Layout.rightMargin: units.gu(2)
+                                        Label {
+                                            id: onLabel
 
-                                        highlightWhenPressed: false
-                                        text: {
-                                            if (swipeView.currentItem.dataToDisplay !== LPBatteryChart.DataToDisplay.ScreenOff) {
-                                                return i18n.tr("On: %1").arg(swipeView.currentItem.screenOnAverage)
-                                            } else {
-                                                return i18n.tr("Off: %1").arg(swipeView.currentItem.screenOffAverage)
+                                            Layout.fillWidth: true
+                                            text: {
+                                                let _text = i18n.tr("Average: %1")
+                                                if (swipeView.currentItem.dataToDisplay === LPBatteryChart.DataToDisplay.Both) {
+                                                    _text = "On: %1"
+                                                }
+
+                                                return _text.arg(swipeView.currentItem.screenOnAverage)
                                             }
+                                            visible: historyChartsLayout.dataToDisplay !== LPBatteryChart.DataToDisplay.ScreenOff
+                                            font.pixelSize: units.gu(2)
+                                            color: theme.palette.normal.backgroundText
+                                            horizontalAlignment: offLabel.visible ? Text.AlignLeft : Text.AlignHCenter
+                                            elide: Text.ElideRight
                                         }
-                                        time: {
-                                            if (swipeView.currentItem.dataToDisplay === LPBatteryChart.DataToDisplay.Both) {
-                                                return i18n.tr("Off: %1").arg(swipeView.currentItem.screenOffAverage)
-                                            } else {
-                                                return  ""
+                                        Label {
+                                            id: offLabel
+
+                                            Layout.fillWidth: true
+                                            text: {
+                                                let _text = i18n.tr("Average: %1")
+                                                if (swipeView.currentItem.dataToDisplay === LPBatteryChart.DataToDisplay.Both) {
+                                                    _text = "Off: %1"
+                                                }
+
+                                                return _text.arg(swipeView.currentItem.screenOffAverage)
                                             }
+                                            visible: historyChartsLayout.dataToDisplay !== LPBatteryChart.DataToDisplay.ScreenOn
+                                            font.pixelSize: units.gu(2)
+                                            color: theme.palette.normal.backgroundText
+                                            horizontalAlignment: onLabel.visible ? Text.AlignRight : Text.AlignHCenter
+                                            elide: Text.ElideRight
                                         }
-                                        iconSource: ""
                                     }
 
                                     QQC2.PageIndicator {
@@ -833,6 +865,10 @@ PageStack {
                                             height: width
                                             radius: width / 2
                                         }
+                                    }
+                                    // Spacer
+                                    Item {
+                                        implicitHeight: units.gu(2)
                                     }
                                 }
                             }
@@ -1052,7 +1088,8 @@ PageStack {
                                         && model.action == "indicator.bluetooth-enabled") {
                                     root.bluetoothToggle = item
                                 }
-                                if (root.identifier == "indicator-location" && model.action == "indicator.location-detection-enabled") {
+                                if ((root.identifier == "indicator-location" || root.identifier == "lomiri-indicator-location")
+                                    && model.action == "indicator.location-detection-enabled") {
                                     root.locationToggle = item
                                 }
                                 if (root.identifier == "kugiigi-indicator-immersive" && model.action == "indicator.toggle") {

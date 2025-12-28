@@ -47,7 +47,10 @@ Item {
     // ENH069 - Wider landscape top panel pages
     // property real menuWidth: partialWidth ? units.gu(40) : width
     property real menuWidth: partialWidth ? shell.settings.widerLandscapeTopPanel ? units.gu(50) : units.gu(40)
-                                          : width
+                                          // ENH239 - Force show Launcher
+                                          //: width
+                                          : shell.settings.forceLockLauncher ? width - applicationMenuContentX : width
+                                          // ENH239 - End
     // ENH069 - End
     property alias applicationMenuContentX: __applicationMenus.menuContentX
 
@@ -271,7 +274,8 @@ Item {
             height: panelAreaBackground.height
             // ENH176 - Option for fully transparent top bar in greeter
             //visible: sourceItem !== null
-            visible: sourceItem !== null && !(shell.settings.enableTransparentTopBarInGreeter && shell.showingGreeter)
+            visible: sourceItem !== null && !((shell.settings.enableTransparentTopBarInGreeter && shell.showingGreeter)
+                                                || (shell.settings.enableTransparentTopBarOnDesktop && shell.desktopShown))
             // ENH176 - End
             sourceItem: root.topPanelBlurSource
             blurRect: Qt.rect(x,
@@ -324,9 +328,22 @@ Item {
             // ENH176 - Option for fully transparent top bar in greeter
             //readonly property real intendedOpacity: root.transparentTopBar ? root.spreadShown ? 0 : panelOpacity - (root.spreadDragProgress * 2)
             //                                                               : panelOpacity
-            readonly property real intendedOpacity: shell.settings.enableTransparentTopBarInGreeter && shell.showingGreeter ? 0
-                                                                    : root.transparentTopBar ? root.spreadShown ? 0 : panelOpacity - (root.spreadDragProgress * 2)
-                                                                                             : panelOpacity
+            readonly property real intendedOpacity: {
+                if ((shell.settings.enableTransparentTopBarInGreeter && shell.showingGreeter)
+                        || (shell.settings.enableTransparentTopBarOnDesktop && shell.desktopShown)) {
+                    return 0
+                }
+
+                if (root.transparentTopBar) {
+                    if (root.spreadShown) {
+                        return 0
+                    }
+
+                    return panelOpacity - (root.spreadDragProgress * 2)
+                }
+
+                return panelOpacity
+            }
            // ENH176 - End
             readonly property real finalOpacityBasedOnDrawer: root.drawerOpacity - intendedOpacity
             opacity: {
@@ -473,7 +490,7 @@ Item {
             // ENH056 - End
             // ENH002 - Notch/Punch hole fix
             contentLeftMargin: shell.isBuiltInScreen 
-                                    ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "left" && !shell.deviceConfiguration.fullyHideNotchInPortrait 
+                                    ? shell.orientation == 1 && shell.isLeftNotch && !shell.deviceConfiguration.fullyHideNotchInPortrait 
                                                 ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
                                     : 0
             leftMarginBlur: root.leftMarginBlur
@@ -576,7 +593,9 @@ Item {
                         }
                     }
 
-                    return returnValue
+                    // ENH239 - Force show Launcher
+                    //return returnValue
+                    return shell.settings.forceLockLauncher ? returnValue + root.applicationMenuContentX : returnValue
                 }
                 // ENH002 - End
                 right: __indicators.left
@@ -699,6 +718,10 @@ Item {
             overFlowWidth: width - appMenuClear
             enableHint: !callHint.active && !fullscreenMode
             showOnClick: !callHint.visible
+            // ENH240 - Light mode fix in Indicator Panel
+            // For some reason, it works in vanilla Lomiri without this WTF?
+            lightMode: root.lightMode
+            // ENH240 - End
             // ENH111 - Blurred expanded top panel
             // panelColor: panelAreaBackground.color
             // ENH111 - End
@@ -712,7 +735,11 @@ Item {
                                                 ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
                                     : 0*/
             contentRightMargin: shell.isBuiltInScreen && !inverted
-                                    ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "right" && !shell.deviceConfiguration.fullyHideNotchInPortrait
+                                    ? shell.orientation == 1 && shell.isRightNotch && !shell.deviceConfiguration.fullyHideNotchInPortrait
+                                                ? shell.deviceConfiguration.notchWidthMargin + (panel.batteryCircleEnabled ? panel.batteryCircleBorder : 0) : shell.deviceConfiguration.roundedCornerMargin
+                                    : 0
+            contentLeftMargin: shell.isBuiltInScreen && !inverted
+                                    ? shell.orientation == 1 && shell.isLeftNotch && !shell.deviceConfiguration.fullyHideNotchInPortrait 
                                                 ? shell.deviceConfiguration.notchWidthMargin + (panel.batteryCircleEnabled ? panel.batteryCircleBorder : 0) : shell.deviceConfiguration.roundedCornerMargin
                                     : 0
             // ENH036 - End

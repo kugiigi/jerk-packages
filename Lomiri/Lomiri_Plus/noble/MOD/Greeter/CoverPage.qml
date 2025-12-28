@@ -76,8 +76,9 @@ Showable {
     // ENH032 - End
     // ENH064 - Dynamic Cove
     property bool dynamicCoveClock: infographicsLoader.item ? infographicsLoader.item.dynamicCoveClock
-                                        : infographicsArea.children.length > 0 ? infographicsArea.children[0].item.dynamicCoveClock
-                                                                               : false
+                                        : infographicsArea.children.length > 0 && infographicsArea.children[0].item
+                                                                    ? infographicsArea.children[0].item.dynamicCoveClock
+                                                                    : false
     // ENH064 - End
     // ENH226 - Infographics on the desktop
     property alias infographicsArea: infographicsArea
@@ -349,6 +350,9 @@ Showable {
         id: infographicsLoader
         objectName: "infographicsLoader"
         // ENH226 - Infographics on the desktop
+        //
+        // This is displayed the one used when Dynamic Cove isn't displayed on the desktop
+        //
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // MAKE SURE TO CHECK THE OTHER ONE IN Greeter.qml
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

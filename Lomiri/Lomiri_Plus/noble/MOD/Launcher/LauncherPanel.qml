@@ -109,7 +109,8 @@ Rectangle {
     readonly property bool dragging: launcherListView.dragging || dndArea.dragging
 
     // ENH126 - Old school Launcher selection
-    readonly property real inchInPixel: Screen.pixelDensity * 25.4
+    readonly property real pixelDensity: shell.isBuiltInScreen && shell.settings.useCustomPixelDensity ? shell.settings.customPixelDensity : Screen.pixelDensity
+    readonly property real inchInPixel: pixelDensity * 25.4
     readonly property alias listview: launcherListView
     property real availableWidth: 0
     property real availableHeight: 0

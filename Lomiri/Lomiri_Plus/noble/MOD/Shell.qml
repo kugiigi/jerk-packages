@@ -114,10 +114,37 @@ StyledItem {
     readonly property bool isMiddleNotch: deviceConfiguration.notchPosition == "middle"
     readonly property bool isLeftNotch: deviceConfiguration.notchPosition == "left"
     // ENH036 - End
-    property real shellLeftMargin: orientation == 8 ? shellMargin : 0
-    property real shellRightMargin: orientation == 2 ? shellMargin : 0
-    property real shellBottomMargin: orientation == 4 ? shellMargin : 0
-    property real shellTopMargin: orientation == 1 ? shellMargin : 0
+    // ENH238 - Navigation buttons
+    property real navigationButtonsHeight: 0
+    //property real shellLeftMargin: orientation == 8 ? shellMargin : 0
+    //property real shellRightMargin: orientation == 2 ? shellMargin : 0
+    //property real shellBottomMargin: orientation == 4 ? shellMargin : 0
+    //property real shellTopMargin: orientation == 1 ? shellMargin : 0
+    property real shellLeftMargin: {
+        if (orientation == 8) return shellMargin
+        if (orientation == 2) return navigationButtonsHeight
+
+        return 0
+    }
+    property real shellRightMargin: {
+        if (orientation == 2) return shellMargin
+        if (orientation == 8) return navigationButtonsHeight
+
+        return 0
+    }
+    property real shellBottomMargin: {
+        if (orientation == 4) return shellMargin
+        if (orientation == 1) return navigationButtonsHeight
+
+        return 0
+    }
+    property real shellTopMargin: {
+        if (orientation == 1) return shellMargin
+        if (orientation == 4) return navigationButtonsHeight
+
+        return 0
+    }
+    // ENH238 - End
     
     readonly property bool isBuiltInScreen: Screen.name == Qt.application.screens[0].name
     // ENH002 - End
@@ -136,7 +163,7 @@ StyledItem {
     property alias settings: lp_settings
     property alias lpsettingsLoader: settingsLoader
     readonly property bool settingsShown: settingsLoader.active
-    Suru.theme: Suru.Dark
+    Suru.theme: shell.lightMode ? Suru.Light : Suru.Dark
     // ENH046 - End
     // ENH216 - Right Edge gesture for Waydroid
     readonly property bool foregroundAppIsWaydroid: stage.focusedAppId === "Waydroid"
@@ -200,6 +227,111 @@ StyledItem {
         stage.removeExemptFromLifecycle(_appId)
     }
     // ENH102 - End
+    // ENH238 - Navigation buttons
+    property bool spreadShown: stage.spreadShown
+    function toggleSpread() {
+        stage.toggleSpread()
+    }
+    function switchToPreviousApp() {
+        stage.switchToPreviousApp()
+    }
+
+    readonly property var navigationButtonsModel: navigationButtonActions.item
+                                                    ? navigationButtonActions.item.navigationButtonsModel
+                                                    : []
+    Loader {
+        id: navigationButtonActions
+
+        active: shell.settings.enableNavigationButtons
+        asynchronous: true
+        sourceComponent: Item {
+            readonly property var navigationButtonsModel: [
+                { id: "indicators", name: "Indicator Panels", action: navIndicatorsAction }
+                , { id: "drawer", name: "App Drawer", action: navDrawerAction }
+                , { id: "spread", name: "App Spread", action: navSpreadAction }
+                , { id: "closeapp", name: "Close App", action: navCloseAppAction }
+                , { id: "pulldown", name: "Pull Down", action: navPullDownAction }
+                , { id: "rotate", name: "Rotate Screen", action: navRotateAction }
+            ]
+
+            LPNavigationButtonAction {
+                id: navIndicatorsAction
+
+                iconName: shell.panel.indicators.shown ? "go-up" : "go-down"
+
+                onSingleClick: {
+                    if (shell.panel.indicators.shown) {
+                        shell.panel.indicators.hide()
+                    } else {
+                        shell.openIndicatorByIndex(-1, true)
+                    }
+                }
+            }
+
+            LPNavigationButtonAction {
+                id: navDrawerAction
+
+                iconName: "ubuntu-logo-symbolic"
+                iconSize : units.gu(5)
+                enableDoubleClick: shell.settings.navigationButtonsEnableDirectDrawerSearch
+
+                onSingleClick: {
+                    if (greeter.locked) {
+                        shell.showHome(false)
+                    } else {
+                        if (shell.drawerShown) {
+                            shell.launcher.hide()
+                        } else {
+                            shell.launcher.toggleDrawer()
+                        }
+                    }
+                }
+                onDoubleClick: {
+                    if (shell.settings.navigationButtonsEnableDirectDrawerSearch) {
+                        if (greeter.locked) {
+                            shell.showHome(true)
+                        } else {
+                            launcher.searchInDrawer()
+                        }
+                    }
+                }
+            }
+            LPNavigationButtonAction {
+                id: navSpreadAction
+
+                iconName: "swap"
+                enableDoubleClick: true
+
+                onSingleClick: shell.toggleSpread()
+                onDoubleClick: shell.switchToPreviousApp()
+            }
+            LPNavigationButtonAction {
+                id: navCloseAppAction
+
+                enabled: stage.focusedAppDelegate !== null
+                iconName: "close"
+
+                onSingleClick: stage.closeCurrentApp()
+            }
+            LPNavigationButtonAction {
+                id: navPullDownAction
+
+                enabled: shell.pullDownEnabled
+                iconName: "go-last"
+                iconRotation: shell.pulledDown ? -90 : 90
+
+                onSingleClick: shell.togglePulledDown()
+            }
+            LPNavigationButtonAction {
+                id: navRotateAction
+
+                iconName: "view-rotate"
+
+                onSingleClick: shell.toggleRotation()
+            }
+        }
+    }
+    // ENH238 - End
     // ENH220 - Detox mode
     function msToDay(_value) {
         return _value / 1000 / 60 / 60 / 24
@@ -209,14 +341,21 @@ StyledItem {
         return (_value / 1000 / 60 / 60)
     }
 
+    function hoursToms(_value) {
+        return (_value * 1000 * 60 * 60)
+    }
+
     function dayToMs(_value) {
         return _value * 24 * 60 * 60 * 1000
     }
 
-    function msToTime(_duration) {
+    function msToTime(_duration, _includeSeconds = true) {
         let _milliseconds = Math.floor((_duration % 1000) / 100)
         let _seconds = Math.floor((_duration / 1000) % 60)
         let _minutes = Math.floor((_duration / (1000 * 60)) % 60)
+        if (!_includeSeconds && _seconds > 50) {
+            _minutes += 1
+        }
         let _hours = Math.floor((_duration / (1000 * 60 * 60))) // We let hours to exceed 24 since we don't put days
 
         let _txtHours = _hours == 0 ? "" : i18n.tr("%1 hour", "%1 hours", _hours).arg(_hours)
@@ -226,7 +365,7 @@ StyledItem {
         let _finalText = ""
 
         if (_txtHours !== "") {
-            if (_txtSeconds !== "") {
+            if (_txtSeconds !== "" && _includeSeconds) {
                 _finalText = [_txtHours, _txtMinutes, _txtSeconds].join(" ")
             } else if (_txtMinutes !== "") {
                 _finalText = [_txtHours, _txtMinutes].join(" ")
@@ -234,25 +373,27 @@ StyledItem {
                 _finalText = _txtHours 
             }
         } else if (_txtMinutes !== "") {
-            if (_txtSeconds !== "") {
+            if (_txtSeconds !== "" && _includeSeconds) {
                 _finalText = [_txtMinutes, _txtSeconds].join(" ")
             } else {
                 _finalText = _txtMinutes 
             }
-        } else if (_txtSeconds !== "") {
+        } else if (_txtSeconds !== "" && _includeSeconds) {
             _finalText = _txtSeconds
-        } else {
+        } else if (_includeSeconds) {
             _finalText = "0 second"
+        } else {
+            _finalText = "0 minute"
         }
 
         return _finalText
     }
 
     function checkDetoxModeEnablement() {
-        // Check if 24 hours has passed since Detox mode was enabled
+        // Check if set period has passed since Detox mode was enabled
         const _now = new Date().getTime()
         const _diff = _now - shell.settings.detoxModeEnabledEpoch
-        if (_diff >= 86400000) { // 24 hours
+        if (_diff >= 86400000 * shell.settings.detoxModePeriod) { // 86400000 = 24 hours
         //if (_diff >= 60000) { // 1 minute For testing
         //if (_diff >= 200000) { // 1 minute For joke video
             return true
@@ -282,10 +423,12 @@ StyledItem {
             id: cannotDisableDetoxModeDialogue
 
             readonly property bool isJoke: false
+            readonly property string periodLabel: shell.settings.detoxModePeriod > 1 ? "%1 days".arg(shell.settings.detoxModePeriod)
+                                                            : "24 hours"
 
             title: "Detox mode can't be disabled"
             text: isJoke ? "You need to do 20,000 steps to disable Detox mode. Press the button below to start recording your steps 👍"
-                        : "You can only disable Detox Mode after 24 hours of enabling it ;)"
+                        : "You can only disable Detox Mode after %1 of enabling it ;)".arg(periodLabel)
 
              Button {
                  visible: isJoke
@@ -305,10 +448,36 @@ StyledItem {
         Dialog {
             id: enableDetoxModeDialogue
 
+            readonly property string periodLabel: shell.settings.detoxModePeriod > 1 ? "%1 days".arg(shell.settings.detoxModePeriod)
+                                                            : "24 hours"
             title: "This is a commitment!"
-            text: "Detox mode can only be disabled after 24 hours of enabling it. Most settings cannot be changed while it is enabled."
+            text: "Detox mode can only be disabled after %1 of enabling it. Most settings cannot be changed while it is enabled.".arg(periodLabel)
 
             signal accept
+
+            LPSettingsSlider {
+                id: detoxModePeriod
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                enabled: !shell.settings.detoxModeEnabled
+                alwaysUnlocked: true
+                title: "Locked-in Period"
+                minimumValue: 1
+                maximumValue: 30
+                stepSize: 1
+                resetValue: 1
+                live: true
+                enableFineControls: true
+                roundValue: true
+                roundingDecimal: 0
+                unitsLabel: i18n.tr("day", "days", shell.settings.detoxModePeriod)
+                onValueChanged: shell.settings.detoxModePeriod = value
+                Binding {
+                    target: detoxModePeriod
+                    property: "value"
+                    value: shell.settings.detoxModePeriod
+                }
+            }
 
             Label {
                 text: "Current settings:"
@@ -467,6 +636,10 @@ StyledItem {
 
     // True when the user is logged in with no apps running
     readonly property bool atDesktop: topLevelSurfaceList && greeter && topLevelSurfaceList.count === 0 && !greeter.active
+    // ENH199 - Indicators custom colors
+    readonly property bool desktopShown: atDesktop || stage.desktopShown
+    readonly property alias drawerShown: launcher.drawerShown
+    // ENH199 - End
 
     onAtDesktopChanged: {
         if (atDesktop && stage && !stage.workspaceEnabled) {
@@ -479,6 +652,9 @@ StyledItem {
     property alias osk: inputMethod
     property bool pullDownSettingsShown: false
     // ENH117 - End
+    // ENH232 - Fingerprint toggling while typing passcode
+    property bool oskShown: inputMethod.visible
+    // ENH232 - End
     // ENH061 - Add haptics
     readonly property alias haptics: hapticsFeedback
     LPHaptics {
@@ -508,7 +684,7 @@ StyledItem {
         ,{"identifier": "ayatana-indicator-power", "name": "Battery", "icon": "battery-full-symbolic", "indicatorIndex": powerIndicatorIndex}
         ,{"identifier": "ayatana-indicator-sound", "name": "Sound", "icon": "audio-speakers-symbolic", "indicatorIndex": soundIndicatorIndex}
         ,{"identifier": "ayatana-indicator-rotation-lock", "name": "Rotation", "icon": "orientation-lock", "indicatorIndex": rotationToggleIndex}
-        ,{"identifier": "indicator-location", "name": "Location", "icon": "location", "indicatorIndex": locationToggleIndex}
+        ,{"identifier": "lomiri-indicator-location", "name": "Location", "icon": "location", "indicatorIndex": locationToggleIndex}
         ,{"identifier": "ayatana-indicator-bluetooth", "name": "Bluetooth", "icon": "bluetooth-active", "indicatorIndex": bluetoothToggleIndex}
         ,{"identifier": "kugiigi-indicator-darkmode", "name": "Dark Mode", "icon": "night-mode", "indicatorIndex": darkModeToggleIndex}
         ,{"identifier": "ayatana-indicator-messages", "name": "Notifications", "icon": panel.hasNotifications ? "indicator-messages-new" : "indicator-messages", "indicatorIndex": 0}
@@ -520,6 +696,9 @@ StyledItem {
         return [{ "identifier": "last-opened-indicator", "name": "Last Opened", "icon": "system-devices-panel", "indicatorIndex": -1 }].concat(shell.indicatorsModel)
     }
     // ENH133 - End
+    // ENH219 - Fingerprint Improvements
+    readonly property bool deviceUnlocked: greeter && greeter.actuallyUnlocked
+    // ENH219 - End
     // ENH139 - System Direct Actions
     property bool directActionsSettingsShown: false
     property alias appModel: launcher.appModel
@@ -567,6 +746,7 @@ StyledItem {
     readonly property var customDirectActions: [
         lockScreenAction, lomiriPlusAction, powerDialogAction, screenshotAction, rotateAction, appScreenshotAction
         , closeAppAction, showDesktopAction, appSuspensionAction, searchDrawerAction, playPauseAction, goNextAction, goPreviousAction
+        , emojiPopupAction, searchDrawerAppsAction, searchDrawerWebAction
     ]
     Action {
         id: lockScreenAction
@@ -580,6 +760,7 @@ StyledItem {
         id: powerDialogAction
         name: "powerDialog"
         text: "Power Dialog"
+        enabled: greeter.actuallyUnlocked
         iconName: "system-devices-panel"
         onTriggered: dialogs.showPowerDialog()
     }
@@ -653,6 +834,32 @@ StyledItem {
         }
     }
     Action {
+        id: searchDrawerAppsAction
+        name: "searchdrawerapps"
+        text: "Search Apps"
+        iconName: "find"
+        onTriggered: {
+            if (greeter.locked) {
+                shell.showHome(true, "apps")
+            } else {
+                launcher.searchInDrawer("apps")
+            }
+        }
+    }
+    Action {
+        id: searchDrawerWebAction
+        name: "searchdrawerweb"
+        text: "Search the web"
+        iconName: "stock_website"
+        onTriggered: {
+            if (greeter.locked) {
+                shell.showHome(true, "web")
+            } else {
+                launcher.searchInDrawer("web")
+            }
+        }
+    }
+    Action {
         id: playPauseAction
         readonly property bool canPlay: shell.playbackItemIndicator && shell.playbackItemIndicator.canPlay ? true : false
         readonly property bool isPlaying: shell.playbackItemIndicator && shell.playbackItemIndicator.playing ? true : false
@@ -695,12 +902,22 @@ StyledItem {
             }
         }
     }
+    // ENH235 - Emoji selector popup
+    Action {
+        id: emojiPopupAction
+
+        name: "emojiPopup"
+        text: "Emoji Selector"
+        iconName: "bot"
+        onTriggered: emojiSelectorLoader.open()
+    }
+    // ENH235 - End
     Action {
         id: lomiriPlusAction
         name: "lomiriplus"
         text: "LomiriPlus Settings"
         iconName: "properties"
-        enabled: shell.settings.onlyShowLomiriSettingsWhenUnlocked ? !shell.showingGreeter : true
+        enabled: shell.settings.onlyShowLomiriSettingsWhenUnlocked ? greeter.actuallyUnlocked : true
         onTriggered: showSettings()
     }
     // ENH139 - End
@@ -708,6 +925,10 @@ StyledItem {
     // ENH056 - Quick toggles
     function findFromArray(_arr, _itemProp, _itemValue) {
         return _arr.find(item => item[_itemProp] == _itemValue)
+    }
+
+    function filterArray(_arr, _itemProp, _itemValue) {
+        return _arr.filter(item => item[_itemProp] == _itemValue)
     }
 
     function countFromArray(_arr, _itemProp, _itemValue) {
@@ -1132,7 +1353,34 @@ StyledItem {
 
     // ENH046 - Lomiri Plus Settings
     function convertFromInch(value) {
-        return (Screen.pixelDensity * 25.4) * value
+        let _density = Screen.pixelDensity
+        if (shell.isBuiltInScreen && shell.settings.useCustomPixelDensity) {
+            _density = shell.settings.customPixelDensity
+        }
+        return (_density * 25.4) * value
+    }
+
+    function fetch(url, callback = Function.prototype, headers = {}, method = 'GET') {
+        const request = new XMLHttpRequest();
+
+        request.open(method, url);
+
+        Object.entries(headers).forEach(([key, value]) => request.setRequestHeader(key, value));
+
+        request.onreadystatechange = () => {
+            if(request.readyState === XMLHttpRequest.DONE) {
+                callback({
+                    status: request.status,
+                    headers: request.getAllResponseHeaders(),
+                    contentType: request.responseType,
+                    content: request.response
+                });
+            }
+        }
+
+        request.send();
+
+        return request;
     }
 
     function removeItemFromList(arr, value, isColor) {
@@ -1272,6 +1520,10 @@ StyledItem {
         property alias darkenWallpaperWhenInfographics: settingsObj.darkenWallpaperWhenInfographics
         property alias darkenWallpaperWhenInfographicsOpacity: settingsObj.darkenWallpaperWhenInfographicsOpacity
         property alias lightModeNotificationBubble: settingsObj.lightModeNotificationBubble
+        property alias enableEmojiToggleKeyboardShortcut: settingsObj.enableEmojiToggleKeyboardShortcut
+        property alias enableNavigationButtons: settingsObj.enableNavigationButtons
+        property alias navigationButtonsList: settingsObj.navigationButtonsList
+        property alias navigationButtonsEnableDirectDrawerSearch: settingsObj.navigationButtonsEnableDirectDrawerSearch
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -1287,6 +1539,8 @@ StyledItem {
         property alias swipeToUnlockFingerprint: settingsObj.swipeToUnlockFingerprint
         property alias swipeToUnlockEnableAutoLockTimeout: settingsObj.swipeToUnlockEnableAutoLockTimeout
         property alias swipeToUnlockAutoLockTimeout: settingsObj.swipeToUnlockAutoLockTimeout
+        property alias disableFingerprintWhileTyping: settingsObj.disableFingerprintWhileTyping
+        property alias disableFingerprintWhileTypingBehavior: settingsObj.disableFingerprintWhileTypingBehavior
 
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
@@ -1353,6 +1607,22 @@ StyledItem {
         property alias extendDrawerOverTopBar: settingsObj.extendDrawerOverTopBar
         property alias appGridIndicatorExpandedSize: settingsObj.appGridIndicatorExpandedSize
         property alias appGridIndicatorDoNotExpandWithMouse: settingsObj.appGridIndicatorDoNotExpandWithMouse
+        property alias drawerAnimationSpeed: settingsObj.drawerAnimationSpeed
+        property alias enableCustomDrawerSearch: settingsObj.enableCustomDrawerSearch
+        property alias customDrawerSearchQuickWebResults: settingsObj.customDrawerSearchQuickWebResults
+        property alias customDrawerSearchQuickWebResultsSource: settingsObj.customDrawerSearchQuickWebResultsSource
+        property alias customDrawerSearchOpenStore: settingsObj.customDrawerSearchOpenStore
+        property alias customDrawerSearchSaliksikExists: settingsObj.customDrawerSearchSaliksikExists
+        property alias customDrawerSearchSaliksikSetSearchEngine: settingsObj.customDrawerSearchSaliksikSetSearchEngine
+        property alias customDrawerSearchWebSearchEngine: settingsObj.customDrawerSearchWebSearchEngine
+        property alias customDrawerSearchShowSearchEngineActions: settingsObj.customDrawerSearchShowSearchEngineActions
+        property alias customDrawerSearchSearchEngineActions: settingsObj.customDrawerSearchSearchEngineActions
+        property alias customDrawerSearchShowButton: settingsObj.customDrawerSearchShowButton
+        property alias customDrawerSearchForcePredictiveText: settingsObj.customDrawerSearchForcePredictiveText
+        property alias forceLockLauncher: settingsObj.forceLockLauncher
+        property alias customDrawerSearchExpandHeaderHideOSK: settingsObj.customDrawerSearchExpandHeaderHideOSK
+        property alias customDrawerSearchExitHideOSK: settingsObj.customDrawerSearchExitHideOSK
+        property alias customDrawerSearchEnableBackspaceSearchType: settingsObj.customDrawerSearchEnableBackspaceSearchType
 
         // Drawer Dock
         property alias enableDrawerDock: settingsObj.enableDrawerDock
@@ -1423,6 +1693,10 @@ StyledItem {
         property alias enableBluetoothDevicesList: settingsObj.enableBluetoothDevicesList
         property alias recentBlutoothDevicesList: settingsObj.recentBlutoothDevicesList
         property alias useIndicatorSelectorForPanelBarWhenInverted: settingsObj.useIndicatorSelectorForPanelBarWhenInverted
+        property alias useCustomTopBarIconTextColorDesktop: settingsObj.useCustomTopBarIconTextColorDesktop
+        property alias customTopBarIconTextColorDesktop: settingsObj.customTopBarIconTextColorDesktop
+        property alias enableTransparentTopBarOnDesktop: settingsObj.enableTransparentTopBarOnDesktop
+        property alias enableTransparentExpandedTopBar: settingsObj.enableTransparentExpandedTopBar
 
         //Quick Toggles
         property alias enableQuickToggles: settingsObj.enableQuickToggles
@@ -1474,7 +1748,14 @@ StyledItem {
         property alias lockScreenClockStyleColor: settingsObj.lockScreenClockStyleColor
         property alias lockScreenDateStyle: settingsObj.lockScreenDateStyle
         property alias lockScreenDateStyleColor: settingsObj.lockScreenDateStyleColor
-        
+        property alias useCustomCoverPageDarkBGOpacity: settingsObj.useCustomCoverPageDarkBGOpacity
+        property alias coverPageDarkBGOpacity: settingsObj.coverPageDarkBGOpacity
+        property alias useCustomLockscreenDarkBGOpacity: settingsObj.useCustomLockscreenDarkBGOpacity
+        property alias lockscreenDarkBGOpacity: settingsObj.lockscreenDarkBGOpacity
+        property alias useCustomInfographicsTexts: settingsObj.useCustomInfographicsTexts
+        property alias customInfographicsTexts: settingsObj.customInfographicsTexts
+        property alias showRandomInfographicsCircles: settingsObj.showRandomInfographicsCircles
+
         // Sensor Gestures
         property alias enableSensorGestures: settingsObj.enableSensorGestures
         property alias enableSensorGesturesOnlyWhenScreenOn: settingsObj.enableSensorGesturesOnlyWhenScreenOn
@@ -1679,7 +1960,10 @@ StyledItem {
         property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
         property alias enableVolumeButtonsLogic: settingsObj.enableVolumeButtonsLogic
         property alias workaroundMaxAppsSwitchWorkspace: settingsObj.workaroundMaxAppsSwitchWorkspace
-        
+        property alias dataMigratedToNoble: settingsObj.dataMigratedToNoble
+        property alias useCustomPixelDensity: settingsObj.useCustomPixelDensity
+        property alias customPixelDensity: settingsObj.customPixelDensity
+
         // Detox Mode
         property alias enableDetoxModeToggleIndicator: settingsObj.enableDetoxModeToggleIndicator
         property alias detoxModeEnabled: settingsObj.detoxModeEnabled
@@ -1690,6 +1974,7 @@ StyledItem {
         property alias detoxModeIntervalStart: settingsObj.detoxModeIntervalStart
         property alias detoxModeIntervalEnd: settingsObj.detoxModeIntervalEnd
         property alias detoxModeType: settingsObj.detoxModeType
+        property alias detoxModePeriod: settingsObj.detoxModePeriod
 
         // Extras
         property alias blueScreenNotYetShown: settingsObj.blueScreenNotYetShown
@@ -1727,6 +2012,68 @@ StyledItem {
                         _tempArr.push({"type": _newItem, "enabled": false})
                         settingsObj.quickToggles = _tempArr.slice()
                     }
+                }
+
+                // Migrate data and names to new values in Noble
+                if (!dataMigratedToNoble) {
+                    
+                    const _appNamesToReplace = [
+                        { "old": "address-book-app", "new": "lomiri-addressbook-app" }
+                        , { "old": "messaging-app", "new": "lomiri-messaging-app" }
+                        , { "old": "dialer-app", "new": "lomiri-dialer-app" }
+                        , { "old": "mediaplayer-app", "new": "lomiri-mediaplayer-app" }
+                    ]
+
+                    const _idsToReplace = [
+                        ..._appNamesToReplace
+                        , { "old": "indicator-transfer", "new": "lomiri-indicator-transfer" }
+                        , { "old": "indicator-location", "new": "lomiri-indicator-location" }
+                    ]
+
+                    // Drawer Dock
+                    let _tempDrawerDockApps = drawerDockApps.slice()
+
+                    for (const _app of _appNamesToReplace) {
+                        const _foundIndex = _tempDrawerDockApps.findIndex((element) => (element == _app.old));
+                        if (_foundIndex > -1) {
+                            _tempDrawerDockApps[_foundIndex] = _app.new
+                        }
+                    }
+
+                    drawerDockApps = _tempDrawerDockApps.slice()
+
+                    // Quick Actions
+
+                    // Make deep copy of the array of objects
+                    // TODO: Use `structuredClone` instead when it's available
+                    let _tempDirectActionList = JSON.parse(JSON.stringify(directActionList))
+
+                    for (const _item of _idsToReplace) {
+                        const _foundIndex = _tempDirectActionList.findIndex((element) => (element.actionId == _item.old));
+                        if (_foundIndex > -1) {
+                            _tempDirectActionList[_foundIndex].actionId = _item.new
+                        }
+                    }
+
+                    directActionList = _tempDirectActionList.slice()
+
+                    // App Grids
+                    let _tempCustomAppGrids = JSON.parse(JSON.stringify(customAppGrids))
+
+                    for (const _app of _appNamesToReplace){
+                        for (const _grid of _tempCustomAppGrids) {
+                            const _appsList = _grid.apps
+                            const _foundIndex = _appsList.findIndex((element) => (element == _app.old));
+                            if (_foundIndex > -1) {
+                                _appsList[_foundIndex] = _app.new
+                            }
+                        }
+                    }
+
+                    customAppGrids = _tempCustomAppGrids.slice()
+                    
+                    dataMigratedToNoble = true
+                    console.log("Data and settings migrated to Noble")
                 }
             }
             // ENH056 - End
@@ -1853,7 +2200,7 @@ StyledItem {
                 ,{"id": 3, "enabled": true} // ayatana-indicator-power
                 ,{"id": 4, "enabled": true} // ayatana-indicator-sound
                 ,{"id": 5, "enabled": false} // ayatana-indicator-rotation-lock
-                ,{"id": 6, "enabled": false} // indicator-location
+                ,{"id": 6, "enabled": false} // lomiri-indicator-location
                 ,{"id": 7, "enabled": false} // ayatana-indicator-bluetooth
                 ,{"id": 8, "enabled": false} // kugiigi-indicator-darkmode
             ]
@@ -1879,11 +2226,11 @@ StyledItem {
             property bool disableRightEdgeMousePush: false
             property bool enableDrawerDock: false
             property var drawerDockApps: [
-                "dialer-app"
-                , "messaging-app"
+                "lomiri-dialer-app"
+                , "lomiri-messaging-app"
                 , "morph-browser"
                 , "lomiri-system-settings"
-                , "address-book-app"
+                , "lomiri-addressbook-app"
                 , "openstore.openstore-team_openstore"
                 , "gallery.ubports_gallery"
                 , "camera.ubports_camera"
@@ -2006,11 +2353,11 @@ StyledItem {
                     name: "Default"
                     , icon: "starred"
                     , apps: [
-                        "dialer-app"
-                        , "messaging-app"
+                        "lomiri-dialer-app"
+                        , "lomiri-messaging-app"
                         , "morph-browser"
                         , "lomiri-system-settings"
-                        , "address-book-app"
+                        , "lomiri-addressbook-app"
                         , "openstore.openstore-team_openstore"
                         , "gallery.ubports_gallery"
                         , "camera.ubports_camera"
@@ -2348,6 +2695,64 @@ StyledItem {
             property bool ow_showSolarSystemOnDesktop: false
             property bool ow_showSolarSystemOnDesktopRunAllTime: false
             property bool lightModeNotificationBubble: false
+            property bool dataMigratedToNoble: false
+            property int detoxModePeriod: 1 // In Days
+            property bool useCustomCoverPageDarkBGOpacity: false
+            property real coverPageDarkBGOpacity: 0.4
+            property bool useCustomLockscreenDarkBGOpacity: false
+            property real lockscreenDarkBGOpacity: 0.6
+            property bool disableFingerprintWhileTyping: false
+            property int disableFingerprintWhileTypingBehavior: 0
+            /*
+             * 0 - Either
+               1 - On-screen Keyboard
+               2 - Entered text
+
+            */
+            property int drawerAnimationSpeed: 0
+            /*
+             * 0 - Default
+               1 - Fast
+               2 - Faster
+               3 - Instantaneous
+
+            */
+            property bool useCustomInfographicsTexts: false
+            property var customInfographicsTexts: ["Sample Text"]
+            property bool showRandomInfographicsCircles: false
+            property bool enableEmojiToggleKeyboardShortcut: false
+            property bool enableCustomDrawerSearch: false
+            property bool useCustomPixelDensity: false
+            property real customPixelDensity: Screen.pixelDensity
+            property bool customDrawerSearchQuickWebResults: false
+            property int customDrawerSearchQuickWebResultsSource: 0
+            /*
+             * 0 - Wikipedia
+               1 - DuckDuckGo
+            */
+            property bool customDrawerSearchOpenStore: false
+            property bool customDrawerSearchSaliksikExists: false
+            property bool customDrawerSearchSaliksikSetSearchEngine: false
+            property string customDrawerSearchWebSearchEngine: "duckduckgo"
+            property bool customDrawerSearchShowSearchEngineActions: false
+            property var customDrawerSearchSearchEngineActions: []
+            property bool customDrawerSearchShowButton: true
+            property bool useCustomTopBarIconTextColorDesktop: false
+            property color customTopBarIconTextColorDesktop: theme.palette.normal.backgroundText
+            property bool enableTransparentTopBarOnDesktop: false
+            property bool enableNavigationButtons: false
+            property var navigationButtonsList: [
+                "indicators"
+                , "drawer"
+                , "spread"
+            ]
+            property bool navigationButtonsEnableDirectDrawerSearch: false
+            property bool customDrawerSearchForcePredictiveText: false
+            property bool forceLockLauncher: false
+            property bool customDrawerSearchExpandHeaderHideOSK: false
+            property bool enableTransparentExpandedTopBar: false
+            property bool customDrawerSearchExitHideOSK: false
+            property bool customDrawerSearchEnableBackspaceSearchType: false
         }
     }
 
@@ -2587,6 +2992,35 @@ StyledItem {
         }
     }
     // ENH067 - End
+    // ENH235 - Emoji selector popup
+    Loader {
+        id: emojiSelectorLoader
+
+        property var itemToColor
+        property color oldColor
+
+        anchors.fill: parent
+        z: settingsLoader.z + 1
+        active: false
+        asynchronous: true
+
+        function toggle() {
+            active = !active
+        }
+
+        function open() {
+            active = true
+        }
+        
+        function close() {
+            active = false
+        }
+
+        sourceComponent: LPEmojiSelector {
+            onClose: emojiSelectorLoader.close()
+        }
+    }
+    // ENH235 - End
 
     Loader {
         id: settingsLoader
@@ -2842,6 +3276,11 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Emoji Selector Popup"
+                onClicked: settingsLoader.item.stack.push(emojiPopupPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Fully Charged Alarm"
                 onClicked: settingsLoader.item.stack.push(chargingAlarmPage, {"title": text})
             }
@@ -2866,6 +3305,11 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Launcher Direct Select"
                 onClicked: settingsLoader.item.stack.push(directSelectPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Drawer Advanced Search"
+                onClicked: settingsLoader.item.stack.push(drawerCustomSearchPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -2922,6 +3366,377 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Hot Corners"
                 onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: drawerCustomSearchPage
+
+        LPSettingsPage {
+            LPSettingsSwitch {
+                id: enableCustomDrawerSearch
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableCustomDrawerSearch = checked
+                Binding {
+                    target: enableCustomDrawerSearch
+                    property: "checked"
+                    value: shell.settings.enableCustomDrawerSearch
+                }
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Search Field"
+                onClicked: settingsLoader.item.stack.push(searchFieldPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Web Search"
+                onClicked: settingsLoader.item.stack.push(webSearchPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "App Search"
+                onClicked: settingsLoader.item.stack.push(appsSearchPage, {"title": text})
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchShowButton
+                Layout.fillWidth: true
+                text: "Display search button in the app drawer"
+                onCheckedChanged: shell.settings.customDrawerSearchShowButton = checked
+                Binding {
+                    target: customDrawerSearchShowButton
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchShowButton
+                }
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchExpandHeaderHideOSK
+                Layout.fillWidth: true
+                text: "Expand header upon closing the onscreen keyboard when there's an active search"
+                onCheckedChanged: shell.settings.customDrawerSearchExpandHeaderHideOSK = checked
+                Binding {
+                    target: customDrawerSearchExpandHeaderHideOSK
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchExpandHeaderHideOSK
+                }
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchExitHideOSK
+                Layout.fillWidth: true
+                text: "Exit search upon closing the onscreen keyboard when there's no active search"
+                onCheckedChanged: shell.settings.customDrawerSearchExitHideOSK = checked
+                Binding {
+                    target: customDrawerSearchExitHideOSK
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchExitHideOSK
+                }
+            }
+        }
+    }
+    Component {
+        id: searchFieldPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "By default, predictive text is only enabled in Web search."
+                + "\n\nPressing 'Space', while the search field is empty, will toggle forwards between search types"
+                + "\n\nWhen enabled, pressing 'Backspace', while the search field is empty, will toggle backwards between search types"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchForcePredictiveText
+                Layout.fillWidth: true
+                text: "Enable predictive text in all search types, when available"
+                onCheckedChanged: shell.settings.customDrawerSearchForcePredictiveText = checked
+                Binding {
+                    target: customDrawerSearchForcePredictiveText
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchForcePredictiveText
+                }
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchEnableBackspaceSearchType
+                Layout.fillWidth: true
+                text: "Enable backspace for toggling search type backwards"
+                onCheckedChanged: shell.settings.customDrawerSearchEnableBackspaceSearchType = checked
+                Binding {
+                    target: customDrawerSearchEnableBackspaceSearchType
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchEnableBackspaceSearchType
+                }
+            }
+        }
+    }
+    Component {
+        id: appsSearchPage
+
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: customDrawerSearchOpenStore
+                Layout.fillWidth: true
+                text: "Display OpenStore search results"
+                onCheckedChanged: shell.settings.customDrawerSearchOpenStore = checked
+                Binding {
+                    target: customDrawerSearchOpenStore
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchOpenStore
+                }
+            }
+        }
+    }
+    Component {
+        id: webSearchPage
+
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: customDrawerSearchSaliksikExists
+                Layout.fillWidth: true
+                text: "Use Saliksik app for searching externally"
+                onCheckedChanged: shell.settings.customDrawerSearchSaliksikExists = checked
+                Binding {
+                    target: customDrawerSearchSaliksikExists
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchSaliksikExists
+                }
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchSaliksikSetSearchEngine
+                Layout.fillWidth: true
+                text: "Use specific Search Engine in Saliksik"
+                visible: shell.settings.customDrawerSearchSaliksikExists
+                onCheckedChanged: shell.settings.customDrawerSearchSaliksikSetSearchEngine = checked
+                Binding {
+                    target: customDrawerSearchSaliksikSetSearchEngine
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchSaliksikSetSearchEngine
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Search engine for external searches")
+                visible: !shell.settings.customDrawerSearchSaliksikExists
+                                || (shell.settings.customDrawerSearchSaliksikExists && shell.settings.customDrawerSearchSaliksikSetSearchEngine)
+                model: shell.searchEngines
+                containerHeight: itemHeight * 6
+                selectedIndex: model.findIndex(element => element.id === shell.settings.customDrawerSearchWebSearchEngine )
+                onSelectedIndexChanged: {
+                    if (selectedIndex > -1) {
+                        shell.settings.customDrawerSearchWebSearchEngine = model[selectedIndex].id
+                    } else {
+                        shell.settings.customDrawerSearchWebSearchEngine = "duckduckgo"
+                    }
+                }
+                delegate: serachEnginesSelectorDelegate
+            }
+            Component {
+                id: serachEnginesSelectorDelegate
+                OptionSelectorDelegate { text: modelData.name }
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchShowSearchEngineActions
+                Layout.fillWidth: true
+                text: "Display other search engines as options"
+                onCheckedChanged: shell.settings.customDrawerSearchShowSearchEngineActions = checked
+                Binding {
+                    target: customDrawerSearchShowSearchEngineActions
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchShowSearchEngineActions
+                }
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Other Search Engines"
+                visible: shell.settings.customDrawerSearchShowSearchEngineActions
+                onClicked: settingsLoader.item.stack.push(otherSearchEnginePage, {"title": text})
+            }
+            LPSettingsCheckBox {
+                id: customDrawerSearchQuickWebResults
+                Layout.fillWidth: true
+                text: "Display quick result"
+                onCheckedChanged: shell.settings.customDrawerSearchQuickWebResults = checked
+                Binding {
+                    target: customDrawerSearchQuickWebResults
+                    property: "checked"
+                    value: shell.settings.customDrawerSearchQuickWebResults
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                text: "Displays a short paragraph related to the search text, if there's any."
+                wrapMode: Text.WordWrap
+                font.italic: true
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(4)
+                text: i18n.tr("Source")
+                visible: shell.settings.customDrawerSearchQuickWebResults
+                model: [
+                    "Wikipedia"
+                    , "DuckDuckGo"
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.customDrawerSearchQuickWebResultsSource
+                onSelectedIndexChanged: shell.settings.customDrawerSearchQuickWebResultsSource = selectedIndex
+            }
+
+            Component {
+                id: otherSearchEnginePage
+                
+                LPSettingsPage {
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: "Displayed as buttons that will redirect the user to search using the respective search engine"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(2)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.topMargin: units.gu(1)
+                        Layout.bottomMargin: units.gu(1)
+
+                        text: i18n.tr("Add")
+                        color: theme.palette.normal.positive
+                        onClicked: {
+                            // Do not use PopupUtils to fix orientation issues
+                            let _dialogAdd = addDialogComponent.createObject(shell.popupParent);
+
+                            let _addNewSearchEngine = function (_id) {
+                                let _tempArr = shell.settings.customDrawerSearchSearchEngineActions.slice()
+                                _tempArr.push(_id)
+                                shell.settings.customDrawerSearchSearchEngineActions = _tempArr.slice()
+                            }
+
+                            _dialogAdd.add.connect(_addNewSearchEngine)
+                            _dialogAdd.show()
+                        }
+                    }
+                    ListView {
+                        id: listView
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: contentHeight
+
+                        interactive: false
+                        model: shell.settings.customDrawerSearchSearchEngineActions
+
+                        delegate: ListItem {
+                            id: listItem
+
+                            property int actionIndex: index
+                            property var itemData: shell.searchEngines.find( element => element.id === modelData)
+
+                            height: layout.height + (divider.visible ? divider.height : 0)
+                            color: dragging ? theme.palette.selected.base : "transparent"
+
+                            ListItemLayout {
+                                id: layout
+                                title.text: itemData ? itemData.name : i18n.tr("Unknown")
+                                title.wrapMode: Text.WordWrap
+                            }
+
+                            leadingActions: ListItemActions {
+                                actions: [
+                                    Action {
+                                        iconName: "delete"
+                                        onTriggered: {
+                                            let _arrNewValues = shell.settings.customDrawerSearchSearchEngineActions.slice()
+                                            _arrNewValues.splice(listItem.actionIndex, 1)
+                                            shell.settings.customDrawerSearchSearchEngineActions = _arrNewValues.slice()
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+
+                        Component {
+                            id: addDialogComponent
+
+                            Dialog {
+                                id: addDialog
+
+                                signal add(string id)
+                                signal close
+
+                                onAdd: close()
+
+                                property bool reparentToRootItem: false
+
+                                title: "Search engine"
+                                anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+
+                                onClose: PopupUtils.close(addDialog)
+
+                                OptionSelector {
+                                    id: searchEngineSelector
+
+                                    Layout.fillWidth: true
+                                    Layout.margins: units.gu(2)
+                                    text: i18n.tr("Search engine")
+                                    model: shell.searchEngines
+                                    containerHeight: itemHeight * 6
+                                    delegate: serachEnginesSelectorDelegate
+                                }
+                                Component {
+                                    id: serachEnginesSelectorDelegate
+                                    OptionSelectorDelegate { text: modelData.name }
+                                }
+
+                                Button {
+                                    text: "Add"
+                                    color: theme.palette.normal.positive
+
+                                    onClicked: {
+                                        addDialog.add(shell.searchEngines[searchEngineSelector.selectedIndex].id)
+                                    }
+                                }
+                                Button {
+                                    text: "Cancel"
+                                    onClicked: addDialog.close()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Component {
+        id: emojiPopupPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Open an Emoji selector popup with a keyboard shortcut"
+                + '\n\nShortcut: Ctrl + ; (Semicolon)'
+                + "\n\nSelecting an emoji won't automatically input it on the text field. It only copies it to the clipboard which you can paste."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableEmojiToggleKeyboardShortcut
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableEmojiToggleKeyboardShortcut = checked
+                Binding {
+                    target: enableEmojiToggleKeyboardShortcut
+                    property: "checked"
+                    value: shell.settings.enableEmojiToggleKeyboardShortcut
+                }
             }
         }
     }
@@ -3158,7 +3973,7 @@ StyledItem {
                 Layout.rightMargin: units.gu(2)
                 text: "When Detox mode is enabled, a fun fullscreen page appears when any of the apps listed below are in focus or the currently active app.\n\n"
                 + " The fun page appears at random times or at fixed interval depending on the settings.\n\n"
-                + "Note that Detox mode can only be disabled after 24 hours from the time of enabling it"
+                + "Note that Detox mode can only be disabled after the set locked-in period from the time of enabling it"
                 verticalAlignment: Text.AlignVCenter
                 wrapMode: Text.WordWrap
                 font.italic: true
@@ -3213,6 +4028,28 @@ StyledItem {
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.detoxModeBehavior
                 onSelectedIndexChanged: shell.settings.detoxModeBehavior = selectedIndex
+            }
+            LPSettingsSlider {
+                id: detoxModePeriod
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                enabled: !shell.settings.detoxModeEnabled
+                title: "Locked-in Period"
+                minimumValue: 1
+                maximumValue: 30
+                stepSize: 1
+                resetValue: 1
+                live: true
+                enableFineControls: true
+                roundValue: true
+                roundingDecimal: 0
+                unitsLabel: i18n.tr("day", "days", shell.settings.detoxModePeriod)
+                onValueChanged: shell.settings.detoxModePeriod = value
+                Binding {
+                    target: detoxModePeriod
+                    property: "value"
+                    value: shell.settings.detoxModePeriod
+                }
             }
             LPSettingsSlider {
                 id: detoxModeInterval
@@ -3372,6 +4209,9 @@ StyledItem {
 
                         property int selectedIndex: 0
                         property string actionId: {
+                            // This makes sure the value gets reevaluated once the model is filled
+                            if (actionIdSelector.model.count === 0) return ""
+
                             const _app = actionIdSelector.model.get(detoxModeDialogue.selectedIndex)
                             let _appId = _app.appId
                             return _appId ? _appId : ""
@@ -3443,9 +4283,9 @@ StyledItem {
                             id: btnAdd
                              text: "Add"
                              color: theme.palette.normal.positive
-                             enabled: detoxModeDialogue.actionId !== "dialer-app" && detoxModeDialogue.actionId !== "messaging-app"
+                             enabled: detoxModeDialogue.actionId !== "lomiri-dialer-app" && detoxModeDialogue.actionId !== "lomiri-messaging-app"
                              onClicked: {
-                                 let _arrNewValues = shell.settings.detoxModeAppList.slice()
+                                let _arrNewValues = shell.settings.detoxModeAppList.slice()
                                 _arrNewValues.push(detoxModeDialogue.actionId)
                                 shell.settings.detoxModeAppList = _arrNewValues.slice()
                                 PopupUtils.close(detoxModeDialogue)
@@ -3618,6 +4458,53 @@ StyledItem {
                     property: "checked"
                     value: shell.settings.enableFingerprintHapticWhenFailed
                 }
+            }
+            LPSettingsCheckBox {
+                id: disableFingerprintWhileTyping
+                Layout.fillWidth: true
+                text: "Disable while typing your passcode"
+                onCheckedChanged: shell.settings.disableFingerprintWhileTyping = checked
+                Binding {
+                    target: disableFingerprintWhileTyping
+                    property: "checked"
+                    value: shell.settings.disableFingerprintWhileTyping
+                }
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                visible: shell.settings.disableFingerprintWhileTyping
+                text: i18n.tr("When:")
+                model: [
+                    i18n.tr("Either"),
+                    i18n.tr("On-screen Keyboard shown"),
+                    i18n.tr("Entered text isn't empty")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.disableFingerprintWhileTypingBehavior
+                onSelectedIndexChanged: shell.settings.disableFingerprintWhileTypingBehavior = selectedIndex
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: shell.settings.disableFingerprintWhileTyping
+                text: {
+                    switch (shell.settings.disableFingerprintWhileTypingBehavior) {
+                        case 0:
+                            return "Disable Fingerprint when on-screen keyboard is shown or the passcode field is not empty"
+                        case 1:
+                            return "Disable Fingerprint when on-screen keyboard is shown. Doesn't work with Circle pattern prompt."
+                        case 2:
+                            return "Disable Fingerprint the passcode field is not empty"
+                    }
+                }
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
             LPSettingsCheckBox {
                 id: swipeToUnlockFingerprint
@@ -3909,6 +4796,11 @@ StyledItem {
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Navigation Buttons"
+                onClicked: settingsLoader.item.stack.push(navigationButtonsPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Sensor Gestures"
                 onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
             }
@@ -4021,6 +4913,208 @@ StyledItem {
                     target: touchVisualColor
                     property: "text"
                     value: shell.settings.touchVisualColor
+                }
+            }
+        }
+    }
+    Component {
+        id: navigationButtonsPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "This enables navigation buttons similar to Android. It doesn't have a back button so don't expect. UT doesn't have a concept of a back action."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: enableNavigationButtons
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.enableNavigationButtons = checked
+                Binding {
+                    target: enableNavigationButtons
+                    property: "checked"
+                    value: shell.settings.enableNavigationButtons
+                }
+            }
+            ColumnLayout {
+                visible: shell.settings.enableNavigationButtons
+                spacing: 0
+
+                LPSettingsNavItem {
+                    Layout.fillWidth: true
+                    text: "Buttons List"
+                    onClicked: settingsLoader.item.stack.push(navigationButtonsListPage, {"title": text})
+                }
+                LPSettingsCheckBox {
+                    id: navigationButtonsEnableDirectDrawerSearch
+                    Layout.fillWidth: true
+                    text: "Enable drawer search when double clicking"
+                    onCheckedChanged: shell.settings.navigationButtonsEnableDirectDrawerSearch = checked
+                    Binding {
+                        target: navigationButtonsEnableDirectDrawerSearch
+                        property: "checked"
+                        value: shell.settings.navigationButtonsEnableDirectDrawerSearch
+                    }
+                }
+            }
+        }
+    }
+    Component {
+        id: navigationButtonsListPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: units.gu(2)
+                Layout.leftMargin: units.gu(2)
+                text: "Available Buttons:\n\n"
+                + " • Indicators: Opens last opened indicator\n"
+                + " • Drawer: Opens the App Drawer. Option to directly search with double click\n"
+                + " • Spread: Opens the App spread/switcher. Double click to switch to the previous app\n"
+                + " • Close App: Close currently foreground app\n"
+                + " • Pull down: Pull downs the shell so it's easy to reach top UI elements. Check Abot Kamay\n"
+                + " • Rotate Sscreen: Toggles between portrait and landscape orientation\n"
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: "Add Button"
+                color: theme.palette.normal.positive
+                onClicked: {
+                    const _addButton = function(_id) {
+                        let _arrNewValues = shell.settings.navigationButtonsList.slice()
+                        _arrNewValues.push(_id)
+                        shell.settings.navigationButtonsList = _arrNewValues.slice()
+                    }
+                    let _dialogAdd = addButtonDialog.createObject(shell.popupParent);
+                    _dialogAdd.add.connect(_addButton)
+                    _dialogAdd.show()
+                }
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: navigatioButtonListView.ViewItems.dragMode ? "Exit Rearrange" : "Rearrange"
+                onClicked: navigatioButtonListView.ViewItems.dragMode = !navigatioButtonListView.ViewItems.dragMode
+            }
+            ListView {
+                id: navigatioButtonListView
+
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentHeight
+
+                interactive: false
+                model: shell.settings.navigationButtonsList
+
+                ViewItems.dragMode: false
+                ViewItems.selectMode: false
+                ViewItems.onDragUpdated: {
+                    if (event.status == ListItemDrag.Started) {
+                        if (model[event.from] == "Immutable")
+                            event.accept = false;
+                        return;
+                    }
+                    if (model[event.to] == "Immutable") {
+                        event.accept = false;
+                        return;
+                    }
+                    // No instantaneous updates
+                    if (event.status == ListItemDrag.Moving) {
+                        event.accept = false;
+                        return;
+                    }
+                    if (event.status == ListItemDrag.Dropped) {
+                        var fromItem = model[event.from];
+                        var list = model;
+                        list.splice(event.from, 1);
+                        list.splice(event.to, 0, fromItem);
+                        shell.settings.navigationButtonsList = list;
+                    }
+                }
+                delegate: ListItem {
+                    id: listItem
+
+                    readonly property string actionId: modelData
+                    readonly property string actionIndex: index
+                    readonly property var foundData: shell.navigationButtonsModel.find((element) => element.id == actionId);
+                    readonly property string itemTitle: foundData ? foundData.name : "Unknown"
+
+                    height: layout.height + (divider.visible ? divider.height : 0)
+                    color: dragging ? theme.palette.selected.base : "transparent"
+
+                    ListItemLayout {
+                        id: layout
+                        title.text: listItem.itemTitle
+                        title.wrapMode: Text.WordWrap
+                    }
+
+                    leadingActions: ListItemActions {
+                        actions: [
+                            Action {
+                                iconName: "delete"
+                                onTriggered: {
+                                    let _arrNewValues = shell.settings.navigationButtonsList.slice()
+                                    _arrNewValues.splice(actionIndex, 1)
+                                    shell.settings.navigationButtonsList = _arrNewValues.slice()
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                Component {
+                    id: addButtonDialog
+                    Dialog {
+                        id: dialogue
+                        
+                        property bool reparentToRootItem: false
+                        anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+
+                        property string actionId: ""
+                        readonly property string currentActionId: shell.navigationButtonsModel[actionSelector.selectedIndex].id
+
+                        signal add(string actionId)
+
+                        onAdd: PopupUtils.close(dialogue)
+
+                        OptionSelector {
+                             id: actionSelector
+
+                            text: i18n.tr("Actions")
+                            model: shell.navigationButtonsModel
+                            containerHeight: itemHeight * 6
+                            delegate: selectorDelegate
+                        }
+                        Component {
+                            id: selectorDelegate
+                            OptionSelectorDelegate { text: modelData.name }
+                        }
+                        Button {
+                             text: i18n.tr("Add")
+                             color: theme.palette.normal.positive
+                             onClicked: dialogue.add(dialogue.currentActionId)
+                         }
+                         Button {
+                             text: "Cancel"
+                             onClicked: PopupUtils.close(dialogue)
+                         }
+                     }
                 }
             }
         }
@@ -5011,6 +6105,24 @@ StyledItem {
             Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
+                text: "Ctrl + Semicolon"
+                wrapMode: Text.WordWrap
+                textSize: Label.Large
+            }
+            LPSettingsCheckBox {
+                id: enableEmojiToggleKeyboardShortcut
+                Layout.fillWidth: true
+                text: "Toggle emoji selector popup"
+                onCheckedChanged: shell.settings.enableEmojiToggleKeyboardShortcut = checked
+                Binding {
+                    target: enableEmojiToggleKeyboardShortcut
+                    property: "checked"
+                    value: shell.settings.enableEmojiToggleKeyboardShortcut
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
                 text: "Camera Key function"
                 wrapMode: Text.WordWrap
                 textSize: Label.Large
@@ -5263,6 +6375,63 @@ StyledItem {
         }
     }
     Component {
+        id: pixelDensityPage
+
+        LPSettingsPage {
+            LPSettingsCheckBox {
+                id: useCustomPixelDensity
+                Layout.fillWidth: true
+                text: "Use custom pixel density"
+                onCheckedChanged: shell.settings.useCustomPixelDensity = checked
+                Binding {
+                    target: useCustomPixelDensity
+                    property: "checked"
+                    value: shell.settings.useCustomPixelDensity
+                }
+            }
+            LPSettingsSlider {
+                id: customPixelDensity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Custom pixel density"
+                minimumValue: 1
+                maximumValue: 50
+                stepSize: 0.5
+                resetValue: Screen.pixelDensity
+                live: false
+                roundValue: false
+                enableFineControls: true
+                onValueChanged: shell.settings.customPixelDensity = value
+                Binding {
+                    target: customPixelDensity
+                    property: "value"
+                    value: shell.settings.customPixelDensity
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+
+                Rectangle {
+                    readonly property real size: shell.convertFromInch(1)
+
+                    Layout.preferredWidth: size
+                    Layout.preferredHeight: size
+                    color: theme.palette.normal.foreground
+
+                    Label {
+                        text: "1 inch by 1 inch"
+                        anchors.fill: parent
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        color: theme.palette.normal.foregroundText
+                    }
+                }
+            }
+        }
+    }
+    Component {
         id: deviceSpecificPage
         
         LPSettingsPage {
@@ -5270,6 +6439,11 @@ StyledItem {
                 Layout.fillWidth: true
                 text: "Fxtec Pro1-X"
                 onClicked: settingsLoader.item.stack.push(pro1Page, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Custom pixel density"
+                onClicked: settingsLoader.item.stack.push(pixelDensityPage, {"title": text})
             }
 
             LPSettingsCheckBox {
@@ -5600,6 +6774,11 @@ StyledItem {
                 LPSettingsPage {
                     LPSettingsNavItem {
                         Layout.fillWidth: true
+                        text: "Appearance"
+                        onClicked: settingsLoader.item.stack.push(lockScreenAppearancePage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
                         text: "Clock"
                         onClicked: settingsLoader.item.stack.push(clockPage, {"title": text})
                     }
@@ -5618,6 +6797,12 @@ StyledItem {
                         text: "User Account"
                         onClicked: settingsLoader.item.stack.push(userAccountPage, {"title": text})
                     }
+                }
+            }
+            Component {
+                id: lockScreenAppearancePage
+
+                LPSettingsPage {
                     LPSettingsSwitch {
                         id: customLockscreenWP
                         Layout.fillWidth: true
@@ -5661,6 +6846,70 @@ StyledItem {
                         wrapMode: Text.WordWrap
                         font.italic: true
                         textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
+                        id: useCustomLockscreenDarkBGOpacity
+                        Layout.fillWidth: true
+                        text: "Lockscreen custom dark background opacity"
+                        onCheckedChanged: shell.settings.useCustomLockscreenDarkBGOpacity = checked
+                        Binding {
+                            target: useCustomLockscreenDarkBGOpacity
+                            property: "checked"
+                            value: shell.settings.useCustomLockscreenDarkBGOpacity
+                        }
+                    }
+                    LPSettingsSlider {
+                        id: lockscreenDarkBGOpacity
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomLockscreenDarkBGOpacity
+                        title: "Opacity"
+                        minimumValue: 0
+                        maximumValue: 100
+                        stepSize: 10
+                        resetValue: 60
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: true
+                        roundValue: true
+                        onValueChanged: shell.settings.lockscreenDarkBGOpacity = value / 100
+                        Binding {
+                            target: lockscreenDarkBGOpacity
+                            property: "value"
+                            value: shell.settings.lockscreenDarkBGOpacity * 100
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: useCustomCoverPageDarkBGOpacity
+                        Layout.fillWidth: true
+                        text: "Cover page custom dark background opacity"
+                        onCheckedChanged: shell.settings.useCustomCoverPageDarkBGOpacity = checked
+                        Binding {
+                            target: useCustomCoverPageDarkBGOpacity
+                            property: "checked"
+                            value: shell.settings.useCustomCoverPageDarkBGOpacity
+                        }
+                    }
+                    LPSettingsSlider {
+                        id: coverPageDarkBGOpacity
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomCoverPageDarkBGOpacity
+                        title: "Opacity"
+                        minimumValue: 0
+                        maximumValue: 100
+                        stepSize: 10
+                        resetValue: 40
+                        live: true
+                        percentageValue: true
+                        valueIsPercentage: true
+                        roundValue: true
+                        onValueChanged: shell.settings.coverPageDarkBGOpacity = value / 100
+                        Binding {
+                            target: coverPageDarkBGOpacity
+                            property: "value"
+                            value: shell.settings.coverPageDarkBGOpacity * 100
+                        }
                     }
                 }
             }
@@ -5924,6 +7173,71 @@ StyledItem {
                             value: shell.settings.darkenWallpaperWhenInfographicsOpacity
                         }
                     }
+                    // Support one for now but perhaps extend to multiple in the fiyire
+                    LPSettingsSwitch {
+                        id: useCustomInfographicsTexts
+                        Layout.fillWidth: true
+                        text: i18n.tr("Custom text")
+                        onCheckedChanged: shell.settings.useCustomInfographicsTexts = checked
+                        Binding {
+                            target: useCustomInfographicsTexts
+                            property: "checked"
+                            value: shell.settings.useCustomInfographicsTexts
+                        }
+                    }
+                    RowLayout {
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+
+                        visible: shell.settings.useCustomInfographicsTexts
+
+                        TextField {
+                            id: customTextField
+                            
+                            readonly property string currentText: shell.settings.customInfographicsTexts[0]
+                            readonly property string validName: text.trim()
+                            readonly property bool unsaved: currentText !== validName
+
+                            Layout.fillWidth: true
+                            text: shell.settings.customInfographicsTexts[0]
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                        }
+                        QQC2.ToolButton {
+                            Layout.fillHeight: true
+                            visible: customTextField.unsaved
+                            icon.width: units.gu(2)
+                            icon.height: units.gu(2)
+                            action: QQC2.Action {
+                                icon.name:  "ok"
+                                onTriggered: {
+                                    let _tempArr = shell.settings.customInfographicsTexts.slice()
+                                    _tempArr[0] = customTextField.validName
+                                    shell.settings.customInfographicsTexts = _tempArr.slice()
+                                }
+                            }
+                        }
+                        QQC2.ToolButton {
+                            Layout.fillHeight: true
+                            visible: customTextField.unsaved
+                            icon.width: units.gu(2)
+                            icon.height: units.gu(2)
+                            action: QQC2.Action {
+                                icon.name:  "reset"
+                                onTriggered: customTextField.text = customTextField.currentText
+                            }
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: showRandomInfographicsCircles
+                        Layout.fillWidth: true
+                        text: i18n.tr("Show random circles")
+                        onCheckedChanged: shell.settings.showRandomInfographicsCircles = checked
+                        Binding {
+                            target: showRandomInfographicsCircles
+                            property: "checked"
+                            value: shell.settings.showRandomInfographicsCircles
+                        }
+                    }
                     LPSettingsSwitch {
                         id: useCustomInfographicCircleColor
                         Layout.fillWidth: true
@@ -6147,6 +7461,30 @@ StyledItem {
                             value: shell.settings.customTopBarIconTextColor
                         }
                     }
+                    LPSettingsCheckBox {
+                        id: useCustomTopBarIconTextColorDesktop
+                        Layout.fillWidth: true
+                        text: "Use custom icon/text color in desktop"
+                        onCheckedChanged: shell.settings.useCustomTopBarIconTextColorDesktop = checked
+                        Binding {
+                            target: useCustomTopBarIconTextColorDesktop
+                            property: "checked"
+                            value: shell.settings.useCustomTopBarIconTextColorDesktop
+                        }
+                    }
+                    LPColorField {
+                        id: customTopBarIconTextColorDesktop
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        visible: shell.settings.useCustomTopBarIconTextColorDesktop
+                        onTextChanged: shell.settings.customTopBarIconTextColorDesktop = text
+                        onColorPicker: colorPickerLoader.open(customTopBarIconTextColorDesktop)
+                        Binding {
+                            target: customTopBarIconTextColorDesktop
+                            property: "text"
+                            value: shell.settings.customTopBarIconTextColorDesktop
+                        }
+                    }
                     LPSettingsSwitch {
                         id: enableTopPanelBlur
                         Layout.fillWidth: true
@@ -6219,6 +7557,17 @@ StyledItem {
                             target: transparentTopBarOnSpread
                             property: "checked"
                             value: shell.settings.transparentTopBarOnSpread
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: enableTransparentTopBarOnDesktop
+                        Layout.fillWidth: true
+                        text: "Fully Transparent when on the desktop"
+                        onCheckedChanged: shell.settings.enableTransparentTopBarOnDesktop = checked
+                        Binding {
+                            target: enableTransparentTopBarOnDesktop
+                            property: "checked"
+                            value: shell.settings.enableTransparentTopBarOnDesktop
                         }
                     }
                     LPSettingsCheckBox {
@@ -6339,6 +7688,17 @@ StyledItem {
                 id: indicatorPanelAppearancePage
                 
                 LPSettingsPage {
+                    LPSettingsCheckBox {
+                        id: enableTransparentExpandedTopBar
+                        Layout.fillWidth: true
+                        text: "Expanded top bar matches the transparency of indicator panels"
+                        onCheckedChanged: shell.settings.enableTransparentExpandedTopBar = checked
+                        Binding {
+                            target: enableTransparentExpandedTopBar
+                            property: "checked"
+                            value: shell.settings.enableTransparentExpandedTopBar
+                        }
+                    }
                     LPSettingsSwitch {
                         id: indicatorBlur
                         Layout.fillWidth: true
@@ -6791,6 +8151,11 @@ StyledItem {
                     }
                     LPSettingsNavItem {
                         Layout.fillWidth: true
+                        text: "Drawer Advanced Search"
+                        onClicked: settingsLoader.item.stack.push(drawerCustomSearchPage, {"title": text})
+                    }
+                    LPSettingsNavItem {
+                        Layout.fillWidth: true
                         text: "App Grids"
                         onClicked: settingsLoader.item.stack.push(appGridsPage, {"title": text})
                     }
@@ -6820,6 +8185,20 @@ StyledItem {
                             property: "checked"
                             value: shell.settings.fasterFlickDrawer
                         }
+                    }
+                    OptionSelector {
+                        Layout.fillWidth: true
+                        Layout.margins: units.gu(2)
+                        text: i18n.tr("Animation speed")
+                        model: [
+                            i18n.tr("Default"),
+                            i18n.tr("Fast"),
+                            i18n.tr("Faster"),
+                            i18n.tr("Instantaneous")
+                        ]
+                        containerHeight: itemHeight * 6
+                        selectedIndex: shell.settings.drawerAnimationSpeed
+                        onSelectedIndexChanged: shell.settings.drawerAnimationSpeed = selectedIndex
                     }
                     LPSettingsCheckBox {
                         id: resetAppDrawerWhenClosed
@@ -7040,49 +8419,50 @@ StyledItem {
                         text: "Appearance"
                         onClicked: settingsLoader.item.stack.push(launcherAppearancePage, {"title": text})
                     }
-                    LPSettingsCheckBox {
-                        id: customLauncherOpacityBehavior
+                    LPSettingsNavItem {
                         Layout.fillWidth: true
-                        text: "Custom opacity behavior when dragging drawer"
-                        onCheckedChanged: shell.settings.customLauncherOpacityBehavior = checked
-                        Binding {
-                            target: customLauncherOpacityBehavior
-                            property: "checked"
-                            value: shell.settings.customLauncherOpacityBehavior
-                        }
+                        text: "Display Behavior"
+                        onClicked: settingsLoader.item.stack.push(displayBehaviorPage, {"title": text})
                     }
+                }
+            }
+            Component {
+                id: displayBehaviorPage
+                
+                LPSettingsPage {
                     LPSettingsCheckBox {
-                        id: enableLauncherBottomMargin
+                        id: forceLockLauncher
                         Layout.fillWidth: true
-                        text: "Use rounded corner margin as bottom margin"
-                        visible: shell.settings.roundedCornerMargin > 0
-                        onCheckedChanged: shell.settings.enableLauncherBottomMargin = checked
+                        text: "Always show Launcher regardless of screen size or mode (Staged/Windowed)"
+                        onCheckedChanged: shell.settings.forceLockLauncher = checked
                         Binding {
-                            target: enableLauncherBottomMargin
+                            target: forceLockLauncher
                             property: "checked"
-                            value: shell.settings.enableLauncherBottomMargin
-                        }
-                    }
-                    LPSettingsCheckBox {
-                        id: showLauncherAtDesktop
-                        Layout.fillWidth: true
-                        text: "Show Launcher when no app is running"
-                        onCheckedChanged: shell.settings.showLauncherAtDesktop = checked
-                        Binding {
-                            target: showLauncherAtDesktop
-                            property: "checked"
-                            value: shell.settings.showLauncherAtDesktop
+                            value: shell.settings.forceLockLauncher
                         }
                     }
                     LPSettingsCheckBox {
                         id: hideLauncherWhenNarrow
                         Layout.fillWidth: true
                         text: "Hide Launcher when screen is narrow even if it's locked"
+                        visible: !shell.settings.forceLockLauncher
                         onCheckedChanged: shell.settings.hideLauncherWhenNarrow = checked
                         Binding {
                             target: hideLauncherWhenNarrow
                             property: "checked"
                             value: shell.settings.hideLauncherWhenNarrow
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: showLauncherAtDesktop
+                        Layout.fillWidth: true
+                        text: "Show Launcher when no app is running"
+                        visible: !shell.settings.forceLockLauncher
+                        onCheckedChanged: shell.settings.showLauncherAtDesktop = checked
+                        Binding {
+                            target: showLauncherAtDesktop
+                            property: "checked"
+                            value: shell.settings.showLauncherAtDesktop
                         }
                     }
                     LPSettingsCheckBox {
@@ -7167,6 +8547,29 @@ StyledItem {
                             target: customLauncherOpacity
                             property: "value"
                             value: shell.settings.customLauncherOpacity
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: customLauncherOpacityBehavior
+                        Layout.fillWidth: true
+                        text: "Custom opacity behavior when dragging drawer"
+                        onCheckedChanged: shell.settings.customLauncherOpacityBehavior = checked
+                        Binding {
+                            target: customLauncherOpacityBehavior
+                            property: "checked"
+                            value: shell.settings.customLauncherOpacityBehavior
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: enableLauncherBottomMargin
+                        Layout.fillWidth: true
+                        text: "Use rounded corner margin as bottom margin"
+                        visible: shell.settings.roundedCornerMargin > 0
+                        onCheckedChanged: shell.settings.enableLauncherBottomMargin = checked
+                        Binding {
+                            target: enableLauncherBottomMargin
+                            property: "checked"
+                            value: shell.settings.enableLauncherBottomMargin
                         }
                     }
                 }
@@ -11143,12 +12546,13 @@ StyledItem {
         readonly property real borderWidth: item ? item.borderWidth : 0
 
         active: shell.isBuiltInScreen && shell.orientation == 1
-                            && ( shell.isRightNotch || shell.isMiddleNotch) // && !shell.deviceConfiguration.fullyHideNotchInPortrait
+                            && ( shell.isRightNotch || shell.isLeftNotch || shell.isMiddleNotch) // && !shell.deviceConfiguration.fullyHideNotchInPortrait
                             && shell.settings.batteryCircle
         z: shellBorderLoader.z + 1
         anchors {
             right: parent.right
             rightMargin: shell.deviceConfiguration.notchWidthMargin - shell.deviceConfiguration.punchHoleWidth - borderWidth * 2
+            leftMargin: anchors.rightMargin
             top: parent.top 
             topMargin: shell.deviceConfiguration.punchHoleHeightFromTop - shell.deviceConfiguration.punchHoleWidth - borderWidth * 2
         }
@@ -11160,6 +12564,17 @@ StyledItem {
                 AnchorChanges {
                     target: batteryCircleLoader
                     anchors.right: parent.right
+                    anchors.left: undefined
+                    anchors.horizontalCenter: undefined
+                }
+            }
+            , State {
+                name: "left"
+                when: shell.isLeftNotch
+                AnchorChanges {
+                    target: batteryCircleLoader
+                    anchors.right: undefined
+                    anchors.left: parent.left
                     anchors.horizontalCenter: undefined
                 }
             }
@@ -11169,6 +12584,7 @@ StyledItem {
                 AnchorChanges {
                     target: batteryCircleLoader
                     anchors.right: undefined
+                    anchors.left: undefined
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
             }
@@ -11642,7 +13058,12 @@ StyledItem {
         id: directActionsLoader
         active: shell.settings.enableDirectActions
         asynchronous: true
-        anchors.fill: parent
+        anchors {
+            fill: parent
+            leftMargin: shell.shellLeftMargin
+            rightMargin: shell.shellRightMargin
+            bottomMargin: shell.shellBottomMargin
+        }
         z: shell.settings.directActionsSwipeOverOSK ? itemGrabber.z - 1 : settingsLoader.z + 1
         sourceComponent: LPDirectActions {
             enabled: !shell.immersiveMode
@@ -11693,6 +13114,9 @@ StyledItem {
         anchors {
             right: parent.right
             bottom: parent.bottom
+            leftMargin: shell.shellLeftMargin
+            rightMargin: shell.shellRightMargin
+            bottomMargin: shell.shellBottomMargin
         }
 
         sourceComponent: SwipeArea {
@@ -11777,7 +13201,7 @@ StyledItem {
         z: overlay.z + 1
         anchors {
             bottom: parent.bottom
-            bottomMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.height : 0
+            bottomMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.height + shell.shellBottomMargin : 0
             right: parent.right
             rightMargin: indicatorSwipeLoader.item ? indicatorSwipeLoader.item.customThreshold : 0
             left: parent.left
@@ -11914,6 +13338,9 @@ StyledItem {
         anchors {
             left: parent.left
             bottom: parent.bottom
+            leftMargin: shell.shellLeftMargin
+            rightMargin: shell.shellRightMargin
+            bottomMargin: shell.shellBottomMargin
         }
         sourceComponent: SwipeArea {
             id: appMenuBottomSwipe
@@ -11988,6 +13415,9 @@ StyledItem {
         // ENH139 - System Direct Actions
         property bool searchDrawerAfterUnlock: false
         // ENH139 - End
+        // ENH236 - Custom drawer search
+        property string searchDrawerType: "all"
+        // ENH236 - End
         Connections {
             target: greeter
             function onActiveChanged() {
@@ -11999,7 +13429,11 @@ StyledItem {
                     // ENH139 - System Direct Actions
                     // launcher.toggleDrawer(false);
                     if (greeterLoader.searchDrawerAfterUnlock) {
-                        launcher.searchInDrawer()
+                        // ENH236 - Custom drawer search
+                        //launcher.searchInDrawer()
+                        launcher.searchInDrawer(greeterLoader.searchDrawerType)
+                        greeterLoader.searchDrawerType = "all";
+                        // ENH236 - End
                         greeterLoader.searchDrawerAfterUnlock = false;
                     } else {
                         launcher.toggleDrawer(false);
@@ -12122,7 +13556,10 @@ StyledItem {
 
 // ENH139 - System Direct Actions
     // function showHome() {
-    function showHome(_search = false) {
+    // ENH236 - Custom drawer search
+    //function showHome(_search = false) {
+    function showHome(_search = false, _searchType = "all") {
+    // ENH236 - End
 // ENH139 - End
         greeter.notifyUserRequestedApp();
 
@@ -12135,6 +13572,9 @@ StyledItem {
                 // ENH139 - System Direct Actions
                 if (_search) {
                     greeterLoader.searchDrawerAfterUnlock = true;
+                    // ENH236 - Custom drawer search
+                    greeterLoader.searchDrawerType = _searchType;
+                    // ENH236 - End
                 }
                 // ENH139 - End
                 greeterLoader.toggleDrawerAfterUnlock = true;
@@ -12350,13 +13790,22 @@ StyledItem {
 
             // The "autohideLauncher" setting is only valid in desktop mode
             readonly property bool lockedByUser: (shell.usageScenario == "desktop" && !settings.autohideLauncher)
+            // ENH239 - Force show Launcher
+                                                    || shell.settings.forceLockLauncher
+            // ENH239 - End
 
             // The Launcher should absolutely not be locked visible under some
             // conditions
-            readonly property bool lockAllowed: !collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
+            // ENH239 - Force show Launcher
+            // readonly property bool lockAllowed: !collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
+            readonly property bool lockAllowed: (!collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
+            // ENH239 - End
             // ENH146 - Hide launcher when narrow
                                                         && ((shell.settings.hideLauncherWhenNarrow && stages.width >= units.gu(60))
                                                                 || !shell.settings.hideLauncherWhenNarrow)
+                                                        // ENH239 - Force show Launcher
+                                                        ) || (shell.settings.forceLockLauncher && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher)
+                                                        // ENH239 - End
             // ENH146 - End
 
             onShowDashHome: showHome()
@@ -12402,6 +13851,17 @@ StyledItem {
                 }
             }
             // ENH101 - End
+            // ENH235 - Emoji selector popup
+            GlobalShortcut { // toggle emoji
+                shortcut: Qt.ControlModifier | Qt.Key_Semicolon
+                enabled: shell.settings.enableEmojiToggleKeyboardShortcut
+                onTriggered: {
+                    if (shell.settings.enableEmojiToggleKeyboardShortcut) {
+                        emojiSelectorLoader.toggle()
+                    }
+                }
+            }
+            // ENH101 - ENH235
 
             GlobalShortcut {
                 shortcut: Qt.MetaModifier | Qt.Key_A
@@ -13053,18 +14513,31 @@ StyledItem {
 
         readonly property int defaultDuration: 35000
         readonly property int detoxModeDuration: 15000
+        //readonly property int detoxModeDuration: 3000 // For testing
         readonly property int defaultTo100Duration: 30000
         readonly property int detoxModeTo100Duration: 13000
 
         readonly property Timer delayShow: Timer {
             interval: 5000
-            onTriggered: buruIskunuru.show()
+            onTriggered: {
+                buruIskunuru.show()
+                buruIskunuru.resetPause()
+            }
+            onRunningChanged: {
+                if (running) {
+                    buruIskunuru.timerStartEpoch = new Date().getTime()
+                }
+            }
         }
         readonly property bool isPending: delayShow.running
         readonly property Timer delayHide: Timer {
             interval: buruIskunuru.defaultDuration
             onTriggered: buruIskunuru.hide()
         }
+        property real timerStartEpoch: 0
+        property real timerPauseEpoch: 0
+        readonly property int lapsedTime: timerPauseEpoch - timerStartEpoch
+        readonly property bool isPaused: timerPauseEpoch > 0 && timerStartEpoch > 0
 
         property bool dismissEnabled: true
         property int to100duration: buruIskunuru.detoxModeDuration
@@ -13094,8 +14567,14 @@ StyledItem {
             delayShow.restart()
         }
 
+        function resetPause() {
+            timerStartEpoch = 0
+            timerPauseEpoch = 0
+        }
+
         function cancelPending() {
             delayShow.stop()
+            resetPause()
         }
 
         function showDetoxMode() {
@@ -13105,6 +14584,35 @@ StyledItem {
             }
             console.log("Detox Timer: %1 mins".arg(_interval / 60000))
             buruIskunuru.delayedShow(_interval, true)
+        }
+
+        function pauseShowTimer() {
+            delayShow.stop()
+            timerPauseEpoch = new Date().getTime()
+        }
+        function resumeShowTimer() {
+            let _delay = delayShow.interval - lapsedTime
+            if (_delay > 0) {
+                delayShow.interval = _delay
+                delayShow.restart()
+            } else {
+                showDetoxMode()
+            }
+        }
+
+        function pauseOrResumeShowTimer(_resume, _checkApp = true) {
+            if (shell.settings.detoxModeEnabled
+                    && (shell.settings.detoxModeAppList.includes(stage.focusedAppId) || !_checkApp)) {
+                if (_resume) {
+                    if (isPaused) {
+                        resumeShowTimer()
+                    } else if (!isPending) {
+                        showDetoxMode()
+                    }
+                } else {
+                    pauseShowTimer()
+                }
+            }
         }
 
         function show() {
@@ -13171,11 +14679,36 @@ StyledItem {
             enabled: shell.settings.detoxModeEnabled
             target: stage
             function onFocusedAppIdChanged() {
-                if (shell.settings.detoxModeAppList.includes(target.focusedAppId)) {
-                    buruIskunuru.showDetoxMode()
-                } else {
-                    buruIskunuru.cancelPending()
-                }
+                buruIskunuru.pauseOrResumeShowTimer(shell.settings.detoxModeAppList.includes(target.focusedAppId), false)
+            }
+            function onDesktopShownChanged() {
+                buruIskunuru.pauseOrResumeShowTimer(target.desktopShown)
+            }
+        }
+        Connections {
+            target: shell
+            function onShowingGreeterChanged() {
+                buruIskunuru.pauseOrResumeShowTimer(!target.showingGreeter)
+            }
+        }
+        Connections {
+            target: panel
+            function onFullyClosedChanged() {
+                buruIskunuru.pauseOrResumeShowTimer(target.fullyClosed)
+            }
+        }
+        Connections {
+            target: launcher
+            function onDrawerFullyClosedChanged() {
+                buruIskunuru.pauseOrResumeShowTimer(target.drawerFullyClosed)
+            }
+        }
+
+        // Pause Detox mode timer when OSK is displayed
+        Connections {
+            target: shell.osk
+            function onVisibleChanged() {
+                buruIskunuru.pauseOrResumeShowTimer(!target.visible)
             }
         }
         Connections {
@@ -13213,4 +14746,26 @@ StyledItem {
         ,"starred","start","stock_alarm-clock","stock_application","stock_appointment","stock_contact","stock_document","stock_document-landscape","stock_ebook","stock_email","stock_event","stock_image","stock_key","stock_link","stock_lock","stock_message","stock_music","stock_note","stock_notebook","stock_notification","stock_reminder","stock_ringtone","stock_store","stock_usb","stock_video","stock_website","stop","stopwatch","stopwatch-lap","swap","sync","system-lock-screen","system-log-out","system-restart","system-shutdown","system-suspend","tab-new","tag","thumb-down","thumb-up","tick","timer","torch-off","torch-on","undo","unlike","unpinned","up","user-admin","user-switch","view-collapse","view-expand","view-fullscreen","view-grid-symbolic","view-list-symbolic","view-off","view-on","view-refresh","view-restore","view-rotate","voicemail","zoom-in","zoom-out","address-book-app-symbolic","amazon-symbolic","calculator-app-symbolic","calendar-app-symbolic","camera-app-symbolic","clock-app-symbolic","dekko-app-symbolic","dialer-app-symbolic","docviewer-app-symbolic","dropbox-symbolic","ebay-symbolic","evernote-symbolic","facebook-symbolic","feedly-symbolic","fitbit-symbolic","gallery-app-symbolic","gmail-symbolic","google-calendar-symbolic","google-maps-symbolic","google-plus-symbolic","googleplus-symbolic","maps-app-symbolic","mediaplayer-app-symbolic","messaging-app-symbolic","music-app-symbolic","notes-app-symbolic","pinterest-symbolic","pocket-symbolic","preferences-color-symbolic","preferences-desktop-accessibility-symbolic","preferences-desktop-accounts-symbolic","preferences-desktop-media-symbolic","preferences-desktop-display-symbolic","preferences-desktop-keyboard-shortcuts-symbolic","preferences-desktop-launcher-symbolic","preferences-desktop-locale-symbolic","preferences-desktop-login-items-symbolic","preferences-desktop-notifications-symbolic","preferences-desktop-sounds-symbolic","preferences-desktop-wallpaper-symbolic","preferences-network-bluetooth-active-symbolic","preferences-network-bluetooth-disabled-symbolic","preferences-network-cellular-symbolic","preferences-network-hotspot-symbolic","preferences-network-wifi-active-symbolic","preferences-network-wifi-no-connection-symbolic","preferences-system-battery-000-charging-symbolic","preferences-system-battery-010-charging-symbolic","preferences-system-battery-020-charging-symbolic","preferences-system-battery-030-charging-symbolic","preferences-system-battery-040-charging-symbolic","preferences-system-battery-050-charging-symbolic","preferences-system-battery-060-charging-symbolic","preferences-system-battery-070-charging-symbolic","preferences-system-battery-080-charging-symbolic","preferences-system-battery-090-charging-symbolic","preferences-system-battery-100-charging-symbolic","preferences-system-battery-charged-symbolic","preferences-system-phone-symbolic","preferences-system-privacy-symbolic","preferences-system-time-symbolic","preferences-system-updates-symbolic","rssreader-app-symbolic","skype-symbolic","songkick-symbolic","soundcloud-symbolic","spotify-symbolic","system-settings-symbolic","system-users-symbolic","telegram-symbolic","terminal-app-symbolic","twc-symbolic","twitter-symbolic","ubuntu-logo-symbolic","ubuntu-sdk-symbolic","ubuntu-store-symbolic","ubuntuone-symbolic","vimeo-symbolic","weather-app-symbolic","webbrowser-app-symbolic","wechat-symbolic","wikipedia-symbolic","youtube-symbolic","audio-carkit-symbolic","audio-headphones-symbolic","audio-headset-symbolic","audio-input-microphone-muted-symbolic","audio-input-microphone-symbolic","audio-speakers-bluetooth-symbolic","audio-speakers-muted-symbolic","audio-speakers-symbolic","camera-photo-symbolic","camera-web-symbolic","computer-laptop-symbolic","computer-symbolic","drive-harddisk-symbolic","drive-optical-symbolic","drive-removable-symbolic","input-dialpad-hidden-symbolic","input-dialpad-symbolic","input-gaming-symbolic","input-keyboard-symbolic","input-mouse-symbolic","input-tablet-symbolic","input-touchpad-symbolic","media-flash-symbolic","media-optical-symbolic","media-removable-symbolic","multimedia-player-symbolic","network-printer-symbolic","network-wifi-symbolic","network-wired-symbolic","phone-apple-iphone-symbolic","phone-cellular-symbolic","phone-smartphone-symbolic","phone-symbolic","phone-uncategorized-symbolic","printer-symbolic","sdcard-symbolic","simcard","smartwatch-symbolic","tablet-symbolic","video-display-symbolic","wireless-display-symbolic","application-pdf-symbolic","application-x-archive-symbolic","audio-x-generic-symbolic","empty-symbolic","image-x-generic-symbolic","package-x-generic-symbolic","text-css-symbolic","text-html-symbolic","text-x-generic-symbolic","text-xml-symbolic","video-x-generic-symbolic","x-office-document-symbolic","x-office-presentation-symbolic","x-office-spreadsheet-symbolic","distributor-logo","folder-symbolic","network-server-symbolic","airplane-mode","airplane-mode-disabled","alarm","alarm-missed","audio-input-microphone-high","audio-input-microphone-high-symbolic","audio-input-microphone-low-symbolic","audio-input-microphone-low-zero","audio-input-microphone-low-zero-panel","audio-input-microphone-medium-symbolic","audio-input-microphone-muted-symbolic","audio-output-none","audio-output-none-panel","audio-volume-high","audio-volume-high-panel","audio-volume-low","audio-volume-low-panel","audio-volume-low-zero","audio-volume-low-zero-panel","audio-volume-medium","audio-volume-medium-panel","audio-volume-muted","audio-volume-muted-blocking-panel","audio-volume-muted-panel","battery-000","battery-000-charging","battery-010","battery-010-charging","battery-020","battery-020-charging","battery-030","battery-030-charging","battery-040","battery-040-charging","battery-050","battery-050-charging","battery-060","battery-060-charging","battery-070","battery-070-charging","battery-080","battery-080-charging","battery-090","battery-090-charging","battery-100","battery-100-charging","battery-caution","battery-caution-charging-symbolic","battery-caution-symbolic","battery-charged","battery-empty-charging-symbolic","battery-empty-symbolic","battery-full-charged-symbolic","battery-full-charging-symbolic","battery-full-symbolic","battery-good-charging-symbolic","battery-good-symbolic","battery-low-charging-symbolic","battery-low-symbolic","battery-missing-symbolic","battery_charged","battery_empty","battery_full","bluetooth-active","bluetooth-disabled","bluetooth-paired","dialog-error-symbolic","dialog-question-symbolic","dialog-warning-symbolic","display-brightness-max","display-brightness-min","display-brightness-symbolic","gpm-battery-000","gpm-battery-000-charging","gpm-battery-010","gpm-battery-010-charging","gpm-battery-020","gpm-battery-020-charging","gpm-battery-030","gpm-battery-030-charging","gpm-battery-040","gpm-battery-040-charging","gpm-battery-050","gpm-battery-050-charging","gpm-battery-060","gpm-battery-060-charging","gpm-battery-070","gpm-battery-070-charging","gpm-battery-080","gpm-battery-080-charging","gpm-battery-090","gpm-battery-090-charging","gpm-battery-100","gpm-battery-100-charging","gpm-battery-charged","gpm-battery-empty","gpm-battery-missing","gps","gps-disabled","gsm-3g-disabled","gsm-3g-full","gsm-3g-full-secure","gsm-3g-high","gsm-3g-high-secure","gsm-3g-low","gsm-3g-low-secure","gsm-3g-medium","gsm-3g-medium-secure","gsm-3g-no-service","gsm-3g-none","gsm-3g-none-secure","hotspot-active","hotspot-connected","hotspot-disabled","indicator-messages","indicator-messages-new","location-active","location-disabled","location-idle","messages","messages-new","microphone-sensitivity-high","microphone-sensitivity-high-symbolic","microphone-sensitivity-low","microphone-sensitivity-low-symbolic","microphone-sensitivity-low-zero","microphone-sensitivity-medium","microphone-sensitivity-medium-symbolic","microphone-sensitivity-muted-symbolic","multimedia-volume-high","multimedia-volume-low","network-cellular-3g","network-cellular-4g","network-cellular-edge","network-cellular-hspa","network-cellular-hspa-plus","network-cellular-lte","network-cellular-none","network-cellular-pre-edge","network-cellular-roaming","network-secure","network-vpn","network-vpn-connected","network-vpn-connecting","network-vpn-disabled","network-vpn-error","network-wired","network-wired-active","network-wired-connected","network-wired-connecting","network-wired-disabled","network-wired-error","network-wired-offline","nm-adhoc","nm-no-connection","nm-signal-00","nm-signal-00-secure","nm-signal-100","nm-signal-100-secure","nm-signal-25","nm-signal-25-secure","nm-signal-50","nm-signal-50-secure","nm-signal-75","nm-signal-75-secure","no-simcard","orientation-lock","orientation-lock-disabled","printer-error-symbolic","ringtone-volume-high","ringtone-volume-low","simcard-1","simcard-2","simcard-error","simcard-locked","stock_volume-max","stock_volume-min","sync-error","sync-idle","sync-offline","sync-paused","sync-updating","system-devices-panel","system-devices-panel-alert","system-devices-panel-information","transfer-error","transfer-none","transfer-paused","transfer-progress","transfer-progress-download","transfer-progress-upload","volume-max","volume-min","weather-chance-of-rain","weather-chance-of-snow","weather-chance-of-storm","weather-chance-of-wind","weather-clear-night-symbolic","weather-clear-symbolic","weather-clouds-night-symbolic","weather-clouds-symbolic","weather-few-clouds-night-symbolic","weather-few-clouds-symbolic","weather-flurries-symbolic","weather-fog-symbolic","weather-hazy-symbolic","weather-overcast-symbolic","weather-severe-alert-symbolic","weather-showers-scattered-symbolic","weather-showers-symbolic","weather-sleet-symbolic","weather-snow-symbolic","weather-storm-symbolic","wifi-connecting","wifi-full","wifi-full-secure","wifi-high","wifi-high-secure","wifi-low","wifi-low-secure","wifi-medium","wifi-medium-secure","wifi-no-connection","wifi-none","wifi-none-secure","Toolkit","toolkit_arrow-down","toolkit_arrow-left","toolkit_arrow-right","toolkit_arrow-up","toolkit_bottom-edge-hint","toolkit_chevron-down_1gu","toolkit_chevron-down_2gu","toolkit_chevron-down_3gu","toolkit_chevron-down_4gu","toolkit_chevron-ltr_1gu","toolkit_chevron-ltr_2gu","toolkit_chevron-ltr_3gu","toolkit_chevron-ltr_4gu","toolkit_chevron-rtl_1gu","toolkit_chevron-rtl_2gu","toolkit_chevron-rtl_3gu","toolkit_chevron-rtl_4gu","toolkit_chevron-up_1gu","toolkit_chevron-up_2gu","toolkit_chevron-up_3gu","toolkit_chevron-up_4gu","toolkit_cross","toolkit_input-clear","toolkit_input-search","toolkit_scrollbar-stepper","toolkit_tick"
     ]
     // ENH105 - End
+    // ENH236 - Custom drawer search
+    readonly property var searchEngines: [
+        { "id": "duckduckgo", "name" : "DuckDuckGo", "url": "https://duckduckgo.com/?q={searchTerms}", "home": "https://duckduckgo.com" } 
+        , { "id": "baidu", "name" : "Baidu", "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=0&wd={searchTerms}", "home": "https://www.baidu.com" }
+        , { "id": "bing", "name" : "Bing", "url": "https://www.bing.com/search?q={searchTerms}", "home": "https://www.bing.com" }
+        , { "id": "brave", "name" : "Brave", "url": "https://search.brave.com/search?q={searchTerms}", "home": "https://search.brave.com" }
+        , { "id": "google", "name" : "Google", "url": "https://google.com/search?client=ubuntu&q={searchTerms}&ie=utf-8&oe=utf-8", "home": "https://google.com" }
+        , { "id": "imdb", "name" : "IMDb", "url": "https://www.imdb.com/find/?q={searchTerms}&ref_=nv_sr_sm", "home": "https://www.imdb.com" }
+        , { "id": "startpage", "name" : "StartPage", "url": "https://www.startpage.com/do/dsearch?query={searchTerms}&amp;language=auto", "home": "https://www.startpage.com" }
+        , { "id": "wikipedia", "name" : "Wikipedia", "url": "https://wikipedia.org/wiki/Special:Search?search={searchTerms}", "home": "https://www.wikipedia.org" }
+        , { "id": "yahoo", "name" : "Yahoo", "url": "https://search.yahoo.com/yhs/search?ei=UTF-8&amp;p={searchTerms}", "home": "https://search.yahoo.com" }
+    ]
+
+    function escapeHtmlEntities(query) {
+        return query.replace(/\W/g, encodeURIComponent)
+    }
+
+    function buildSearchUrl(query, template) {
+        var terms = query.split(/\s/).map(escapeHtmlEntities)
+        return template.replace("{searchTerms}", terms.join("+"))
+    }
+    // ENH236 - End
 }

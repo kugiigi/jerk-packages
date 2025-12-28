@@ -29,13 +29,16 @@ LPDynamicCoveItem {
     
     onScreenIsOffChanged: {
         if (screenIsOff) {
-            if (running) {
-                stopwatchCircle.saveTime(true)
-            }
+            stopwatchCircle.saveTime(true)
         } else {
             stopwatchCircle.restoreTime()
         }
     }
+
+    // Fixes some components not showing when rotating to landscape
+    // and back to portrait on the lockscreen
+    // Only happens when also shown on the desktop
+    onWidthChanged: delayOpenAnimation.restart()
 
     ScreenSaver {
         id: screenSaver
@@ -93,6 +96,10 @@ LPDynamicCoveItem {
             milliseconds = 0
         }
 
+        function resetSavedEpoch() {
+            shell.settings.dcStopwatchLastEpoch = 0
+        }
+
         function restoreTime() {
             if (shell.settings.dcStopwatchLastEpoch > 0) {
                 milliseconds = shell.settings.dcStopwatchTimeMS + (new Date().getTime() - shell.settings.dcStopwatchLastEpoch)
@@ -106,8 +113,9 @@ LPDynamicCoveItem {
             shell.settings.dcStopwatchTimeMS = milliseconds
             if (stopWatch.running) {
                 shell.settings.dcStopwatchLastEpoch = new Date().getTime()
+                shell.settings.dcStopwatchLastEpoch = new Date().getTime()
             } else {
-                shell.settings.dcStopwatchLastEpoch = 0
+                resetSavedEpoch()
             }
             if (_pauseTimer) {
                 pause()

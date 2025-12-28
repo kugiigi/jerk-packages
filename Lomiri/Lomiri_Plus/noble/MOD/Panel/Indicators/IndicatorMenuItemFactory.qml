@@ -519,7 +519,7 @@ Item {
              *  2 - When turned off
             */
             // enabled: menuData && menuData.sensitive || false
-            enabled: (menuData && menuData.sensitive || false) && !(shell.showingGreeter && disableOnLockscreen)
+            enabled: (menuData && menuData.sensitive || false) && !(!shell.deviceUnlocked && disableOnLockscreen)
             // ENH201 - End
             checked: serverChecked
             highlightWhenPressed: false
@@ -958,7 +958,7 @@ Item {
             objectName: "messageItem"
             menuModel: menuFactory.menuModel
             // ENH148 - Option to hide notification contents in lockscreen
-            hideBody: shell.settings.hideNotificationBodyWhenLocked ? shell.showingGreeter : false
+            hideBody: shell.settings.hideNotificationBodyWhenLocked ? !shell.deviceUnlocked : false
             // ENH148 - End
         }
     }

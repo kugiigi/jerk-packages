@@ -43,6 +43,7 @@ FocusScope {
     readonly property bool interactive: swipeView.currentItem.interactive
     readonly property bool draggingVertically: swipeView.currentItem.draggingVertically
     readonly property bool moving: swipeView.currentItem.moving
+    property bool flickableInteractive: true
     // ENH105 - End
 
     property alias header: gridView.header
@@ -58,10 +59,12 @@ FocusScope {
     readonly property bool inverted: gridView.verticalLayoutDirection == GridView.BottomToTop
     property bool launcherInverted: false
     property real viewMargin: 0
+    property real drawerHeight: 0
     property var contextMenuItem: null
     property var rawModel
-    property bool showDock: false
-    property bool showCustomAppGrids: false
+    property bool enableDock: false
+    property bool showDock: false // Used for dynamically showing/hiding the dock i.e. search mode
+    property bool enableCustomAppGrids: false
     property bool fullAppGridLast: false
     property bool mouseHoverOfSelectorIndicatorEnabled: true
     readonly property bool appGridEditMode: swipeView.currentItem && swipeView.currentItem.editMode
@@ -86,13 +89,18 @@ FocusScope {
     signal applicationSelected(string appId)
     signal applicationContextMenu(string appId, var caller, bool fromDocked, bool fromCustomAppGrid)
     // ENH105 - End
+    // ENH236 - Custom drawer search
+    property bool showSearchButton: false
+
+    signal customSearch
+    // ENH236 - End
 
     // ENH105 - Custom app drawer
     // readonly property int columns: Math.floor(width / delegateWidth)
     readonly property int columns: showDock ? Math.floor((width - (gridView.anchors.leftMargin + gridView.anchors.rightMargin)) / delegateWidth)
                                             : Math.floor(width / delegateWidth)
     // ENH105 - End
-    readonly property int rows: Math.ceil(gridView.model.count / root.columns)
+    readonly property int rows: gridView.model ? Math.ceil(gridView.model.count / root.columns) : 0
 
     property alias refreshing: pullToRefresh.refreshing
     signal refresh();
@@ -102,7 +110,7 @@ FocusScope {
     states: [
         State {
             name: "bottomdock"
-            when: shell.settings.enableDrawerDock
+            when: root.enableDock
 
             AnchorChanges {
                 target: swipeView
@@ -114,6 +122,7 @@ FocusScope {
 
                 bottomMargin: (appGridIndicatorLoader.viewBottomMargin)
                                 + (bottomDockLoader.item && bottomDockLoader.item.shown ? units.gu(2) : 0)
+                                + customSearchButtonLayout.height
             }
             PropertyChanges {
                 target: swipeView
@@ -131,7 +140,7 @@ FocusScope {
         }
         , State {
             name: "inverted"
-            when: !shell.settings.enableDrawerDock
+            when: !root.enableDock
 
             AnchorChanges {
                 target: swipeView
@@ -146,7 +155,7 @@ FocusScope {
             PropertyChanges {
                 target: gridView
 
-                bottomMargin: root.viewMargin + appGridIndicatorLoader.viewBottomMargin
+                bottomMargin: root.viewMargin + appGridIndicatorLoader.viewBottomMargin + customSearchButtonLayout.height
             }
             PropertyChanges {
                 target: swipeView
@@ -270,7 +279,7 @@ FocusScope {
     }
 
     function refreshAppGrids() {
-        if (showCustomAppGrids) {
+        if (enableCustomAppGrids) {
             let _currentModel = root.customAppGridsList
             let _currentModelLength = _currentModel.length
             if (swipeView.count - 1 !== _currentModelLength) {
@@ -337,7 +346,7 @@ FocusScope {
     }
 
     function addToAppGrids(_index) {
-        if (showCustomAppGrids) {
+        if (enableCustomAppGrids) {
             let _currentItem = customAppGridComponent.createObject(root, { "appGridIndex": _index });
             if (fullAppGridLast) {
                 swipeView.insertItem(swipeView.count - 1, _currentItem)
@@ -385,7 +394,7 @@ FocusScope {
     }
 
     function deleteFromAppGrids(_index) {
-        if (showCustomAppGrids) {
+        if (enableCustomAppGrids) {
             let _swipeViewItemIndex = _index
             if (!fullAppGridLast) {
                 _swipeViewItemIndex = _index + 1
@@ -485,8 +494,8 @@ FocusScope {
         }
     }
 
-    onShowCustomAppGridsChanged: {
-        if (showCustomAppGrids) {
+    onEnableCustomAppGridsChanged: {
+        if (enableCustomAppGrids) {
             refreshAppGrids()
         } else{
             clearCustomAppGrids()
@@ -909,8 +918,8 @@ FocusScope {
                 id: labelHeader
 
                 readonly property real idealRechableHeight: shell.isBuiltInScreen ? shell.convertFromInch(shell.settings.pullDownHeight)
-                                                                : customAppGridItem.height * 0.7
-                readonly property real idealMaxHeight: root.height - idealRechableHeight
+                                                                : root.drawerHeight * 0.7
+                readonly property real idealMaxHeight: root.drawerHeight - idealRechableHeight
                 readonly property real idealExpandableHeight: idealRechableHeight + units.gu(10)
 
                 expandable: root.height >= idealExpandableHeight && shell.settings.customAppGridsExpandable
@@ -996,6 +1005,7 @@ FocusScope {
                 bottomMargin: gridView.bottomMargin
                 interactive: !(customGridLoader.item && customGridLoader.item.appDragIsActive)
                                 && !labelHeader.expanded
+                                && root.flickableInteractive
                 focus: true
                 contentHeight: {
                     if (!customAppGridItem.editMode) {
@@ -1236,6 +1246,8 @@ FocusScope {
                 readonly property real spacing: Math.floor(overflow / root.columns)
                 //readonly property real overflow: width - (root.columns * root.delegateWidth)
                 //readonly property real spacing: overflow / root.columns
+                interactive: root.flickableInteractive
+                keyNavigationEnabled: true
                 // ENH105 - End
 
                 cellWidth: root.delegateWidth + spacing
@@ -1244,7 +1256,9 @@ FocusScope {
                 maximumFlickVelocity: shell.settings.fasterFlickDrawer ? units.gu(600) : units.gu(312.5)
                 // ENH127 - End
                 // ENH105 - Custom app drawer
-                clip: true
+                // ENH236 - Custom drawer search
+                //clip: true
+                // ENH236 - End
                 onMovingChanged: {
                     if (moving && bottomDockLoader.item) {
                         bottomDockLoader.item.expanded = false
@@ -1271,7 +1285,34 @@ FocusScope {
         }
     }
     // ENH105 - End
+    // ENH236 - Custom drawer search
+    Loader {
+        id: customSearchButtonLayout
 
+        asynchronous: true
+        active: root.showSearchButton
+        height: active ? units.gu(7) : 0
+        visible: active
+        anchors {
+            bottom: appGridIndicatorLoader.top
+            bottomMargin: appGridIndicatorLoader.active ? units.gu(1) : units.gu(-1)
+            left: parent.left
+            right: parent.right
+        }
+
+        sourceComponent: RowLayout {
+            LPDrawerSearchButton {
+                Layout.preferredHeight: units.gu(6)
+                Layout.alignment: Qt.AlignCenter
+                text: i18n.tr("Search")
+                icon.name: "search"
+                display: QQC2.AbstractButton.TextBesideIcon
+                backgroundOpacity: 1
+                onClicked: root.customSearch()
+            }
+        }
+    }
+    // ENH236 - End
     // ENH105 - Custom app drawer
     Loader {
         id: appGridIndicatorLoader
@@ -1286,7 +1327,7 @@ FocusScope {
         readonly property real viewBottomMargin: item ? (swipeSelectMode ? item.storedHeightBeforeSwipeSelectMode : height) + appGridIndicatorLoader.defaultBottomMargin
                                                       : 0
 
-        active: shell.settings.enableCustomAppGrid
+        active: root.enableCustomAppGrids
         asynchronous: true
         height: item ? item.height : 0 // Since height doesn't reset when inactive
         focus: false
@@ -1322,7 +1363,8 @@ FocusScope {
 
     Loader {
         id: bottomDockLoader
-        active: shell.settings.enableDrawerDock
+
+        active: root.enableDock
         asynchronous: true
         height: item ? item.height : 0 // Since height doesn't reset when inactive
         focus: false

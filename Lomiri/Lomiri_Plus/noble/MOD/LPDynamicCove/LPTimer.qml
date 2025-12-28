@@ -97,6 +97,11 @@ LPDynamicCoveItem {
         }
     }
 
+    // Fixes some components not showing when rotating to landscape
+    // and back to portrait on the lockscreen
+    // Only happens when also shown on the desktop
+    onWidthChanged: delayOpenAnimation.restart()
+
     Connections {
         target: swipeArea
         function onTriggered() {
@@ -281,8 +286,10 @@ LPDynamicCoveItem {
                 console.log("Timer started")
                 shell.settings.dcLastTimeTimer = root_timesetter.timerduration
 
+                console.log("TEST!!!!!!!!!!!! " + [root_timesetter.h, root_timesetter.m, root_timesetter.s].join(" - "))
                 endTime = internal.tempEndTime(root_timesetter.h, root_timesetter.m, root_timesetter.s)
                 let targetdt = new Date((new Date()).setTime(endTime))
+                console.log("DATE!!!!!!! " + targetdt)
 
                 targettime = targetdt.getTime()
                 timer.alarm.reset()
@@ -417,7 +424,7 @@ LPDynamicCoveItem {
                 }
                 Label {
                     textSize: Label.Large
-                    text: internal.unitsdisplay(root_timesetter.h)
+                    text: internal.unitsdisplay(root_timesetter.h, 24)
                     color: timerLabel.highlightedItem == LPTimer.EditMode.Hour ? theme.palette.normal.activity : theme.palette.normal.foregroundText
                 }
                 Label {
@@ -606,7 +613,7 @@ LPDynamicCoveItem {
 
         function tempEndTime(h, m, s) {
             var startTime = Date.now()
-            var timeDiff = h * 60 * 60 * 1000 + (m >= 60 ? (m % 60) : m) * 60 * 1000 + (s >= 60 ? (s % 60) : s) * 1000
+            var timeDiff = (h >= 24 ? (h % 24) : h) * 60 * 60 * 1000 + (m >= 60 ? (m % 60) : m) * 60 * 1000 + (s >= 60 ? (s % 60) : s) * 1000
             var endTime = startTime + timeDiff
 
             return endTime
@@ -616,14 +623,14 @@ LPDynamicCoveItem {
             return stringToGoIntoTheRegex.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         }
 
-        function unitsdisplay(units) {
-            if (units > 59){
-                units = (units % 60) - 60
+        function unitsdisplay(units, maxValue=60) {
+            if (units > maxValue - 1){
+                units = (units % maxValue) - maxValue
             }
             if (units < 0){
-                units = (units % 60) + 60
+                units = (units % maxValue) + maxValue
             }
-            if (units === 60){
+            if (units === maxValue){
                 units = 0
             }
 

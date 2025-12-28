@@ -7,6 +7,8 @@ SwipeArea {
 
     direction: SwipeArea.Upwards
 
+
+    readonly property real pixelDensity: shell.isBuiltInScreen && shell.settings.useCustomPixelDensity ? shell.settings.customPixelDensity : Screen.pixelDensity
     readonly property real dragFraction: direction == SwipeArea.Vertical || direction == SwipeArea.Horizontal ? 
                                                 internal.isVerticalDirection ? Math.min(1.0, Math.max(0.0, Math.abs(distance) / parent.height))
                                                              : Math.min(1.0, Math.max(0.0, Math.abs(distance) / parent.width))
@@ -21,8 +23,8 @@ SwipeArea {
                                                       : [0, 0.05, 0.18, 0.36, 0.54, 1.0] // Height percentages
 
     readonly property int stage: usePhysicalUnit ? direction == SwipeArea.Vertical || direction == SwipeArea.Horizontal ? 
-                                                                    thresholds.map(function(t) { return Math.abs(distance) <= ((Screen.pixelDensity * 25.4) * t) }).indexOf(true)
-                                                                    : thresholds.map(function(t) { return distance <= ((Screen.pixelDensity * 25.4) * t) }).indexOf(true)
+                                                                    thresholds.map(function(t) { return Math.abs(distance) <= ((pixelDensity * 25.4) * t) }).indexOf(true)
+                                                                    : thresholds.map(function(t) { return distance <= ((pixelDensity * 25.4) * t) }).indexOf(true)
                                                  : thresholds.map(function(t) { return dragFraction <= t }).indexOf(true)
     readonly property real stageValue: thresholds[stage] ? thresholds[stage] : -1 // In inch when usePhysicalUnit is true, otherwise, height percentage
     readonly property alias towardsDirection: internal.towardsDirection

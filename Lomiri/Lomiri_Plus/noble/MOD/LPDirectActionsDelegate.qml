@@ -8,7 +8,7 @@ import QtGraphicalEffects 1.12
 Item {
     id: itemDelegate
 
-    readonly property string defaultIconName: "dialog-question-symbolic"
+    readonly property string defaultIconName: "image://theme/dialog-question-symbolic"
     property real maximumSize: units.gu(6)
     readonly property bool toggleOn: toggleObj && toggleObj.checked ? true : false
     readonly property var toggleObj: { // Only for Quick Toggles

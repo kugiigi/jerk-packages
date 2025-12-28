@@ -506,12 +506,11 @@ Item {
             function randomNumber(min, max) {
                 return Math.random() * (max - min) + min;
             }
-            
+
             function generateRandomNumber(min, max) {
-                    return Math.random() * (max - min) + min;
+                return Math.random() * (max - min) + min;
             }
 
-            
             function refillData() {
                 dataAboutToChange()
                 clear()
@@ -537,6 +536,9 @@ Item {
 
             running: dynamicCove.isCDPlayer && dynamicCove.item && dynamicCove.item.visible
                             && dynamicCove.item.spinAnimation.running && !dynamicCove.item.spinAnimation.paused
+                            // ENH234 - Custom infographics texts
+                            && !shell.settings.showRandomInfographicsCircles
+                            // ENH234 - End
             repeat: true
             interval: 5000
             triggeredOnStart: true
@@ -547,7 +549,10 @@ Item {
         Connections {
             target: presentCircles
             function onModelChanged() {
-                if (presentCircles.model == discoModeModel) {
+                // ENH234 - Custom infographics texts
+                //if (presentCircles.model == discoModeModel) {
+                if (presentCircles.model == discoModeModel && !shell.settings.showRandomInfographicsCircles) {
+                // ENH234 - End
                     discoTimer.restart()
                 } else {
                     discoTimer.stop()
@@ -560,7 +565,12 @@ Item {
             objectName: "presentCircles"
             // ENH064 - Dynamic Cove
             // model: infographic.model.firstMonth
-            model: dynamicCove.isCDPlayer && shell.settings.enableCDPlayerDisco ? discoModeModel : infographic.model.firstMonth
+            // ENH234 - Custom infographics texts
+            //model: dynamicCove.isCDPlayer && shell.settings.enableCDPlayerDisco ? discoModeModel : infographic.model.firstMonth
+            model: (dynamicCove.isCDPlayer && shell.settings.enableCDPlayerDisco)
+                        || shell.settings.showRandomInfographicsCircles
+                                ? discoModeModel : infographic.model.firstMonth
+            // ENH234 - End
             // ENH064 - End
 
             delegate: ObjectPositioner {
@@ -770,7 +780,11 @@ Item {
             width: notification.height
             anchors.centerIn: parent
 
-            text: infographic.model.label
+            // ENH234 - Custom infographics texts
+            // text: infographic.model.label
+            text: shell.settings.useCustomInfographicsTexts ? shell.settings.customInfographicsTexts[0]
+                                : infographic.model.label
+            // ENH234 - End
 
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
@@ -859,7 +873,15 @@ Item {
         }
         onClicked: {
             if (dynamicCove.isInfographic) {
-                reloadUSerDataDots()
+                // ENH234 - Custom infographics texts
+                if (!shell.settings.useCustomInfographicsTexts) {
+                    reloadUSerDataDots()
+                }
+                if (shell.settings.showRandomInfographicsCircles) {
+                    discoModeModel.refillData()
+                    shell.haptics.playSubtle()
+                }
+                // ENH234 - End
             }
         }
         onDoubleClicked: {

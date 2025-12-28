@@ -37,6 +37,9 @@ QtObject {
     // ENH019 - Side stage floating mode
     property bool sideStageFloating: false
     // ENH019 - End
+    // ENH239 - Force show Launcher
+    property real xMargin: 0
+    // ENH239 - End
 
     property int animationDuration: LomiriAnimation.FastDuration
 
@@ -81,19 +84,28 @@ QtObject {
 
     property int itemX: {
         if (mainStageDelegate == thisDelegate) {
-            return 0
+            // ENH239 - Force show Launcher
+            // return 0
+            return 0 + root.xMargin
+            // ENH239 - End
         }
         if (sideStageDelegate == thisDelegate) {
             return sideStageX;
         }
-        return sceneWidth;
+        // ENH239 - Force show Launcher
+        // return sceneWidth;
+        return sceneWidth + root.xMargin;
+        // ENH239 - End
     }
     Behavior on itemX { enabled: root.animateX; LomiriNumberAnimation {duration: animationDuration} }
 
     readonly property int itemWidth: stage == ApplicationInfoInterface.MainStage ?
     // ENH019 - Side stage floating mode
                                      // sideStageDelegate != null ? sideStageX - sideStageHandleWidth : sceneWidth :
-                                     sideStageDelegate != null && !sideStageFloating ? sideStageX - sideStageHandleWidth : sceneWidth :
+                                     // ENH239 - Force show Launcher
+                                     //sideStageDelegate != null && !sideStageFloating ? sideStageX - sideStageHandleWidth : sceneWidth :
+                                     sideStageDelegate != null && !sideStageFloating ? sideStageX - sideStageHandleWidth - root.xMargin : sceneWidth :
+                                     // ENH239 - End
     // ENH019 - End
                                      stage == ApplicationInfoInterface.SideStage ? sideStageWidth : sceneWidth
 }

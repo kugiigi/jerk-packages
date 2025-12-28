@@ -301,6 +301,7 @@ FocusScope {
         if (root.spreadEnabled) {
             if (!spreadShown) {
                 priv.goneToSpread = true
+                spreadItem.highlightedIndex = -1;
             } else {
                 closeSpread()
             }
@@ -1747,6 +1748,7 @@ FocusScope {
         }
         Item {
             id: infographicsArea
+            visible: root.desktopShown || root.mainApp == null
 
             anchors {
                 top: parent.top
@@ -1756,7 +1758,8 @@ FocusScope {
             }
         }
         Loader {
-            active: shell.settings.showInfographicsOnDesktop
+            active: shell.settings.showInfographicsOnDesktop && !showDesktopSwipeArea.enabled
+                        && (root.topLevelSurfaceList.count < 1 || root.desktopShown)
             height: units.gu(2)
             anchors {
                 bottom: parent.bottom
@@ -1865,9 +1868,15 @@ FocusScope {
 
             // ENH135 - Show Desktop
             SwipeArea {
+                id: showDesktopSwipeArea
+                property bool justSwiped: false
+                property Timer justSwipedTimer: Timer {
+                    interval: 100
+                    onTriggered: showDesktopSwipeArea.justSwiped = false
+                }
                 visible: enabled
                 enabled: (priv.goneToSpread && shell.settings.enableShowDesktop)
-                                || appContainer.showDesktop
+                                || (appContainer.showDesktop && !shell.settings.showInfographicsOnDesktop)
                 direction: SwipeArea.Upwards
                 z: 999
                 height: units.gu(2)
@@ -1881,6 +1890,8 @@ FocusScope {
                     shell.haptics.play()
 
                     if (dragging) {
+                        justSwiped = true
+                        justSwipedTimer.restart()
                         appContainer.toggleShowDesktop()
                         spreadItem.leaveSpread()
                     }
@@ -2398,7 +2409,10 @@ FocusScope {
                         }
                     }
                     // ENH135 - Show Desktop
-                    appContainer.showDesktop = false
+                    // Only do this when not using the swipe up gesture for toggling desktop
+                    if (!showDesktopSwipeArea.justSwiped) {
+                        appContainer.showDesktop = false
+                    }
                     // ENH135 - End
                 }
                 function requestMaximize() { model.window.requestState(Mir.MaximizedState); }
@@ -2768,7 +2782,11 @@ FocusScope {
                 }
                 StageMaths {
                     id: stageMaths
-                    sceneWidth: root.width
+                    // ENH239 - Force show Launcher
+                    // sceneWidth: root.width
+                    sceneWidth: shell.settings.forceLockLauncher ? root.availableDesktopArea.width : root.width
+                    xMargin: shell.settings.forceLockLauncher ? root.launcherLeftMargin : 0
+                    // ENH239 - End
                     stage: appDelegate.stage
                     thisDelegate: appDelegate
                     mainStageDelegate: priv.mainStageDelegate
@@ -2867,7 +2885,11 @@ FocusScope {
                         }
                         PropertyChanges {
                             target: appDelegate
-                            x: stagedRightEdgeMaths.animatedX
+                            // ENH239 - Force show Launcher
+                            // x: stagedRightEdgeMaths.animatedX
+                            x: shell.settings.forceLockLauncher ? stagedRightEdgeMaths.animatedX + root.launcherLeftMargin
+                                                : stagedRightEdgeMaths.animatedX
+                            // ENH239 - End
                             y: stagedRightEdgeMaths.animatedY
                             z: stagedRightEdgeMaths.animatedZ
                             height: stagedRightEdgeMaths.animatedHeight
@@ -2936,7 +2958,10 @@ FocusScope {
                         }
                         PropertyChanges {
                             target: appDelegate
-                            requestedWidth: appContainer.width
+                            // ENH239 - Force show Launcher
+                            // requestedWidth: appContainer.width
+                            requestedWidth: shell.settings.forceLockLauncher ? appContainer.width - root.launcherLeftMargin : appContainer.width
+                            // ENH239 - End
                             requestedHeight: root.availableDesktopArea.height
                             restoreEntryValues: false
                         }
