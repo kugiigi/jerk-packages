@@ -90,6 +90,8 @@ Showable {
     readonly property bool swipeToUnlockEnabled: shell.settings.swipeToUnlockFingerprint
     readonly property bool swipeToUnlockTimeoutEnabled: shell.settings.swipeToUnlockEnableAutoLockTimeout
     readonly property int swipeToUnlockTimeout: shell.settings.swipeToUnlockAutoLockTimeout
+
+    readonly property bool actuallyUnlocked: temporaryUnlocked || !locked
     // When device was turned on with fingerprint but did not actually unlock
     property bool temporaryUnlocked: false
 
@@ -463,7 +465,7 @@ Showable {
                 name: "normal-coverpage"
                 when: loader.active && loader.item && loader.item.coverPage && loader.item.coverPage.showInfographic
                 // Rotation is important to avoid rotation mismatch when rotating the shell
-                ParentChange { target: infographicsLoader; parent: loader.item.coverPage.infographicsArea; rotation: 0;}
+                ParentChange { target: infographicsLoader; parent: loader.item ? loader.item.coverPage.infographicsArea : root; rotation: 0;}
             }
             , State {
                 name: "normal-lockscreen"
@@ -960,6 +962,29 @@ Showable {
                                           // ENH219 - End
                                           Biometryd.available &&
                                           AccountsService.enableFingerprintIdentification
+        // ENH232 - Fingerprint toggling while typing passcode
+                                          && !temporaryDisabled
+        readonly property bool temporaryDisabled: {
+            if (shell.settings.disableFingerprintWhileTyping && shell.isBuiltInScreen
+                    && Powerd.status === Powerd.On
+                    && loader.item && loader.item.lockscreenShown) {
+                const _oskShown = shell.oskShown
+                const _textNotEmpty = loader.item && loader.item.enteredText !== ""
+                switch (shell.settings.disableFingerprintWhileTypingBehavior) {
+                    case 0:
+                        return _oskShown || _textNotEmpty
+                    case 1:
+                        return _oskShown
+                    case 2:
+                        return _textNotEmpty
+                    default:
+                        return false
+                }
+            }
+
+            return false
+        }
+        // ENH232 - End
 
         function startOperation() {
             if (idEnabled) {
@@ -991,7 +1016,11 @@ Showable {
             var msg = d.secureFingerprint ? i18n.tr("Try again") :
                       d.alphanumeric ? i18n.tr("Enter passphrase to unlock") :
                                        i18n.tr("Enter passcode to unlock");
-            d.showFingerprintMessage(msg);
+            // ENH232 - Fingerprint toggling while typing passcode
+            if (!temporaryDisabled) {
+                d.showFingerprintMessage(msg);
+            }
+            // ENH232 - End
         }
 
         Component.onCompleted: startOperation()

@@ -38,7 +38,6 @@ Showable {
     property bool enableHint: true
     property bool showOnClick: true
     // ENH111 - Blurred expanded top panel
-    // property color panelColor: theme.palette.normal.background
     // ENH166 - Panel appearance settings
     readonly property color customPanelColor: shell.settings.useCustomIndicatorPanelColor ? shell.settings.customIndicatorPanelColor : "#000000"
     readonly property real colorOpacity: shell.settings.useCustomIndicatorPanelOpacity ? shell.settings.customIndicatorPanelOpacity : 0.85
@@ -344,7 +343,7 @@ Showable {
             z: 2
 
             visible: {
-                if (shell.settings.quickTogglesOnlyShowInNotifications) {
+                if (shell.settings.quickTogglesOnlyShowInNotifications && root.model) {
                     const _identifier = root.model.data(root.currentMenuIndex, 0)
 
                     return content.visible && root.enableQuickToggles && _identifier == "ayatana-indicator-messages"
@@ -910,6 +909,9 @@ Showable {
     Rectangle {
         anchors.fill: bar
         color: panelColor
+        // ENH166 - Panel appearance settings
+        opacity: !shell.settings.enableTransparentExpandedTopBar || root.useCustomColorAndOpacity ? 1 : 0.85
+        // ENH166 - End
         visible: !root.fullyClosed
     }
 

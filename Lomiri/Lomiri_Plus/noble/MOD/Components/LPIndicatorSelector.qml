@@ -215,7 +215,15 @@ Item {
                 swipeSelectMode: pageIndicatorSelector.swipeSelectMode
                 itemIndex: index
                 itemTitle: rootActionState.title || rootActionState.accessibleName
-                itemIconSource: icons ? icons[0] : ""
+                itemIconSource: {
+                    if (icons && icons.length > 0) return icons[0]
+
+                    // Hardcode when there's no alarm which means no icon in the Timer and Date indicator
+                    if (identifier === "ayatana-indicator-datetime")
+                        return "image://theme/preferences-system-time-symbolic"
+
+                    return ""
+                }
                 isMouseHovered: pageIndicatorSelector.noExpandWithMouse && pageIndicatorSelector.isHovered
 
                 onSelected: pageIndicatorSelector.newIndexSelected(itemIndex)

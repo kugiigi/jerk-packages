@@ -467,6 +467,10 @@ Item {
                                     ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "right" && !shell.deviceConfiguration.fullyHideNotchInPortrait
                                                 ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
                                     : 0
+            contentLeftMargin: shell.isBuiltInScreen
+                                    ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "left" && !shell.deviceConfiguration.fullyHideNotchInPortrait 
+                                                ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
+                                    : 0
             leftMarginBlur: root.leftMarginBlur
             topMarginBlur: root.topMarginBlur
             // ENH002 - End

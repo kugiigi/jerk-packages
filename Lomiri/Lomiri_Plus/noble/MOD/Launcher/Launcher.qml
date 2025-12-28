@@ -214,7 +214,10 @@ FocusScope {
         switchToNextState("visible")
     }
 
-    function toggleDrawer(focusInputField, onlyOpen, alsoToggleLauncher) {
+    // ENH236 - Custom drawer search
+    //function toggleDrawer(focusInputField, onlyOpen, alsoToggleLauncher) {
+    function toggleDrawer(focusInputField, onlyOpen, alsoToggleLauncher, _searchType = "all") {
+    // ENH236 - End
         if (!drawerEnabled) {
             return;
         }
@@ -225,7 +228,10 @@ FocusScope {
         root.takesFocus = true;
         root.focus = true;
         if (focusInputField) {
-            drawer.focusInput();
+            // ENH236 - Custom drawer search
+            //drawer.focusInput();
+            drawer.focusInput(_searchType);
+            // ENH236 - End
         }
         if (state === "drawer" && !onlyOpen)
             if (alsoToggleLauncher && !root.lockedVisible)
@@ -236,6 +242,8 @@ FocusScope {
             switchToNextState("drawer");
     }
     // ENH139 - System Direct Actions
+    // ENH236 - Custom drawer search
+    /*
     function searchInDrawer() {
         if (root.drawerShown) {
             drawer.focusInput();
@@ -243,7 +251,16 @@ FocusScope {
             toggleDrawer(true)
         }
     }
+    */
     // ENH139 - End
+    function searchInDrawer(_searchType = "all") {
+        if (root.drawerShown) {
+            drawer.focusInput(_searchType);
+        } else {
+            toggleDrawer(true, false, false, _searchType)
+        }
+    }
+    // ENH236 - Custom drawer search
 
     Keys.onPressed: {
         switch (event.key) {

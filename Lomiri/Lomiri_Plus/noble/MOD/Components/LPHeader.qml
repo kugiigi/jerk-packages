@@ -22,7 +22,9 @@ Item {
     }
 
     function expand() {
-        expanded = true
+        if (expandable) {
+            expanded = true
+        }
     }
 
     function collapse() {

@@ -65,7 +65,7 @@ MouseArea {
 
             Layout.alignment: Qt.AlignCenter
             // ENH132 - App drawer icon size settings
-            Layout.preferredWidth: units.gu(6) * root.delegateSizeMultiplier
+            Layout.preferredWidth: units.gu(6) * drawerDelegate.delegateSizeMultiplier
             // ENH132 - End
             Layout.preferredHeight: 7.5 / 8 * width
 

@@ -47,6 +47,11 @@ LPDynamicCoveItem {
 
     Component.onCompleted: delayOpenAnimation.restart()
 
+    // Fixes some components not showing when rotating to landscape
+    // and back to portrait on the lockscreen
+    // Only happens when also shown on the desktop
+    onWidthChanged: delayOpenAnimation.restart()
+
     // WORKAROUND: Delay to avoid the issue where the animation
     // doesn't seem to execute upong locking the device
     Timer {
@@ -201,7 +206,10 @@ LPDynamicCoveItem {
             cache: false
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(width, height)
-            anchors.fill: parent
+            anchors {
+                fill: parent
+                margins: units.gu(1)
+            }
 
             layer.enabled: rounded
             layer.effect: OpacityMask {
@@ -295,9 +303,8 @@ LPDynamicCoveItem {
         Rectangle {
             readonly property color _normalColor: theme.palette.normal.background
             anchors.fill: parent
-            anchors.margins: units.gu(1)
             radius: width / 2
-            opacity: 0.3
+            opacity: 0.5
             color: mouseArea.pressed ? _normalColor.hslLightness > 0.1 ? Qt.darker(_normalColor, 1.2)
                                                                              : Qt.lighter(_normalColor, 3.0)
                                            : _normalColor

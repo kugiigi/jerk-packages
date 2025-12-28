@@ -78,6 +78,10 @@ FocusScope {
     property alias lockscreen: lockscreen
     property alias coverPage: coverPage
     // ENH226 - End
+    // ENH232 - Fingerprint toggling while typing passcode
+    readonly property bool lockscreenShown: !coverPage.shown && lockscreen.shown
+    property alias enteredText: loginList.enteredText
+    // ENH232 - End
 
     function notifyAuthenticationFailed() {
         loginList.showError();
@@ -212,7 +216,10 @@ FocusScope {
         // ENH034 - End
         panelHeight: root.panelHeight
         hasCustomBackground: root.hasCustomBackground
-        backgroundShadeOpacity: 0.6
+        // ENH231 - Lockscreen dark background opacity
+        // backgroundShadeOpacity: 0.6
+        backgroundShadeOpacity: shell.settings.useCustomLockscreenDarkBGOpacity ? shell.settings.lockscreenDarkBGOpacity : 0.6
+        // ENH231 - End
 
         showInfographic: isLandscape && root.usageMode != "phone" && (root.usageMode != "tablet" || root.multiUser) && !delayedLockscreen.visible
         infographicModel: root.infographicModel
@@ -512,7 +519,10 @@ FocusScope {
         useCoverPageWallpaper: shell.settings.useCustomCoverPage
         // ENH034 - End
         hasCustomBackground: root.hasCustomBackground
-        backgroundShadeOpacity: 0.4
+        // ENH231 - Lockscreen dark background opacity
+        // backgroundShadeOpacity: 0.4
+        backgroundShadeOpacity: shell.settings.useCustomCoverPageDarkBGOpacity ? shell.settings.coverPageDarkBGOpacity : 0.4
+        // ENH231 - End
         panelHeight: root.panelHeight
         draggable: !root.waiting
         onTease: root.tease()

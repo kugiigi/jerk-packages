@@ -37,7 +37,15 @@ IndicatorDelegate {
     readonly property color color: {
         // ENH199 - Indicators custom colors
         // if (!expanded) return theme.palette.normal.backgroundText;
-        if (!expanded) return shell.settings.useCustomTopBarIconTextColor && shell.showingGreeter ? shell.settings.customTopBarIconTextColor : theme.palette.normal.backgroundText;
+        if (!expanded) {
+            if (shell.settings.useCustomTopBarIconTextColor && shell.showingGreeter) {
+                    return shell.settings.customTopBarIconTextColor
+            } else if (shell.settings.useCustomTopBarIconTextColorDesktop && shell.desktopShown && !shell.drawerShown) {
+                    return shell.settings.customTopBarIconTextColorDesktop
+            } else {
+                return theme.palette.normal.backgroundText;
+            }
+        }
         // ENH199 - End
         if (!selected) return theme.palette.disabled.backgroundText;
         return theme.palette.normal.backgroundText;
@@ -232,9 +240,10 @@ IndicatorDelegate {
                     break
                     case "indicator-datetime":
                     case "ayatana-indicator-datetime":
-                        if (shell.settings.twoDigitHourDateTimeIndicator){
-                            if (_processedText.indexOf(" ") == 0) {
-                                _processedText = _processedText.replace(" ", "0")
+                        if (shell.settings.twoDigitHourDateTimeIndicator) {
+                            // The space here isn't the normal space. Char code is 8199
+                            if (_processedText.indexOf(" ") == 0) {
+                                _processedText = _processedText.replace(" ", "0")
                             }
                         }
                     break

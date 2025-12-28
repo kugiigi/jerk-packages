@@ -372,6 +372,9 @@ Item {
         height: root.height
         orientation: root.angleToOrientation(orientationAngle)
         orientations: root.orientations
+        // ENH238 - Navigation buttons
+        navigationButtonsHeight: navigationButtonsLoader.active ? navigationButtonsLoader.height : 0
+        // ENH238 - End
         nativeWidth: root.width
         nativeHeight: root.height
         mode: applicationArguments.mode
@@ -432,6 +435,10 @@ Item {
         readonly property real pullDownHeight: shell.convertFromInch(shell.settings.pullDownHeight)
         readonly property bool pullDownEnabled: shell.isBuiltInScreen && shell.height >= pullDownHeight * 1.2
         property bool pulledDown: false
+
+        function togglePulledDown() {
+            shell.pulledDown = !shell.pulledDown
+        }
 
         onPulledDownChanged: {
             if (pulledDown) {
@@ -605,6 +612,26 @@ Item {
         }
         // ENH117 - End
     }
+    // ENH238 - Navigation buttons
+    Loader {
+        id: navigationButtonsLoader
+
+        active: shell.settings.enableNavigationButtons && shell.isBuiltInScreen
+        asynchronous: true
+        height: units.gu(8)
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
+            right: parent.right
+        }
+        sourceComponent: LPNavigationButtons {
+            id: navigationButtons
+
+            model: shell.settings.navigationButtonsList
+            shellRotation: Math.abs(shell.transformRotationAngle)
+        }
+    }
+    // ENH238 - End
 
     RotateButton {
         id: rotateButton

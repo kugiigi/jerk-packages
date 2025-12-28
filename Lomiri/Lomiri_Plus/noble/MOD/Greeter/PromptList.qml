@@ -42,9 +42,10 @@ FocusScope {
     signal canceled()
 
     // ENH038 - Directly type password/passcode in lockscreen
-    property var greeterPromptItem
+    property var greeterPromptItem: null
     // ENH032 - Infographics Outer Wilds
     signal promptTextChanged()
+
     Connections {
         target: greeterPromptItem
         function onEnteredTextChanged() { root.promptTextChanged() }
@@ -57,13 +58,22 @@ FocusScope {
         if (greeterPromptItem && greeterPromptItem.isPrompt) {
             if ((greeterPromptItem.isPinPrompt && regExp.test(initText))
                     || !greeterPromptItem.isPinPrompt) {
-                greeterPromptItem.prompt.enteredText = initText
+                // Circle/Clock prompt
+                if (greeterPromptItem.prompt.currentCode) {
+                    greeterPromptItem.prompt.addNumber(initText, true)
+                    greeterPromptItem.prompt.pinEnteredFromCoverPage = true
+                } else {
+                    greeterPromptItem.prompt.enteredText = initText
+                }
                 valueAccepted =  true
             }
         }
         return valueAccepted
     }
     // ENH038 - End
+    // ENH232 - Fingerprint toggling while typing passcode
+    readonly property string enteredText: greeterPromptItem ? greeterPromptItem.enteredText : ""
+    // ENH232 - End
 
     function showFakePassword() {
         for (var i = 0; i < repeater.count; i++) {

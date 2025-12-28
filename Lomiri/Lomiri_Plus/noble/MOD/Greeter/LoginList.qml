@@ -59,6 +59,9 @@ StyledItem {
         return promptList.setInitText(initText)
     }
     // ENH038 - End
+    // ENH232 - Fingerprint toggling while typing passcode
+    property alias enteredText: promptList.enteredText
+    // ENH232 - End
 
     function tryToUnlock() {
         promptList.forceActiveFocus();

@@ -74,6 +74,11 @@ LPDynamicCoveItem {
         }
     }
 
+    // Fixes some components not showing when rotating to landscape
+    // and back to portrait on the lockscreen
+    // Only happens when also shown on the desktop
+    onWidthChanged: delayOpenAnimation.restart()
+
     Connections {
         target: swipeArea
         function onTriggered() {
