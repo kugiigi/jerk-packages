@@ -37,8 +37,9 @@ SwipeArea {
     // when doing a quick swipe
     property bool triggerSignalOnQuickSwipe: false
 
-    property real distanceThreshold: (Screen.pixelDensity * 25.4) * 0.2 // 0.2 inch
-    property real maxThresholdLength: (Screen.pixelDensity * 25.4) * fullScreenItem.settings.quickActionsHeight // Inches
+    readonly property real pixelDensity: fullScreenItem.settings.useCustomPixelDensity ? fullScreenItem.settings.customPixelDensity : Screen.pixelDensity
+    property real distanceThreshold: (pixelDensity * 25.4) * 0.2 // 0.2 inch
+    property real maxThresholdLength: (pixelDensity * 25.4) * fullScreenItem.settings.quickActionsHeight // Inches
     property real availableHeight: maxThresholdLength
     property real availableWidth: maxThresholdLength
 
@@ -116,8 +117,8 @@ SwipeArea {
         anchors {
             left: bottomSwipeArea.edge == MKBottomSwipeArea.Edge.Left ? parent.left : undefined
             right: bottomSwipeArea.edge == MKBottomSwipeArea.Edge.Right ? parent.right : undefined
-            leftMargin: (Screen.pixelDensity * 25.4) * 0.5
-            rightMargin: (Screen.pixelDensity * 25.4) * 0.5
+            leftMargin: (bottomSwipeArea.pixelDensity * 25.4) * 0.5
+            rightMargin: (bottomSwipeArea.pixelDensity * 25.4) * 0.5
             bottom: parent.bottom
             bottomMargin: bottomSwipeArea.distanceThreshold
         }

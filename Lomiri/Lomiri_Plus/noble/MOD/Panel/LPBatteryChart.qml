@@ -22,7 +22,8 @@ Item {
     }
 
     readonly property color gridColor: theme.palette.normal.base
-    readonly property bool enoughData: modelData && modelData.length > 1
+    readonly property int enoughDataNumber: listViewMode ? 1 : 2
+    readonly property bool enoughData: modelData && modelData.length >= enoughDataNumber
     property var modelData
     property int dataToDisplay: LPBatteryChart.DataToDisplay.Both
     property int type: LPBatteryChart.Type.Day
@@ -136,6 +137,7 @@ Item {
         }
         clip: true
         model: root.modelData
+        //model: root.modelData.slice(0,3) // For testing limited data
         header: RowLayout {
             height: units.gu(4)
             anchors {
@@ -224,25 +226,24 @@ Item {
                     elide: Text.ElideRight
                 }
             }
-
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onClicked: {
-                    switch (true) {
-                        case (mouse.button === Qt.LeftButton):
-                            root.clicked()
-                            break
-                        case (mouse.button === Qt.RightButton):
-                            root.toggleMode()
-                            break
-                    }
+        }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: {
+                switch (true) {
+                    case (mouse.button === Qt.LeftButton):
+                        root.clicked()
+                        break
+                    case (mouse.button === Qt.RightButton):
+                        root.toggleMode()
+                        break
                 }
+            }
 
-                onPressAndHold: {
-                    root.toggleMode()
-                    shell.haptics.playSubtle()
-                }
+            onPressAndHold: {
+                root.toggleMode()
+                shell.haptics.playSubtle()
             }
         }
     }

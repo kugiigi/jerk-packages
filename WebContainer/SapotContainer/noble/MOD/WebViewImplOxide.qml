@@ -244,6 +244,18 @@ WebappWebview {
             return true;
         }
 
+        const _arrForcedAsExternal = webapp.settings.internalDomainsAsExternal.slice();
+        const _arrLength = _arrForcedAsExternal.length
+
+        if (_arrLength > 0) {
+            for (var i = 0; i < _arrLength; ++i) {
+                var pattern = _arrForcedAsExternal[i]
+                if (url.match(pattern)) {
+                    return false;
+                }
+            }
+        }
+
         if (haveValidUrlPatterns()) {
             for (var i = 0; i < webappUrlPatterns.length; ++i) {
                 var pattern = webappUrlPatterns[i]

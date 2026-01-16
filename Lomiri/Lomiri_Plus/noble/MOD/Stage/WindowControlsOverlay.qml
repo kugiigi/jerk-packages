@@ -45,6 +45,16 @@ Item {
     signal stopFakeAnimation()
     signal dragReleased()
 
+    // ENH243 - Virtual Touchpad Enhancements
+    function toggleOverlay() {
+        if (overlayShown) {
+            overlayTimer.stop()
+        } else {
+            overlayTimer.start()
+        }
+    }
+    // ENH243 - End
+
     // dismiss timer
     Timer {
         id: overlayTimer

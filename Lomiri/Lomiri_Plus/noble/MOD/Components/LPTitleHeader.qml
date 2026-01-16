@@ -12,6 +12,9 @@ LPHeader {
     property real idealMaxHeight: containerItem.height - idealRechableHeight
     property real idealExpandableHeight: idealRechableHeight + units.gu(10)
     property var containerItem: root.parent
+    property bool showDivider: true
+    property real dividerLeftMargin: 0
+    property real dividerRightMargin: 0
 
     property alias iconName: iconItem.name
     property alias iconSource: iconItem.source
@@ -66,10 +69,13 @@ LPHeader {
         }
 
         ListItems.ThinDivider {
+            visible: root.showDivider
             anchors {
                 bottom: parent.bottom
                 left: parent.left
                 right: parent.right
+                leftMargin: root.dividerLeftMargin
+                rightMargin: root.dividerRightMargin
             }
         }
     }

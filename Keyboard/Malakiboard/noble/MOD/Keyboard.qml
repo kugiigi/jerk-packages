@@ -192,6 +192,8 @@ Item {
         property alias replacePeriodExtendedDomainsEN: settingsObj.replacePeriodExtendedDomainsEN
         property alias hideLanguageKey: settingsObj.hideLanguageKey
         property alias biggerEmojiFont: settingsObj.biggerEmojiFont
+        property alias useCustomPixelDensity: settingsObj.useCustomPixelDensity
+        property alias customPixelDensity: settingsObj.customPixelDensity
 
         // Advanced Text Manipulation Mode
         property alias showBackSpaceEnter: settingsObj.showBackSpaceEnter
@@ -428,6 +430,8 @@ Item {
             property var customClipboard: []
             property int customClipboardLimit: 20
             property bool biggerEmojiFont: false
+            property bool useCustomPixelDensity: false
+            property real customPixelDensity: 8
         }
     }
 
@@ -598,7 +602,11 @@ Item {
 
     // ENH070 - Keyboard settings
     function convertFromInch(value) {
-        return (Screen.pixelDensity * 25.4) * value
+        let _density = Screen.pixelDensity
+        if (fullScreenItem.settings.useCustomPixelDensity) {
+            _density = fullScreenItem.settings.customPixelDensity
+        }
+        return (_density * 25.4) * value
     }
     Loader {
         id: settingsLoader
@@ -1718,6 +1726,11 @@ Item {
         MKSettingsPage {
             MKSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Custom Pixel Density"
+                onClicked: settingsLoader.item.stack.push(customPixelDensityPage, {"title": text})
+            }
+            MKSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Custom Height"
                 onClicked: settingsLoader.item.stack.push(customHeightPage, {"title": text})
             }
@@ -1735,6 +1748,66 @@ Item {
                 Layout.fillWidth: true
                 text: "Custom Margins"
                 onClicked: settingsLoader.item.stack.push(customMarginsPage, {"title": text})
+            }
+        }
+    }
+    Component {
+        id: customPixelDensityPage
+        
+        MKSettingsPage {
+            id: themePageItem
+
+            QQC2.SwitchDelegate {
+                id: useCustomPixelDensity
+                Layout.fillWidth: true
+                text: "Use custom pixel density"
+                onCheckedChanged: fullScreenItem.settings.useCustomPixelDensity = checked
+                Binding {
+                    target: useCustomPixelDensity
+                    property: "checked"
+                    value: fullScreenItem.settings.useCustomPixelDensity
+                }
+            }
+            MKSliderItem {
+                id: customPixelDensity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: fullScreenItem.settings.useCustomPixelDensity
+                title: "Custom pixel density"
+                minimumValue: 1
+                maximumValue: 50
+                resetValue: Screen.pixelDensity
+                stepSize: 0.5
+                percentageValue: false
+                roundValue: false
+                enableFineControls: true
+                onValueChanged: fullScreenItem.settings.customPixelDensity = value
+                Binding {
+                    target: customPixelDensity
+                    property: "value"
+                    value: fullScreenItem.settings.customPixelDensity
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+
+                Rectangle {
+                    readonly property real size: fullScreenItem.convertFromInch(1)
+
+                    Layout.preferredWidth: size
+                    Layout.preferredHeight: size
+                    color: Suru.foregroundColor
+
+                    Label {
+                        text: "1 inch by 1 inch"
+                        anchors.fill: parent
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        color: Suru.backgroundColor
+                    }
+                }
             }
         }
     }

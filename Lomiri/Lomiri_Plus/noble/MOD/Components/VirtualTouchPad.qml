@@ -22,24 +22,85 @@ import Aethercast 1.0
 import UInput 0.1
 import "../Components"
 // ENH141 - Air mouse in virtual touchpad
+import QtQuick.Window 2.2
 import QtSensors 5.12
 import QtFeedback 5.0
 import ".." 0.1
 // ENH141 - End
+// ENH243 - Virtual Touchpad Enhancements
+import Lomiri.Gestures 0.1
+import QtMir.Application 0.1
+import "../Stage"
+// ENH243 - End
 
 Item {
     id: root
 
     property bool oskEnabled: false
+    // ENH241 - Rotate button in Virtual Touchpad
+    property int contentRotation: 0
+
+    function rotate() {
+        if (contentRotation === 270) {
+            contentRotation = 0
+        } else {
+            contentRotation += 90
+        }
+    }
+    // ENH241 - End
+    // ENH243 - Virtual Touchpad Enhancements
+    readonly property bool appDragGestureIsActive: (gestureArea.recognizedDrag && !gestureArea.isResizeMode)
+                                                        || gyro.appIsBeingDragged
+    onAppDragGestureIsActiveChanged: ShellNotifier.appDragGestureIsActive = appDragGestureIsActive
+    // ENH243 - End
     // ENH141 - Air mouse in virtual touchpad
-    readonly property bool gyroMode: enableGyroMode && settingsObj
-                                    && (
-                                        (typeof settingsObj.value("enableAirMouse", 0) === "string" && settingsObj.value("enableAirMouse", 0) === "true")
-                                        ||
-                                        (typeof settingsObj.value("enableAirMouse", 0) === "boolean" && settingsObj.value("enableAirMouse", 0) === true)
-                                    )
+    readonly property bool gyroMode: enableGyroMode && ShellNotifier.enableAirMouse
     property bool enableGyroMode: false
     onGyroModeChanged: ShellNotifier.inAirMouseMode = gyroMode
+
+    function convertFromInch(value) {
+        let _density = Screen.pixelDensity
+        return (_density * 25.4) * value
+    }
+
+    function leftClick() {
+        leftPress();
+        leftRelease();
+        ShellNotifier.normalHaptics()
+    }
+
+    function leftPress() {
+        UInput.pressMouse(UInput.ButtonLeft);
+    }
+
+    function leftRelease() {
+        UInput.releaseMouse(UInput.ButtonLeft);
+    }
+
+    function rightClick() {
+        rightPress();
+        rightRelease();
+        ShellNotifier.normalHaptics();
+    }
+
+    function rightPress() {
+        UInput.pressMouse(UInput.ButtonRight);
+    }
+
+    function rightRelease() {
+        UInput.releaseMouse(UInput.ButtonRight);
+    }
+
+    function doubleLeftClick() {
+        leftClick();
+        doubleClickTimer.restart();
+        ShellNotifier.normalHaptics();
+    }
+    Timer {
+        id: doubleClickTimer
+        interval: 200
+        onTriggered: root.leftClick();
+    }
     // ENH141 - End
 
     AethercastDisplays {
@@ -90,30 +151,32 @@ Item {
         return Math.sqrt( (_x * _x) + (_y * _y) );
     }
 
-    Settings {
-        id: settingsObj
+    Connections {
+        target: ShellNotifier
 
-        category: "lomiriplus"
-    }
-    HapticsEffect {
-        id: normalHaptics
+        function onLeftClick() {
+            root.leftClick()
+        }
 
-        attackIntensity: 0.0
-        attackTime: 50
-        intensity: 1.0
-        duration: 10
-        fadeTime: 50
-        fadeIntensity: 0.0
-    }
-    HapticsEffect {
-        id: subtleHaptics
+        function onRightClick() {
+            root.rightClick()
+        }
 
-        attackIntensity: 0.0
-        attackTime: 50
-        intensity: 0.5
-        duration: 2
-        fadeTime: 50
-        fadeIntensity: 0.0
+        function onLeftPress() {
+            root.leftPress()
+        }
+
+        function onRightPress() {
+            root.rightPress()
+        }
+
+        function onLeftRelease() {
+            root.leftRelease()
+        }
+
+        function onRightRelease() {
+            root.rightRelease()
+        }
     }
 
     Gyroscope {
@@ -121,6 +184,7 @@ Item {
 
         // Mouse position relative to initial press on the touchpad
         property point relativeMousePos: Qt.point(0, 0)
+        property bool appIsBeingDragged: false
 
         active: root.gyroMode
 
@@ -128,25 +192,51 @@ Item {
             if (reading
                     && 
                     (
-                        (settingsObj
-                            && (
-                                (typeof settingsObj.value("airMouseAlwaysActive", 0) === "string" && settingsObj.value("airMouseAlwaysActive", 0) === "true")
-                                ||
-                                (typeof settingsObj.value("airMouseAlwaysActive", 0) === "boolean" && settingsObj.value("airMouseAlwaysActive", 0) === true)
-                               )
-                        )
-                        ||
-                        multiTouchArea.touchPoints[0].pressed
+                        ShellNotifier.airMouseAlwaysActive
+                        || (!ShellNotifier.enableCustomClickBehavior && multiTouchArea.touchPoints[0].pressed)
+                        || (ShellNotifier.enableCustomClickBehavior && (customMouseArea.pressed || customMouseArea.dragInProgress))
                     )
                 ) {
-                let _sensitivityMultiplier = settingsObj ? settingsObj.value("airMouseSensitivity", 0) : 1
-                let _newMouseX = 0 - reading.z * _sensitivityMultiplier
-                let _newMouseY = 0 - reading.x * _sensitivityMultiplier
+
+                const _sensitivityMultiplier = ShellNotifier.airMouseSensitivity
+                const _readingZ = reading.z
+                const _readingX = reading.x
+                const _readingY = reading.y
+
+                // ENH241 - Rotate button in Virtual Touchpad
+                let _readingForMouseX = 0
+                let _readingForMouseY = 0
+                switch (root.contentRotation) {
+                    case 90:
+                        _readingForMouseX = _readingZ
+                        _readingForMouseY = -_readingY
+                        break
+                    case 180:
+                        _readingForMouseX = _readingZ
+                        _readingForMouseY = -_readingX
+                        break
+                    case 270:
+                        _readingForMouseX = _readingZ
+                        _readingForMouseY = _readingY
+                        break
+                    case 0:
+                    default:
+                        _readingForMouseX = _readingZ
+                        _readingForMouseY = _readingX
+                }
+                //let _newMouseX = 0 - _readingZ * _sensitivityMultiplier
+                //let _newMouseY = 0 - _readingX * _sensitivityMultiplier
+                let _newMouseX = 0 - _readingForMouseX * _sensitivityMultiplier
+                let _newMouseY = 0 - _readingForMouseY * _sensitivityMultiplier
+                // ENH241 - End
 
                 // Consolidate all mouse movements after pressing the touchpad
                 // then reset it to 0 on press release
                 if (multiTouchArea.touchPoints[0].pressed) {
-                    relativeMousePos = Qt.point(relativeMousePos.x + reading.z, relativeMousePos.y + reading.x)
+                    // ENH241 - Rotate button in Virtual Touchpad
+                    //relativeMousePos = Qt.point(relativeMousePos.x + _readingZ, relativeMousePos.y + _readingX)
+                    relativeMousePos = Qt.point(relativeMousePos.x + _readingForMouseX, relativeMousePos.y + _readingForMouseY)
+                    // ENH241 - End
                 } else {
                     relativeMousePos = Qt.point(0, 0)
                 }
@@ -160,6 +250,10 @@ Item {
                 }
 
                 UInput.moveMouse(_newMouseX, _newMouseY);
+
+                if (multiTouchArea.isSwipeUp && priv.appToDrag !== null) {
+                    moveHandler.handlePositionChanged(priv.mousePoint)
+                }
             }
         }
     }
@@ -172,16 +266,25 @@ Item {
         property bool isSwipeUp: false
         onIsSwipeChanged: {
             if (isSwipe) {
-                subtleHaptics.start()
+                ShellNotifier.subtleHaptics()
             }
         }
     // ENH141 - End
         objectName: "touchPadArea"
         anchors.fill: parent
-        enabled: !tutorial.running || tutorial.paused
+        // ENH141 - Air mouse in virtual touchpad
+        // enabled: !tutorial.running || tutorial.paused
+        enabled: (!tutorial.running || tutorial.paused) && !(root.enableGyroMode && ShellNotifier.enableCustomClickBehavior)
+        // ENH243 - Virtual Touchpad Enhancements
+                    && !(gestureArea.recognisedPress || fourFiveGetsureArea.recognisedPress)
+        // ENH243 - End
+        // ENH141 - End
 
         // FIXME: Once we have Qt DPR support, this should be Qt.styleHints.startDragDistance
-        readonly property int clickThreshold: internalGu * 1.5
+        // ENH243 - Virtual Touchpad Enhancements
+        // readonly property int clickThreshold: internalGu * 1.5
+        readonly property int clickThreshold: ShellNotifier.enableVirtualTouchpadLowerClickThreshold ? internalGu * 0.5 : internalGu * 1.5
+        // ENH243 - End
         property bool isClick: false
         property bool isDoubleClick: false
         property bool isDrag: false
@@ -226,7 +329,8 @@ Item {
                 }
             } else {
                 let _point = touchPoints[0]
-                let _distance = _point.y - _point.startY
+                //let _distance = _point.y - _point.startY // Vertical
+                let _distance = _point.x - _point.startX // Horizontal
 
                 if (Math.abs(_distance) > clickSwipeThreshold) {
                     isSwipe = true
@@ -234,7 +338,15 @@ Item {
                         isSwipeUp = true
                         isClick = false;
                         isDrag = true;
-                        UInput.pressMouse(UInput.ButtonLeft)
+
+                        //root.leftPress()
+                        if (priv.appToDrag === null) {
+                            ShellNotifier.getAppToDrag()
+                        }
+                        if (priv.appToDrag !== null && !moveHandler.dragging) {
+                            moveHandler.handlePressedChanged(pressed, Qt.LeftButton, priv.mousePoint.x, priv.mousePoint.y)
+                            gyro.appIsBeingDragged = true;
+                        }
                     } else {
                         isSwipeUp = false
                     }
@@ -246,6 +358,12 @@ Item {
         }
 
         onReleased: {
+            if (isSwipeUp) {
+                moveHandler.handlePressedChanged(false, Qt.LeftButton);
+                moveHandler.handleReleased(true);
+                ShellNotifier.appForDragging = null
+                gyro.appIsBeingDragged = false;
+            }
             if (isDoubleClick || isDrag) {
                 UInput.releaseMouse(UInput.ButtonLeft)
                 isDoubleClick = false;
@@ -262,7 +380,18 @@ Item {
                         clickTimer.scheduleClick(UInput.ButtonLeft)
                     }
                 } else {
-                    clickTimer.scheduleClick(point1.pressed ? UInput.ButtonRight : UInput.ButtonLeft)
+                    // Do not trigger right-click when custom gesture area is enabled
+                    let _button = UInput.ButtonLeft
+                    if (customTwoFingerGestureArea.enabled) {
+                        if (!point1.pressed) {
+                            clickTimer.scheduleClick(_button)
+                        }
+                    } else {
+                        if (point1.pressed) {
+                            _button = UInput.ButtonRight
+                        }
+                        clickTimer.scheduleClick(_button)
+                    }
                 }
                 // ENH141 - End
             }
@@ -272,11 +401,7 @@ Item {
             isSwipe = false;
             isSwipeUp = false;
 
-            if (
-                (typeof settingsObj.value("airMouseAlwaysActive", 0) === "string" && settingsObj.value("airMouseAlwaysActive", 0) === "false")
-                ||
-                (typeof settingsObj.value("airMouseAlwaysActive", 0) === "boolean" && settingsObj.value("airMouseAlwaysActive", 0) === false)
-               ) {
+            if (!ShellNotifier.airMouseAlwaysActive) {
                 gyro.relativeMousePos = Qt.point(0, 0)
             }
             // ENH141 - End
@@ -291,7 +416,7 @@ Item {
                 UInput.pressMouse(button);
                 UInput.releaseMouse(button);
                 // ENH141 - Air mouse in virtual touchpad
-                normalHaptics.start()
+                ShellNotifier.normalHaptics()
                 // ENH141 - End
             }
             function scheduleClick(button) {
@@ -336,8 +461,16 @@ Item {
             // As we added up the movement of the two fingers, let's divide it again by 2
             dh /= 2;
             dv /= 2;
+            // ENH243 - Virtual Touchpad Enhancements
+            if (ShellNotifier.invertMouseScroll) {
+                dh = -dh;
+                dv = -dv;
+            }
 
-            UInput.scrollMouse(dh, dv);
+            // UInput.scrollMouse(dh, dv);
+            const _sensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
+            UInput.scrollMouse(dh * _sensitivity, dv * _sensitivity);
+            // ENH243 - End
         }
 
         touchPoints: [
@@ -349,20 +482,424 @@ Item {
             }
         ]
     }
+    // ENH243 - Virtual Touchpad Enhancements
+    QtObject {
+        id: priv
 
+        readonly property real dragWindowSensitivity: ShellNotifier.dragWindowSensitivity
+        readonly property Item appToDrag: ShellNotifier.appForDragging
+        readonly property point mousePoint: ShellNotifier.cursorPoint
+        // Commented out since it's not need anymore
+        // but retained in case I need these again
+        /*
+        readonly property point mousePoint: {
+            const _x = ShellNotifier.cursorPoint.x
+            const _y = ShellNotifier.cursorPoint.y
+            let _translatedX = _x
+            let _translatedY = _y
+
+            switch (root.contentRotation) {
+                case 90:
+                    _translatedX = _y
+                    _translatedY = -_x
+                    break
+                case 180:
+                    _translatedX = -_x
+                    _translatedY = -_y
+                    break
+                case 270:
+                    _translatedX = -_y
+                    _translatedY = _x
+                    break
+                case 0:
+                default:
+                    break
+            }
+
+            return Qt.point(_translatedX, _translatedY)
+        }
+        */
+
+        onAppToDragChanged: {
+            if (appToDrag) {
+                appToDrag.activate();
+            }
+        }
+
+        function toggleAppControlsOverlay() {
+            if (appToDrag) {
+                appToDrag.toggleControlsOverlay()
+            }
+        }
+
+        // TODO: Possibly not needed anymore
+        /*
+        function getSensingPoints() {
+            var xPoints = [];
+            var yPoints = [];
+            for (var i = 0; i < gestureArea.touchPoints.length; i++) {
+                var pt = gestureArea.touchPoints[i];
+                xPoints.push(pt.x);
+                yPoints.push(pt.y);
+            }
+
+            var leftmost = Math.min.apply(Math, xPoints);
+            var rightmost = Math.max.apply(Math, xPoints);
+            var topmost = Math.min.apply(Math, yPoints);
+            var bottommost = Math.max.apply(Math, yPoints);
+
+            return {
+                left: mapToItem(gestureArea.target.parent, leftmost, (topmost+bottommost)/2),
+                top: mapToItem(gestureArea.target.parent, (leftmost+rightmost)/2, topmost),
+                right: mapToItem(gestureArea.target.parent, rightmost, (topmost+bottommost)/2),
+                topLeft: mapToItem(gestureArea.target.parent, leftmost, topmost),
+                topRight: mapToItem(gestureArea.target.parent, rightmost, topmost),
+                bottomLeft: mapToItem(gestureArea.target.parent, leftmost, bottommost),
+                bottomRight: mapToItem(gestureArea.target.parent, rightmost, bottommost)
+            }
+        }
+        */
+    }
+
+    MoveHandler {
+        id: moveHandler
+        objectName: "moveHandler"
+        target: gestureArea.target
+
+        boundsItem: ShellNotifier.availableDesktopArea
+        touchpadMode: true
+
+        onFakeMaximizeAnimationRequested: ShellNotifier.fakeMaximizeAnimationRequested(target, amount)
+        onFakeMaximizeLeftAnimationRequested: ShellNotifier.fakeMaximizeLeftAnimationRequested(target, amount)
+        onFakeMaximizeRightAnimationRequested: ShellNotifier.fakeMaximizeRightAnimationRequested(target, amount)
+        onFakeMaximizeTopLeftAnimationRequested: ShellNotifier.fakeMaximizeTopLeftAnimationRequested(target, amount)
+        onFakeMaximizeTopRightAnimationRequested: ShellNotifier.fakeMaximizeTopRightAnimationRequested(target, amount)
+        onFakeMaximizeBottomLeftAnimationRequested: ShellNotifier.fakeMaximizeBottomLeftAnimationRequested(target, amount)
+        onFakeMaximizeBottomRightAnimationRequested: ShellNotifier.fakeMaximizeBottomRightAnimationRequested(target, amount)
+        onStopFakeAnimation: ShellNotifier.stopFakeAnimation()
+    }
+
+    // For Search Drawer (tap) and Workspace (swipe/drag)
+    LPMultiTouchGestureArea {
+        id: customTwoFingerGestureArea
+
+        anchors.fill: parent
+
+        enabled: !root.gyroMode && ShellNotifier.enableCustomOneTwoGestureBehavior && (!tutorial.running || tutorial.paused)
+        enableDragStep: false
+        enableDoubleClick: true
+        minimumTouchPoints: 2
+        maximumTouchPoints: 2
+
+        onNormalHaptics: ShellNotifier.normalHaptics()
+        onSubtleHaptics: ShellNotifier.subtleHaptics()
+
+        onDoubleClicked: UInput.pressMouse(UInput.ButtonRight)
+        onDoubleClickedReleased: UInput.releaseMouse(UInput.ButtonRight)
+        onGestureReleased: {
+            if (!recognizedDrag) {
+                root.rightClick()
+            }
+        }
+
+        onDragUpdated: {
+            if (recognizedDrag) {
+                if (isDoubleClick) {
+                    if (recognizedDrag) {
+                        const _point = points[0];
+                        if (prevtp !== Qt.point(0, 0)) {
+                            const _newX = (_point.x - prevtp.x)
+                            const _newY = (_point.y - prevtp.y)
+                            UInput.moveMouse(_newX, _newY);
+                        }
+                    }
+                } else {
+                    scroll(points)
+                }
+            }
+        }
+
+        function scroll(touchPoints) {
+            var dh = 0;
+            var dv = 0;
+            var tp = touchPoints[0];
+            var tp2 = touchPoints[1];
+
+            dh += tp.x - prevtp.x;
+            dv += tp.y - prevtp.y;
+            dh += tp2.x - prevtp2.x;
+            dv += tp2.y - prevtp2.y;
+
+            // As we added up the movement of the two fingers, let's divide it again by 2
+            dh /= 2;
+            dv /= 2;
+
+            if (ShellNotifier.invertMouseScroll) {
+                dh = -dh;
+                dv = -dv;
+            }
+
+            const _sensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
+            UInput.scrollMouse(dh * _sensitivity, dv * _sensitivity);
+
+            UInput.scrollMouse(dh, dv);
+        }
+    }
+    // For moving windows
+    LPMultiTouchGestureArea {
+        id: gestureArea
+
+        readonly property Item target: priv.appToDrag
+        readonly property Item boundsItem: ShellNotifier.availableDesktopArea
+        readonly property bool isResizeMode: target && target.touchOverlayShown
+
+        readonly property bool appIsInSideStage: target && target.stage == ApplicationInfoInterface.SideStage
+        readonly property bool switchingStageIsAvailable: target !== null && !ShellNotifier.inWindowedMode
+        readonly property bool toTheRight: recognizedPress && dragStep >=  2 && !appIsInSideStage && target !== null
+        readonly property bool toTheLeft: recognizedPress && dragStep <=  -2 && appIsInSideStage && target !== null
+        readonly property bool inBetween: !toTheRight && !toTheLeft
+
+        anchors.fill: parent
+        enabled: ShellNotifier.enableAdvancedGestures
+        dragStepThreshold: internalGu * 10
+        enableDragStep: true
+        minimumTouchPoints: 3
+        maximumTouchPoints: minimumTouchPoints
+
+        onToTheRightChanged: {
+            if (switchingStageIsAvailable) {
+                if (toTheRight && !appIsInSideStage) {
+                    ShellNotifier.hintMoveAppToSideStage()
+                    ShellNotifier.subtleHaptics()
+                }
+            }
+        }
+        onToTheLeftChanged: {
+            if (switchingStageIsAvailable) {
+                if (toTheLeft && appIsInSideStage) {
+                    ShellNotifier.hintMoveAppToMainStage()
+                    ShellNotifier.subtleHaptics()
+                }
+            }
+        }
+        onInBetweenChanged: {
+            if (switchingStageIsAvailable) {
+                if (inBetween) {
+                    ShellNotifier.cancelMoveToStage()
+                }
+            }
+        }
+        onDropped: {
+            if (ShellNotifier.inWindowedMode) {
+                if (isResizeMode) {
+                    target.toggleAppResizeFromCursor(false)
+                } else {
+                    moveHandler.handlePressedChanged(false, Qt.LeftButton);
+                    moveHandler.handleReleased(true);
+                }
+            } else {
+                if (switchingStageIsAvailable && !inBetween) {
+                    const _toSideStage = toTheRight ? true : !toTheLeft
+                    ShellNotifier.commitAppSwitchStage(_toSideStage)
+                }
+            }
+        }
+
+        onGesturePressed: ShellNotifier.getAppToDrag();
+        onGestureReleased: ShellNotifier.appForDragging = null
+        onRecognizedPressChanged: {
+            if (!recognizedPress) {
+                // Make sure this happens after clicked or anything that still uses appForDragging
+                ShellNotifier.appForDragging = null                
+            }
+        }
+
+        onTargetChanged: {
+            if (target) {
+                setPreviousPoint(Qt.point(target.windowedX, target.windowedY))
+            }
+        }
+
+        onClicked: {
+            if (ShellNotifier.inWindowedMode) {
+                if (target && !target.anyMaximized) {
+                    priv.toggleAppControlsOverlay()
+                }
+            } else {
+                ShellNotifier.toggleSideStage()
+            }
+        }
+
+        onDragStarted: {
+            if (target !== null) {
+                if (ShellNotifier.inWindowedMode) {
+                    if (isResizeMode) {
+                        target.toggleAppResizeFromCursor(true)
+                    } else {
+                        moveHandler.handlePressedChanged(recognizedPress, Qt.LeftButton, priv.mousePoint.x, priv.mousePoint.y)
+                    }
+                }
+            }
+        }
+
+        onDragUpdated: {
+            const _point = points[0];
+            if (ShellNotifier.inWindowedMode) {
+                if (recognizedDrag) {
+                    if (prevtp !== Qt.point(0, 0)) {
+                        const _newX = (_point.x - prevtp.x) * priv.dragWindowSensitivity
+                        const _newY = (_point.y - prevtp.y) * priv.dragWindowSensitivity
+                        UInput.moveMouse(_newX, _newY);
+                    }
+
+                    if (isResizeMode) {
+                        target.updateAppResizeFromCursor()
+                    } else {
+                        moveHandler.handlePositionChanged(priv.mousePoint);
+                    }
+                }
+            }
+        }
+    }
+    
+    // For Search Drawer (tap) and Workspace (swipe/drag)
+    LPMultiTouchGestureArea {
+        id: fourFiveGetsureArea
+
+        anchors.fill: parent
+
+        enabled: ShellNotifier.enableAdvancedGestures
+        minimumTouchPoints: 4
+        maximumTouchPoints: 5
+        enableDragStep: ShellNotifier.workspaceEnabled
+        dragStepThreshold: internalGu * 10
+
+        onNormalHaptics: ShellNotifier.normalHaptics()
+        onSubtleHaptics: ShellNotifier.subtleHaptics()
+        onDragStepUp: {
+            if (touchPointCount === 4) {
+                ShellNotifier.switchWorkspaceRight()
+            } else {
+                ShellNotifier.switchWorkspaceRightMoveApp()
+            }
+        }
+        onDragStepDown: {
+            if (touchPointCount === 4) {
+                ShellNotifier.switchWorkspaceLeft()
+            } else {
+                ShellNotifier.switchWorkspaceLeftMoveApp()
+            }
+        }
+
+        onClicked: ShellNotifier.showDrawer(true);
+        onDropped: ShellNotifier.commitWorkspaceSwitch()
+    }
+    // ENH243 - End
     // ENH141 - Air mouse in virtual touchpad
+    MouseArea {
+        id: customMouseArea
+
+        readonly property bool dragInProgress: dragSwipeArea.dragging && dragSwipeArea.customDragging
+
+        property bool pressAndHoldInProgress: false
+
+        enabled: ShellNotifier.enableCustomClickBehavior && root.enableGyroMode
+        // ENH243 - Virtual Touchpad Enhancements
+                    && !(gestureArea.recognisedPress || fourFiveGetsureArea.recognisedPress)
+        // ENH243 - End
+        visible: enabled
+        anchors.fill: parent
+
+        onClicked: {
+            if (ShellNotifier.airMouseAlwaysActive) {
+                root.leftClick()
+            }
+        }
+        onPressAndHold: {
+            if (ShellNotifier.airMouseAlwaysActive) {
+                pressAndHoldInProgress = true
+                root.leftPress()
+            }
+        }
+        onReleased: {
+            if (pressAndHoldInProgress) {
+                root.leftRelease()
+                pressAndHoldInProgress = false
+            }
+        }
+
+        SwipeArea {
+            readonly property bool customDragging: distance >= internalGu * 5
+            direction: SwipeArea.Leftwards
+            immediateRecognition: false
+            anchors.fill: parent
+
+            onCustomDraggingChanged: {
+                if (customDragging) {
+                    root.rightClick()
+                }
+            }
+        }
+        SwipeArea {
+            readonly property bool customDragging: distance >= internalGu * 5
+            direction: SwipeArea.Rightwards
+            immediateRecognition: false
+            anchors.fill: parent
+
+            onCustomDraggingChanged: {
+                if (customDragging) {
+                    root.leftClick()
+                }
+            }
+        }
+        SwipeArea {
+            readonly property bool customDragging: distance >= internalGu * 5
+            direction: SwipeArea.Upwards
+            immediateRecognition: false
+            anchors.fill: parent
+
+            onCustomDraggingChanged: {
+                if (customDragging) {
+                    root.doubleLeftClick()
+                }
+            }
+        }
+        SwipeArea {
+            id: dragSwipeArea
+
+            readonly property bool customDragging: distance >= internalGu * 5
+            direction: SwipeArea.Downwards
+            immediateRecognition: false
+            anchors.fill: parent
+
+            onCustomDraggingChanged: {
+                if (customDragging) {
+                    root.leftPress()
+                    ShellNotifier.subtleHaptics()
+                }
+            }
+
+            onDraggingChanged: {
+                if (!dragging) {
+                    root.leftRelease()
+                    ShellNotifier.subtleHaptics()
+                }
+            }
+        }
+    }
     MultiPointTouchArea {
         id: mouseScrollStrip
 
-        readonly property bool positionToRight: settingsObj && settingsObj.value("sideMouseScrollPosition", 0) == 0
-        width: internalGu * 10
+        readonly property bool positionToRight: ShellNotifier.sideMouseScrollPosition == 0
+        width: internalGu * 8
         anchors {
             bottom: bottomButtons.top
             top: parent.top
             margins: internalGu * 2
             topMargin: oskButton.anchors.topMargin + oskButton.height + (internalGu * 2)
         }
-        state: settingsObj && settingsObj.value("sideMouseScrollPosition", 0) == 0 ? "right" : "left"
+
+        state: ShellNotifier.sideMouseScrollPosition == 0 ? "right" : "left"
         states: [
             State {
                 name: "right"
@@ -384,7 +921,7 @@ Item {
         enabled: root.gyroMode && (!tutorial.running || tutorial.paused)
         visible: enabled
 
-        onPressed: if (settingsObj && settingsObj.value("enableSideMouseScrollHaptics", 0)) subtleHaptics.start()
+        onPressed: if (ShellNotifier.enableSideMouseScrollHaptics) ShellNotifier.subtleHaptics()
         onUpdated: {
             let tp = touchPoints[0];
             let dh = tp.x - tp.previousX;
@@ -393,18 +930,17 @@ Item {
             dh /= 2;
             dv /= 2;
 
-            let _invertScroll = (typeof settingsObj.value("invertSideMouseScroll", 0) === "string" && settingsObj.value("invertSideMouseScroll", 0) === "true")
-                                ||
-                                (typeof settingsObj.value("invertSideMouseScroll", 0) === "boolean" && settingsObj.value("invertSideMouseScroll", 0) === true)
+            let _invertScroll = ShellNotifier.invertSideMouseScroll
             if (_invertScroll == true) {
                 dh = 0 - dh
                 dv = 0 - dv
             }
-            let _sensitivity = settingsObj ? settingsObj.value("sideMouseScrollSensitivity", 0) : 1
+
+            let _sensitivity = ShellNotifier.sideMouseScrollSensitivity
             UInput.scrollMouse(dh * _sensitivity, dv * _sensitivity);
 
-            if (settingsObj && settingsObj.value("enableSideMouseScrollHaptics", 0)) {
-                subtleHaptics.start()
+            if (ShellNotifier.enableSideMouseScrollHaptics) {
+                ShellNotifier.subtleHaptics()
             }
         }
         Rectangle {
@@ -420,7 +956,8 @@ Item {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: -internalGu * 1 }
         // ENH141 - Air mouse in virtual touchpad
         // height: internalGu * 10
-        height: internalGu * (root.gyroMode ? 20 : 10)
+        height: visible ? internalGu * (root.gyroMode ? 20 : 10) : 0
+        visible: !ShellNotifier.hideBottomButtons || (ShellNotifier.hideBottomButtons && ShellNotifier.hideBottomButtonsOnlyAirMouse && !root.gyroMode)
         // ENH141 - End
         spacing: internalGu * 1
 
@@ -502,15 +1039,68 @@ Item {
             anchors.fill: parent
             anchors.margins: internalGu * 1.5
             name: "input-keyboard-symbolic"
+            // ENH242 - Virtual touchpad keyboard enablement hint
+            color: settings.oskEnabled ? LomiriColors.porcelain : LomiriColors.red
+            // ENH242 - End
         }
     }
+    // ENH241 - Rotate button in Virtual Touchpad
+    AbstractButton {
+        id: rotateButton
+        objectName: "rotateButton"
+        anchors { right: oskButton.left; top: parent.top; margins: internalGu * 2 }
+        height: internalGu * 6
+        width: height
+
+        onClicked: root.rotate()
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: LomiriColors.inkstone
+        }
+
+        Icon {
+            anchors.fill: parent
+            anchors.margins: internalGu * 1.5
+            name: "view-rotate"
+            color: LomiriColors.porcelain
+        }
+    }
+    // ENH241 - End
 
     // ENH141 - Air mouse in virtual touchpad
+    AbstractButton {
+        id: gyroButton
+        objectName: "gyroButton"
+        anchors { right: rotateButton.left; top: parent.top; margins: internalGu * 2 }
+        height: internalGu * 6
+        width: visible ? height : 0
+        visible: ShellNotifier.enableAirMouse
+
+        onClicked: root.enableGyroMode = !root.enableGyroMode
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: LomiriColors.inkstone
+        }
+
+        Icon {
+            anchors.fill: parent
+            anchors.margins: internalGu * 1.5
+            name: root.enableGyroMode ? "input-touchpad-symbolic" : "phone-smartphone-symbolic"
+            color: LomiriColors.porcelain
+        }
+    }
     SwipeArea {
+        id: bottomSwipeArea
+
         readonly property bool customDragging: distance >= internalGu * 5
-        enabled: settingsObj && settingsObj.value("enableAirMouse", 0)
+
+        enabled: ShellNotifier.enableSideGestures
         direction: SwipeArea.Upwards
-        height: internalGu * 1
+        height: internalGu * 2
         immediateRecognition: true
         anchors {
             bottom: parent.bottom
@@ -520,8 +1110,104 @@ Item {
 
         onCustomDraggingChanged: {
             if (customDragging) {
-                normalHaptics.start()
-                root.enableGyroMode = !root.enableGyroMode
+                ShellNotifier.toggleQuickActions(true)
+                ShellNotifier.normalHaptics()
+            }
+        }
+    }
+    SwipeArea {
+        id: topSwipeArea
+
+        readonly property bool customDragging: distance >= internalGu * 5
+
+        enabled: ShellNotifier.enableSideGestures
+        direction: SwipeArea.Downwards
+        height: internalGu * 2
+        immediateRecognition: true
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
+
+        onCustomDraggingChanged: {
+            if (customDragging) {
+                ShellNotifier.toggleIndicators()
+                ShellNotifier.normalHaptics()
+            }
+        }
+    }
+    SwipeArea {
+        id: rightSwipeArea
+
+        readonly property bool shortDragging: distance >= internalGu * 5
+        readonly property bool longDragging: distance >= internalGu * 15
+
+        enabled: ShellNotifier.enableSideGestures
+        direction: SwipeArea.Leftwards
+        width: internalGu * ShellNotifier.sideGesturesWidth
+        immediateRecognition: true
+        anchors {
+            top: parent.top
+            bottom: parent.bottom
+            right: parent.right
+        }
+
+        onShortDraggingChanged: if (shortDragging) ShellNotifier.subtleHaptics()
+        onLongDraggingChanged: if (longDragging) ShellNotifier.subtleHaptics()
+
+        onDraggingChanged: {
+            if (!dragging) {
+                if (longDragging) {
+                    ShellNotifier.showSpread()
+                } else if (shortDragging) {
+                    ShellNotifier.switchToPrevApp()
+                }
+            }
+        }
+    }
+    SwipeArea {
+        id: leftSwipeArea
+
+        readonly property bool customDragging: distance >= internalGu * 5
+        enabled: ShellNotifier.enableSideGestures
+        direction: SwipeArea.Rightwards
+        width: internalGu * ShellNotifier.sideGesturesWidth
+        immediateRecognition: true
+        anchors {
+            top: parent.top
+            bottom: parent.bottom
+            left: parent.left
+        }
+
+        onCustomDraggingChanged: {
+            if (customDragging) {
+                ShellNotifier.normalHaptics()
+                ShellNotifier.showDrawer(false)
+            }
+        }
+    }
+    SwipeArea {
+        id: quickActionsSwipeArea
+
+        property bool isDragging: dragging && distance >= ShellNotifier.quickActionsSideMargins
+
+        enabled: ShellNotifier.enableSideGestures
+        direction: SwipeArea.Leftwards
+        width: internalGu * ShellNotifier.sideGesturesWidth
+        height: root.convertFromInch(ShellNotifier.quickActionsHeight)
+        immediateRecognition: true
+        anchors {
+            bottom: parent.bottom
+            right: parent.right
+        }
+
+        onDraggingChanged: {
+            if (dragging) {
+                ShellNotifier.toggleQuickActions(false)
+                ShellNotifier.quickActionsSwipeArea = quickActionsSwipeArea
+            } else {
+                ShellNotifier.selectQuickAction()
             }
         }
     }

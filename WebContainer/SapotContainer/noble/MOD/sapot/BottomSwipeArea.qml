@@ -207,7 +207,8 @@ SwipeArea {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
 
-                    visible: modelData.visible && modelData.enabled
+                    visible: modelData.visible
+                    enabled: modelData.enabled
                     z: highlighted ? 10 : 1
 
                     function trigger(fromBottom) {
@@ -252,7 +253,7 @@ SwipeArea {
 
                             visible: opacity > 0
                             opacity: show ? 1: 0
-                            color: LomiriColors.porcelain
+                            color: quickActionItem.enabled ? LomiriColors.porcelain : LomiriColors.silk
                             font.weight: Font.DemiBold
                             text: quickActionItem.itemText
                             font.pixelSize: bgRec.height * 0.4
@@ -314,7 +315,9 @@ SwipeArea {
 
                             Rectangle {
                                 id: bgRec
-                                color: quickActionItem.highlighted ? theme.palette.highlighted.foreground : theme.palette.normal.foreground
+
+                                color: quickActionItem.enabled ? quickActionItem.highlighted ? theme.palette.highlighted.foreground : theme.palette.normal.foreground
+                                                : theme.palette.disabled.foreground
                                 radius: width / 2
                                 anchors.fill: parent
                                 opacity: 1
@@ -326,7 +329,8 @@ SwipeArea {
                                 height: bgRec.height * 0.5
                                 width: height
                                 name: quickActionItem.itemIcon
-                                color: quickActionItem.highlighted ? theme.palette.highlighted.foregroundText : theme.palette.normal.foregroundText
+                                color: quickActionItem.enabled ? quickActionItem.highlighted ? theme.palette.highlighted.foregroundText : theme.palette.normal.foregroundText
+                                                : theme.palette.disabled.foregroundText
                                 Behavior on color { ColorAnimation { duration: LomiriAnimation.FastDuration } }
                             }
                         }

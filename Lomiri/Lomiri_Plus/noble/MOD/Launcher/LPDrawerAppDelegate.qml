@@ -16,6 +16,7 @@ MouseArea {
     // ENH132 - App drawer icon size settings
     property real delegateSizeMultiplier: 1
     // ENH132 - End
+    property bool showEnterOverlay: false
 
     signal applicationSelected(string appId)
     signal applicationContextMenu(string appId)
@@ -93,6 +94,30 @@ MouseArea {
                 SpringAnimation { spring: 2; damping: 0.2 }
             }
             // ENH149 - End
+            Rectangle {
+                visible: drawerDelegate.showEnterOverlay
+                anchors {
+                    right: appIcon.right
+                    bottom: appIcon.bottom
+                    margins: -(width * 0.3)
+                }
+                radius: width / 2
+                width: units.gu(3)
+                height: width
+                color: theme.palette.normal.foreground
+                border {
+                    color: theme.palette.normal.activity
+                    width: units.dp(1)
+                }
+
+                Icon {
+                    anchors.centerIn: parent
+                    name: "keyboard-enter"
+                    color: theme.palette.normal.foregroundText
+                    width: parent.width * 0.5
+                    height: width
+                }
+            }
         }
 
         Label {
@@ -174,7 +199,9 @@ MouseArea {
     }
 
     SequentialAnimation {
-        running: drawerDelegate.focused
+        // Disable for now
+        // Maybe add new property when it only happens
+        //running: drawerDelegate.focused
         loops: Animation.Infinite
 
         LomiriNumberAnimation {

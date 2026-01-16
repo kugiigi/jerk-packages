@@ -22,6 +22,7 @@ ColumnLayout {
     readonly property bool quickResultIsDDG: quickResultSource === 1
     readonly property var otherSearchEngineButtons: shell.settings.customDrawerSearchSearchEngineActions
     readonly property var firstItemToFocus: {
+        if (openBrowserButton.visible) return openBrowserButton
         if (searchWebButton.visible) return searchWebButton
         if (otherSearchEnginesView.visible) return otherSearchEnginesView
         if (readMoreButton.visible) return readMoreButton
@@ -32,6 +33,12 @@ ColumnLayout {
     property var previousItemToFocusAfterLast
 
     signal scrollToItem(var item)
+
+    onSearchTextIsEmptyChanged: {
+        if (searchTextIsEmpty) {
+            cancelOnlineRequests()
+        }
+    }
 
     function showQuickResult() {
         if (internal.currentQuickResultSearchText !== searchText) {
@@ -58,10 +65,7 @@ ColumnLayout {
             internal.currentQuickResultSearchText = root.searchText
         }
         const _url = "http://api.duckduckgo.com/?q=%1&format=json".arg(root.searchText)
-        if (internal.ddgRequest) {
-            internal.ddgRequest.abort()
-            internal.ddgRequest = null
-        }
+        internal.cancelDDGRequest()
         internal.ddgRequest = shell.fetch(_url, _returnFunc)
     }
 
@@ -96,10 +100,7 @@ ColumnLayout {
                 }
                 if (_title && _title.trim() !== "") {
                     const _url = "https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&titles=%1&format=json".arg(_title)
-                    if (internal.wikiExtractRequest) {
-                        internal.wikiExtractRequest.abort()
-                        internal.wikiExtractRequest = null
-                    }
+                    internal.cancelWikiExtractRequest()
                     internal.wikiExtractRequest = shell.fetch(_url, _returnFunc2)
                 }
             } catch (e) {
@@ -110,10 +111,7 @@ ColumnLayout {
         }
 
         const _url = "https://en.wikipedia.org/w/api.php?action=opensearch&search=%1&limit=1&namespace=0&format=json".arg(root.searchText)
-        if (internal.wikiResultsRequest) {
-            internal.wikiResultsRequest.abort()
-            internal.wikiResultsRequest = null
-        }
+        internal.cancelWikiResultsRequest()
         internal.wikiResultsRequest = shell.fetch(_url, _returnFunc)
     }
 
@@ -125,7 +123,7 @@ ColumnLayout {
                 const _searchEngineToUse = _searchEngineOverride ? _searchEngineOverride : currentSearchEngine
                 _url = "search://%1/%2".arg(_searchEngineToUse).arg(encodeURIComponent(root.searchText))
             } else {
-                _url = "search://" + encodeURIComponent(root.searchText)
+                _url = "search:///" + encodeURIComponent(root.searchText)
             }
         } else {
             const _searchEngine = _searchEngineOverride ? _searchEngineOverride
@@ -145,23 +143,130 @@ ColumnLayout {
         Qt.openUrlExternally(_url)
     }
 
+    function openAsUrl() {
+        let _url = internal.fixUrl(searchText)
+        shell.launcher.hide()
+        Qt.openUrlExternally(_url)
+    }
+
+    function cancelOnlineRequests() {
+        internal.cancelWikiResultsRequest()
+        internal.cancelWikiExtractRequest()
+        internal.cancelDDGRequest()
+    }
+
     function reset() {
         quickResult.reset()
-        if (internal.wikiResultsRequest) internal.wikiResultsRequest.abort()
-        if (internal.wikiExtractRequest) internal.wikiExtractRequest.abort()
-        if (internal.ddgRequest) internal.ddgRequest.abort()
+        cancelOnlineRequests()
         internal.currentQuickResultSearchText = false
     }
 
     QtObject {
         id: internal
 
+        readonly property bool looksLikeAUrl: !root.searchTextIsEmpty ? checkIfUrl(root.searchText) : false
         property var wikiResultsRequest
         property var wikiExtractRequest
         property var ddgRequest
 
         // The search text used for the current quick result
         property string currentQuickResultSearchText
+
+        function cancelWikiResultsRequest() {
+            if (wikiResultsRequest) {
+                wikiResultsRequest.abort()
+                wikiResultsRequest = null
+            }
+        }
+
+        function cancelWikiExtractRequest() {
+            if (wikiExtractRequest) {
+                wikiExtractRequest.abort()
+                wikiExtractRequest = null
+            }
+        }
+
+        function cancelDDGRequest() {
+            if (ddgRequest) {
+                ddgRequest.abort()
+                ddgRequest = null
+            }
+        }
+        
+        function checkIfUrl(address) {
+            if (address.match(/^data:/i)) {
+                return true;
+            }
+            if (address.match(/^file:/i)) {
+                return true;
+            }
+            if (address.match(/^view-source:/i)) {
+                return true;
+            }
+            if (address.match(/^chrome-extension:/i)) {
+                return true;
+            }
+            var terms = address.split(/\s/);
+            if (terms.length > 1) {
+                return false;
+            }
+            if (address.toLowerCase() === "about:blank") {
+                return true;
+            }
+            if (address.substr(0, 1) === "/") {
+                return true;
+            }
+            if (address.match(/^https?:\/\//i) ||
+                address.match(/^file:\/\//i) ||
+                address.match(/^[a-z]+:\/\//i)) {
+                return true;
+            }
+            if (address.split('/', 1)[0].match(/\.[a-zA-Z]{2,}$/)) {
+                return true;
+            }
+            if (address.split('/', 1)[0].match(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/)) {
+                return true;
+            }
+            return false;
+        }
+
+        function fixUrl(address) {
+            var url = address;
+            if (address.toLowerCase() === "about:blank") {
+                return address.toLowerCase();
+            } else if (address.match(/^data:/i)) {
+                return "data:" + address.substr(5);
+            } else if (address.substr(0, 1) === "/") {
+                url = "file://" + address;
+            } else if (address.indexOf("://") === -1) {
+                url = "http://" + address;
+            }
+            return url;
+        }
+    }
+
+    LPDrawerSearchButton {
+        id: openBrowserButton
+
+        Layout.alignment: Qt.AlignHCenter
+        Layout.fillWidth: true
+        Layout.leftMargin: units.gu(1)
+        Layout.rightMargin: units.gu(1)
+        Layout.bottomMargin: units.gu(1)
+        Layout.preferredHeight: units.gu(5)
+
+        text: i18n.tr("Open in a browser")
+        visible: internal.looksLikeAUrl
+        display: QQC2.AbstractButton.TextBesideIcon
+        secondaryIcon.name: "go-next"
+        highlighted: activeFocus
+        showEnterOverlay: this === root.firstItemToFocus && root.firstResultsInPage && root.searchField.activeFocus
+
+        KeyNavigation.down: searchWebButton
+        KeyNavigation.up: previousItemToFocusAfterLast ? previousItemToFocusAfterLast : root.searchField
+
+        onActiveFocusChanged: if (activeFocus) root.scrollToItem(this)
+        onClicked: root.openAsUrl()
     }
 
     LPDrawerSearchButton {
@@ -177,12 +282,14 @@ ColumnLayout {
         visible: !root.searchTextIsEmpty
         display: QQC2.AbstractButton.TextBesideIcon
         secondaryIcon.name: "go-next"
-        highlighted: activeFocus || (this === root.firstItemToFocus && root.firstResultsInPage && root.searchField.activeFocus)
+        highlighted: activeFocus
+        showEnterOverlay: this === root.firstItemToFocus && root.firstResultsInPage && root.searchField.activeFocus
 
         KeyNavigation.down: otherSearchEnginesView.visible ? otherSearchEnginesView
                                     : readMoreButton.visible ? readMoreButton
                                                              : null
-        KeyNavigation.up: previousItemToFocusAfterLast ? previousItemToFocusAfterLast : root.searchField
+        KeyNavigation.up: openBrowserButton.visible ? openBrowserButton
+                                : previousItemToFocusAfterLast ? previousItemToFocusAfterLast : root.searchField
 
         onActiveFocusChanged: if (activeFocus) root.scrollToItem(this)
         onClicked: root.searchWeb()

@@ -44,6 +44,9 @@ MouseArea {
     property var blurSource: null
     property alias blurUpdates: bgBlur.surfaceUpdates
     // ENH180 - End
+    // ENH245 - Double click restore fix #151
+    property bool wasDoubleClicked: false
+    // ENH245 - End
 
     readonly property real buttonsWidth: buttons.width + row.spacing
 
@@ -62,6 +65,9 @@ MouseArea {
         if (mouse.button == Qt.LeftButton) {
             root.maximizeClicked();
         }
+        // ENH245 - Double click restore fix #151
+        wasDoubleClicked = true
+        // ENH245 - End
     }
 
     // do not let unhandled wheel event pass thru the decoration

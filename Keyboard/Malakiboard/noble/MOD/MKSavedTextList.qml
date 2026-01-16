@@ -85,6 +85,7 @@ Loader {
                 right: parent.right
                 bottom: parent.bottom
             }
+            clip: true
 
             model: {
                 if (savedTextsRec.isFavorites) {
