@@ -343,7 +343,9 @@ Showable {
             z: 2
 
             visible: {
-                if (shell.settings.quickTogglesOnlyShowInNotifications && root.model) {
+                if (shell.settings.quickTogglesOnlyShowInNotifications
+                        && ! (shell.settings.quickTogglesOnlyShowInNotificationsBuiltInOnly && !shell.isBuiltInScreen)
+                        && root.model) {
                     const _identifier = root.model.data(root.currentMenuIndex, 0)
 
                     return content.visible && root.enableQuickToggles && _identifier == "ayatana-indicator-messages"

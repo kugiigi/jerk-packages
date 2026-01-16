@@ -10,6 +10,7 @@ import "Components" as Components
 Item {
     id: root
 
+    property var defaultAppList
     property alias appModel: filteredAppModel.source
     property alias appDelegateHeight: appsResultsLayout.delegateHeight
     property alias appDelegateWidth: appsResultsLayout.delegateWidth
@@ -18,6 +19,7 @@ Item {
     property alias launcherInverted: appsResultsLayout.launcherInverted
     property alias searchField: searchField
     property alias searchText: searchField.displayText
+    property alias showCloseButton: searchField.showCloseButton
 
     readonly property var searchTypesModel:  [
         { name: "all", title: "All", placeholderText: "Search...", iconName: "find" }
@@ -27,15 +29,17 @@ Item {
         //, { name: "music", title: "Music", placeholderText: "Search music...", iconName: "stock_music" }
     ]
 
+    readonly property real searchFieldBottomY: searchField.y + searchField.height
     readonly property bool enableQuickResult: shell.settings.customDrawerSearchQuickWebResults
     readonly property bool enableOpenStoreResult: shell.settings.customDrawerSearchOpenStore
     readonly property bool forceEnablePredictiveText: shell.settings.customDrawerSearchForcePredictiveText
     readonly property bool expandHeaderOSKHide: shell.settings.customDrawerSearchExpandHeaderHideOSK
-    readonly property bool exitWhenEmptyOSKhide: shell.settings.customDrawerSearchExpandHeaderHideOSK
+    readonly property bool exitWhenEmptyOSKhide: shell.settings.customDrawerSearchExitHideOSK
     readonly property bool enabledBackSpaceToggle: shell.settings.customDrawerSearchEnableBackspaceSearchType
 
     readonly property alias searchType: internal.searchType
     readonly property alias searchTypeName: searchField.searchTypeName
+    readonly property alias searchTextIsEmpty: internal.searchTextIsEmpty
     readonly property bool isAllSearch: searchTypeName === "all" || searchTypeName === ""
     readonly property bool isWebSearch: searchTypeName === "web"
     readonly property bool isAppSearch: searchTypeName === "apps"
@@ -45,12 +49,8 @@ Item {
     signal textFieldFocusChanged(bool focusValue)
     signal exit
 
-    onVisibleChanged: {
-        if (visible) {
-            searchField.forceActiveFocus()
-        } else {
-            reset()
-        }
+    function focusInput() {
+        searchField.forceActiveFocus()
     }
 
     function reset() {
@@ -58,6 +58,9 @@ Item {
         internal.searchType = 0
         webResultsLayout.reset()
         collapseHeader()
+        if (searchField.contextMenuItem) {
+            searchField.contextMenuItem.closePopup()
+        }
     }
 
     function expandHeader() {
@@ -72,6 +75,14 @@ Item {
         const _arr = searchField.model.slice()
         const _type = _arr.findIndex(element => element.name === _name)
         internal.searchType = _type > -1 ? _type : 0
+    }
+
+    function searchTypeForward() {
+        searchField.searchTypeForward()
+    }
+
+    function searchTypeBackward() {
+        searchField.searchTypeBackward()
     }
 
     function focusFirstItem() {
@@ -138,6 +149,8 @@ Item {
         containerItem: root
         text: i18n.tr("Search")
         iconName: "search"
+        showDivider: root.launcherInverted
+        dividerLeftMargin: units.gu(1)
 
         anchors {
             top: parent.top
@@ -150,20 +163,30 @@ Item {
         id: searchField
         objectName: "searchField"
 
+        readonly property var nextItem: resultsLayout.firstItemToFocus ? resultsLayout.firstItemToFocus : root.defaultAppList
+
         anchors {
             top: labelHeader.bottom
             left: parent.left
             right: parent.right
             margins: units.gu(2)
+            topMargin: root.launcherInverted ? units.gu(2) : 0
         }
 
         forceEnablePredictiveText: root.forceEnablePredictiveText
         enabledBackSpaceToggle: root.enabledBackSpaceToggle
+        showCloseButton: !bottomRowLayout.visible
         model: root.searchTypesModel
         height: units.gu(5)
         placeholderText: i18n.tr("Search…")
         font.pixelSize: height * 0.5
-        KeyNavigation.down: resultsLayout.firstItemToFocus
+
+        KeyNavigation.up: null
+        KeyNavigation.down: nextItem
+        KeyNavigation.right: cursorPosition >= length ? nextItem : null
+
+        onExitSearch: root.exit()
+        onActiveFocusChanged: root.textFieldFocusChanged(activeFocus)
 
         onAccepted: {
             if (root.searchText != "") {
@@ -176,7 +199,10 @@ Item {
                         root.applicationSelected(internal.appList.getFirstAppId());
                         break
                     case root.isWebSearch:
-                        webResultsLayout.searchWeb()
+                        const _item = webResultsLayout.firstItemToFocus
+                        if (_item && _item instanceof LPDrawerSearchButton) {
+                            _item.clicked()
+                        }
                         break
                 }
             }
@@ -199,6 +225,9 @@ Item {
         focus: true
         contentHeight: columnLayout.implicitHeight
         maximumFlickVelocity: shell.settings.fasterFlickDrawer ? units.gu(600) : units.gu(312.5)
+        visible: opacity > 0
+        opacity: root.searchTextIsEmpty ? 0 : 1
+        Behavior on opacity { LomiriNumberAnimation {} }
 
         clip: true
 
@@ -284,7 +313,7 @@ Item {
             left: parent.left
             right: parent.right
         }
-        visible: root.height >= units.gu(60)
+        visible: root.height >= units.gu(60) && root.launcherInverted // Hide in Windowed mode
         height: visible ? units.gu(6) : 0
 
         // Spacer for now
@@ -324,10 +353,16 @@ Item {
         function onVisibleChanged() {
             if (target.visible) {
                 root.collapseHeader()
-            } else if (!internal.searchTextIsEmpty && root.expandHeaderOSKHide) {
-                root.expandHeader()
-            } else if (internal.searchTextIsEmpty && root.exitWhenEmptyOSKhide) {
-                root.exit()
+                // Workaround when hiding the OSK then refocusing won't retrigger activeFocusChanged
+                if (searchField.activeFocus) {
+                    root.textFieldFocusChanged(true)
+                }
+            } else if (searchField.contextMenuItem === null) {
+                if (!internal.searchTextIsEmpty && root.expandHeaderOSKHide) {
+                    root.expandHeader()
+                } else if (internal.searchTextIsEmpty && root.exitWhenEmptyOSKhide) {
+                    root.exit()
+                }
             }
         }
     }

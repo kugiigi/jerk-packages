@@ -26,6 +26,7 @@ QQC2.ItemDelegate {
     property int alignment: Qt.AlignCenter
     property real backgroundOpacity: 1
     property int iconRotation: 0
+    property bool showEnterOverlay: false
 
     property alias label: mainLabel // Main label
     
@@ -89,6 +90,7 @@ QQC2.ItemDelegate {
         RowLayout {
             id: layout
 
+            spacing: units.gu(1)
             anchors.centerIn: parent
 
             Loader {
@@ -204,6 +206,29 @@ QQC2.ItemDelegate {
                     easing: Suru.animations.EasingIn
                 }
             }
+        }
+    }
+    Rectangle {
+        visible: customizedButton.showEnterOverlay
+        anchors {
+            right: parent.right
+            bottom: parent.bottom
+        }
+        radius: width / 2
+        width: units.gu(3)
+        height: width
+        color: theme.palette.normal.foreground
+        border {
+            color: theme.palette.normal.activity
+            width: units.dp(1)
+        }
+
+        Icon {
+            anchors.centerIn: parent
+            name: "keyboard-enter"
+            color: theme.palette.normal.foregroundText
+            width: parent.width * 0.6
+            height: width
         }
     }
 

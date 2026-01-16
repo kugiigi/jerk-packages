@@ -203,6 +203,7 @@ Item {
     }
     function toggleRotation() {
         if (orientationLocked && Powerd.status === Powerd.On) {
+            orientationLock.savedOrientation = root.orientation
             if (orientation == Qt.InvertedLandscapeOrientation) {
                 orientation = Qt.PortraitOrientation
             } else {

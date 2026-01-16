@@ -135,12 +135,26 @@ Item {
             // ENH185 - End
             leftMargin: itemWidth
             rightMargin: itemWidth
+            // ENH246 - Workspace preview angle fix #152
+            // This issue started to happen when availableDesktopArea was used instead of manually using top panel and launcher sizes
+            // In previous code, contentX changes and gets corrected when the component initializes
+            // Possibly because the properties used such as topPanelHeight and launcherWidth triggered it
+            // In current code, contentX stays at 0, however we have a negative anchors.leftMargin
+            contentX: anchors.leftMargin
+            // ENH246 - End
 
             // FIXME: Screen orientation changed event does not trigger properly
             // so we rely on height getting changed when rotating hence updating the value as needed
             readonly property bool screenIsLandscape: screen.orientation == Qt.LandscapeOrientation
-                                                            || screen.orientation == Qt.InvertedLandscapeOrientation ? height > 0
-                                                                                                                     : height < 0
+                                                            // ENH251 - Fix incorrect workspace switcher preview in non-native orientation
+                                                            // Also change the text above!
+                                                            // Still an issue when using toggleRotation function
+                                                            // Possibly because physical orientation wasn't changed
+                                                            // || screen.orientation == Qt.InvertedLandscapeOrientation ? height > 0
+                                                            //                                                          : height < 0
+                                                            || screen.orientation == Qt.InvertedLandscapeOrientation ? width > 0 || height > 0
+                                                                                                                     : width < 0 || height < 0
+                                                            // ENH251 - End
 
             // Get the screen size based on screen's current orientation
             readonly property var screenSize: screen.availableModes[screen.currentModeIndex].size

@@ -50,6 +50,11 @@ ColumnLayout {
     spacing: units.gu(3)
 
     onSearchTextChanged: appList.collapse()
+    onSearchTextIsEmptyChanged: {
+        if (searchTextIsEmpty) {
+            cancelOpenStoreRequest()
+        }
+    }
 
     function searchOpenStore() {
         const _url = "https://open-store.io/?sort=relevance&search=%1".arg(encodeURIComponent(root.searchText))
@@ -78,17 +83,21 @@ ColumnLayout {
                     internal.currentQuickResultSearchText = root.searchText
                 }
                 const _url = "https://open-store.io/api/v4/apps?limit=20&skip=0&search=%1&sort=relevance&type=&category=&channel=noble".arg(root.searchText)
-                if (internal.openStoreRequest) {
-                    internal.openStoreRequest.abort()
-                    internal.openStoreRequest = null
-                }
+                cancelOpenStoreRequest()
                 internal.openStoreRequest = shell.fetch(_url, _returnFunc)
             }
         }
     }
 
+    function cancelOpenStoreRequest() {
+        if (internal.openStoreRequest) {
+            internal.openStoreRequest.abort()
+            internal.openStoreRequest = null
+        }
+    }
+
     function reset() {
-        internal.openStoreRequest = null
+        cancelOpenStoreRequest()
         internal.openStoreAppList = []
         internal.currentQuickResultSearchText = ""
     }
@@ -146,13 +155,24 @@ ColumnLayout {
         Launcher.DrawerGridView {
             id: appList
             objectName: "drawerAppList"
-            
-            Layout.fillWidth: true
-            Layout.preferredHeight: {
-                if (isExpanded) return rows * delegateHeight
 
-                return Math.min(rows, collapsedRows) * delegateHeight + units.gu(2)
+            readonly property real collapsedHeight: Math.min(rows, collapsedRows) * delegateHeight + units.gu(2)
+            readonly property real expandedHeight: rows * delegateHeight + units.gu(2) // Add more for apps with 2-line name
+            readonly property real assessedHeight: isExpanded ? expandedHeight : collapsedHeight
+
+            property bool showAnimation: false
+
+            Layout.fillWidth: true
+            Layout.preferredHeight: assessedHeight
+
+            Behavior on Layout.preferredHeight {
+                enabled: appList.showAnimation
+                LomiriNumberAnimation {}
             }
+
+            // Only allow animation when the button was clicked
+            onIsExpandedChanged: showAnimation = true
+            onRowsChanged: appList.showAnimation = false
 
             readonly property int collapsedRows: 4
             readonly property bool isExpandable: appList.rows > appList.collapsedRows
@@ -189,7 +209,7 @@ ColumnLayout {
                 objectName: "drawerItem_" + model.appId
                 focused: (index === GridView.view.currentIndex && GridView.view.activeFocus)
                                     || (root.contextMenuItem && root.contextMenuItem.appId == model.appId && !root.contextMenuItem.fromDocked)
-                                    || (index === 0 && root.firstResultsInPage && root.searchField.activeFocus) // Show visual hint it's be selected when entering
+                showEnterOverlay: (index === 0 && root.firstResultsInPage && root.searchField.activeFocus) // Show visual hint it's be selected when entering
                 width: GridView.view.cellWidth
                 height: GridView.view.cellHeight
                 delegateWidth: root.delegateWidth
@@ -340,12 +360,6 @@ ColumnLayout {
 
             onActiveFocusChanged: if (activeFocus) root.scrollToItem(this)
             onClicked: root.searchOpenStore()
-
-            Rectangle {
-                anchors.fill: parent
-                color: "red"
-                visible: searchOpenStoreButton.activeFocus || searchOpenStoreButton.focus
-            }
         }
     }
 }

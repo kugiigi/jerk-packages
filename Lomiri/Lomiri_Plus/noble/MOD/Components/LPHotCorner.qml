@@ -17,6 +17,10 @@ Item {
     property int actionType: 0
     property int actionValue: -1
 
+    // WORKAROUND: Work around for non-working bottom left mouse push when on external display
+    // Let's use hover on the corner when on external display
+    property bool useHover: false
+
     signal trigger
 
     anchors.top: (edge == LPHotCorner.Edge.TopLeft || edge == LPHotCorner.Edge.TopRight) ? parent.top : undefined
@@ -53,7 +57,7 @@ Item {
         running: false
         interval: 100
         onTriggered: {
-            if (hoverHandler.hovered) {
+            if (hoverHandler.hovered && hotCorner.useHover) {
                 hotCorner.trigger()
             }
         }

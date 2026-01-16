@@ -33,6 +33,9 @@ import WindowManager 1.0
 // ENH032 - Infographics Outer Wilds
 import "../OuterWilds"
 // ENH032 - End
+// ENH243 - Virtual Touchpad Enhancements
+import ".." 0.1
+// ENH243 - End
 
 FocusScope {
     id: root
@@ -80,6 +83,59 @@ FocusScope {
     // ENH174 - Top panel background based on current app
     readonly property var focusedAppDelegate: priv.focusedAppDelegate // ? priv.focusedAppDelegate.focusedSurface : null
     // ENH174 - End
+    // ENH243 - Virtual Touchpad Enhancements
+    readonly property alias appContainerItem: appContainer
+    function toggleSideStage() {
+        priv.toggleSideStage()
+    }
+
+    function dragReleased(_appDelegate) {
+        if (_appDelegate) {
+            fakeRectangle.visible ? fakeRectangle.commit() : _appDelegate.updateRestoredGeometry()
+        }
+    }
+    // TODO: Probably not needed anymore
+    /*
+    function fakeMaximizeAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximized) fakeRectangle.maximize(_amount, true)
+        }
+    }
+    function fakeMaximizeLeftAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximizedLeft) fakeRectangle.maximizeLeft(_amount, true)
+        }
+    }
+    function fakeMaximizeRightAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximizedRight) fakeRectangle.maximizeRight(_amount, true)
+        }
+    }
+    function fakeMaximizeTopLeftAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximizedTopLeft) fakeRectangle.maximizeTopLeft(_amount, true);
+        }
+    }
+    function fakeMaximizeTopRightAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximizedTopRight) fakeRectangle.maximizeTopRight(_amount, true);
+        }
+    }
+    function fakeMaximizeBottomLeftAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximizedBottomLeft) fakeRectangle.maximizeBottomLeft(_amount, true);
+        }
+    }
+    function fakeMaximizeBottomRightAnimationRequested(_appDelegate, _amount) {
+        if (_appDelegate) {
+            if (!_appDelegate.maximizedBottomRight) fakeRectangle.maximizeBottomRight(_amount, true);
+        }
+    }
+    function stopFakeAnimation() {
+        fakeRectangle.stop();
+    }
+    */
+    // ENH243 - End
 
     // Whether outside forces say that the Stage may have focus
     property bool allowInteractivity
@@ -232,6 +288,9 @@ FocusScope {
         }
     }
 
+    // ENH252 - Disable mouse hover while Alt tabbing
+    property bool altTabIsInProgress: false
+    // ENH252 - End
     onAltTabPressedChanged: {
         root.focus = true;
         if (altTabPressed) {
@@ -242,6 +301,9 @@ FocusScope {
             // Alt Tab has been released, did we already go to spread?
             if (priv.goneToSpread) {
                 priv.goneToSpread = false;
+                // ENH252 - Disable mouse hover while Alt tabbing
+                root.altTabIsInProgress = false
+                // ENH252 - End
             } else {
                 // No we didn't, do a quick alt-tab
                 if (appRepeater.count > 1) {
@@ -260,6 +322,9 @@ FocusScope {
         onTriggered: {
             if (root.altTabPressed) {
                 priv.goneToSpread = true;
+                // ENH252 - Disable mouse hover while Alt tabbing
+                root.altTabIsInProgress = true
+                // ENH252 - End
             }
         }
     }
@@ -1284,7 +1349,10 @@ FocusScope {
             PropertyChanges { target: floatingFlickable; enabled: true }
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: spreadItem; focus: true }
-            PropertyChanges { target: hoverMouseArea; enabled: true }
+            // ENH252 - Disable mouse hover while Alt tabbing
+            // PropertyChanges { target: hoverMouseArea; enabled: true }
+            PropertyChanges { target: hoverMouseArea; enabled: !root.altTabIsInProgress }
+            // ENH252 - End
             PropertyChanges { target: rightEdgeDragArea; enabled: false }
             PropertyChanges { target: cancelSpreadMouseArea; enabled: true }
             PropertyChanges { target: noAppsRunningHint; visible: (root.topLevelSurfaceList.count < 1) }
@@ -1748,7 +1816,7 @@ FocusScope {
         }
         Item {
             id: infographicsArea
-            visible: root.desktopShown || root.mainApp == null
+            visible: (root.desktopShown || root.mainApp == null) && !root.spreadShown
 
             anchors {
                 top: parent.top
@@ -2363,7 +2431,11 @@ FocusScope {
                 readonly property var window: model.window
 
                 readonly property alias focusedSurface: decoratedWindow.focusedSurface
-                readonly property bool dragging: touchControls.overlayShown ? touchControls.dragging : decoratedWindow.dragging
+                // ENH243 - Virtual Touchpad Enhancements
+                // readonly property bool dragging: touchControls.overlayShown ? touchControls.dragging : decoratedWindow.dragging
+                readonly property bool dragging: (touchControls.overlayShown ? touchControls.dragging : decoratedWindow.dragging)
+                                                    || (ShellNotifier.appForDragging === this && ShellNotifier.appIsBeingDragged)
+                // ENH243 - End
 
                 readonly property string appId: model.application.appId
                 readonly property alias clientAreaItem: decoratedWindow.clientAreaItem
@@ -2605,7 +2677,12 @@ FocusScope {
                     // Now load any saved state. This needs to happen *after* the cascading!
                     windowStateSaver.load();
 
-                    updateQmlFocusFromMirSurfaceFocus();
+                    // ENH250 - Do not close spread when selecting current workspace
+                    // updateQmlFocusFromMirSurfaceFocus();
+                    if (!root.spreadShown) {
+                        updateQmlFocusFromMirSurfaceFocus();
+                    }
+                    // ENH250 - End
 
                     refreshStage();
                     _constructing = false;
@@ -3412,6 +3489,9 @@ FocusScope {
                     active: model.window.focused
                     focus: true
                     interactive: root.interactive
+                    // ENH253 - Keyboard + Mouse shortcut for resizing windows
+                    target: appDelegate
+                    // ENH253 - End
                     // ENH225 - Clean Windowed Mode
                     // showDecoration: 1
                     showDecoration: cleanMode ? forceDecor ? 1 : 0
@@ -3494,6 +3574,32 @@ FocusScope {
                 readonly property alias touchDragging: touchControls.touchDragging
                 readonly property alias touchPoint: touchControls.touchPoint
                 // ENH155 - End
+                // ENH243 - Virtual Touchpad Enhancements
+                readonly property bool touchOverlayShown: touchControls.overlayShown
+                function toggleControlsOverlay() {
+                    touchControls.toggleOverlay()
+                }
+                function toggleAppResize(_isActive, _mouse) {
+                    if (shell.settings.windowResizeShortcutSimpleMode) {
+                        resizeArea.toggleBottomRightResize(_isActive, _mouse)
+                    } else {
+                        resizeArea.toggleResize(_isActive, _mouse, true)
+                    }
+                }
+                function updateAppResize(_mouse) {
+                    resizeArea.updateResize(_mouse)
+                }
+                function toggleAppResizeFromCursor(_isActive) {
+                    const _cursorPt = Qt.point(shell.cursorItem.x, shell.cursorItem.y)
+                    const _mappedPt = shell.cursorItem.parent.mapToItem(resizeArea, _cursorPt.x, _cursorPt.y)
+                    toggleAppResize(_isActive, _mappedPt)
+                }
+                function updateAppResizeFromCursor() {
+                    const _cursorPt = Qt.point(shell.cursorItem.x, shell.cursorItem.y)
+                    const _mappedPt = shell.cursorItem.parent.mapToItem(resizeArea, _cursorPt.x, _cursorPt.y)
+                    updateAppResize(_mappedPt)
+                }
+                // ENH243 - End
 
                 WindowControlsOverlay {
                     id: touchControls
@@ -3738,6 +3844,9 @@ FocusScope {
         // ENH154 - End
         background: root.background
         availableDesktopArea: root.availableDesktopArea
+        // ENH244 - Workspace switch spread fix #150
+        onWorkspaceSelected: screensAndWorkspaces.activeWorkspace = selectedWorkspace;
+        // ENH244 - End
         onActiveChanged: {
             if (!active) {
                 appContainer.focus = true;
@@ -3955,17 +4064,17 @@ FocusScope {
         }
 
         onClicked: {
-        // ENH015 - Add shortcuts for side stage
-        /*
+            // ENH015 - Add shortcuts for side stage
+            /*
             if (sideStage.shown) {
                 sideStage.hide();
             } else  {
                 sideStage.show();
                 priv.updateMainAndSideStageIndexes()
             }
-		*/
-		priv.toggleSideStage()
-		// ENH015 - End
+            */
+            priv.toggleSideStage()
+            // ENH015 - End
         }
 
         onDragStarted: {
@@ -4075,4 +4184,84 @@ FocusScope {
         occluding: false
     }
     // ENH171 - End
+    // ENH243 - Virtual Touchpad Enhancements
+    function showHintToMoveToSideStage() {
+        stageSwitchHint.show(true)
+        if (!sideStage.shown) {
+            sideStage.show();
+        }
+    }
+    function showHintToMoveToMainStage() {
+        stageSwitchHint.show(false)
+    }
+    function cancelStageMoveHint() {
+        stageSwitchHint.hide()
+        if (!priv.sideStageDelegate) {
+            sideStage.hide();
+        }
+    }
+    function commitAppSwitchStage(_toTheSideStage) {
+        if (_toTheSideStage) {
+            if (priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage) {
+                priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.SideStage);
+                priv.focusedAppDelegate.focus = true;
+                sideStage.show();
+                priv.updateMainAndSideStageIndexes()
+            }
+        } else {
+            if (priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage) {
+                priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.MainStage);
+                priv.focusedAppDelegate.focus = true;
+            }
+        }
+        stageSwitchHint.hide()
+    }
+
+    Rectangle {
+        id: stageSwitchHint
+
+        property bool toSideStage: false
+
+        function show(_toSideStage) {
+            toSideStage = _toSideStage
+            opacity = 1
+        }
+
+        function hide() {
+            opacity = 0
+        }
+
+        onOpacityChanged: if (opacity === 0) toSideStage = false
+
+        states: [
+            State {
+                name: "toSideStage"
+                when: stageSwitchHint.toSideStage
+                PropertyChanges {
+                    target: stageSwitchHint
+                    anchors.leftMargin: parent.width - root.sideStageWidth
+                }
+            }
+            , State {
+                name: "toMainStage"
+                when: !stageSwitchHint.toSideStage
+                PropertyChanges {
+                    target: stageSwitchHint
+                    anchors.rightMargin: root.sideStageWidth
+                }
+            }
+        ]
+
+        anchors {
+            fill: appContainer
+            topMargin: parent.height - root.availableDesktopArea.height
+        }
+        color: fakeRectangle.color
+        border.width: units.gu(1)
+        border.color: fakeRectangle.border.color
+        opacity: 0
+        visible: opacity > 0
+        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+    }
+    // ENH243 - End
 }

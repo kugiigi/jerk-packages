@@ -69,11 +69,11 @@ QQC2.Dialog {
         states: [
             State {
                 name: "hidden"
-                when: keyboardRect.height == 0
+                when: osk.height == 0
             },
             State {
                 name: "shown"
-                when: keyboardRect.height == Qt.inputMethod.keyboardRectangle.height / (units.gridUnit / 8)
+                when: osk.height == Qt.inputMethod.keyboardRectangle.height / (units.gridUnit / 8)
             }
         ]
 
@@ -103,7 +103,7 @@ QQC2.Dialog {
 
             onVisibleChanged: {
                 if (!Qt.inputMethod.visible) {
-                    var focusedItem = recursiveFindFocusedItem(keyboardRect.parent);
+                    var focusedItem = recursiveFindFocusedItem(osk.parent);
                     if (focusedItem != null) {
                         focusedItem.focus = false;
                     }

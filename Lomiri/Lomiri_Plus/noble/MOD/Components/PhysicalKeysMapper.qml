@@ -55,6 +55,12 @@ Item {
     // running desktop, set this to true to use Ctrl+Tab instead.
     property bool controlInsteadOfAlt: false
     property bool controlInsteadOfSuper: false
+    // ENH141 - Air mouse in virtual touchpad
+    signal volumeDownPressed
+    signal volumeDownReleased
+    signal volumeUpPressed
+    signal volumeUpReleased
+    // ENH141 - End
 
     QtObject {
         id: d
@@ -74,6 +80,22 @@ Item {
         property var cameraButtonLastPress: 0
         property int cameraButtonPressCount: 0
         // ENH100 - End
+        // ENH141 - Air mouse in virtual touchpad
+        onVolumeDownKeyPressedChanged: {
+            if (volumeDownKeyPressed) {
+                root.volumeDownPressed()
+            } else {
+                root.volumeDownReleased()
+            }
+        }
+        onVolumeUpKeyPressedChanged: {
+            if (volumeUpKeyPressed) {
+                root.volumeUpPressed()
+            } else {
+                root.volumeUpReleased()
+            }
+        }
+        // ENH141 - End
     }
 
     InputEventGenerator {

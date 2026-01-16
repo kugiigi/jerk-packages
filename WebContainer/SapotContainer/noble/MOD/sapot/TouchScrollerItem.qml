@@ -29,6 +29,7 @@ Item {
 
         // Do this otherwise, it will jump around when dragging with touch
         y: dragHandler.active ? y : yFromWebview
+
         anchors {
             right: parent.right
             rightMargin: root.sideMargin
@@ -57,6 +58,8 @@ Item {
         DragHandler {
             id: dragHandler
 
+            property real dragStartY: 0
+
             xAxis.enabled: false
             yAxis {
                 enabled: true
@@ -65,7 +68,7 @@ Item {
             }
             onActiveChanged: {
                 if (!active) {
-                    loader.y = Qt.binding( function() { return dragHandler.active ? y : loader.yFromWebview } )
+                    loader.y = Qt.binding( function() { return dragHandler.active ? loader.y : loader.yFromWebview } )
                 }
             }
         }

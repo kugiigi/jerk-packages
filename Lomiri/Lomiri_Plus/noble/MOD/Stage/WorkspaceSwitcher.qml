@@ -73,6 +73,9 @@ Item {
             showRight();
         }
     }
+    // ENH244 - Workspace switch spread fix #150
+    signal workspaceSelected(var selectedWorkspace)
+    // ENH244 - End
     function actuallySelect() {
         d.active = false;
         d.altPressed = false;
@@ -89,7 +92,9 @@ Item {
         }
         hideTimer.start();
         focus = false;
-        screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex).activate();
+        const _workspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex)
+        _workspace.activate();
+        workspaceSelected(_workspace)
     }
 
     // ENH154 - End
@@ -259,7 +264,12 @@ Item {
             d.active = false;
             hideTimer.start();
             focus = false;
-            screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex).activate();
+            // ENH244 - Workspace switch spread fix #150
+            // screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex).activate();
+            const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
+            selectedWorkspace.activate();
+            workspaceSelected(selectedWorkspace)
+            // ENH244 - End
         }
     }
 

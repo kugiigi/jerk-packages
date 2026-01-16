@@ -270,6 +270,18 @@ FocusScope {
                 }
 
                 ListItem {
+                    objectName: "internalLinksAsExternal"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("URL forced as external")
+                        padding.leading: units.gu(2)
+                        ProgressionSlot {}
+                    }
+
+                    onClicked: forcedExternalComponent.createObject(subpageContainer)
+                }
+
+                ListItem {
                     objectName: "autoFitToWidthEnabled"
 
                     ListItemLayout {
@@ -1066,6 +1078,16 @@ FocusScope {
             Sapot.CustomUrlActionsPage {
                 title: i18n.tr("Custom URL Actions")
                 model: settingsObject.customURLActions
+                anchors.fill: parent
+            }
+        }
+
+        Component {
+            id: forcedExternalComponent
+
+            Sapot.ForcedExternalPage {
+                title: i18n.tr("URL forced as external")
+                model: settingsObject.internalDomainsAsExternal
                 anchors.fill: parent
             }
         }

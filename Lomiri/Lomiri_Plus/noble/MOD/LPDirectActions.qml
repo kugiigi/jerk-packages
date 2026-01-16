@@ -52,6 +52,9 @@ Item {
      * 1 - Circular
      * 2 - Rounded Square
     */
+    // ENH141 - Air mouse in virtual touchpad
+    property SwipeArea externalSwipeArea: null
+    // ENH141 - End
 
     signal appOrderChanged(var newAppOrderArray)
 
@@ -93,6 +96,15 @@ Item {
         }
         arr.splice(newIndex, 0, arr.splice(oldIndex, 1)[0]);
         return arr;
+    }
+
+    function triggerHighlighted() {
+        if (internal.highlightedItem) {
+            internal.highlightedItem.trigger()
+            shell.haptics.play()
+        } else {
+            toggle()
+        }
     }
 
     state: "bottom"
@@ -170,15 +182,33 @@ Item {
                     _mappedPos = rightSwipeArea.mapToItem(gridLayout, rightSwipeArea.touchPosition.x, rightSwipeArea.touchPosition.y - touchVerticalOffset - highlightMargin)
                 }
 
+                // ENH141 - Air mouse in virtual touchpad
+                const _externalIsDragging = externalSwipeArea && externalSwipeArea.isDragging
+                if (_externalIsDragging) {
+                    // WORKAROUND: Numbers were hardcoded for 1080p
+                    // to manipulate the behavior
+                    // and it possibly won't work well on other resolutions or screens
+                    const _x = (rightSwipeArea.width * (externalSwipeArea.touchPosition.x / externalSwipeArea.width)) * 1.3
+                    const _y = (rightSwipeArea.height * (externalSwipeArea.touchPosition.y / externalSwipeArea.height)) * 3
+                    _mappedPos = rightSwipeArea.mapToItem(gridLayout, _x, _y - units.gu(6))
+                }
+                // ENH141 - End
+
                 let _mappedX = _mappedPos.x
-                let _mappedY = _mappedPos.y - mappedVerticalOffset
+                // ENH141 - Air mouse in virtual touchpad
+                //let _mappedY = _mappedPos.y - mappedVerticalOffset
+                let _mappedY = _mappedPos.y - (_externalIsDragging ? 0 : mappedVerticalOffset)
+                // ENH141 - End
 
                 // When swipe exceeds on either side, we select the edge item instead
                 if (_mappedX > gridLayout.width) {
                     _mappedX = gridLayout.width - 1
                 }
 
-                if (_mappedX < 0) {
+                // ENH141 - Air mouse in virtual touchpad
+                //if (_mappedX < 0) {
+                if (_mappedX < 0 && !_externalIsDragging) {
+                // ENH141 - End
                     _mappedX = 1
                 }
 
@@ -705,7 +735,10 @@ Item {
                         displayedTop: directActions.state == "top"
                         displayedLeft: directActionsItems.state == "left"
                         mouseHoverEnabled: !swipeAreas.isDragging
-                        enableHaptics: internal.openedViaSwipe
+                        // ENH141 - Air mouse in virtual touchpad
+                        //enableHaptics: internal.openedViaSwipe
+                        enableHaptics: internal.openedViaSwipe || (directActions.externalSwipeArea && directActions.externalSwipeArea.isDragging)
+                        // ENH141 - End
                         displayStyle: directActions.displayStyle
                         
                         states: [

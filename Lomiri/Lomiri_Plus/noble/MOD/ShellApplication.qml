@@ -70,7 +70,6 @@ Instantiator {
     }
     // ENH112 - Settings for external display
     onObjectAdded: {
-        console.log("created!!!!!!!!! " + object.hasOwnProperty("loadedContent"))
         let _contentItem = object.loadedContent
         if (_contentItem && _contentItem.hasOwnProperty("sourceItem")) {
             let _screenToMirror = root.objectAt(0)

@@ -267,6 +267,7 @@ LPDynamicCoveItem {
         FastBlur {
             id: fastBlur
             anchors.fill: parent
+            anchors.margins: units.gu(1)
             source: shaderEffectSource
             radius: units.gu(2)
             cached: false

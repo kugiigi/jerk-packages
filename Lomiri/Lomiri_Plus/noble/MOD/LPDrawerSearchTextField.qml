@@ -12,13 +12,19 @@ TextField {
     readonly property int searchTypeCount: model.length
     readonly property string searchTypeName: currentSearchType ? currentSearchType.name : ""
     readonly property alias delayedSearchText: internal.searchText
+    readonly property alias contextMenuItem: internal.contextMenuItem
 
+    property bool showCloseButton: false
     property bool forceEnablePredictiveText: false
     property bool enabledBackSpaceToggle: false
 
     property int searchType: 0
 
     property var model
+
+    signal exitSearch
+
+    hasClearButton: false
 
     function searchTypeForward() {
         let _newType = searchType + 1
@@ -40,6 +46,7 @@ TextField {
         id: internal
 
         property string searchText: ""
+        property var contextMenuItem: null
     }
 
     primaryItem: Button {
@@ -51,8 +58,9 @@ TextField {
         onClicked: {
             const _arr = root.model.slice()
             _arr.splice(root.searchType, 1)
-            const _contextMenu = contextMenuComponent.createObject(shell.popupParent, { "caller": this, "currentSearchType": root.searchType, "model": _arr });
-            _contextMenu.show()
+            internal.contextMenuItem = contextMenuComponent.createObject(shell.popupParent, { "caller": this, "currentSearchType": root.searchType, "model": _arr });
+            internal.contextMenuItem.z = Number.MAX_VALUE
+            internal.contextMenuItem.show()
         }
 
         RowLayout {
@@ -75,6 +83,7 @@ TextField {
                     id: searchTypeContent
 
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: units.gu(1)
 
                     Icon {
                         implicitWidth: units.gu(2)
@@ -100,6 +109,15 @@ TextField {
                 }
             }
         }
+    }
+
+    secondaryItem: LPDrawerSearchButton {
+        implicitWidth: visible ? units.gu(6) : 0
+        visible: root.showCloseButton
+        icon.name: "cancel"
+        display: QQC2.AbstractButton.IconOnly
+        focusPolicy: Qt.NoFocus
+        onClicked: root.exitSearch()
     }
 
     inputMethodHints: root.forceEnablePredictiveText || root.searchTypeName === "web" ? Qt.ImhNone : Qt.ImhNoPredictiveText
@@ -155,7 +173,8 @@ TextField {
             property int currentSearchType
             property var model
 
-            width: units.gu(30)
+            contentWidth: units.gu(30)
+            edgeMargins: units.gu(10)
             grabDismissAreaEvents: true
             automaticOrientation: false
             actions: actionList
@@ -175,6 +194,7 @@ TextField {
             function closePopup() {
                 hide()
                 destroy()
+                internal.contextMenuItem = null
             }
 
             onVisibleChanged: {

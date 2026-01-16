@@ -79,8 +79,11 @@ FocusScope {
     // ENH236 - Custom drawer search
     property bool enableCustomSearch: shell.settings.enableCustomDrawerSearch
     readonly property bool showSearchButton: enableCustomSearch && shell.settings.customDrawerSearchShowButton
-    readonly property var customSearchField: customSearchLoader.item ? customSearchLoader.item.searchField : null
-    property bool customSeachMode: false
+    readonly property alias customSearchItem: customSearchLoader.item
+    readonly property var customSearchField: customSearchItem ? customSearchItem.searchField : null
+    readonly property bool alwaysShowCustomSearchField: !launcherInverted
+    readonly property bool showCustomSearchPage: customSearchMode || !launcherInverted // Always show when in Windowed mode
+    property bool customSearchMode: false
     property Item searchFieldItem: customSearchField ? customSearchField : searchField
     // ENH236 - End
 
@@ -135,7 +138,10 @@ FocusScope {
             appList.exitEditMode()
             appList.exitAppGridEditMode()
             // ENH236 - Custom drawer search
-            root.customSeachMode = false
+            root.customSearchMode = false
+            if (root.alwaysShowCustomSearchField && root.customSearchItem) {
+                root.customSearchItem.reset()
+            }
             // ENH236 - End
         }
     }
@@ -167,7 +173,17 @@ FocusScope {
     }
 
     Keys.onEscapePressed: {
-        root.hideRequested()
+        // ENH236 - Custom drawer search
+        // root.hideRequested()
+        if (root.customSearchMode) {
+            root.customSearchMode = false
+            if (root.alwaysShowCustomSearchField && root.customSearchItem) {
+                root.customSearchItem.reset()
+            }
+        } else {
+            root.hideRequested()
+        }
+        // ENH236 - End
     }
 
     onDragDistanceChanged: {
@@ -214,9 +230,9 @@ FocusScope {
         // ENH105 - End
         // ENH236 - Custom drawer search
         if (root.enableCustomSearch) {
-            root.customSeachMode = true
-            if (customSearchLoader.item) {
-                customSearchLoader.item.setSearchType(_searchType)
+            root.customSearchMode = true
+            if (root.customSearchItem) {
+                root.customSearchItem.setSearchType(_searchType)
             }
         }
         //searchField.selectAll();
@@ -237,7 +253,11 @@ FocusScope {
     }
 
     Keys.onPressed: {
-        if (event.text.trim() !== "") {
+        // ENH236 - Custom drawer search
+        // if (event.text.trim() !== "") {
+        // For some reason, backspace also enters a character and it's not eliminated with trim()
+        if (event.text.trim() !== "" && event.key !== Qt.Key_Backspace) {
+        // ENH236 - End
             focusInput();
             // ENH236 - Custom drawer search
             // searchField.text = event.text;
@@ -250,12 +270,12 @@ FocusScope {
             case Qt.Key_Down:
                 // ENH236 - Custom drawer search
                 // appList.focus = true;
-                if (root.customSearchField && root.customSearchField.focus && root.customSeachMode) {
+                if (root.customSearchField && root.customSearchField.focus && root.customSearchMode) {
                     event.accepted = false;
                     return
                 } else {
-                    if (root.enableCustomSearch && customSearchLoader.item && root.customSeachMode) {
-                        customSearchLoader.item.focusFirstItem();
+                    if (root.enableCustomSearch && root.customSearchItem && root.customSearchMode) {
+                        root.customSearchItem.focusFirstItem();
                     } else {
                         appList.focus = true;
                     }
@@ -266,6 +286,20 @@ FocusScope {
             case Qt.Key_Up:
                 focusInput();
                 break;
+            // ENH236 - Custom drawer search
+            case Qt.Key_Space:
+                if (root.enableCustomSearch && root.customSearchItem) {
+                    focusInput();
+                    root.customSearchItem.searchTypeForward()
+                }
+                break;
+            case Qt.Key_Backspace:
+                if (root.enableCustomSearch && root.customSearchItem && root.customSearchItem.enabledBackSpaceToggle) {
+                    focusInput();
+                    root.customSearchItem.searchTypeBackward()
+                }
+                break;
+            // ENH236 - End
         }
         // Catch all presses here in case the navigation lets something through
         // We never want to end up in the launcher with focus
@@ -369,20 +403,50 @@ FocusScope {
 
             sourceComponent: LPDrawerSearchPage {
                 visible: opacity > 0
-                opacity: root.customSeachMode ? 1 : 0
+                opacity: root.showCustomSearchPage ? 1 : 0
                 appModel: appDrawerModel
                 appDelegateHeight: root.delegateHeight
                 appDelegateWidth: root.delegateWidth
                 appDelegateSizeMultiplier: root.delegateSizeMultiplier
                 launcherInverted: root.launcherInverted
                 appContextMenuItem: appList.contextMenuItem
+                showCloseButton: root.alwaysShowCustomSearchField && !searchTextIsEmpty
+                defaultAppList: appList
 
                 Behavior on opacity { LomiriNumberAnimation {} }
 
+                onVisibleChanged: {
+                    if (visible) {
+                        if (!root.alwaysShowCustomSearchField) {
+                            focusInput()
+                        }
+                    } else {
+                        reset()
+                    }
+                }
                 onApplicationSelected: appList.applicationSelected(appId)
                 onApplicationContextMenu: appList.applicationContextMenu(appId, caller, false, false)
-                onTextFieldFocusChanged: root.customSeachMode = focusValue
-                onExit: root.customSeachMode = false
+                onTextFieldFocusChanged: {
+                    if (root.alwaysShowCustomSearchField && searchTextIsEmpty) {
+                        root.customSearchMode = focusValue
+                    }
+                }
+                onSearchTextIsEmptyChanged: {
+                    if (root.alwaysShowCustomSearchField) {
+                        if (searchTextIsEmpty && !searchField.activeFocus) {
+                            root.customSearchMode = false
+                        } else {
+                            root.customSearchMode = true
+                        }
+                    }
+                }
+                onExit: {
+                    if (root.alwaysShowCustomSearchField) {
+                        root.customSearchItem.reset()
+                    } else {
+                        root.customSearchMode = false
+                    }
+                }
             }
         }
         // ENH236 - End
@@ -396,7 +460,18 @@ FocusScope {
                 leftMargin: root.panelWidth
             }
             // ENH236 - Custom drawer search
-            visible: !(root.enableCustomSearch && root.customSeachMode)
+            opacity: {
+                if (!(root.enableCustomSearch && root.customSearchMode)) return 1
+
+                if (root.alwaysShowCustomSearchField && root.customSearchItem
+                        && !root.customSearchItem.isWebSearch && root.customSearchItem.searchTextIsEmpty) {
+                    return 1
+                }
+
+                return 0
+            }
+            visible: opacity > 0
+            Behavior on opacity { LomiriNumberAnimation {} }
             // ENH236 - End
 
             // ENH007 - Bottom search in drawer
@@ -423,8 +498,11 @@ FocusScope {
                         target: appList
                         // ENH236 - Custom drawer search
                         //anchors.topMargin: 0
-                        anchors.topMargin: !customSearchButtonLayout.atTheBottom && customSearchButtonLayout.visible ? customSearchButtonLayout.height + units.gu(1) : 0
-                        anchors.bottomMargin: customSearchButtonLayout.atTheBottom && customSearchButtonLayout.visible ? customSearchButtonLayout.height + units.gu(3) : 0
+                        anchors.topMargin: root.enableCustomSearch && root.alwaysShowCustomSearchField && root.customSearchItem ? root.customSearchItem.searchFieldBottomY : 0
+                        anchors.bottomMargin: customSearchButtonLayout.visible ? customSearchButtonLayout.height + units.gu(3) : 0
+                        viewMargin: root.enableCustomSearch && root.alwaysShowCustomSearchField
+                                                                ? units.gu(2) 
+                                                                : searchFieldContainer.fullyShown ? units.gu(2) : 0
                         // ENH236 - End
                     }
                     // ENH131 - End
@@ -450,12 +528,10 @@ FocusScope {
                         target: appList
                         // ENH236 - Custom drawer search
                         //anchors.topMargin: root.topPanelHeight + units.gu(1)
-                        anchors.topMargin: !customSearchButtonLayout.atTheBottom && customSearchButtonLayout.visible
-                                                ? customSearchButtonLayout.height + (launcherInverted ? root.topPanelHeight + units.gu(1) : 0)
-                                                : root.topPanelHeight + units.gu(1)
-                        anchors.bottomMargin: customSearchButtonLayout.atTheBottom && customSearchButtonLayout.visible
-                                                ? customSearchButtonLayout.height + units.gu(3)
-                                                : 0
+                        anchors.topMargin: root.topPanelHeight + units.gu(1)
+                        anchors.bottomMargin: customSearchButtonLayout.visible ? customSearchButtonLayout.height + units.gu(3)
+                                                                               : 0
+                        viewMargin: searchFieldContainer.fullyShown ? units.gu(2) : 0
                         // ENH236 - End
                     }
                     // ENH131 - End
@@ -557,6 +633,8 @@ FocusScope {
                 // ENH236 - Custom drawer search
                 showSearchButton: root.showSearchButton && root.launcherInverted && (enableCustomAppGrids || root.enableDrawerDock)
                 onCustomSearch: root.focusInput()
+                KeyNavigation.up: root.alwaysShowCustomSearchField ? root.searchFieldItem
+                                                                   : root.inverted ? null : searchField
                 // ENH236 - End
                 // ENH105 - Custom app drawer
                 launcherInverted: root.launcherInverted
@@ -642,10 +720,8 @@ FocusScope {
             Loader {
                 id: customSearchButtonLayout
 
-                readonly property bool atTheBottom: state === "bottom"
-
                 asynchronous: true
-                active: root.showSearchButton && ((!appList.enableCustomAppGrids && !root.enableDrawerDock) || !root.launcherInverted)
+                active: root.showSearchButton && !appList.enableCustomAppGrids && !root.enableDrawerDock && root.launcherInverted
                 height: active ? units.gu(6) : 0
                 visible: active
                 anchors {
@@ -654,35 +730,6 @@ FocusScope {
                     left: parent.left
                     right: parent.right
                 }
-                state: root.launcherInverted ? "bottom" : "top"
-                states: [
-                    State {
-                        name: "bottom"
-                        AnchorChanges {
-                            target: customSearchButtonLayout
-                            anchors.top: undefined
-                            anchors.bottom: parent.bottom
-                        }
-                        PropertyChanges {
-                            target: customSearchButtonLayout
-                            anchors.top: 0
-                            anchors.bottomMargin: units.gu(3)
-                        }
-                    }
-                    , State {
-                        name: "top"
-                        AnchorChanges {
-                            target: customSearchButtonLayout
-                            anchors.top: parent.top
-                            anchors.bottom: undefined
-                        }
-                        PropertyChanges {
-                            target: customSearchButtonLayout
-                            anchors.topMargin: units.gu(1)
-                            anchors.bottomMargin: 0
-                        }
-                    }
-                ]
 
                 sourceComponent: RowLayout {
                     LPDrawerSearchButton {
@@ -691,7 +738,7 @@ FocusScope {
                         Layout.preferredHeight: units.gu(6)
                         Layout.alignment: Qt.AlignCenter
                         text: i18n.tr("Search")
-                        icon.name: "search"
+                        icon.name: "find"
                         display: QQC2.AbstractButton.TextBesideIcon
                         backgroundOpacity: 1
                         onClicked: root.focusInput()
@@ -759,7 +806,10 @@ FocusScope {
                             // ENH236 - Custom drawer search
                             //root.focusInput()
                             if (root.enableCustomSearch) {
-                                root.customSeachMode = true
+                                root.customSearchMode = true
+                                if (root.alwaysShowCustomSearchField) {
+                                    root.customSearchItem.focusInput()
+                                }
                             } else {
                                 root.focusInput()
                             }
@@ -803,7 +853,7 @@ FocusScope {
                 property var appId
                 property bool skipCheckExists: false
 
-                width: units.gu(35)
+                contentWidth: units.gu(35)
                 actions: actionList
                 grabDismissAreaEvents: true
                 automaticOrientation: false
@@ -874,7 +924,7 @@ FocusScope {
                 property bool fromDocked: false
                 property bool fromCustomAppGrid: false
 
-                width: units.gu(35)
+                contentWidth: units.gu(35)
                 grabDismissAreaEvents: true
                 automaticOrientation: false
                 actions: [ openStoreAction, addToDockAction, addToAppGridAction, removeAppGridAction, pinToLauncherAction, addToDirectActionsAction, editDockAction, editAppGridAction, addAllToAppGridAction ]
@@ -1219,7 +1269,10 @@ FocusScope {
     Item {
         id: searchHoverHandler
 
-        visible: shell.hasMouse && shell.settings.hideDrawerSearch
+        // ENH236 - Custom drawer search
+        //visible: shell.hasMouse && shell.settings.hideDrawerSearch
+        visible: shell.hasMouse && shell.settings.hideDrawerSearch && !root.enableCustomSearch
+        // ENH236 - End
         height: units.gu(2)
         anchors {
             left: parent.left

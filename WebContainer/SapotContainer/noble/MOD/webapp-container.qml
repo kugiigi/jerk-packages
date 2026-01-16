@@ -320,6 +320,7 @@ Sapot.BrowserWindow {
          * ScrollPositionerItem.Position.Left
          * ScrollPositionerItem.Position.Middle
         */
+        property var internalDomainsAsExternal: []
 
 
         Component.onCompleted: Sapot.Haptics.enabled = Qt.binding( function() { return enableHaptics } )
@@ -377,6 +378,7 @@ Sapot.BrowserWindow {
             floatingScrollButtonSize = 6;
             enableFloatingScrollButtonAsPositioner = false;
             floatingScrollButtonVerticalMargin = 2;
+            internalDomainsAsExternal = [];
         }
 
         function restoreDefault_searchEngine() {

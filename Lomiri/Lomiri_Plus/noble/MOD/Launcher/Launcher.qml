@@ -260,7 +260,7 @@ FocusScope {
             toggleDrawer(true, false, false, _searchType)
         }
     }
-    // ENH236 - Custom drawer search
+    // ENH236 - End
 
     Keys.onPressed: {
         switch (event.key) {

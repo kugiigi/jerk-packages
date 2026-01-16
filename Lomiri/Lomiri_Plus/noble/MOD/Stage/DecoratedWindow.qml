@@ -326,8 +326,15 @@ FocusScope {
         onPressedChangedEx: moveHandler.handlePressedChanged(pressed, pressedButtons, mouseX, mouseY)
         onPositionChanged: moveHandler.handlePositionChanged(mouse)
         onReleased: {
-            root.decorationReleased();
-            moveHandler.handleReleased();
+            // ENH245 - Double click restore fix #151
+            // root.decorationReleased();
+            // moveHandler.handleReleased();
+            if (!wasDoubleClicked) {
+                root.decorationReleased();
+                moveHandler.handleReleased();
+            }
+            wasDoubleClicked = false
+            // ENH245 - End
         }
 
         onCloseClicked: root.closeClicked();
@@ -368,10 +375,17 @@ FocusScope {
         }
     }
 
+    // ENH253 - Keyboard + Mouse shortcut for resizing windows
+    property Item target: null
+    // ENH253 - End
     MouseArea {
         id: altDragHandler
         anchors.fill: applicationWindow
-        acceptedButtons: Qt.LeftButton
+        // ENH253 - Keyboard + Mouse shortcut for resizing windows
+        // acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        property bool draggingForResize: false
+        // ENH253 - End
         property bool dragging: false
         cursorShape: undefined // don't interfere with the cursor shape set by the underlying MirSurfaceItem
         visible: enabled
@@ -384,6 +398,12 @@ FocusScope {
                 moveHandler.handlePressedChanged(true, Qt.LeftButton, mouse.x, mouse.y);
                 dragging = true;
                 mouse.accepted = true;
+            // ENH253 - Keyboard + Mouse shortcut for resizing windows
+            } else if (mouse.button == Qt.RightButton && mouse.modifiers & Qt.AltModifier) {
+                root.target.toggleAppResize(true, mouse)
+                draggingForResize = true;
+                mouse.accepted = true;
+            // ENH253 - End
             } else {
                 mouse.accepted = false;
             }
@@ -392,6 +412,11 @@ FocusScope {
             if (dragging) {
                 moveHandler.handlePositionChanged(mouse);
             }
+            // ENH253 - Keyboard + Mouse shortcut for resizing windows
+            if (draggingForResize) {
+                root.target.updateAppResize(mouse)
+            }
+            // ENH253 - End
         }
         onReleased: {
             if (dragging) {
@@ -400,6 +425,12 @@ FocusScope {
                 moveHandler.handleReleased();
                 dragging = false;
             }
+            // ENH253 - Keyboard + Mouse shortcut for resizing windows
+            if (draggingForResize) {
+                root.target.toggleAppResize(false, mouse)
+                draggingForResize = false;
+            }
+            // ENH253 - End
         }
     }
 

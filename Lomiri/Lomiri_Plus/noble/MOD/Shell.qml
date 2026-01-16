@@ -635,17 +635,31 @@ StyledItem {
     readonly property bool waitingOnGreeter: greeter && greeter.waiting
 
     // True when the user is logged in with no apps running
-    readonly property bool atDesktop: topLevelSurfaceList && greeter && topLevelSurfaceList.count === 0 && !greeter.active
+    // ENH248 - Don’t show Launcher when selecting workspace
+    // readonly property bool atDesktop: topLevelSurfaceList && greeter && topLevelSurfaceList.count === 0 && !greeter.active
+    readonly property bool topLevelSurfaceIsEmpty: topLevelSurfaceList && topLevelSurfaceList.count === 0
+    readonly property bool atDesktop: greeter && !greeter.active && topLevelSurfaceIsEmpty && !stage.spreadShown
+    // ENH248 - End
     // ENH199 - Indicators custom colors
     readonly property bool desktopShown: atDesktop || stage.desktopShown
     readonly property alias drawerShown: launcher.drawerShown
     // ENH199 - End
 
+    // ENH248 - Don’t show Launcher when selecting workspace
+    /*
     onAtDesktopChanged: {
         if (atDesktop && stage && !stage.workspaceEnabled) {
+            console.log("atDesktop " + atDesktop)
             stage.closeSpread();
         }
     }
+    */
+    onTopLevelSurfaceIsEmptyChanged: {
+        if (topLevelSurfaceIsEmpty && stage && !stage.workspaceEnabled) {
+            stage.closeSpread();
+        }
+    }
+    // ENH248 - End
 
     property real edgeSize: units.gu(settings.edgeDragWidth)
     // ENH117 - Shell reachability
@@ -740,6 +754,13 @@ StyledItem {
 
     function openIndicatorByIndex(_index, _inverted=false) {
         panel.indicators.openAsInverted(_index, _inverted)
+    }
+    function toggleIndicators(_index, _inverted=false) {
+        if (panel.indicators.shown) {
+            panel.indicators.hide()
+        } else {
+            panel.indicators.openAsInverted(_index, _inverted)
+        }
     }
 
     // Custom actions
@@ -1175,7 +1196,7 @@ StyledItem {
     // ENH197 - End
     // ENH198 - Pocket Mode
     readonly property bool pocketModeDetected: proximitySensor.active && proximitySensor.reading.near && shell.showingGreeter
-                                            && !shell.haveMultipleScreens
+                                            && !shell.haveMultipleScreens && shell.isBuiltInScreen
                                             && (shell.settings.doNotUseLightSensorInPocketMode || (!shell.settings.doNotUseLightSensorInPocketMode && shell.lightSensorValue == 0))
     property bool isPocketMode: false
 
@@ -1524,6 +1545,11 @@ StyledItem {
         property alias enableNavigationButtons: settingsObj.enableNavigationButtons
         property alias navigationButtonsList: settingsObj.navigationButtonsList
         property alias navigationButtonsEnableDirectDrawerSearch: settingsObj.navigationButtonsEnableDirectDrawerSearch
+        property alias enableSideGesturesInTouchpadMode: settingsObj.enableSideGesturesInTouchpadMode
+        property alias enableCustomOneTwoGestureTouchpadBehavior: settingsObj.enableCustomOneTwoGestureTouchpadBehavior
+        property alias enableVirtualTouchpadScrollWorkaround: settingsObj.enableVirtualTouchpadScrollWorkaround
+        property alias enableVirtualTouchpadLowerClickThreshold: settingsObj.enableVirtualTouchpadLowerClickThreshold
+        property alias windowResizeShortcutSimpleMode: settingsObj.windowResizeShortcutSimpleMode
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -1707,6 +1733,7 @@ StyledItem {
         property alias disableTogglesOnLockscreen: settingsObj.disableTogglesOnLockscreen
         property alias togglesToDisableOnLockscreen: settingsObj.togglesToDisableOnLockscreen
         property alias quickTogglesOnlyShowInNotifications: settingsObj.quickTogglesOnlyShowInNotifications
+        property alias quickTogglesOnlyShowInNotificationsBuiltInOnly: settingsObj.quickTogglesOnlyShowInNotificationsBuiltInOnly
 
         // Quick Actions (Previously Direct Actions)
         property alias enableDirectActions: settingsObj.enableDirectActions
@@ -1895,14 +1922,23 @@ StyledItem {
         property alias enableAirMouse: settingsObj.enableAirMouse
         property alias airMouseAlwaysActive: settingsObj.airMouseAlwaysActive
         property alias airMouseSensitivity: settingsObj.airMouseSensitivity
+        property alias invertMouseScroll: settingsObj.invertMouseScroll
         property alias invertSideMouseScroll: settingsObj.invertSideMouseScroll
+        property alias virtualTouchpadScrollSensitivity: settingsObj.virtualTouchpadScrollSensitivity
         property alias sideMouseScrollSensitivity: settingsObj.sideMouseScrollSensitivity
         property alias sideMouseScrollPosition: settingsObj.sideMouseScrollPosition
         property alias enableSideMouseScrollHaptics: settingsObj.enableSideMouseScrollHaptics
+        property alias airMouseEnableCustomClickBehavior: settingsObj.airMouseEnableCustomClickBehavior
+        property alias airMouseEnableVolumeButtons: settingsObj.airMouseEnableVolumeButtons
+        property alias touchpadHideBottomButtons: settingsObj.touchpadHideBottomButtons
+        property alias touchpadHideBottomButtonsOnlyAirMouse: settingsObj.touchpadHideBottomButtonsOnlyAirMouse
+        property alias touchpadDragWindowSensitivity: settingsObj.touchpadDragWindowSensitivity
+        property alias touchpadEnableAdvancedGestures: settingsObj.touchpadEnableAdvancedGestures
 
         // Hot Corners
         property alias enableHotCorners: settingsObj.enableHotCorners
         property alias enableHotCornersVisualFeedback: settingsObj.enableHotCornersVisualFeedback
+        property alias hotCornerSensitivity: settingsObj.hotCornerSensitivity
         property alias enableTopLeftHotCorner: settingsObj.enableTopLeftHotCorner
         property alias enableTopRightHotCorner: settingsObj.enableTopRightHotCorner
         property alias enableBottomRightHotCorner: settingsObj.enableBottomRightHotCorner
@@ -1915,6 +1951,7 @@ StyledItem {
         property alias actionTopRightHotCorner: settingsObj.actionTopRightHotCorner
         property alias actionBottomRightHotCorner: settingsObj.actionBottomRightHotCorner
         property alias actionBottomLeftHotCorner: settingsObj.actionBottomLeftHotCorner
+        property alias hotCornerBottomLeftWorkAround: settingsObj.hotCornerBottomLeftWorkAround
 
         // Battery Tracking
         property alias enableBatteryTracking: settingsObj.enableBatteryTracking
@@ -1963,6 +2000,7 @@ StyledItem {
         property alias dataMigratedToNoble: settingsObj.dataMigratedToNoble
         property alias useCustomPixelDensity: settingsObj.useCustomPixelDensity
         property alias customPixelDensity: settingsObj.customPixelDensity
+        property alias enableCursorTouchMoveFix: settingsObj.enableCursorTouchMoveFix
 
         // Detox Mode
         property alias enableDetoxModeToggleIndicator: settingsObj.enableDetoxModeToggleIndicator
@@ -2075,6 +2113,34 @@ StyledItem {
                     dataMigratedToNoble = true
                     console.log("Data and settings migrated to Noble")
                 }
+                // ENH141 - Air mouse in virtual touchpad
+                ShellNotifier.enableAirMouse = Qt.binding( function() { return enableAirMouse } )
+                ShellNotifier.airMouseAlwaysActive = Qt.binding( function() { return airMouseAlwaysActive } )
+                ShellNotifier.enableSideGestures = Qt.binding( function() { return enableSideGesturesInTouchpadMode } )
+                ShellNotifier.sideMouseScrollPosition = Qt.binding( function() { return sideMouseScrollPosition } )
+                ShellNotifier.enableSideMouseScrollHaptics = Qt.binding( function() { return enableSideMouseScrollHaptics } )
+                ShellNotifier.airMouseSensitivity = Qt.binding( function() { return airMouseSensitivity } )
+                ShellNotifier.invertMouseScroll = Qt.binding( function() { return invertMouseScroll } )
+                ShellNotifier.invertSideMouseScroll = Qt.binding( function() { return invertSideMouseScroll } )
+                ShellNotifier.sideMouseScrollSensitivity = Qt.binding( function() { return sideMouseScrollSensitivity } )
+                ShellNotifier.enableVirtualTouchpadScrollWorkaround = Qt.binding( function() { return enableVirtualTouchpadScrollWorkaround } )
+                ShellNotifier.enableVirtualTouchpadLowerClickThreshold = Qt.binding( function() { return enableVirtualTouchpadLowerClickThreshold } )
+                ShellNotifier.enableCustomClickBehavior = Qt.binding( function() { return airMouseEnableCustomClickBehavior } )
+                ShellNotifier.enableCustomOneTwoGestureBehavior = Qt.binding( function() { return enableCustomOneTwoGestureTouchpadBehavior } )
+                ShellNotifier.quickActionsHeight = Qt.binding( function() { return directActionsSwipeAreaHeight } )
+                ShellNotifier.sideGesturesWidth = Qt.binding( function() { return settings.edgeDragWidth } )
+                ShellNotifier.quickActionsSideMargins = Qt.binding( function() { return directActionsSideMargins } )
+                ShellNotifier.hideBottomButtons = Qt.binding( function() { return touchpadHideBottomButtons } )
+                ShellNotifier.hideBottomButtonsOnlyAirMouse = Qt.binding( function() { return touchpadHideBottomButtonsOnlyAirMouse } )
+                // ENH141 - End
+                // ENH243 - Virtual Touchpad Enhancements
+                ShellNotifier.inWindowedMode = Qt.binding( function() { return shell.isWindowedMode  } )
+                ShellNotifier.enableAdvancedGestures = Qt.binding( function() { return touchpadEnableAdvancedGestures  } )
+                ShellNotifier.workspaceEnabled = Qt.binding( function() { return stage ? stage.workspaceEnabled : false  } )
+                ShellNotifier.availableDesktopArea = Qt.binding( function() { return stage ? stage.availableDesktopArea : null  } )
+                ShellNotifier.dragWindowSensitivity = Qt.binding( function() { return touchpadDragWindowSensitivity  } )
+                ShellNotifier.virtualTouchpadScrollSensitivity = Qt.binding( function() { return virtualTouchpadScrollSensitivity  } )
+                // ENH243 - End
             }
             // ENH056 - End
             // ENH061 - End
@@ -2753,12 +2819,178 @@ StyledItem {
             property bool enableTransparentExpandedTopBar: false
             property bool customDrawerSearchExitHideOSK: false
             property bool customDrawerSearchEnableBackspaceSearchType: false
+            property bool quickTogglesOnlyShowInNotificationsBuiltInOnly: false
+            property bool enableSideGesturesInTouchpadMode: false
+            property bool airMouseEnableCustomClickBehavior: false
+            property bool airMouseEnableVolumeButtons: false
+            property bool touchpadHideBottomButtons: false
+            property bool touchpadHideBottomButtonsOnlyAirMouse: false
+            property real touchpadDragWindowSensitivity: 1
+            property bool touchpadEnableAdvancedGestures: false
+            property bool invertMouseScroll: false
+            property int hotCornerSensitivity: 50
+            property bool hotCornerBottomLeftWorkAround: false
+            property bool enableCustomOneTwoGestureTouchpadBehavior: false
+            property bool enableVirtualTouchpadScrollWorkaround: false
+            property real virtualTouchpadScrollSensitivity: 1 // Multiplier so higher means higher sensitivity
+            property bool enableVirtualTouchpadLowerClickThreshold: false
+            property bool enableCursorTouchMoveFix: false
+            property bool windowResizeShortcutSimpleMode: false
         }
     }
 
     function showSettings() {
         settingsLoader.active = true
+        if (settingsLoader.minimized) {
+            settingsLoader.minimized = false
+        }
     }
+
+    // ENH141 - Air mouse in virtual touchpad
+    Connections {
+        target: cursor
+        function onXChanged() {
+            ShellNotifier.cursorX = target.x
+            ShellNotifier.cursorY = target.y
+        }
+    }
+    Connections {
+        target: ShellNotifier
+
+        function onShowSpread() {
+            shell.toggleSpread()
+        }
+
+        function onShowDrawer(_search=false) {
+            if (_search) {
+                shell.launcher.searchInDrawer()
+            } else {
+                shell.launcher.toggleDrawer()
+            }
+        }
+
+        function onSwitchToPrevApp() {
+            shell.switchToPreviousApp()
+        }
+
+        function onToggleSideStage() {
+            stage.toggleSideStage()
+        }
+
+        function onToggleQuickActions(_fromMouse) {
+            if (shell.directActions) {
+                if (_fromMouse) {
+                    shell.toggleQuickActions()
+                } else {
+                    shell.directActions.toggle(false, false, Qt.point(shell.width - units.gu(5), shell.height - units.gu(5)))
+                }
+            }
+        }
+
+        function onSelectQuickAction() {
+            if (shell.directActions) {
+                shell.directActions.triggerHighlighted()
+            }
+        }
+
+        function onNormalHaptics() {
+            shell.haptics.play()
+        }
+
+        function onSubtleHaptics() {
+            shell.haptics.playSubtle()
+        }
+
+        function onSwitchWorkspaceRight() {
+            stage.switchWorkspaceRight()
+        }
+
+        function onSwitchWorkspaceRightMoveApp() {
+            stage.switchWorkspaceRightMoveApp()
+        }
+
+        function onSwitchWorkspaceLeft() {
+            stage.switchWorkspaceLeft()
+        }
+
+        function onSwitchWorkspaceLeftMoveApp() {
+            stage.switchWorkspaceLeftMoveApp()
+        }
+
+        function onCommitWorkspaceSwitch() {
+            stage.commitWorkspaceSwitch()
+        }
+
+        // ENH243 - Virtual Touchpad Enhancements
+        function onGetAppToDrag() {
+            // TODO: Also check Child windows so this will work on them
+            function matchDelegate(obj) { return String(obj.objectName).indexOf("appDelegate") >= 0; }
+
+            var delegateAtCenter = Functions.itemAt(stage.appContainerItem, cursor.x, cursor.y, matchDelegate);
+
+            ShellNotifier.appForDragging = delegateAtCenter;
+        }
+
+        function onAppIsBeingDraggedChanged() {
+            if (!target.appIsBeingDragged) {
+                stage.dragReleased(stage.focusedAppDelegate)
+            }
+        }
+
+        function onToggleIndicators() {
+            shell.toggleIndicators(-1, false)
+        }
+
+        function onDragReleased() {
+            stage.dragReleased()
+        }
+
+        function onHintMoveAppToSideStage() {
+            stage.showHintToMoveToSideStage()
+        }
+
+        function onHintMoveAppToMainStage() {
+            stage.showHintToMoveToMainStage()
+        }
+
+        function onCommitAppSwitchStage(_toTheSideStage) {
+            stage.commitAppSwitchStage(_toTheSideStage)
+        }
+
+        function onCancelMoveToStage() {
+            stage.cancelStageMoveHint()
+        }
+
+        // TODO: POssibly not needed anymore. Delete in the future
+        /*
+        function onFakeMaximizeAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeAnimationRequested(_appDelegate, _amount)
+        }
+        function onFakeMaximizeLeftAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeLeftAnimationRequested(_appDelegate, _amount)
+        }
+        function onFakeMaximizeRightAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeRightAnimationRequested(_appDelegate, _amount)
+        }
+        function onFakeMaximizeTopLeftAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeTopLeftAnimationRequested(_appDelegate, _amount)
+        }
+        function onFakeMaximizeTopRightAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeTopRightAnimationRequested(_appDelegate, _amount)
+        }
+        function onFakeMaximizeBottomLeftAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeBottomLeftAnimationRequested(_appDelegate, _amount)
+        }
+        function onFakeMaximizeBottomRightAnimationRequested(_appDelegate, _amount) {
+            stage.fakeMaximizeBottomRightAnimationRequested(_appDelegate, _amount)
+        }
+        function onStopFakeAnimation() {
+            stage.stopFakeAnimation()
+        }
+        */
+        // ENH243 - End
+    }
+    // ENH141 - End
     
     // ENH067 - Custom Lockscreen Clock Color
     Loader {
@@ -2769,6 +3001,7 @@ StyledItem {
 
         // Hide together with the settings page
         opacity: settingsLoader.temporarilyHidden ? 0 : 1
+        visible: !settingsLoader.minimized
 
         anchors.fill: parent
         z: settingsLoader.z + 1
@@ -3026,8 +3259,10 @@ StyledItem {
         id: settingsLoader
 
         property bool temporarilyHidden: false
+        property bool minimized: false
 
         opacity: temporarilyHidden ? 0 : 1
+        visible: !minimized
         active: false
         z: inputMethod.visible ? inputMethod.z - 1 : cursor.z - 2
         width: Math.min(parent.width, units.gu(45))
@@ -3064,14 +3299,16 @@ StyledItem {
                                 action: QQC2.Action {
                                     icon.name:  stack.depth > 1 ? "back" : "close"
                                     shortcut: StandardKey.Cancel
-                                     onTriggered: {
-                                        if (stack.depth > 1) {
-                                            stack.pop()
-                                        } else {
-                                            settingsLoader.active = false
-                                        }
+                                }
+                                onClicked: {
+                                    if (stack.depth > 1) {
+                                        stack.pop()
+                                    } else {
+                                        settingsLoader.active = false
                                     }
                                 }
+                                onDoubleClicked: stack.goHome()
+                                onPressAndHold: stack.goHome()
                             }
                             Label {
                                 Layout.fillWidth: true
@@ -3156,15 +3393,25 @@ StyledItem {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         initialItem: settingsPage
+
+                        function goHome() {
+                            pop(get(0))
+                        }
                     }
 
-                    Button {
-                        id: closeButton
-
-                        color: theme.palette.normal.foreground
-                        text: "Close"
-                        Layout.fillWidth: true
-                        onClicked: settingsLoader.active = false
+                    RowLayout {
+                        Button {
+                            color: theme.palette.normal.foreground
+                            text: "Minimize"
+                            Layout.fillWidth: true
+                            onClicked: settingsLoader.minimized = true
+                        }
+                        Button {
+                            color: theme.palette.normal.foreground
+                            text: "Close"
+                            Layout.fillWidth: true
+                            onClicked: settingsLoader.active = false
+                        }
                     }
                 }
             }
@@ -3373,6 +3620,17 @@ StyledItem {
         id: drawerCustomSearchPage
 
         LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "Advanced Search is a custom search page in the App Drawer. It's an experimental feature for exploring ideas to extend the search functions in the Drawer."
+                + "It adds new functionalities such as displaying results from the OpenStore as well as from Wikipedia and a button to directly search the web.\n\n"
+                + "Super + A:  Search apps"
+                + "\nSuper + Z: Search the web"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
             LPSettingsSwitch {
                 id: enableCustomDrawerSearch
                 Layout.fillWidth: true
@@ -4324,6 +4582,17 @@ StyledItem {
                     target: workaroundMaxAppsSwitchWorkspace
                     property: "checked"
                     value: shell.settings.workaroundMaxAppsSwitchWorkspace
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableCursorTouchMoveFix
+                Layout.fillWidth: true
+                text: "Do not move mouse cursor position to the last touch position"
+                onCheckedChanged: shell.settings.enableCursorTouchMoveFix = checked
+                Binding {
+                    target: enableCursorTouchMoveFix
+                    property: "checked"
+                    value: shell.settings.enableCursorTouchMoveFix
                 }
             }
         }
@@ -5622,6 +5891,17 @@ StyledItem {
                     value: shell.settings.delayedWorkspaceSwitcherUI
                 }
             }
+            LPSettingsCheckBox {
+                id: windowResizeShortcutSimpleMode
+                Layout.fillWidth: true
+                text: "Simple mode when resizing via keyboard + mouse drag (always bottom-right resize)"
+                onCheckedChanged: shell.settings.windowResizeShortcutSimpleMode = checked
+                Binding {
+                    target: windowResizeShortcutSimpleMode
+                    property: "checked"
+                    value: shell.settings.windowResizeShortcutSimpleMode
+                }
+            }
         }
     }
     Component {
@@ -5912,26 +6192,133 @@ StyledItem {
         }
     }
     Component {
-        id: externalDisplayPage
+        id: virtualTouchpadPage
 
         LPSettingsPage {
-            OptionSelector {
-                Layout.fillWidth: true
-                Layout.margins: units.gu(2)
-                text: i18n.tr("Behavior")
-                model: [
-                    i18n.tr("Virtual Touchpad")
-                    , i18n.tr("Multi-display")
-                    //, i18n.tr("Mirrored")
-                ]
-                containerHeight: itemHeight * 6
-                selectedIndex: shell.settings.externalDisplayBehavior
-                onSelectedIndexChanged: shell.settings.externalDisplayBehavior = selectedIndex
-            }
             LPSettingsNavItem {
                 Layout.fillWidth: true
                 text: "Air Mouse"
                 onClicked: settingsLoader.item.stack.push(airMousePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Advanced Gestures"
+                onClicked: settingsLoader.item.stack.push(touchpadAdvancedGesturesPage, {"title": text})
+            }
+            LPSettingsSlider {
+                id: virtualTouchpadScrollSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Scroll Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0.1
+                maximumValue: 2
+                stepSize: 0.1
+                resetValue: 1
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "x"
+                enableFineControls: true
+                onValueChanged: shell.settings.virtualTouchpadScrollSensitivity = value
+                Binding {
+                    target: virtualTouchpadScrollSensitivity
+                    property: "value"
+                    value: shell.settings.virtualTouchpadScrollSensitivity
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableVirtualTouchpadLowerClickThreshold
+                Layout.fillWidth: true
+                text: "Avoid triggering click with small movements (Reduce swipe threshold)"
+                onCheckedChanged: shell.settings.enableVirtualTouchpadLowerClickThreshold = checked
+                Binding {
+                    target: enableVirtualTouchpadLowerClickThreshold
+                    property: "checked"
+                    value: shell.settings.enableVirtualTouchpadLowerClickThreshold
+                }
+            }
+            LPSettingsCheckBox {
+                id: invertMouseScroll
+                Layout.fillWidth: true
+                text: "Invert mouse scroll"
+                onCheckedChanged: shell.settings.invertMouseScroll = checked
+                Binding {
+                    target: invertMouseScroll
+                    property: "checked"
+                    value: shell.settings.invertMouseScroll
+                }
+            }
+            LPSettingsCheckBox {
+                id: enableCustomOneTwoGestureTouchpadBehavior
+                Layout.fillWidth: true
+                text: "Enable custom 2-finger gestures (Experimental)"
+                onCheckedChanged: shell.settings.enableCustomOneTwoGestureTouchpadBehavior = checked
+                Binding {
+                    target: enableCustomOneTwoGestureTouchpadBehavior
+                    property: "checked"
+                    value: shell.settings.enableCustomOneTwoGestureTouchpadBehavior
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "This enables an experimental implementation for handling 2-finger gestures in the touchpad. "
+                + "This mainly affects right-click and scrolling. "
+                + "It may improve righ-click detection."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: enableSideGesturesInTouchpadMode
+                Layout.fillWidth: true
+                text: "Enable edge gestures"
+                onCheckedChanged: shell.settings.enableSideGesturesInTouchpadMode = checked
+                Binding {
+                    target: enableSideGesturesInTouchpadMode
+                    property: "checked"
+                    value: shell.settings.enableSideGesturesInTouchpadMode
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: " - Left Edge: Toggle the Drawer\n"
+                + " - Right Edge: Short swipe to switch between 2 previous apps. Long swipe to toggle the App Spread\n"
+                + " - Bottom Edge: Toggle Quick Actions\n"
+                + " - Top Edge: Open Indicator Panels"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: touchpadHideBottomButtons
+                Layout.fillWidth: true
+                text: "Hide bottom buttons"
+                onCheckedChanged: shell.settings.touchpadHideBottomButtons = checked
+                Binding {
+                    target: touchpadHideBottomButtons
+                    property: "checked"
+                    value: shell.settings.touchpadHideBottomButtons
+                }
+            }
+            LPSettingsCheckBox {
+                id: touchpadHideBottomButtonsOnlyAirMouse
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                text: "Only in Air Mouse mode"
+                onCheckedChanged: shell.settings.touchpadHideBottomButtonsOnlyAirMouse = checked
+                Binding {
+                    target: touchpadHideBottomButtonsOnlyAirMouse
+                    property: "checked"
+                    value: shell.settings.touchpadHideBottomButtonsOnlyAirMouse
+                }
             }
             LPSettingsCheckBox {
                 id: lowestBrightnessWhenTouchpadMode
@@ -5976,6 +6363,138 @@ StyledItem {
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: biggerCursorInExternalDisplay
+                Layout.fillWidth: true
+                text: "Bigger cursor on external displays"
+                onCheckedChanged: shell.settings.biggerCursorInExternalDisplay = checked
+                Binding {
+                    target: biggerCursorInExternalDisplay
+                    property: "checked"
+                    value: shell.settings.biggerCursorInExternalDisplay
+                }
+            }
+            LPSettingsCheckBox {
+                id: biggerCursorInExternalDisplayOnlyAirMouse
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: biggerCursorInExternalDisplay.visible
+                text: "Only when in Air Mouse mode"
+                onCheckedChanged: shell.settings.biggerCursorInExternalDisplayOnlyAirMouse = checked
+                Binding {
+                    target: biggerCursorInExternalDisplayOnlyAirMouse
+                    property: "checked"
+                    value: shell.settings.biggerCursorInExternalDisplayOnlyAirMouse
+                }
+            }
+            LPSettingsSlider {
+                id: biggerCursorInExternalDisplaySize
+                Layout.fillWidth: true
+                Layout.margins: units.gu(4)
+                visible: biggerCursorInExternalDisplay.visible
+                title: "Scale"
+                minimumValue: 1.25
+                maximumValue: 5
+                stepSize: 0.25
+                resetValue: 2
+                live: false
+                roundValue: true
+                roundingDecimal: 2
+                enableFineControls: true
+                unitsLabel: "x"
+                onValueChanged: shell.settings.biggerCursorInExternalDisplaySize = value
+                Binding {
+                    target: biggerCursorInExternalDisplaySize
+                    property: "value"
+                    value: shell.settings.biggerCursorInExternalDisplaySize
+                }
+            }
+        }
+    }
+    Component {
+        id: touchpadAdvancedGesturesPage
+
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "This adds multi-touch gestures to the Virtual Touchpad"
+                + "\n\n"
+                + "Staged Mode\n"
+                + " - 3-finger tap: Toggle the Side-stage\n"
+                + " - 3-finger swipe/drag: Move app currently under the mouse cursor between Main and Side-stage"
+                + "\n\n"
+                + "Windowed Mode:\n"
+                + " - 3-finger tap: Toggle resize mode of a window\n"
+                + " - 3-finger swipe/drag: Move window currently under the mouse cursor or resize window when in resize mode\n"
+                + "\n\n"
+                + "Any Mode:\n"
+                + " - 4-finger tap: Search the App Drawer\n"
+                + " - 4-finger horizontal swipe: Switch between Workspaces. Lift to select the currently highligted Workspace\n"
+                + " - 5-finger horizontal swipe: Switch and move current app between Workspaces. Lift to select the currently highligted Workspace\n"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSwitch {
+                id: touchpadEnableAdvancedGestures
+                Layout.fillWidth: true
+                text: "Enable"
+                onCheckedChanged: shell.settings.touchpadEnableAdvancedGestures = checked
+                Binding {
+                    target: touchpadEnableAdvancedGestures
+                    property: "checked"
+                    value: shell.settings.touchpadEnableAdvancedGestures
+                }
+            }
+            LPSettingsSlider {
+                id: touchpadDragWindowSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableAirMouse
+                title: "Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0.1
+                maximumValue: 3
+                stepSize: 0.1
+                resetValue: 1
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "x"
+                enableFineControls: true
+                onValueChanged: shell.settings.touchpadDragWindowSensitivity = value
+                Binding {
+                    target: touchpadDragWindowSensitivity
+                    property: "value"
+                    value: shell.settings.touchpadDragWindowSensitivity
+                }
+            }
+        }
+    }
+    Component {
+        id: externalDisplayPage
+
+        LPSettingsPage {
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Behavior")
+                model: [
+                    i18n.tr("Virtual Touchpad")
+                    , i18n.tr("Multi-display")
+                    //, i18n.tr("Mirrored")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.externalDisplayBehavior
+                onSelectedIndexChanged: shell.settings.externalDisplayBehavior = selectedIndex
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Virtual Touchpad"
+                onClicked: settingsLoader.item.stack.push(virtualTouchpadPage, {"title": text})
             }
         }
     }
@@ -9464,6 +9983,52 @@ StyledItem {
                     value: shell.settings.enableHotCornersVisualFeedback
                 }
             }
+            LPSettingsCheckBox {
+                id: hotCornerBottomLeftWorkAround
+                Layout.fillWidth: true
+                text: "Enable bottom left corner work around"
+                visible: shell.settings.enableHotCorners
+                onCheckedChanged: shell.settings.hotCornerBottomLeftWorkAround = checked
+                Binding {
+                    target: hotCornerBottomLeftWorkAround
+                    property: "checked"
+                    value: shell.settings.hotCornerBottomLeftWorkAround
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: hotCornerBottomLeftWorkAround.visible
+                text: "There's a bug on external displays where bottom left corner doesn't work. This toggle converts it to mouse hover instead of push so it will still work"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSlider {
+                id: hotCornerSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: shell.settings.enableHotCorners
+                title: "Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0
+                maximumValue: 100
+                stepSize: 1
+                resetValue: 50
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 0
+                enableFineControls: true
+                onValueChanged: shell.settings.hotCornerSensitivity = value
+                Binding {
+                    target: hotCornerSensitivity
+                    property: "value"
+                    value: shell.settings.hotCornerSensitivity
+                }
+            }
             property var hotcornerActions: [
                 "Open Drawer"
                 , "Search Drawer"
@@ -9618,11 +10183,18 @@ StyledItem {
             Label {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
-                text: "Use your device as an air mouse! Toggle by swiping from bottom of the Virtual Touchpad \n"
+                text: "Use your device as an air mouse! Toggle by tapping on the button at the top of the Virtual Touchpad \n"
+                + "\nDefault Click Behavior:\n"
                 + " - Single tap to left click\n"
                 + " - Double tap to double click\n"
-                + " - Slight swipe down to right click\n"
-                + " - Slight swipe up without releasing to drag\n"
+                + " - Slight swipe right to right click\n"
+                + " - Slight swipe left without releasing to drag the window under the mouse cursor\n"
+                + " - Swipe on the side strip to scroll\n\n"
+                + "\nCustom Click Behavior:\n"
+                + " - Slight swipe right to left click\n"
+                + " - Slight swipe up to double click\n"
+                + " - Slight swipe left to right click\n"
+                + " - Slight swipe down without releasing to drag\n"
                 + " - Swipe on the side strip to scroll\n\n"
                 + "*** Some settings do not take effect immediately. A reconnect to the external display or Lomiri restart is required."
                 wrapMode: Text.WordWrap
@@ -9666,6 +10238,30 @@ StyledItem {
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: airMouseEnableVolumeButtons
+                Layout.fillWidth: true
+                text: "Use volume buttons for left and right click"
+                visible: shell.settings.enableAirMouse
+                onCheckedChanged: shell.settings.airMouseEnableVolumeButtons = checked
+                Binding {
+                    target: airMouseEnableVolumeButtons
+                    property: "checked"
+                    value: shell.settings.airMouseEnableVolumeButtons
+                }
+            }
+            LPSettingsCheckBox {
+                id: airMouseEnableCustomClickBehavior
+                Layout.fillWidth: true
+                text: "Enable custom click behavior (Experimental)"
+                visible: shell.settings.enableAirMouse
+                onCheckedChanged: shell.settings.airMouseEnableCustomClickBehavior = checked
+                Binding {
+                    target: airMouseEnableCustomClickBehavior
+                    property: "checked"
+                    value: shell.settings.airMouseEnableCustomClickBehavior
+                }
             }
             LPSettingsSlider {
                 id: airMouseSensitivity
@@ -11837,6 +12433,19 @@ StyledItem {
                 }
             }
             LPSettingsCheckBox {
+                id: quickTogglesOnlyShowInNotificationsBuiltInOnly
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableQuickToggles && shell.settings.quickTogglesOnlyShowInNotifications
+                text: "Except on external displays"
+                onCheckedChanged: shell.settings.quickTogglesOnlyShowInNotificationsBuiltInOnly = checked
+                Binding {
+                    target: quickTogglesOnlyShowInNotificationsBuiltInOnly
+                    property: "checked"
+                    value: shell.settings.quickTogglesOnlyShowInNotificationsBuiltInOnly
+                }
+            }
+            LPSettingsCheckBox {
                 id: autoCollapseQuickToggles
                 Layout.fillWidth: true
                 visible: shell.settings.enableQuickToggles
@@ -12732,10 +13341,41 @@ StyledItem {
         objectName: "physicalKeysMapper"
 
         onPowerKeyLongPressed: dialogs.showPowerDialog();
+        // ENH141 - Air mouse in virtual touchpad
+        onVolumeDownPressed: {
+            if (shell.settings.airMouseEnableVolumeButtons && ShellNotifier.inAirMouseMode) {
+                ShellNotifier.leftPress()
+                return
+            }
+        }
+        onVolumeDownReleased: {
+            if (shell.settings.airMouseEnableVolumeButtons && ShellNotifier.inAirMouseMode) {
+                ShellNotifier.leftRelease()
+                return
+            }
+        }
+        onVolumeUpPressed: {
+            if (shell.settings.airMouseEnableVolumeButtons && ShellNotifier.inAirMouseMode) {
+                ShellNotifier.rightPress()
+                return
+            }
+        }
+        onVolumeUpReleased: {
+            if (shell.settings.airMouseEnableVolumeButtons && ShellNotifier.inAirMouseMode) {
+                ShellNotifier.rightRelease()
+                return
+            }
+        }
+        // ENH141 - End
         // ENH151 - Volume buttons when locked
         // onVolumeDownTriggered: volumeControl.volumeDown();
         // onVolumeUpTriggered: volumeControl.volumeUp();
         onVolumeDownTriggered: {
+            // ENH141 - Air mouse in virtual touchpad
+            if (shell.settings.airMouseEnableVolumeButtons && ShellNotifier.inAirMouseMode) {
+                return
+            }
+            // ENH141 - End
             // ENH222 - Option to disable volume buttons in camera
             if (shell.settings.disableVolumeWhenCamera && stage.focusedAppId === "camera.ubports_camera")
                 return
@@ -12749,6 +13389,11 @@ StyledItem {
             }
         }
         onVolumeUpTriggered: {
+            // ENH141 - Air mouse in virtual touchpad
+            if (shell.settings.airMouseEnableVolumeButtons && ShellNotifier.inAirMouseMode) {
+                return
+            }
+            // ENH141 - End
             // ENH222 - Option to disable volume buttons in camera
             if (shell.settings.disableVolumeWhenCamera && stage.focusedAppId === "camera.ubports_camera")
                 return
@@ -12803,6 +13448,9 @@ StyledItem {
         }
         onTouchBegun: { cursor.opacity = 0; }
         onTouchEnded: {
+            // ENH254 - Option to not move cursor with touch
+            if (shell.settings.enableCursorTouchMoveFix) return;
+            // ENH254 - End
             // move the (hidden) cursor to the last known touch position
             var mappedCoords = mapFromItem(null, pos.x, pos.y);
             cursor.x = mappedCoords.x;
@@ -12816,7 +13464,7 @@ StyledItem {
         anchors.fill: parent
         // ENH002 - Notch/Punch hole fix
         // anchors.topMargin: panel.fullscreenMode ? 0 : panel.minimizedPanelHeight
-        // anchors.leftMargin: launcher.lockedVisible ? launcher.panelWidth : 0
+        // anchors.leftMargin: (launcher.lockedByUser && launcher.lockAllowed) ? launcher.panelWidth : 0
         // ENH048 - Always hide panel mode
         //anchors.topMargin: panel.fullscreenMode ? shell.shellTopMargin 
         //anchors.topMargin: panel.fullscreenMode || panel.forceHidePanel ? shell.shellTopMargin 
@@ -12830,7 +13478,10 @@ StyledItem {
         // when availableDesktopAreaItem.x is used
         // And because of that, the width of this item doesn't correctly represent the actual available width for apps, etc
         // Use rightMargin to correct the calculated width for use in Stage
-        anchors.leftMargin: launcher.lockedByUser && !greeter.locked && launcher.lockAllowed ? launcher.panelWidth : 0
+        // ENH014 - Always hide launcher in lock screen
+        //anchors.leftMargin: launcher.lockedByUser && !greeter.locked && launcher.lockAllowed ? launcher.panelWidth : 0
+        anchors.leftMargin: launcher.lockedByUser && launcher.lockAllowed ? launcher.panelWidth : 0 // This actually matches the vanilla code now :)
+        // ENH014 - End
         anchors.rightMargin: shell.shellLeftMargin > 0 ? shell.shellRightMargin + shell.shellLeftMargin : shell.shellRightMargin
         anchors.bottomMargin: shell.shellBottomMargin
         // ENH002 - End
@@ -12922,9 +13573,16 @@ StyledItem {
             onSpreadShownChanged: {
                 panel.indicators.hide();
                 panel.applicationMenus.hide();
+                // ENH247 - Hide Drawer when opening Spread
+                if (launcher.drawerShown) {
+                    launcher.hide()
+                }
+                // ENH247 - End
             }
         }
 
+        // ENH243 - Virtual Touchpad Enhancements
+        /*
         TouchGestureArea {
             anchors.fill: stage
 
@@ -13018,18 +13676,18 @@ StyledItem {
             }
 
             // ENH154 - Workspace switcher gesture
-            /*
-            onStatusChanged: {
-                if (status !== TouchGestureArea.Recognized) {
-                    if (status === TouchGestureArea.WaitingForTouch) {
-                        if (wasPressed && !dragging) {
-                            launcher.toggleDrawer(true);
-                        }
-                    }
-                    wasPressed = false;
-                }
-            }
-            */
+            
+            // onStatusChanged: {
+            //     if (status !== TouchGestureArea.Recognized) {
+            //         if (status === TouchGestureArea.WaitingForTouch) {
+            //             if (wasPressed && !dragging) {
+            //                 launcher.toggleDrawer(true);
+            //             }
+            //         }
+            //         wasPressed = false;
+            //     }
+            // }
+            
             onStatusChanged: {
                 if (status != TouchGestureArea.Recognized) {
                     if (status == TouchGestureArea.Rejected) {
@@ -13051,9 +13709,48 @@ StyledItem {
             }
             // ENH154 - End
         }
+        */
+        LPMultiTouchGestureArea {
+            anchors.fill: stage
+
+            enabled: !shell.immersiveMode
+            minimumTouchPoints: 4
+            maximumTouchPoints: 5
+            enableDragStep: stage.workspaceEnabled
+            dragStepThreshold: units.gu(15)
+
+            onNormalHaptics: shell.haptics.play()
+            onSubtleHaptics: shell.haptics.playSubtle()
+            onDragStepUp: {
+                if (touchPointCount === 4) {
+                    stage.switchWorkspaceRight()
+                } else {
+                    stage.switchWorkspaceRightMoveApp()
+                }
+            }
+            onDragStepDown: {
+                if (touchPointCount === 4) {
+                    stage.switchWorkspaceLeft()
+                } else {
+                    stage.switchWorkspaceLeftMoveApp()
+                }
+            }
+
+            onClicked: launcher.toggleDrawer(true);
+            onDropped: stage.commitWorkspaceSwitch()
+        }
+            // ENH243 - End
     }
 
     // ENH139 - System Direct Actions
+    function toggleQuickActions() {
+        let _fromLeft = shell.settings.directActionsShortcutHorizontalLayout == 2 ? cursor.x <= shell.width / 2
+                            : shell.settings.directActionsShortcutHorizontalLayout === 0
+        let _fromTop = shell.settings.directActionsShortcutVerticalLayout == 2 ? cursor.y <= shell.height / 2
+                            : shell.settings.directActionsShortcutVerticalLayout === 0
+
+        shell.directActions.toggle(_fromLeft, _fromTop, Qt.point(cursor.x, cursor.y))
+    }
     Loader {
         id: directActionsLoader
         active: shell.settings.enableDirectActions
@@ -13084,19 +13781,15 @@ StyledItem {
             swipeOffsetSelection: shell.settings.directActionsOffsetSelectionWhenSwiping
             swipeUsePhysicalSize: shell.settings.directActionsUsePhysicalSizeWhenSwiping
             displayStyle: shell.settings.directActionsStyle
+            // ENH141 - Air mouse in virtual touchpad
+            externalSwipeArea: ShellNotifier.quickActionsSwipeArea
+            // ENH141 - End
 
             onAppOrderChanged: shell.settings.directActionList = newAppOrderArray.slice()
 
             GlobalShortcut {
                 shortcut: Qt.MetaModifier | Qt.Key_Q
-                onTriggered: {
-                    let _fromLeft = shell.settings.directActionsShortcutHorizontalLayout == 2 ? cursor.x <= shell.width / 2
-                                        : shell.settings.directActionsShortcutHorizontalLayout === 0
-                    let _fromTop = shell.settings.directActionsShortcutVerticalLayout == 2 ? cursor.y <= shell.height / 2
-                                        : shell.settings.directActionsShortcutVerticalLayout === 0
-
-                    shell.directActions.toggle(_fromLeft, _fromTop, Qt.point(cursor.x, cursor.y))
-                }
+                onTriggered: shell.toggleQuickActions()
             }
         }
     }
@@ -13866,9 +14559,20 @@ StyledItem {
             GlobalShortcut {
                 shortcut: Qt.MetaModifier | Qt.Key_A
                 onTriggered: {
-                    launcher.toggleDrawer(true);
+                    // ENH236 - Custom drawer search
+                    // launcher.toggleDrawer(true);
+                    launcher.searchInDrawer("apps")
+                    // ENH236 - End
                 }
             }
+            // ENH236 - Custom drawer search
+            GlobalShortcut {
+                shortcut: Qt.MetaModifier | Qt.Key_Z
+                onTriggered: {
+                    launcher.searchInDrawer("web")
+                }
+            }
+            // ENH236 - End
             GlobalShortcut {
                 shortcut: Qt.AltModifier | Qt.Key_F1
                 onTriggered: {
@@ -14048,6 +14752,11 @@ StyledItem {
         readonly property bool desktopEnabled: panel.indicators.fullyClosed && !shell.atDesktop && !shell.showingGreeter
         readonly property bool previousAppEnabled: !shell.showingGreeter
 
+        // Used to only trigger once per mouse push
+        // Reset to true after mouse push goes back to 0
+        readonly property int hotCornerSensitivity: 100 - shell.settings.hotCornerSensitivity
+        property bool hotCornerCanBeTriggered: true
+
         function triggerHotCorner(__actionType, __action, _edge) {
 
             switch (__actionType) {
@@ -14080,6 +14789,7 @@ StyledItem {
                     if (shell.directActions) shell.directActions.toggle(_fromLeft, _fromTop)
                     break
             }
+            overlay.hotCornerCanBeTriggered = false
         }
 
         LPHotCorner {
@@ -14117,6 +14827,9 @@ StyledItem {
                             ||
                             actionType == Shell.HotCorner.Indicator
                         )
+                        // ENH243 - Virtual Touchpad Enhancements
+                        && !ShellNotifier.appIsBeingDragged
+                        // ENH243 - End
             edge: LPHotCorner.Edge.TopLeft
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
@@ -14157,6 +14870,9 @@ StyledItem {
                             ||
                             actionType == Shell.HotCorner.Indicator
                         )
+                        // ENH243 - Virtual Touchpad Enhancements
+                        && !ShellNotifier.appIsBeingDragged
+                        // ENH243 - End
             edge: LPHotCorner.Edge.TopRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
@@ -14197,6 +14913,9 @@ StyledItem {
                             ||
                             actionType == Shell.HotCorner.Indicator
                         )
+                        // ENH243 - Virtual Touchpad Enhancements
+                        && !ShellNotifier.appIsBeingDragged
+                        // ENH243 - End
             edge: LPHotCorner.Edge.BottomRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
@@ -14237,7 +14956,11 @@ StyledItem {
                             ||
                             actionType == Shell.HotCorner.Indicator
                         )
+                        // ENH243 - Virtual Touchpad Enhancements
+                        && !ShellNotifier.appIsBeingDragged
+                        // ENH243 - End
             edge: LPHotCorner.Edge.BottomLeft
+            useHover: shell.settings.hotCornerBottomLeftWorkAround && !shell.isBuiltInScreen
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
         }
@@ -14305,10 +15028,17 @@ StyledItem {
         id: popupSurface
 
         z: itemGrabber.z - 1
-        anchors.fill: parent
-        anchors.bottomMargin: Qt.inputMethod.visible ? (Qt.inputMethod.keyboardRectangle.height) : 0
+        anchors {
+            fill: parent
+            leftMargin: shell.shellLeftMargin
+            rightMargin: shell.shellRightMargin
+            bottomMargin: Qt.inputMethod.visible ? (Qt.inputMethod.keyboardRectangle.height) : 0
+        }
     }
     // ENH114 - End
+    // ENH243 - Virtual Touchpad Enhancements
+    property alias cursorItem: cursor
+    // ENH243 - End
 
     Cursor {
         id: cursor
@@ -14354,7 +15084,13 @@ StyledItem {
                                                 stage.previewRectangle : null
 
         onPushedLeftBoundary: {
-            if (buttons === Qt.NoButton) {
+            // ENH243 - Virtual Touchpad Enhancements
+            if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeMaximizedLeftRight) {
+                previewRectangle.maximizeLeft(amount);
+            }
+            // if (buttons === Qt.NoButton) {
+            else if (buttons === Qt.NoButton) {
+            // ENH243 - End
                 launcher.pushEdge(amount);
             } else if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeMaximizedLeftRight) {
                 previewRectangle.maximizeLeft(amount);
@@ -14362,7 +15098,13 @@ StyledItem {
         }
 
         onPushedRightBoundary: {
-            if (buttons === Qt.NoButton) {
+            // ENH243 - Virtual Touchpad Enhancements
+            if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeMaximizedLeftRight) {
+                previewRectangle.maximizeRight(amount);
+            }
+            // if (buttons === Qt.NoButton) {
+            else if (buttons === Qt.NoButton) {
+            // ENH243 - End
                 rightEdgeBarrier.push(amount);
             } else if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeMaximizedLeftRight) {
                 previewRectangle.maximizeRight(amount);
@@ -14373,31 +15115,79 @@ StyledItem {
             if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeMaximized) {
                 previewRectangle.maximize(amount);
             }
+            // ENH243 - Virtual Touchpad Enhancements
+            else if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeMaximized) {
+                previewRectangle.maximize(amount);
+            }
+            // ENH243 - End
         }
         onPushedTopLeftCorner: {
             if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
                 previewRectangle.maximizeTopLeft(amount);
             }
+            // ENH243 - Virtual Touchpad Enhancements
+            else if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
+                previewRectangle.maximizeTopLeft(amount);
+            }
+            // ENH243 - End
+            // ENH133 - Hot corners
+            else if (topLeftHotCorner.enabled && overlay.hotCornerCanBeTriggered && amount >= overlay.hotCornerSensitivity) {
+                topLeftHotCorner.trigger()
+            }
+            // ENH133 - End
         }
         onPushedTopRightCorner: {
             if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
                 previewRectangle.maximizeTopRight(amount);
             }
+            // ENH243 - Virtual Touchpad Enhancements
+            else if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
+                previewRectangle.maximizeTopRight(amount);
+            }
+            // ENH243 - End
+            // ENH133 - Hot corners
+            else if (topRightHotCorner.enabled && overlay.hotCornerCanBeTriggered && amount >= overlay.hotCornerSensitivity) {
+                topRightHotCorner.trigger()
+            }
+            // ENH133 - End
         }
         onPushedBottomLeftCorner: {
             if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
                 previewRectangle.maximizeBottomLeft(amount);
             }
+            // ENH243 - Virtual Touchpad Enhancements
+            else if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
+                previewRectangle.maximizeBottomLeft(amount);
+            }
+            // ENH243 - End
+            // ENH133 - Hot corners
+            else if (bottomLeftHotCorner.enabled && overlay.hotCornerCanBeTriggered && amount >= overlay.hotCornerSensitivity) {
+                bottomLeftHotCorner.trigger()
+            }
+            // ENH133 - End
         }
         onPushedBottomRightCorner: {
             if (buttons === Qt.LeftButton && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
                 previewRectangle.maximizeBottomRight(amount);
             }
+            // ENH243 - Virtual Touchpad Enhancements
+            else if (ShellNotifier.appIsBeingDragged && previewRectangle && previewRectangle.target.canBeCornerMaximized) {
+                previewRectangle.maximizeBottomRight(amount);
+            }
+            // ENH243 - End
+            // ENH133 - Hot corners
+            else if (bottomRightHotCorner.enabled && overlay.hotCornerCanBeTriggered && amount >= overlay.hotCornerSensitivity) {
+                bottomRightHotCorner.trigger()
+            }
+            // ENH133 - End
         }
         onPushStopped: {
             if (previewRectangle) {
                 previewRectangle.stop();
             }
+            // ENH133 - Hot corners
+            overlay.hotCornerCanBeTriggered = true
+            // ENH133 - End
         }
 
         onMouseMoved: {

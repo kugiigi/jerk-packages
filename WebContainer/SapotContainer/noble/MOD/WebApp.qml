@@ -346,14 +346,24 @@ Common.BrowserView {
     }
 
     function findFromArray(_arr, _itemProp, _itemValue) {
-        return _arr.find(item => item[_itemProp] == _itemValue)
+        if (_itemProp) {
+            return _arr.find(item => item[_itemProp] == _itemValue)
+        } else {
+            return _arr.find(item => item == _itemValue)
+        }
     }
 
     function countFromArray(_arr, _itemProp, _itemValue) {
         let _counter = 0;
         for (let i = 0; i < _arr.length; i++) {
-            if (_arr[i][_itemProp] == _itemValue) {
-                _counter++;
+            if (_itemProp) {
+                if (_arr[i][_itemProp] == _itemValue) {
+                    _counter++;
+                }
+            } else {
+                if (_arr[i] == _itemValue) {
+                    _counter++;
+                }
             }
         }
         return _counter
