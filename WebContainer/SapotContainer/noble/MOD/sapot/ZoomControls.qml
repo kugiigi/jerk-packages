@@ -521,6 +521,8 @@ QQC2.Dialog {
                     internal.updateFitToWidth();
                 }
             }
+
+            onZoomFactorChanged: internal.currentZoomFactor = target.zoomFactor
         }
 
         property Connections domainSettingsModelConnections: Connections {

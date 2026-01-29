@@ -184,6 +184,29 @@ FocusScope {
         }
     }
 
+    // Vibe coded XD
+    // Custom implementation of zooming with Ctrl + Mouse scroll
+    // zoomFactor property doesn't change when you zoom with this
+    // so we just do it ourselves as advised by Grok LOL
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        propagateComposedEvents: true
+
+        onWheel: (wheel) => {
+            if (wheel.modifiers & Qt.ControlModifier) {
+                wheel.accepted = true;
+
+                var delta = wheel.angleDelta.y > 0 ? 0.1 : -0.1;
+                // or use angleDelta / 120 to match browser steps
+
+                currentWebview.zoomFactor = Math.max(0.25, Math.min(5.0,currentWebview.zoomFactor + delta));
+            } else {
+                wheel.accepted = false;   // let normal scrolling happen
+            }
+        }
+    }
+
     onUrlChanged: if (webappContainerWebViewLoader.item) webappContainerWebViewLoader.item.url = url
 
     Component.onCompleted: {

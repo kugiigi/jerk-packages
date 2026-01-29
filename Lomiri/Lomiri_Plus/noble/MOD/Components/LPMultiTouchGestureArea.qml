@@ -22,8 +22,6 @@ TouchGestureArea {
     readonly property int touchPointCount: touchPoints.length
     readonly property real dragDistance: priv.currentX - priv.startX
     readonly property int dragStep: enableDragStep && recognizedDrag ? Math.floor(dragDistance / dragStepThreshold) : 0
-    readonly property bool draggingRight: recognizedDrag && priv.currentX - priv.startX >= dragStepThreshold
-    readonly property bool draggingLeft: recognizedDrag && priv.currentX - priv.startX <= -dragStepThreshold
 
     signal normalHaptics
     signal subtleHaptics
@@ -88,7 +86,7 @@ TouchGestureArea {
 
             if (recognizedDrag) {
                 dropped();
-            } else {
+            } else if (!priv.isDoubleClick) {
                 if (root.enableDoubleClick) {
                     priv.clickTimer.scheduleClick()
                 } else {

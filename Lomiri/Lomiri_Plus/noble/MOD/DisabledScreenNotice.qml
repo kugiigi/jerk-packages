@@ -21,6 +21,9 @@ import Lomiri.Session 0.1
 import QtQuick.Window 2.2
 import WindowManager 1.0
 import "Components"
+// ENH241 - Rotate button in Virtual Touchpad
+import QtSensors 5.15
+// ENH241 - End
 
 Item {
     id: root
@@ -48,28 +51,6 @@ Item {
                                        : deviceConfiguration.primaryOrientation
 
         // ENH241 - Rotate button in Virtual Touchpad
-        property int defaultRotation: {
-            var usedOrientation = root.screen.orientation;
-
-            if (root.orientationLock.enabled) {
-                usedOrientation = savedOrientation;
-            }
-
-            savedOrientation = usedOrientation;
-
-            switch (usedOrientation) {
-            case Qt.PortraitOrientation:
-                return 0;
-            case Qt.LandscapeOrientation:
-                return 270;
-            case Qt.InvertedPortraitOrientation:
-                return 180;
-            case Qt.InvertedLandscapeOrientation:
-                return 90;
-            }
-
-            return 0;
-        }
         /*
         rotation: {
             var usedOrientation = root.screen.orientation;
@@ -94,7 +75,27 @@ Item {
             return 0;
         }
         */
-        rotation: defaultRotation + virtualTouchPad.contentRotation
+        readonly property int angleFromPrimary: Screen.angleBetween(Screen.primaryOrientation, Screen.orientation)
+
+        // Rotate based on the current physical orientation of the device
+        function rotate() {
+            // Rotate manually if the device is facing up
+            // So we don't need to rotate the device physically
+            // which might cause issue with the USB connection
+            if (orientationSensor.reading.orientation === OrientationReading.FaceUp) {
+                if (rotation === 270) {
+                    rotation = 0
+                } else {
+                    rotation += 90
+                }
+            } else {
+                rotation = angleFromPrimary
+            }
+        }
+         OrientationSensor {
+             id: orientationSensor
+             active: true
+         }
         // ENH241 - End
         transformOrigin: Item.Center
 
@@ -109,6 +110,8 @@ Item {
             oskEnabled: root.oskEnabled
             // ENH241 - Rotate button in Virtual Touchpad
             id: virtualTouchPad
+            contentRotation: contentContainer.rotation
+            onRotate: contentContainer.rotate()
             // ENH241 - End
         }
     }

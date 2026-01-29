@@ -196,13 +196,21 @@ FocusScope {
         ]
     }
 
+    // ENH256 - Improve spread highlights
+    property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
+    // ENH256 - End
     Rectangle {
         id: selectionHighlight
         objectName: "selectionHighlight"
         anchors.fill: parent
         anchors.margins: -root.highlightSize
         color: "white"
-        opacity: showHighlight ? 0.55 : 0
+        // ENH256 - Improve spread highlights
+        // opacity: showHighlight ? 0.55 : 0
+        opacity: showHighlight ? root.enableRedesignedSpread ? 0.3 : 0.55
+                               : 0
+        antialiasing: true
+        // ENH256 - End
         visible: opacity > 0
     }
 
@@ -444,7 +452,13 @@ FocusScope {
     Rectangle {
         anchors.fill: parent
         color: "black"
-        opacity: root.darkening && !root.showHighlight ? 0.05 : 0
+        // ENH256 - Improve spread highlights
+        // opacity: root.darkening && !root.showHighlight ? 0.05 : 0
+        opacity: root.darkening && !root.showHighlight ? root.enableRedesignedSpread ? 0.5 : 0.05
+                                                       : 0
+        z: 100 // Only needed in Lomiri Plus
+        antialiasing: true
+        // ENH256 - End
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
     }
 }

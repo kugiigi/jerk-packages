@@ -76,24 +76,9 @@ Item {
     }
 
     SortFilterModel {
-        id: connectedDevicesModel
-
-        model: backend.connectedDevices
-        sort {
-            property: "displayName"
-            order: Qt.AscendingOrder
-        }
-        filter {
-            property: "connection"
-            // Device.Connected = 4
-            pattern: /4/i
-        }
-    }
-
-    SortFilterModel {
         id: recentlyConnectedDevicesModel
 
-        model: backend.connectedDevices
+        model: backend.autoconnectDevices
         filter.property: "addressName"
 
         Component.onCompleted: refreshFilter()
@@ -259,7 +244,7 @@ Item {
 
             visible: !isEmpty
             title: i18n.tr("Connected devices (%1)").arg(count)
-            model: connectedDevicesModel
+            model: backend.connectedDevices
             isExpandable: count > 5
             onConnectionRequested: root.connectToDevice(addressName)
         }
@@ -311,7 +296,7 @@ Item {
 
         LPDevicesList {
             title: i18n.tr("Paired devices (%1)").arg(count)
-            model: backend.connectedDevices
+            model: backend.autoconnectDevices
             onConnectionRequested: root.connectToDevice(addressName)
             onDeviceConnected: root.addToRecentList(addressName)
         }

@@ -625,7 +625,10 @@ Item {
                 fontSize: "medium"
                 font.weight: Font.Medium
                 color: theme.palette.selected.backgroundText
-                text: (root.partialWidth && !callHint.visible) ? panelState.title : ""
+                // ENH135 - Show Desktop
+                // text: (root.partialWidth && !callHint.visible) ? panelState.title : ""
+                text: (root.partialWidth && !callHint.visible && !shell.desktopShown) ? panelState.title : ""
+                // ENH135 - End
                 opacity: __applicationMenus.visible && !__applicationMenus.expanded
                 Behavior on opacity { NumberAnimation { duration: LomiriAnimation.SnapDuration } }
                 visible: opacity !== 0

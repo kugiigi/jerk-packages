@@ -444,6 +444,17 @@ Common.BrowserView {
             right: parent.right
         }
 
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#AA000000" }
+                GradientStop { position: 1.0; color: "#00000000" }
+            }
+            opacity: hoverHander.hovered
+            visible: opacity > 0
+            Behavior on opacity { LomiriNumberAnimation{} }
+        }
+
         HoverHandler {
             id: hoverHander
 
@@ -459,7 +470,7 @@ Common.BrowserView {
         Timer {
             id: showHeaderOnHoverTimer
             running: false
-            interval: 200
+            interval: 800
             onTriggered: chrome.state = "shown"
         }
     }

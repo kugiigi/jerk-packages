@@ -87,6 +87,8 @@ WebView {
     // Try to not flash white when in dark mode when loading a site
     backgroundColor: loadProgress < 50 ? theme.palette.normal.background : "white"
 
+    onZoomFactorChanged: zoomMenu.timedDisplay()
+
     QtObject {
         id: findController
 
