@@ -12,8 +12,11 @@ LPDynamicCoveItem {
     readonly property bool playing: playBackObj && playBackObj.playing ? true : false
     readonly property alias spinAnimation: spinAnimation
 
+    property bool overlayTimeouts: shell.settings.dcCDPlayerTextsTimeouts
     property bool isSimpleMode: true
     property real cdPlayerOpacity: 1
+    property bool forceShowOverlay: false
+    property int overlayTimeout: 5000
 
     enableMouseArea: !prevHoverHandler.hovered && !nextHoverHandler.hovered
 
@@ -27,8 +30,15 @@ LPDynamicCoveItem {
         }
 
         function onPressAndHold(mouse) {
-            shell.settings.enableCDPlayerDisco = !shell.settings.enableCDPlayerDisco
+            //shell.settings.enableCDPlayerDisco = !shell.settings.enableCDPlayerDisco
+            if (cdPlayer.overlayTimeouts) {
+                cdPlayer.forceShowOverlay = true;
+            }
             shell.haptics.playSubtle()
+        }
+
+        function onReleased() {
+            cdPlayer.forceShowOverlay = false;
         }
     }
 
@@ -148,6 +158,12 @@ LPDynamicCoveItem {
                 maskSource: radialGradient
             }
         }
+    }
+
+    HoverHandler {
+        id: timeoutHoverHandler
+        acceptedButtons: Qt.NoButton
+        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
     }
 
     Rectangle {
@@ -338,240 +354,299 @@ LPDynamicCoveItem {
     }
 
     ColumnLayout {
-        id: textContainer
+        id: overlayLayout
 
-        property bool toTransition: cdPlayer.swipeArea.dragging && cdPlayer.swipeArea.draggingCustom
-
-        visible: cdRec.visible
         anchors {
             left: parent.left
             right: parent.right
             verticalCenter: parent.verticalCenter
             margins: units.gu(4)
         }
+        visible: cdRec.visible && opacity > 0
 
-        Behavior on opacity {
-            LomiriNumberAnimation { duration: LomiriAnimation.SleepyDuration }
-        }
-
-        NumberAnimation {
-            id: hideAnimiation
-
-            running: false
-            target: textContainer
-            property: "opacity"
-            duration: LomiriAnimation.SnapDuration
-            from: 1
-            to: 0
-            onFinished: {
-                songTitle.text = songTitle.nextText
-                showAnimation.restart()
+        state: !cdPlayer.overlayTimeouts || !cdPlayer.playing
+               || timeoutHoverHandler.hovered || cdPlayer.forceShowOverlay
+                ? "shown"
+                : "hidden"
+        states: [
+            State {
+                name: "shown"
+                PropertyChanges {
+                    target: overlayLayout
+                    opacity: 1
+                }
             }
-        }
-        NumberAnimation {
-            id: showAnimation
-
-            running: false
-            target: textContainer
-            property: "opacity"
-            duration: nextPrevSwipe.dragging ? LomiriAnimation.FastDuration : LomiriAnimation.SleepyDuration
-            from: 0
-            to: 1
-        }
-
-        Label {
-            Layout.alignment: Qt.AlignHCenter
-            text: "》"
-            rotation: prevHoverHandler.hovered ? 0 : -90
-            color: prevHoverHandler.hovered ? "transparent" : theme.palette.normal.backgroundText
-            opacity: (cdPlayer.playBackObj && cdPlayer.playBackObj.canGoNext && !textContainer.toTransition) || prevHoverHandler.hovered ? 1 : 0
-            style: Text.Raised
-            styleColor: "black"
-            textSize: Label.Large
-            Layout.preferredWidth: contentHeight
-            Layout.preferredHeight: !textContainer.toTransition ? contentHeight: 0 
-
-            Behavior on Layout.preferredHeight {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+            , State {
+                name: "hidden"
+                PropertyChanges {
+                    target: overlayLayout
+                    opacity: 0
+                }
             }
+        ]
+        transitions: [
+            Transition {
+                from: "*"
+                to: "shown"
+                SequentialAnimation {
+                    LomiriNumberAnimation {
+                        target: overlayLayout
+                        property: "opacity"
+                        duration: LomiriAnimation.SleepyDuration
+                    }
+                }
+            }
+            , Transition {
+                from: "*"
+                to: "hidden"
+                SequentialAnimation {
+                    // Make sure we go back to 1 even when we already transitioned to hidden state
+                    // while the opacity animation is still running
+                    LomiriNumberAnimation {
+                        target: overlayLayout
+                        property: "opacity"
+                        to: 1
+                        duration: LomiriAnimation.SleepyDuration
+                    }
+                    PauseAnimation { duration: cdPlayer.overlayTimeout }
+                    LomiriNumberAnimation {
+                        target: overlayLayout
+                        property: "opacity"
+                        duration: LomiriAnimation.SleepyDuration
+                    }
+                }
+            }
+        ]
+        ColumnLayout {
+            id: textContainer
+
+            property bool toTransition: cdPlayer.swipeArea.dragging && cdPlayer.swipeArea.draggingCustom
+
+            onToTransitionChanged: cdPlayer.forceShowOverlay = toTransition
+
             Behavior on opacity {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                LomiriNumberAnimation { duration: LomiriAnimation.SleepyDuration }
             }
 
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width
-                height: width
-                radius: width / 2
-                color: theme.palette.normal.background
-                opacity: prevHoverHandler.hovered ? 1 : 0
-                visible: opacity > 0
-                Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+            NumberAnimation {
+                id: hideAnimiation
 
-                Icon {
+                running: false
+                target: textContainer
+                property: "opacity"
+                duration: LomiriAnimation.SnapDuration
+                from: 1
+                to: 0
+                onFinished: {
+                    songTitle.text = songTitle.nextText
+                    showAnimation.restart()
+                }
+            }
+            NumberAnimation {
+                id: showAnimation
+
+                running: false
+                target: textContainer
+                property: "opacity"
+                duration: nextPrevSwipe.dragging ? LomiriAnimation.FastDuration : LomiriAnimation.SleepyDuration
+                from: 0
+                to: 1
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: "》"
+                rotation: prevHoverHandler.hovered ? 0 : -90
+                color: prevHoverHandler.hovered ? "transparent" : theme.palette.normal.backgroundText
+                opacity: (cdPlayer.playBackObj && cdPlayer.playBackObj.canGoNext && !textContainer.toTransition) || prevHoverHandler.hovered ? 1 : 0
+                style: Text.Raised
+                styleColor: "black"
+                textSize: Label.Large
+                Layout.preferredWidth: contentHeight
+                Layout.preferredHeight: !textContainer.toTransition ? contentHeight: 0 
+
+                Behavior on Layout.preferredHeight {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+                Behavior on opacity {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+
+                Rectangle {
                     anchors.centerIn: parent
-                    width: parent.width * 0.7
-                    name: prevHoverHandler.hovered ? "media-skip-backward" : ""
-                    color: theme.palette.normal.backgroundText
+                    width: parent.width
+                    height: width
+                    radius: width / 2
+                    color: theme.palette.normal.background
+                    opacity: prevHoverHandler.hovered ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+
+                    Icon {
+                        anchors.centerIn: parent
+                        width: parent.width * 0.7
+                        name: prevHoverHandler.hovered ? "media-skip-backward" : ""
+                        color: theme.palette.normal.backgroundText
+                    }
+                }
+
+                TapHandler {
+                    id: prevTapHandler
+                    acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                    //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                    onSingleTapped: cdPlayer.playBackObj.previous()
+                }
+
+                HoverHandler {
+                    id: prevHoverHandler
+                    acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
                 }
             }
 
-            TapHandler {
-                id: prevTapHandler
-                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
-                onSingleTapped: cdPlayer.playBackObj.previous()
-            }
+            ColumnLayout {
+                spacing: units.gu(0.2)
 
-            HoverHandler {
-                id: prevHoverHandler
-                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-            }
-        }
+                Label {
+                    id: songTitle
 
-        ColumnLayout {
-            spacing: units.gu(0.2)
-
-            Label {
-                id: songTitle
-
-                property string nextText: {
-                    if (textContainer.toTransition) {
-                        if (cdPlayer.swipeArea.goingNegative) {
-                            if (cdPlayer.playBackObj.canGoPrevious) {
-                                return "Play previous song"
-                            } else {
-                                return "No previous song"
+                    property string nextText: {
+                        if (textContainer.toTransition) {
+                            if (cdPlayer.swipeArea.goingNegative) {
+                                if (cdPlayer.playBackObj.canGoPrevious) {
+                                    return "Play previous song"
+                                } else {
+                                    return "No previous song"
+                                }
+                            }
+                            if (cdPlayer.swipeArea.goingPositive) {
+                                if (cdPlayer.playBackObj.canGoNext) {
+                                    return "Play next song"
+                                } else {
+                                    return "No next song"
+                                }
+                            }
+                        } else {
+                            if (cdPlayer.mediaPlayerObj) {
+                                return cdPlayer.mediaPlayerObj.song ? cdPlayer.mediaPlayerObj.song
+                                                                    : cdPlayer.mediaPlayerObj.albumArt && cdPlayer.mediaPlayerObj.albumArt.toString().search("thumbnailer") > -1
+                                                                                    ? shell.getFilename(cdPlayer.mediaPlayerObj.albumArt.toString())
+                                                                                                       : "No Title"
                             }
                         }
-                        if (cdPlayer.swipeArea.goingPositive) {
-                            if (cdPlayer.playBackObj.canGoNext) {
-                                return "Play next song"
-                            } else {
-                                return "No next song"
-                            }
-                        }
-                    } else {
-                        if (cdPlayer.mediaPlayerObj) {
-                            return cdPlayer.mediaPlayerObj.song ? cdPlayer.mediaPlayerObj.song
-                                                                : cdPlayer.mediaPlayerObj.albumArt && cdPlayer.mediaPlayerObj.albumArt.toString().search("thumbnailer") > -1
-                                                                                ? shell.getFilename(cdPlayer.mediaPlayerObj.albumArt.toString())
-                                                                                                   : "No Title"
-                        }
+
+                        return ""
                     }
 
-                    return ""
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    textSize: Label.Large
+                    color: textContainer.toTransition ? theme.palette.normal.activity : "white"
+                    font.weight: textContainer.toTransition ? Font.Normal : Font.DemiBold
+                    style: Text.Raised
+                    styleColor: "black"
+
+                    onNextTextChanged: hideAnimiation.restart()
                 }
 
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignVCenter
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+                Label {
+                    id: artistName
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignBottom
+
+                    visible: text !== ""
+                    opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
+                    text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.artist : ""
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    textSize: Label.Medium
+                    color: LomiriColors.porcelain
+                    style: Text.Raised
+                    styleColor: "black"
+                    font.weight: Font.Medium
+                    Behavior on opacity {
+                        LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                    }
+                    Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
+                    Behavior on Layout.preferredHeight {
+                        LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                    }
+                }
+
+                Label {
+                    id: albumTitle
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignBottom
+
+                    visible: text !== ""
+                    opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
+                    text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.album : ""
+                    textSize: Label.Small
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    color: LomiriColors.porcelain
+                    style: Text.Raised
+                    styleColor: "black"
+                    font.weight: Font.Medium
+                    Behavior on opacity {
+                        LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                    }
+                    Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
+                    Behavior on Layout.preferredHeight {
+                        LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                    }
+                }
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: "》"
+                rotation: nextHoverHandler.hovered ? 0 : 90
+                color: nextHoverHandler.hovered ? "transparent" : theme.palette.normal.backgroundText
+                opacity: (cdPlayer.playBackObj && cdPlayer.playBackObj.canGoPrevious && !textContainer.toTransition) || nextHoverHandler.hovered ? 1 : 0
+                style: Text.Raised
+                styleColor: "black"
                 textSize: Label.Large
-                color: textContainer.toTransition ? theme.palette.normal.activity : "white"
-                font.weight: textContainer.toTransition ? Font.Normal : Font.DemiBold
-                style: Text.Raised
-                styleColor: "black"
-
-                onNextTextChanged: hideAnimiation.restart()
-            }
-
-            Label {
-                id: artistName
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignBottom
-
-                visible: text !== ""
-                opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
-                text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.artist : ""
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-                textSize: Label.Medium
-                color: LomiriColors.porcelain
-                style: Text.Raised
-                styleColor: "black"
-                font.weight: Font.Medium
-                Behavior on opacity {
-                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-                }
-                Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
+                Layout.preferredWidth: contentHeight
+                Layout.preferredHeight: !textContainer.toTransition ? contentHeight: 0 
                 Behavior on Layout.preferredHeight {
                     LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
                 }
-            }
-
-            Label {
-                id: albumTitle
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignBottom
-
-                visible: text !== ""
-                opacity: text.trim().length > 0 && !textContainer.toTransition ? 1 : 0
-                text: cdPlayer.mediaPlayerObj ? cdPlayer.mediaPlayerObj.album : ""
-                textSize: Label.Small
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-                color: LomiriColors.porcelain
-                style: Text.Raised
-                styleColor: "black"
-                font.weight: Font.Medium
                 Behavior on opacity {
                     LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
                 }
-                Layout.preferredHeight: text.trim().length > 0 && !textContainer.toTransition ? contentHeight: 0 
-                Behavior on Layout.preferredHeight {
-                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-                }
-            }
-        }
 
-        Label {
-            Layout.alignment: Qt.AlignHCenter
-            text: "》"
-            rotation: nextHoverHandler.hovered ? 0 : 90
-            color: nextHoverHandler.hovered ? "transparent" : theme.palette.normal.backgroundText
-            opacity: (cdPlayer.playBackObj && cdPlayer.playBackObj.canGoPrevious && !textContainer.toTransition) || nextHoverHandler.hovered ? 1 : 0
-            style: Text.Raised
-            styleColor: "black"
-            textSize: Label.Large
-            Layout.preferredWidth: contentHeight
-            Layout.preferredHeight: !textContainer.toTransition ? contentHeight: 0 
-            Behavior on Layout.preferredHeight {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-            }
-            Behavior on opacity {
-                LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-            }
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width
-                height: width
-                radius: width / 2
-                color: theme.palette.normal.background
-                opacity: nextHoverHandler.hovered ? 1 : 0
-                visible: opacity > 0
-                Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
-
-                Icon {
+                Rectangle {
                     anchors.centerIn: parent
-                    width: parent.width * 0.7
-                    name: nextHoverHandler.hovered ? "media-skip-forward" : ""
-                    color: theme.palette.normal.backgroundText
+                    width: parent.width
+                    height: width
+                    radius: width / 2
+                    color: theme.palette.normal.background
+                    opacity: nextHoverHandler.hovered ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+
+                    Icon {
+                        anchors.centerIn: parent
+                        width: parent.width * 0.7
+                        name: nextHoverHandler.hovered ? "media-skip-forward" : ""
+                        color: theme.palette.normal.backgroundText
+                    }
                 }
-            }
 
-            TapHandler {
-                id: nextTapHandler
-                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
-                onSingleTapped: cdPlayer.playBackObj.next()
-            }
+                TapHandler {
+                    id: nextTapHandler
+                    acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                    //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
+                    onSingleTapped: cdPlayer.playBackObj.next()
+                }
 
-            HoverHandler {
-                id: nextHoverHandler
-                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                HoverHandler {
+                    id: nextHoverHandler
+                    acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                }
             }
         }
     }

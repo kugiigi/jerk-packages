@@ -43,6 +43,9 @@ Item {
     scale: isSelected ? 1.1 : 1
     Behavior on scale { LomiriNumberAnimation {} }
     // ENH154 - End
+    // ENH256 - Improve spread highlights
+    property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
+    // ENH256 - End
 
     Image {
         source: previewSpace.background
@@ -264,25 +267,40 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        border.color: LomiriColors.ash
-        // ENH154 - Workspace switcher gesture
-        // border.width: units.gu(.5)
-        border.width: units.gu(1)
-        // ENH154 - End
+        // ENH256 - Improve spread highlights
+        // border.color: LomiriColors.ash
+        border.color: previewSpace.enableRedesignedSpread ? "white" : LomiriColors.ash
+        opacity: previewSpace.enableRedesignedSpread ? 0.7 : 1
+        antialiasing: true
+        // ENH256 - End
+        border.width: units.gu(.5)
         color: "transparent"
         visible: previewSpace.isActive
     }
 
     Rectangle {
         anchors.fill: parent
-        border.color: LomiriColors.blue
-        // ENH154 - Workspace switcher gesture
+        // ENH256 - Improve spread highlights
+        // border.color: LomiriColors.blue
         // border.width: units.gu(.5)
-        border.width: units.gu(1)
-        // ENH154 - End
+        border.color: previewSpace.enableRedesignedSpread ? "white" : LomiriColors.blue
+        border.width: previewSpace.enableRedesignedSpread ? units.gu(.3) : units.gu(.5)
+        opacity: previewSpace.enableRedesignedSpread ? 0.7 : 1
+        antialiasing: true
+        // ENH256 - End
         color: "transparent"
         visible: previewSpace.isSelected
     }
+    // ENH256 - Improve spread highlights
+    Rectangle {
+        visible: previewSpace.enableRedesignedSpread
+        anchors.fill: parent
+        color: "black"
+        opacity: previewSpace.isSelected || previewSpace.isActive || previewSpace.containsDragLeft || previewSpace.containsDragRight ? 0 : 0.5
+        antialiasing: true
+        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+    }
+    // ENH256 - End
 
     Rectangle {
         anchors.fill: parent

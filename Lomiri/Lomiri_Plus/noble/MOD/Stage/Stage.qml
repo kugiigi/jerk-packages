@@ -83,6 +83,9 @@ FocusScope {
     // ENH174 - Top panel background based on current app
     readonly property var focusedAppDelegate: priv.focusedAppDelegate // ? priv.focusedAppDelegate.focusedSurface : null
     // ENH174 - End
+    // ENH256 - Improve spread highlights
+    property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
+    // ENH256 - End
     // ENH243 - Virtual Touchpad Enhancements
     readonly property alias appContainerItem: appContainer
     function toggleSideStage() {
@@ -288,9 +291,6 @@ FocusScope {
         }
     }
 
-    // ENH252 - Disable mouse hover while Alt tabbing
-    property bool altTabIsInProgress: false
-    // ENH252 - End
     onAltTabPressedChanged: {
         root.focus = true;
         if (altTabPressed) {
@@ -301,10 +301,12 @@ FocusScope {
             // Alt Tab has been released, did we already go to spread?
             if (priv.goneToSpread) {
                 priv.goneToSpread = false;
-                // ENH252 - Disable mouse hover while Alt tabbing
-                root.altTabIsInProgress = false
-                // ENH252 - End
-            } else {
+            // ENH252 - Disable mouse hover while Alt tabbing
+            // } else {
+
+            // Don't do anything if we already went to the spread and it was closed outside of alt tabbing i.e. clicking an item from the spread
+            } else if (!priv.altTabWentToSpread) {
+            // ENH252 - End
                 // No we didn't, do a quick alt-tab
                 if (appRepeater.count > 1) {
                     appRepeater.itemAt(1).activate();
@@ -312,6 +314,9 @@ FocusScope {
                     appRepeater.itemAt(0).activate(); // quick alt-tab to the only (minimized) window should still activate it
                 }
             }
+            // ENH252 - Disable mouse hover while Alt tabbing
+            priv.altTabWentToSpread = false;
+            // ENH252 - End
         }
     }
 
@@ -323,7 +328,8 @@ FocusScope {
             if (root.altTabPressed) {
                 priv.goneToSpread = true;
                 // ENH252 - Disable mouse hover while Alt tabbing
-                root.altTabIsInProgress = true
+                priv.altTabWentToSpread = true;
+                priv.altTabInProgress = true;
                 // ENH252 - End
             }
         }
@@ -992,6 +998,10 @@ FocusScope {
         property var focusedAppDelegate: null
         property var foregroundMaximizedAppDelegate: null // for stuff like drop shadow and focusing maximized app by clicking panel
 
+        // ENH252 - Disable mouse hover while Alt tabbing
+        property bool altTabInProgress: false
+        property bool altTabWentToSpread: false
+        // ENH252 - End
         property bool goneToSpread: false
         property int closingIndex: -1
         property int animationDuration: LomiriAnimation.FastDuration
@@ -1034,6 +1044,9 @@ FocusScope {
             if (goneToSpread) {
                 root.disableShowDesktop()
             }
+            // ENH252 - Disable mouse hover while Alt tabbing
+            if (!goneToSpread) altTabInProgress = false;
+            // ENH252 - Emd
         }
         // ENH135 - End
 
@@ -1349,14 +1362,14 @@ FocusScope {
             PropertyChanges { target: floatingFlickable; enabled: true }
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: spreadItem; focus: true }
-            // ENH252 - Disable mouse hover while Alt tabbing
-            // PropertyChanges { target: hoverMouseArea; enabled: true }
-            PropertyChanges { target: hoverMouseArea; enabled: !root.altTabIsInProgress }
-            // ENH252 - End
+            PropertyChanges { target: hoverMouseArea; enabled: true }
             PropertyChanges { target: rightEdgeDragArea; enabled: false }
             PropertyChanges { target: cancelSpreadMouseArea; enabled: true }
             PropertyChanges { target: noAppsRunningHint; visible: (root.topLevelSurfaceList.count < 1) }
-            PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
+            // ENH256 - Improve spread highlights
+            // PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
+            PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: root.enableRedesignedSpread ? .50 : .65; opacity: 1 }
+            // ENH256 - End
             // ENH032 - Infographics Outer Wilds
             // PropertyChanges { target: wallpaper; visible: false }
             // For some reason, when side stage is disabled, wallpaper completely hides
@@ -1816,7 +1829,7 @@ FocusScope {
         }
         Item {
             id: infographicsArea
-            visible: (root.desktopShown || root.mainApp == null) && !root.spreadShown
+            visible: (root.desktopShown || root.mainApp == null || shell.isWindowedMode) && !root.spreadShown
 
             anchors {
                 top: parent.top
@@ -2010,6 +2023,8 @@ FocusScope {
                         return;
                     }
 
+                    // ENH252 - Disable mouse hover while Alt tabbing
+                    /*
                     // Find the hovered item and mark it active
                     for (var i = appRepeater.count - 1; i >= 0; i--) {
                         var appDelegate = appRepeater.itemAt(i);
@@ -2020,6 +2035,20 @@ FocusScope {
                             break;
                         }
                     }
+                    */
+                    // Find the hovered item and mark it active except when alt tabbing is in-progress
+                    if (!priv.altTabInProgress) {
+                        for (var i = appRepeater.count - 1; i >= 0; i--) {
+                            var appDelegate = appRepeater.itemAt(i);
+                            var mapped = mapToItem(appDelegate, hoverMouseArea.mouseX, hoverMouseArea.mouseY)
+                            var itemUnder = appDelegate.childAt(mapped.x, mapped.y);
+                            if (itemUnder && (itemUnder.objectName === "dragArea" || itemUnder.objectName === "windowInfoItem" || itemUnder.objectName == "closeMouseArea")) {
+                                spreadItem.highlightedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    // ENH252 - End
 
                     if (floatingFlickable.contentWidth > floatingFlickable.width) {
                         var margins = floatingFlickable.width * 0.05;
@@ -2201,9 +2230,19 @@ FocusScope {
         }
         // ENH135 - Show Desktop
         property bool showDesktop: false
+        property bool showDesktopAfterSpreadClosed: false
         readonly property real appDelegateOpacity: appContainer.showDesktop ? 0 : 1
         function toggleShowDesktop() {
             showDesktop = !showDesktop
+        }
+        onShowDesktopChanged: {
+            if (showDesktop) {
+                if (shell.drawerShown) shell.launcher.hide();
+                if (root.spreadShown) {
+                    showDesktopAfterSpreadClosed = true;
+                    root.closeSpread();
+                }
+            }
         }
         // ENH135 - End
         // ENH155 - Wobbly Windows
@@ -2483,7 +2522,12 @@ FocusScope {
                     // ENH135 - Show Desktop
                     // Only do this when not using the swipe up gesture for toggling desktop
                     if (!showDesktopSwipeArea.justSwiped) {
-                        appContainer.showDesktop = false
+                        // Do not disable show desktop if we just toggled showDesktop while spread is open
+                        if (appContainer.showDesktopAfterSpreadClosed) {
+                            appContainer.showDesktopAfterSpreadClosed = false
+                        } else {
+                            appContainer.showDesktop = false
+                        }
                     }
                     // ENH135 - End
                 }
@@ -3506,7 +3550,10 @@ FocusScope {
                     overlayShown: touchControls.overlayShown
                     width: implicitWidth
                     height: implicitHeight
-                    highlightSize: windowInfoItem.iconMargin / 2
+                    // ENH256 - Improve spread highlights
+                    // highlightSize: windowInfoItem.iconMargin / 2
+                    highlightSize: root.enableRedesignedSpread ? windowInfoItem.iconMargin : windowInfoItem.iconMargin / 2
+                    // ENH256 - End
                     boundsItem: root.availableDesktopArea
                     panelState: root.panelState
                     altDragEnabled: root.mode == "windowed"

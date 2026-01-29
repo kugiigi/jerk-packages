@@ -565,6 +565,81 @@ StyledItem {
 
     property bool startingUp: true
     Timer { id: finishStartUpTimer; interval: 500; onTriggered: startingUp = false }
+    // ENH046 - Lomiri Plus Settings
+    onShowingGreeterChanged: {
+        if (!showingGreeter && !shell.settings.welcomeDialogShown) {
+            welcomeDelayTimer.restart()
+        }
+    }
+    Timer {
+        id: welcomeDelayTimer
+        interval: 1000
+        onTriggered: {
+            const _dialog = welcomeDialogComponent.createObject(shell.popupParent);
+            _dialog.show()
+        }
+    }
+    Component {
+        id: welcomeDialogComponent
+
+        Dialog {
+            id: dialog
+
+            property bool reparentToRootItem: false
+
+            title: "Welcome to Lomiri Plus!"
+            anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+            
+            signal close
+            onClose: {
+                shell.settings.welcomeDialogShown = true;
+                PopupUtils.close(dialog)
+            }
+
+            Label {
+                text: "To access the Settings page, go to the System indicator.\n\n\n\
+Lomiri Plus is a collection of Kugi's personal tweaks and hacks in Lomiri. They could be very usable or very experimental and unstable. \
+The good thing is that most of them can be enabled or disabled on demand.\n\n\
+Notable features are the following:\n\
+ - Quick Actions\n\
+ - Custom Drawer Search\n\
+ - App Grids\n\
+ - Quick Toggles\n\
+ - Dynamic Cove\n\
+ - Custom Auto-brightness\n\
+ - Battery usage statistics\n\
+ - Air mouse mode in virtual touchpad\n\
+ - Outer Wilds ::)\n\
+ - And many more!!!\n\
+\n\n\n Enjoy!"
+                wrapMode: Text.WordWrap
+                color: theme.palette.normal.foregroundText
+            }
+
+            Button {
+                text: "Open settings"
+                color: theme.palette.normal.positive
+                onClicked: {
+                    shell.showSettings()
+                    dialog.close()
+                }
+            }
+            Button {
+                text: "Donate"
+                color: theme.palette.normal.negative
+                onClicked: {
+                    Qt.openUrlExternally("https://youtu.be/dQw4w9WgXcQ?si=flAd1M0i9Rvj-TFL")
+                    dialog.close()
+                }
+            }
+            Button {
+                text: "Leave me alone!"
+                color: theme.palette.normal.foreground
+                onClicked: dialog.close()
+            }
+        }
+    }
+    // ENH046 - End
 
     property int supportedOrientations: {
         if (startingUp) {
@@ -1550,6 +1625,7 @@ StyledItem {
         property alias enableVirtualTouchpadScrollWorkaround: settingsObj.enableVirtualTouchpadScrollWorkaround
         property alias enableVirtualTouchpadLowerClickThreshold: settingsObj.enableVirtualTouchpadLowerClickThreshold
         property alias windowResizeShortcutSimpleMode: settingsObj.windowResizeShortcutSimpleMode
+        property alias welcomeDialogShown: settingsObj.welcomeDialogShown
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -1589,6 +1665,9 @@ StyledItem {
         property alias titlebarMatchAppBehavior: settingsObj.titlebarMatchAppBehavior
         property alias retainRoundedWindowWhileMatching: settingsObj.retainRoundedWindowWhileMatching
         property alias noDecorationWindowedMode: settingsObj.noDecorationWindowedMode
+
+        // App Spread
+        property alias enableRedesignedSpread: settingsObj.enableRedesignedSpread
 
         // Drawer / Launcher
         property alias drawerBlur: settingsObj.drawerBlur
@@ -1917,6 +1996,7 @@ StyledItem {
         property alias enableAmbientModeInCDPlayer: settingsObj.enableAmbientModeInCDPlayer
         property alias hideCDPlayerWhenScreenOff: settingsObj.hideCDPlayerWhenScreenOff
         property alias hideCirclesWhenCDPlayer: settingsObj.hideCirclesWhenCDPlayer
+        property alias dcCDPlayerTextsTimeouts: settingsObj.dcCDPlayerTextsTimeouts
 
         // Air Mouse
         property alias enableAirMouse: settingsObj.enableAirMouse
@@ -2836,6 +2916,9 @@ StyledItem {
             property bool enableVirtualTouchpadLowerClickThreshold: false
             property bool enableCursorTouchMoveFix: false
             property bool windowResizeShortcutSimpleMode: false
+            property bool enableRedesignedSpread: false
+            property bool dcCDPlayerTextsTimeouts: false
+            property bool welcomeDialogShown: false
         }
     }
 
@@ -3307,8 +3390,14 @@ StyledItem {
                                         settingsLoader.active = false
                                     }
                                 }
-                                onDoubleClicked: stack.goHome()
-                                onPressAndHold: stack.goHome()
+                                onDoubleClicked: {
+                                    stack.goHome()
+                                    shell.haptics.play()
+                                }
+                                onPressAndHold: {
+                                    stack.goHome()
+                                    shell.haptics.play()
+                                }
                             }
                             Label {
                                 Layout.fillWidth: true
@@ -6453,7 +6542,7 @@ StyledItem {
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 visible: shell.settings.enableAirMouse
-                title: "Sensitivity (Higher means higher sensitivity)"
+                title: "Drag window sensitivity (Higher means higher sensitivity)"
                 minimumValue: 0.1
                 maximumValue: 3
                 stepSize: 0.1
@@ -8896,6 +8985,17 @@ StyledItem {
                 id: spreadPage
                 
                 LPSettingsPage {
+                    LPSettingsCheckBox {
+                        id: enableRedesignedSpread
+                        Layout.fillWidth: true
+                        text: "Redesigned UI"
+                        onCheckedChanged: shell.settings.enableRedesignedSpread = checked
+                        Binding {
+                            target: enableRedesignedSpread
+                            property: "checked"
+                            value: shell.settings.enableRedesignedSpread
+                        }
+                    }
                     LPSettingsCheckBox {
                         id: roundedAppPreview
                         Layout.fillWidth: true
@@ -12105,14 +12205,27 @@ StyledItem {
                     value: shell.settings.enableCDPlayerDisco
                 }
             }
+            LPSettingsCheckBox {
+                id: dcCDPlayerTextsTimeouts
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                text: "CD Player overlay times out and hides"
+                visible: shell.settings.enableDynamicCove
+                onCheckedChanged: shell.settings.dcCDPlayerTextsTimeouts = checked
+                Binding {
+                    target: dcCDPlayerTextsTimeouts
+                    property: "checked"
+                    value: shell.settings.dcCDPlayerTextsTimeouts
+                }
+            }
             Label {
                 Layout.fillWidth: true
                 Layout.leftMargin: units.gu(6)
                 Layout.rightMargin: units.gu(2)
                 Layout.bottomMargin: units.gu(2)
-                text: "Press and hold to toggle disco mode"
+                text: "Press and hold or hover with mouse to show"
                 wrapMode: Text.WordWrap
-                visible: enableCDPlayerDiscoCheck.visible
+                visible: dcCDPlayerTextsTimeouts.visible
                 font.italic: true
                 textSize: Label.Small
             }
@@ -13714,9 +13827,9 @@ StyledItem {
             anchors.fill: stage
 
             enabled: !shell.immersiveMode
+            enableDragStep: true
             minimumTouchPoints: 4
             maximumTouchPoints: 5
-            enableDragStep: stage.workspaceEnabled
             dragStepThreshold: units.gu(15)
 
             onNormalHaptics: shell.haptics.play()

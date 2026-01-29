@@ -136,6 +136,70 @@ StyledItem {
 
     property bool startingUp: true
     Timer { id: finishStartUpTimer; interval: 500; onTriggered: startingUp = false }
+    // ENH046 - Lomiri Plus Settings
+    onShowingGreeterChanged: {
+        if (!showingGreeter && !shell.settings.welcomeDialogShown) {
+            welcomeDelayTimer.restart()
+        }
+    }
+    Timer {
+        id: welcomeDelayTimer
+        interval: 1000
+        onTriggered: {
+            const _dialog = welcomeDialogComponent.createObject(shell);
+            _dialog.show()
+        }
+    }
+    Component {
+        id: welcomeDialogComponent
+
+        Dialog {
+            id: dialog
+
+            property bool reparentToRootItem: false
+
+            title: "Welcome to Lomiri Plus Essentials!"
+            
+            signal close
+            onClose: {
+                shell.settings.welcomeDialogShown = true;
+                PopupUtils.close(dialog)
+            }
+
+            Label {
+                text: "To access the Settings page, go to the System indicator.\n\n\n\
+Lomiri Plus Essentials is a collection of Kugi's personal tweaks and hacks in Lomiri.\
+This is a very minimal version of Lomiri Plus. Its main goal is to provide temporary solutions for crucial issues such as notch/punchhole support, \
+at least until we get official and proper support for these things.\n\
+\n\n\n Enjoy!"
+                wrapMode: Text.WordWrap
+                color: theme.palette.normal.foregroundText
+            }
+
+            Button {
+                text: "Open settings"
+                color: theme.palette.normal.positive
+                onClicked: {
+                    shell.showSettings()
+                    dialog.close()
+                }
+            }
+            Button {
+                text: "Donate"
+                color: theme.palette.normal.negative
+                onClicked: {
+                    Qt.openUrlExternally("https://youtu.be/dQw4w9WgXcQ?si=flAd1M0i9Rvj-TFL")
+                    dialog.close()
+                }
+            }
+            Button {
+                text: "Leave me alone!"
+                color: theme.palette.normal.foreground
+                onClicked: dialog.close()
+            }
+        }
+    }
+    // ENH046 - End
 
     property int supportedOrientations: {
         if (startingUp) {
@@ -303,6 +367,7 @@ StyledItem {
         property alias alwaysShownIndicatorIcons: settingsObj.alwaysShownIndicatorIcons
         property alias onlyShowNotificationsIndicatorWhenGreen: settingsObj.onlyShowNotificationsIndicatorWhenGreen
         property alias onlyShowSoundIndicatorWhenSilent: settingsObj.onlyShowSoundIndicatorWhenSilent
+        property alias welcomeDialogShown: settingsObj.welcomeDialogShown
 
         // Device Config
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
@@ -350,6 +415,7 @@ StyledItem {
             property bool hideBatteryIndicatorBracket: false
             property bool hideBatteryIndicatorPercentage: false
             property bool hideBatteryIndicatorIcon: false
+            property bool welcomeDialogShown: false
         }
     }
 

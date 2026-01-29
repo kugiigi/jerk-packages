@@ -39,14 +39,7 @@ Item {
     property bool oskEnabled: false
     // ENH241 - Rotate button in Virtual Touchpad
     property int contentRotation: 0
-
-    function rotate() {
-        if (contentRotation === 270) {
-            contentRotation = 0
-        } else {
-            contentRotation += 90
-        }
-    }
+    signal rotate
     // ENH241 - End
     // ENH243 - Virtual Touchpad Enhancements
     readonly property bool appDragGestureIsActive: (gestureArea.recognizedDrag && !gestureArea.isResizeMode)
@@ -579,7 +572,7 @@ Item {
         onStopFakeAnimation: ShellNotifier.stopFakeAnimation()
     }
 
-    // For Search Drawer (tap) and Workspace (swipe/drag)
+    // Custom 2-finger for right click
     LPMultiTouchGestureArea {
         id: customTwoFingerGestureArea
 
@@ -596,7 +589,7 @@ Item {
 
         onDoubleClicked: UInput.pressMouse(UInput.ButtonRight)
         onDoubleClickedReleased: UInput.releaseMouse(UInput.ButtonRight)
-        onGestureReleased: {
+        onClicked: {
             if (!recognizedDrag) {
                 root.rightClick()
             }
@@ -641,8 +634,6 @@ Item {
 
             const _sensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
             UInput.scrollMouse(dh * _sensitivity, dv * _sensitivity);
-
-            UInput.scrollMouse(dh, dv);
         }
     }
     // For moving windows
@@ -771,7 +762,7 @@ Item {
         enabled: ShellNotifier.enableAdvancedGestures
         minimumTouchPoints: 4
         maximumTouchPoints: 5
-        enableDragStep: ShellNotifier.workspaceEnabled
+        enableDragStep: true
         dragStepThreshold: internalGu * 10
 
         onNormalHaptics: ShellNotifier.normalHaptics()
