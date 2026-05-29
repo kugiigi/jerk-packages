@@ -3887,7 +3887,8 @@ FocusScope {
             rightMargin: units.gu(4)
         }
 
-        height: units.gu(35)
+        biggerUI: shell.settings.biggerWorkspaceSwitcherUI
+        height: biggerUI ? units.gu(35) : units.gu(20)
         // ENH154 - End
         background: root.background
         availableDesktopArea: root.availableDesktopArea
@@ -4201,7 +4202,12 @@ FocusScope {
         }
         blurRadius: enableBlur ? defaultRadius : 0
         height: root.height - root.availableDesktopArea.height
-        visible: !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
+        visible: sourceItem !== null && !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
+                    && !( (shell.settings.enableTransparentTopBarInGreeter && shell.showingGreeter)
+                            || (shell.settings.enableTransparentTopBarOnDesktop && shell.desktopShown)
+                            || (shell.settings.transparentTopBarOnSpread
+                                    && (root.spreadShown || root.rightEdgeDragProgress > 0 || root.rightEdgePushProgress > 0))
+                        )
         sourceItem: {
             if (enableBlur) {
                 // When drawer or indicator panel is open and we use wallpaper as blur source

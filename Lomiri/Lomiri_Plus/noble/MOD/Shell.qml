@@ -2073,6 +2073,9 @@ Notable features are the following:\n\
         property alias dcRunningTimer: settingsObj.dcRunningTimer
         property alias dcLastTimeTimer: settingsObj.dcLastTimeTimer
 
+        // Workspace
+        property alias biggerWorkspaceSwitcherUI: settingsObj.biggerWorkspaceSwitcherUI
+
         // Others
         property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
         property alias enableVolumeButtonsLogic: settingsObj.enableVolumeButtonsLogic
@@ -2919,6 +2922,7 @@ Notable features are the following:\n\
             property bool enableRedesignedSpread: false
             property bool dcCDPlayerTextsTimeouts: false
             property bool welcomeDialogShown: false
+            property bool biggerWorkspaceSwitcherUI: false
         }
     }
 
@@ -7179,6 +7183,11 @@ Notable features are the following:\n\
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Workspaces"
+                onClicked: settingsLoader.item.stack.push(workspacesPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Notifications"
                 onClicked: settingsLoader.item.stack.push(notificationsPage, {"title": text})
             }
@@ -8977,6 +8986,45 @@ Notable features are the following:\n\
                             target: customDrawerOpacity
                             property: "value"
                             value: shell.settings.customDrawerOpacity
+                        }
+                    }
+                }
+            }
+            Component {
+                id: workspacesPage
+
+                LPSettingsPage {
+                    LPSettingsCheckBox {
+                        id: forceEnableWorkspace
+                        Layout.fillWidth: true
+                        text: "Enable workspaces in Staged mode"
+                        onCheckedChanged: lomiriSettings.forceEnableWorkspace = checked
+                        Binding {
+                            target: forceEnableWorkspace
+                            property: "checked"
+                            value: lomiriSettings.forceEnableWorkspace
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: biggerWorkspaceSwitcherUI
+                        Layout.fillWidth: true
+                        text: "Bigger workpsace switcher UI"
+                        onCheckedChanged: shell.settings.biggerWorkspaceSwitcherUI = checked
+                        Binding {
+                            target: biggerWorkspaceSwitcherUI
+                            property: "checked"
+                            value: shell.settings.biggerWorkspaceSwitcherUI
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: delayedWorkspaceSwitcherUI
+                        Layout.fillWidth: true
+                        text: "Delay showing Workspace Switcher UI"
+                        onCheckedChanged: shell.settings.delayedWorkspaceSwitcherUI = checked
+                        Binding {
+                            target: delayedWorkspaceSwitcherUI
+                            property: "checked"
+                            value: shell.settings.delayedWorkspaceSwitcherUI
                         }
                     }
                 }
@@ -15585,7 +15633,7 @@ Notable features are the following:\n\
                 buruIskunuru.pauseOrResumeShowTimer(shell.settings.detoxModeAppList.includes(target.focusedAppId), false)
             }
             function onDesktopShownChanged() {
-                buruIskunuru.pauseOrResumeShowTimer(target.desktopShown)
+                buruIskunuru.pauseOrResumeShowTimer(!target.desktopShown)
             }
         }
         Connections {

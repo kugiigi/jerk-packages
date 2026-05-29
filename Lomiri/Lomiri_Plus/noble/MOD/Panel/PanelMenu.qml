@@ -889,6 +889,7 @@ Showable {
         color: root.panelColor
         anchors.fill: handle
         visible: root.inverted
+        opacity: !shell.settings.enableTransparentExpandedTopBar || root.useCustomColorAndOpacity ? 1 : 0.85
     }
     // ENH054 - End
 

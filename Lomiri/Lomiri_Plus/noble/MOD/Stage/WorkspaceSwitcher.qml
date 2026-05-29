@@ -33,6 +33,7 @@ Item {
 
     readonly property alias active: d.active
     // ENH154 - Workspace switcher gesture
+    property bool biggerUI: false
     // ENH184 - Delay workspace switcher UI
     //function switchLeft() {
     function switchLeft(_delayed=false) {
@@ -311,7 +312,7 @@ Item {
                         // ENH154 - Workspace switcher gesture
                         // height: units.gu(4)
                         // backgroundColor: "white"
-                        height: units.gu(6)
+                        height: root.biggerUI ? units.gu(6) : units.gu(4)
                         backgroundColor: LomiriColors.silk
                         // ENH154 - End
 
@@ -321,7 +322,7 @@ Item {
                             // ENH154 - Workspace switcher gesture
                             // color: LomiriColors.ash
                             color: LomiriColors.inkstone
-                            textSize: Label.Large
+                            textSize: root.biggerUI ? Label.Large : Label.Medium
                             // ENH154 - End
                         }
                     }
@@ -330,7 +331,7 @@ Item {
                         id: workspaces
                         // ENH154 - Workspace switcher gesture
                         // height: parent.height - header.height - units.gu(2)
-                        height: parent.height - header.height - units.gu(4)
+                        height: root.biggerUI ? parent.height - header.height - units.gu(4) : parent.height - header.height - units.gu(2)
                         // ENH154 - End
                         width: Math.min(implicitWidth, root.width - units.gu(4))
 

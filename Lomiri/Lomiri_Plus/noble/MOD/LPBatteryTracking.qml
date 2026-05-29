@@ -539,7 +539,8 @@ Item {
                     root.lastChargingTime = new Date().getTime()
                 }
 
-                if (shell.settings.alwaysPromptchargingAlarm && target.state === Battery.Charging) {
+                if (shell.settings.alwaysPromptchargingAlarm && target.state === Battery.Charging
+                        && shell.isBuiltInScreen) {
                     if (!root.promptDialogObj) {
                         root.promptDialogObj = promptDialog.createObject(shell.popupParent);
                         root.promptDialogObj.show()
