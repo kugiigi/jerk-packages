@@ -2,6 +2,12 @@
 function getModel() {
     return [
       {
+        "name": "Recent",
+        "slug": "recent",
+        "icon": "⏱️",
+        "emojis": shell.settings.emojiSelectorRecentList
+      },
+      {
         "name": "Smileys & Emotion",
         "slug": "smileys_emotion",
         "icon": "😀",

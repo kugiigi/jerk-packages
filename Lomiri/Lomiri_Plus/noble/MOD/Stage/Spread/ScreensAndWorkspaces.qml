@@ -37,6 +37,9 @@ Item {
 
     property string mode : "staged"
     property Item availableDesktopArea
+    // ENH185 - Workspace spread UI fixes
+    property bool sideStageEnabled: false
+    // ENH185 - End
 
     signal closeSpread();
 
@@ -229,6 +232,9 @@ Item {
                     screen: model.screen
                     background: root.background
                     availableDesktopArea: root.availableDesktopArea
+                    // ENH185 - Workspace spread UI fixes
+                    sideStageEnabled: root.sideStageEnabled
+                    // ENH185 - End
 
                     workspaceModel: model.screen.workspaces
                     activeWorkspace: root.activeWorkspace

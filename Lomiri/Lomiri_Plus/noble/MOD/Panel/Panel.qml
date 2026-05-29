@@ -364,6 +364,22 @@ Item {
             // ENH046 - End
 
             Behavior on color { ColorAnimation { duration: LomiriAnimation.FastDuration } }
+            
+            // ENH258 - Workspace switcher via scroll on Launcher
+            WheelHandler {
+                enabled: shell.settings.workspaceSwitcherViaScrollTopBar
+                acceptedDevices: PointerDevice.Mouse
+                acceptedButtons: Qt.NoButton
+
+                onWheel: (event) => {
+                     if (event.angleDelta.y > 0) {
+                        shell.stage.switchToPreviousWorkspace();
+                     } else {
+                        shell.stage.switchToNextWorkspace();
+                     }
+                }
+            }
+            // ENH258 - End
         }
 
         MouseArea {

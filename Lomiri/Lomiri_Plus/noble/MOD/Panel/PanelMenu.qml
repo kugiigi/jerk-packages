@@ -1073,6 +1073,7 @@ Showable {
             mouseHoverEnabled: true
             noExpandWithMouse: true
             swipeHandlerOutsideMargin: 0
+            highlightSelectMode: shell.settings.indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight
             model: bar.model
             currentIndex: bar.currentItemIndex
             indicatorWidth: units.gu(2)

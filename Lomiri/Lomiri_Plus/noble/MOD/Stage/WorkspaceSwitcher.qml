@@ -30,8 +30,19 @@ Item {
     property var screensProxy: Screens.createProxy();
     property string background
     property Item availableDesktopArea
+    // ENH185 - Workspace spread UI fixes
+    property bool sideStageEnabled: false
+    // ENH185 - End
 
     readonly property alias active: d.active
+    // ENH257 - Workspace redesign
+    readonly property alias currentSurface: d.currentAppSurface
+    // For debugging why sometimes it won't hide
+    onFocusChanged: console.log("Switcher Focus - active: " + focus + " - " + d.active)
+    // ENH257 - End
+    // ENH259 - Option to disable workspace switcher UI
+    property bool hideScreenUI: false
+    // ENH259 - End
     // ENH154 - Workspace switcher gesture
     property bool biggerUI: false
     // ENH184 - Delay workspace switcher UI
@@ -56,18 +67,26 @@ Item {
             showRight();
         }
     }
-    function switchLeftMoveApp(_delayed=false, appSurface) {
+
+    function switchLeftMoveApp(_delayed=false, appDelegate) {
         d.delayedShow = _delayed
-        d.currentAppSurface = appSurface
+        d.currentAppSurface = appDelegate.surface
+        // ENH257 - Workspace redesign
+        appDelegate.saveWindowState();
+        // ENH257 - End
         if (visible) {
             d.previousWorkspace();
         } else {
             showLeft();
         }
     }
-    function switchRightMoveApp(_delayed=false, appSurface) {
+
+    function switchRightMoveApp(_delayed=false, appDelegate) {
         d.delayedShow = _delayed
-        d.currentAppSurface = appSurface
+        d.currentAppSurface = appDelegate.surface
+        // ENH257 - Workspace redesign
+        appDelegate.saveWindowState();
+        // ENH257 - End
         if (visible) {
             d.nextWorkspace();
         } else {
@@ -99,12 +118,22 @@ Item {
     }
 
     // ENH154 - End
-    function showLeft() {
-        show();
+    // ENH154 - Workspace switcher gesture
+    // function showLeft() {
+        // show();
+    function showLeft(_commit = false, _tease = false) {
+        d.switchImmediately = _commit;
+        show(_tease);
+    // ENH154 - End
         d.previousWorkspace();
     }
-    function showRight() {
-        show();
+    // ENH154 - Workspace switcher gesture
+    // function showRight() {
+        // show();
+    function showRight(_commit = false, _tease = false) {
+        d.switchImmediately = _commit;
+        show(_tease);
+    // ENH154 - End
         d.nextWorkspace();
     }
     function showUp() {
@@ -115,6 +144,9 @@ Item {
         show();
         d.nextScreen();
     }
+
+    // ENH154 - Workspace switcher gesture
+    /*
     function showLeftMoveApp(appSurface) {
         d.currentAppSurface = appSurface
         show();
@@ -135,8 +167,48 @@ Item {
         show();
         d.nextScreen();
     }
+    */
+    function showLeftMoveApp(appDelegate, _switchImmediately = false, _tease = false) {
+        d.switchImmediately = _switchImmediately;
+        d.currentAppSurface = appDelegate.surface;
+        // ENH257 - Workspace redesign
+        appDelegate.saveWindowState();
+        // ENH257 - End
+        show(_tease);
+        d.previousWorkspace();
+    }
 
-    function show() {
+    function showRightMoveApp(appDelegate, _switchImmediately = false, _tease = false) {
+        d.switchImmediately = _switchImmediately;
+        d.currentAppSurface = appDelegate.surface;
+        // ENH257 - Workspace redesign
+        appDelegate.saveWindowState();
+        // ENH257 - End
+        show(_tease);
+        d.nextWorkspace();
+    }
+    function showUpMoveApp(appDelegate) {
+        d.currentAppSurface = appDelegate.surface;
+        // ENH257 - Workspace redesign
+        appDelegate.saveWindowState();
+        // ENH257 - End
+        show();
+        d.previousScreen();
+    }
+    function showDownMoveApp(appDelegate) {
+        d.currentAppSurface = appDelegate.surface;
+        // ENH257 - Workspace redesign
+        appDelegate.saveWindowState();
+        // ENH257 - End
+        show();
+        d.nextScreen();
+    }
+    // ENH154 - End
+
+    // ENH154 - Workspace switcher gesture
+    // function show() {
+    function show(_tease = false) {
+    // ENH154 - End
         hideTimer.stop();
         d.altPressed = true;
         d.ctrlPressed = true;
@@ -157,6 +229,11 @@ Item {
         d.highlightedScreenIndex = screensProxy.activeScreen;
         var activeScreen = screensProxy.get(screensProxy.activeScreen);
         d.highlightedWorkspaceIndex = activeScreen.workspaces.indexOf(activeScreen.currentWorkspace)
+        // ENH154 - Workspace switcher gesture
+        if (_tease) {
+            hideTimer.restart();
+        }
+        // ENH154 - End
     }
 
     QtObject {
@@ -171,6 +248,16 @@ Item {
         // ENH184 - Delay workspace switcher UI
         property bool delayedShow: shell.settings.delayedWorkspaceSwitcherUI
         // ENH184 - End
+        // ENH259 - Option to disable workspace switcher UI
+        property bool switchImmediately: false
+
+        function commitSwitchToWorkspace() {
+            const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
+            // No need since workspaceSelected also activate it
+            //selectedWorkspace.activate();
+            workspaceSelected(selectedWorkspace)
+        }
+        // ENH259 - End
 
         property int rowHeight: root.height - units.gu(4)
 
@@ -179,10 +266,20 @@ Item {
 
         function previousWorkspace() {
             highlightedWorkspaceIndex = Math.max(highlightedWorkspaceIndex - 1, 0);
+            // ENH259 - Option to disable workspace switcher UI
+            if (switchImmediately) {
+                commitSwitchToWorkspace()
+            }
+            // ENH259 - End
         }
         function nextWorkspace() {
             var screen = screensProxy.get(highlightedScreenIndex);
             highlightedWorkspaceIndex = Math.min(highlightedWorkspaceIndex + 1, screen.workspaces.count - 1);
+            // ENH259 - Option to disable workspace switcher UI
+            if (switchImmediately) {
+                commitSwitchToWorkspace()
+            }
+            // ENH259 - End
         }
         function previousScreen() {
             highlightedScreenIndex = Math.max(highlightedScreenIndex - 1, 0);
@@ -214,6 +311,14 @@ Item {
             delayedShowTimer.stop()
         }
         // ENH184 - End
+        // ENH259 - Option to disable workspace switcher UI
+        onRunningChanged: {
+            if (running) {
+                d.active = false;
+                focus = false;
+            }
+        }
+        // ENH259 - End
     }
 
     Keys.onPressed: {
@@ -262,14 +367,23 @@ Item {
                 WorkspaceManager.moveSurfaceToWorkspace(d.currentAppSurface, _workspace);
                 d.currentAppSurface = null
             }
-            d.active = false;
-            hideTimer.start();
-            focus = false;
+            // ENH259 - Option to disable workspace switcher UI
+            // Do these when hideTimer starts and also moved to the end
+            // d.active = false;
+            // hideTimer.start();
+            hideTimer.restart();
+            // focus = false;
+            // ENH259 - End
             // ENH244 - Workspace switch spread fix #150
             // screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex).activate();
-            const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
-            selectedWorkspace.activate();
-            workspaceSelected(selectedWorkspace)
+            // ENH259 - Option to disable workspace switcher UI
+            //const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
+            //selectedWorkspace.activate();
+            //workspaceSelected(selectedWorkspace)
+            if (!d.switchImmediately) {
+                d.commitSwitchToWorkspace()
+            }
+            d.switchImmediately = false;
             // ENH244 - End
         }
     }
@@ -312,7 +426,11 @@ Item {
                         // ENH154 - Workspace switcher gesture
                         // height: units.gu(4)
                         // backgroundColor: "white"
-                        height: root.biggerUI ? units.gu(6) : units.gu(4)
+                        // ENH259 - Option to disable workspace switcher UI
+                        //height: root.biggerUI ? units.gu(6) : units.gu(4)
+                        height: root.hideScreenUI ? 0 : root.biggerUI ? units.gu(6) : units.gu(4)
+                        visible: !root.hideScreenUI
+                        // ENH259 - End
                         backgroundColor: LomiriColors.silk
                         // ENH154 - End
 
@@ -331,7 +449,11 @@ Item {
                         id: workspaces
                         // ENH154 - Workspace switcher gesture
                         // height: parent.height - header.height - units.gu(2)
-                        height: root.biggerUI ? parent.height - header.height - units.gu(4) : parent.height - header.height - units.gu(2)
+                        // ENH259 - Option to disable workspace switcher UI
+                        //height: root.biggerUI ? parent.height - header.height - units.gu(4) : parent.height - header.height - units.gu(2)
+                        height: root.hideScreenUI ? parent.height - header.height - units.gu(2)
+                                    : root.biggerUI ? parent.height - header.height - units.gu(4) : parent.height - header.height - units.gu(2)
+                        // ENH259 - End
                         // ENH154 - End
                         width: Math.min(implicitWidth, root.width - units.gu(4))
 
@@ -346,6 +468,9 @@ Item {
                         // ENH154 - Workspace switcher gesture
                         activeWorkspace: WMScreen.currentWorkspace
                         // ENH154 - End
+                        // ENH185 - Workspace spread UI fixes
+                        sideStageEnabled: root.sideStageEnabled
+                        // ENH185 - End
                         availableDesktopArea: root.availableDesktopArea
                     }
                 }

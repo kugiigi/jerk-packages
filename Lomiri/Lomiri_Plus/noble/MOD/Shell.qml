@@ -58,6 +58,7 @@ import "LPColorpicker"
 // ENH064 - Dynamic Cove
 import MediaScanner 0.1
 import QtMultimedia 5.6
+import "LPDynamicCove/MediaPlayer" as LPMediaPlayer
 // ENH064 - End
 // ENH056 - Quick toggles
 import QtSystemInfo 5.0
@@ -174,6 +175,9 @@ StyledItem {
     property alias launcher: launcher
     property alias panel: panel
     // ENH171 - End
+    // ENH154 - Workspace switcher gesture
+    property alias stage: stage
+    // ENH154 - End
     // ENH116 - Standalone Dark mode toggle
     property alias themeSettings: themeSettings
     // ENH116 - End
@@ -184,6 +188,7 @@ StyledItem {
     property alias alarmItemModel: alarmModel
     property alias mediaPlayerLoaderObj: mediaPlayerLoader
     property alias mediaPlayer: mediaPlayerLoader.item
+    property alias playlistPlayer: playlistPlayerLoader.item
     // ENH064 - End
     // ENH114 - Popup holder
     property alias popupParent: popupSurface
@@ -656,7 +661,10 @@ Notable features are the following:\n\
 
     readonly property var topLevelSurfaceList: {
         if (!WMScreen.currentWorkspace) return null;
-        return stage.temporarySelectedWorkspace ? stage.temporarySelectedWorkspace.windowModel : WMScreen.currentWorkspace.windowModel
+        // ENH257 - Workspace redesign
+        // return stage.temporarySelectedWorkspace ? stage.temporarySelectedWorkspace.windowModel : WMScreen.currentWorkspace.windowModel
+        return WMScreen.currentWorkspace.windowModel
+        // ENH257 - End
     }
 
     onMainAppChanged: {
@@ -842,6 +850,7 @@ Notable features are the following:\n\
     readonly property var customDirectActions: [
         lockScreenAction, lomiriPlusAction, powerDialogAction, screenshotAction, rotateAction, appScreenshotAction
         , closeAppAction, showDesktopAction, appSuspensionAction, searchDrawerAction, playPauseAction, goNextAction, goPreviousAction
+        , shuffleAllAction, shuffleFavoritesAction
         , emojiPopupAction, searchDrawerAppsAction, searchDrawerWebAction
     ]
     Action {
@@ -998,6 +1007,40 @@ Notable features are the following:\n\
             }
         }
     }
+    Action {
+        id: shuffleAllAction
+
+        name: "shuffleAll"
+        text: "Play all songs"
+        iconName: "media-playlist-shuffle"
+        enabled: !(shell.mediaPlayer && shell.mediaPlayer.currentPlaylist === shell.playlistPlayer.allSongsString && shell.mediaPlayer.isPlaying)
+        onTriggered: {
+            if (shell.playlistPlayer) {
+                if (shell.mediaPlayer && shell.mediaPlayer.currentPlaylist === shell.playlistPlayer.allSongsString) {
+                    shell.playlistPlayer.tryToPlay()
+                } else {
+                    shell.playlistPlayer.shuffle()
+                }
+            }
+        }
+    }
+    Action {
+        id: shuffleFavoritesAction
+
+        name: "shuffleFavorites"
+        text: 'Play "Favorites" playlist'
+        iconName: "media-playlist"
+        enabled: !(shell.mediaPlayer && shell.mediaPlayer.currentPlaylist === "Favorites" && shell.mediaPlayer.isPlaying)
+        onTriggered: {
+            if (shell.playlistPlayer) {
+                if (shell.mediaPlayer && shell.mediaPlayer.currentPlaylist === "Favorites") {
+                    shell.playlistPlayer.tryToPlay("Favorites")
+                } else {
+                    shell.playlistPlayer.shuffle("Favorites")
+                }
+            }
+        }
+    }
     // ENH235 - Emoji selector popup
     Action {
         id: emojiPopupAction
@@ -1041,6 +1084,12 @@ Notable features are the following:\n\
         return Math.random() * (max - min) + min;
     }
 
+    function randomWholeNumber(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
     property bool isScreenActive: false
 
     ScreenSaver {
@@ -1053,6 +1102,104 @@ Notable features are the following:\n\
     function getFilename(_filepath) {
         let _returnValue = _filepath.split('\\').pop().split('/').pop();
         return _returnValue.replace(/\.[^/.]+$/, "")
+    }
+    Loader {
+        id: playlistPlayerLoader
+
+        asynchronous: true
+        sourceComponent: Item {
+            id: playlistPlayer
+
+            readonly property string allSongsString: "All songs"
+            readonly property string allSongId: "dc-all"
+            readonly property var mediaPlayerObj: shell.mediaPlayer
+            readonly property bool playing: mediaPlayerObj && mediaPlayerObj.isPlaying
+            readonly property bool noMedia: !mediaPlayerObj || (mediaPlayerObj && mediaPlayerObj.noMedia)
+            readonly property bool paused: mediaPlayerObj && mediaPlayerObj.isPaused
+            readonly property bool stopped: mediaPlayerObj && mediaPlayerObj.isStopped
+            readonly property bool noQueue: noMedia || stopped
+            readonly property alias playlistsModel: playlistsModel
+
+            property bool playlistPending: false
+            property int pendingPlaylistTrackCount: -1
+
+            Component.onCompleted: playlistsModel.filterPlaylists()
+
+            function clearQueue() {
+                mediaPlayerObj.clear()
+            }
+
+            function continuePlayback() {
+                mediaPlayerObj.play()
+            }
+
+            function shuffle(_playlistId) {
+                const _selectedPlaylistId = !_playlistId ? allSongId : _playlistId 
+                if (_selectedPlaylistId == allSongId) {
+                    console.log("Shuffle all songs")
+                    mediaPlayerObj.currentPlaylist = allSongsString
+                    mediaPlayerObj.playRandomSong()
+                } else {
+                    console.log("Shuffle " + _selectedPlaylistId)
+                    playlistPending = true
+                    const _foundIndex = playlistsModel.find(_selectedPlaylistId, "name")
+                    let _trackCount = 0
+                    if (_foundIndex > -1) {
+                        _trackCount = playlistsModel.get(_foundIndex).count
+                    }
+                    pendingPlaylistTrackCount = _trackCount
+                    mediaPlayerObj.currentPlaylist = _selectedPlaylistId
+                    playlistTracksModel.filterPlaylistTracks(_selectedPlaylistId)
+                }
+
+                playFallbackTimer.restart()
+            }
+
+            function playPendingPlaylist() {
+                playlistPending = false
+                mediaPlayerObj.playRandomSong(playlistTracksModel)
+            }
+
+            function tryToPlay(_playlistId) {
+                if (!playing) {
+                    if (paused) {
+                        continuePlayback()
+                    } else {
+                        shuffle(_playlistId)
+                    }
+                }
+            }
+
+            // WORKAROUND: For playlist not playing immediately
+            Timer {
+                id: playFallbackTimer
+
+                running: false
+                interval: 500
+                onTriggered: {
+                    if (!playlistPlayer.playing) {
+                        console.log("Fallback play used")
+                        playlistPlayer.continuePlayback()
+                    }
+                }
+            }
+
+            LPMediaPlayer.LPPlaylistsModel {
+                id: playlistsModel
+                syncFactor: 1
+            }
+
+            LPMediaPlayer.LPPlaylistsModel {
+                id: playlistTracksModel
+
+                onRowCountChanged: {
+                    if (rowCount == playlistPlayer.pendingPlaylistTrackCount && playlistPlayer.playlistPending) {
+                        console.log("LoadComplete!!!! " + rowCount + " - " + playlistPlayer.pendingPlaylistTrackCount)
+                        playlistPlayer.playPendingPlaylist()
+                    }
+                }
+            }
+        }
     }
     // ENH064 - End
 
@@ -1617,6 +1764,7 @@ Notable features are the following:\n\
         property alias darkenWallpaperWhenInfographicsOpacity: settingsObj.darkenWallpaperWhenInfographicsOpacity
         property alias lightModeNotificationBubble: settingsObj.lightModeNotificationBubble
         property alias enableEmojiToggleKeyboardShortcut: settingsObj.enableEmojiToggleKeyboardShortcut
+        property alias emojiSelectorRecentList: settingsObj.emojiSelectorRecentList
         property alias enableNavigationButtons: settingsObj.enableNavigationButtons
         property alias navigationButtonsList: settingsObj.navigationButtonsList
         property alias navigationButtonsEnableDirectDrawerSearch: settingsObj.navigationButtonsEnableDirectDrawerSearch
@@ -1712,6 +1860,7 @@ Notable features are the following:\n\
         property alias extendDrawerOverTopBar: settingsObj.extendDrawerOverTopBar
         property alias appGridIndicatorExpandedSize: settingsObj.appGridIndicatorExpandedSize
         property alias appGridIndicatorDoNotExpandWithMouse: settingsObj.appGridIndicatorDoNotExpandWithMouse
+        property alias appGridIndicatorSelectOnHighlight: settingsObj.appGridIndicatorSelectOnHighlight
         property alias drawerAnimationSpeed: settingsObj.drawerAnimationSpeed
         property alias enableCustomDrawerSearch: settingsObj.enableCustomDrawerSearch
         property alias customDrawerSearchQuickWebResults: settingsObj.customDrawerSearchQuickWebResults
@@ -1798,6 +1947,7 @@ Notable features are the following:\n\
         property alias enableBluetoothDevicesList: settingsObj.enableBluetoothDevicesList
         property alias recentBlutoothDevicesList: settingsObj.recentBlutoothDevicesList
         property alias useIndicatorSelectorForPanelBarWhenInverted: settingsObj.useIndicatorSelectorForPanelBarWhenInverted
+        property alias indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight: settingsObj.indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight
         property alias useCustomTopBarIconTextColorDesktop: settingsObj.useCustomTopBarIconTextColorDesktop
         property alias customTopBarIconTextColorDesktop: settingsObj.customTopBarIconTextColorDesktop
         property alias enableTransparentTopBarOnDesktop: settingsObj.enableTransparentTopBarOnDesktop
@@ -2075,6 +2225,9 @@ Notable features are the following:\n\
 
         // Workspace
         property alias biggerWorkspaceSwitcherUI: settingsObj.biggerWorkspaceSwitcherUI
+        property alias disableWorkspaceSwitcherUI: settingsObj.disableWorkspaceSwitcherUI
+        property alias workspaceSwitcherViaScrollLauncher: settingsObj.workspaceSwitcherViaScrollLauncher
+        property alias workspaceSwitcherViaScrollTopBar: settingsObj.workspaceSwitcherViaScrollTopBar
 
         // Others
         property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
@@ -2096,6 +2249,7 @@ Notable features are the following:\n\
         property alias detoxModeIntervalEnd: settingsObj.detoxModeIntervalEnd
         property alias detoxModeType: settingsObj.detoxModeType
         property alias detoxModePeriod: settingsObj.detoxModePeriod
+        property alias detoxModeDuration: settingsObj.detoxModeDuration
 
         // Extras
         property alias blueScreenNotYetShown: settingsObj.blueScreenNotYetShown
@@ -2792,6 +2946,7 @@ Notable features are the following:\n\
              * 0 - Windows
              * 1 - Linux
              * 2 - Combined
+             * 3 - Horror
             */
             property real detoxModeEnabledEpoch: 0
             property bool quickTogglesOnlyShowInNotifications: false
@@ -2923,6 +3078,13 @@ Notable features are the following:\n\
             property bool dcCDPlayerTextsTimeouts: false
             property bool welcomeDialogShown: false
             property bool biggerWorkspaceSwitcherUI: false
+            property bool disableWorkspaceSwitcherUI: false
+            property bool workspaceSwitcherViaScrollLauncher: false
+            property bool workspaceSwitcherViaScrollTopBar: false
+            property int detoxModeDuration: 15000 // 15 seconds
+            property var emojiSelectorRecentList: []
+            property bool indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight: false
+            property bool appGridIndicatorSelectOnHighlight: false
         }
     }
 
@@ -3012,8 +3174,11 @@ Notable features are the following:\n\
         function onGetAppToDrag() {
             // TODO: Also check Child windows so this will work on them
             function matchDelegate(obj) { return String(obj.objectName).indexOf("appDelegate") >= 0; }
-
-            var delegateAtCenter = Functions.itemAt(stage.appContainerItem, cursor.x, cursor.y, matchDelegate);
+            
+            // ENH257 - Workspace redesign
+            //var delegateAtCenter = Functions.itemAt(stage.appContainerItem, cursor.x, cursor.y, matchDelegate);
+            var delegateAtCenter = Functions.itemAt(stage.currentWorkspaceContainer, cursor.x, cursor.y, matchDelegate);
+            // ENH257 - End
 
             ShellNotifier.appForDragging = delegateAtCenter;
         }
@@ -4262,6 +4427,7 @@ Notable features are the following:\n\
                     "Windows"
                     , "Linux"
                     , "Combined"
+                    , "Horror"
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.detoxModeType
@@ -4287,19 +4453,21 @@ Notable features are the following:\n\
                 Layout.margins: units.gu(2)
                 title: "Delay"
                 minimumValue: 0
-                maximumValue: 10
-                stepSize: 0.1
+                maximumValue: 600
+                stepSize: 1
                 resetValue: 0
                 live: false
                 enableFineControls: true
                 roundValue: true
-                roundingDecimal: 2
-                unitsLabel: "minutes"
-                onValueChanged: shell.settings.blueScreenDelay = value * 60000
+                roundingDecimal: 0
+                onValueChanged: shell.settings.blueScreenDelay = value * 1000
                 Binding {
                     target: blueScreenDelay
                     property: "value"
-                    value: shell.settings.blueScreenDelay / 60000
+                    value: shell.settings.blueScreenDelay / 1000
+                }
+                function formatDisplayValue(v) {
+                    return shell.msToTime(v * 1000)
                 }
             }
             Label {
@@ -4364,10 +4532,35 @@ Notable features are the following:\n\
                     "Windows"
                     , "Linux"
                     , "Combined"
+                    , "Horror"
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.detoxModeType
                 onSelectedIndexChanged: shell.settings.detoxModeType = selectedIndex
+            }
+            LPSettingsSlider {
+                id: detoxModeDuration
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                enabled: !shell.settings.detoxModeEnabled
+                title: "Duration"
+                minimumValue: 1
+                maximumValue: 60
+                stepSize: 1
+                resetValue: 15
+                live: false
+                enableFineControls: true
+                roundValue: true
+                roundingDecimal: 0
+                onValueChanged: shell.settings.detoxModeDuration = value * 1000
+                Binding {
+                    target: detoxModeDuration
+                    property: "value"
+                    value: shell.settings.detoxModeDuration / 1000
+                }
+                function formatDisplayValue(v) {
+                    return shell.msToTime(v * 1000)
+                }
             }
             OptionSelector {
                 Layout.fillWidth: true
@@ -4434,22 +4627,22 @@ Notable features are the following:\n\
                 visible: shell.settings.detoxModeBehavior === 1
                 enabled: !shell.settings.detoxModeEnabled
                 title: "From"
-                minimumValue: 0
-                maximumValue: shell.settings.detoxModeIntervalEnd / 60000
-                stepSize: 0.5
-                resetValue: 1
+                minimumValue: 1
+                maximumValue: shell.settings.detoxModeIntervalEnd / 1000
+                stepSize: 1
+                resetValue: 60
                 live: false
                 enableFineControls: true
                 roundValue: true
-                roundingDecimal: 2
-                onValueChanged: shell.settings.detoxModeIntervalStart = value * 60000
+                roundingDecimal: 0
+                onValueChanged: shell.settings.detoxModeIntervalStart = value * 1000
                 Binding {
                     target: detoxModeIntervalStart
                     property: "value"
-                    value: shell.settings.detoxModeIntervalStart / 60000
+                    value: shell.settings.detoxModeIntervalStart / 1000
                 }
                 function formatDisplayValue(v) {
-                    return shell.msToTime(v * 60000)
+                    return shell.msToTime(v * 1000)
                 }
             }
             LPSettingsSlider {
@@ -4459,22 +4652,22 @@ Notable features are the following:\n\
                 visible: shell.settings.detoxModeBehavior === 1
                 enabled: !shell.settings.detoxModeEnabled
                 title: "To"
-                minimumValue: (shell.settings.detoxModeIntervalStart / 60000) + 0.03 // Add around 2 seconds so there's bit of an allowance
-                maximumValue: 15
-                stepSize: 0.5
-                resetValue: 10
+                minimumValue: (shell.settings.detoxModeIntervalStart / 1000) + 2 // Add around 2 seconds so there's bit of an allowance
+                maximumValue: 900
+                stepSize: 1
+                resetValue: 600
                 live: false
                 enableFineControls: true
                 roundValue: true
-                roundingDecimal: 2
-                onValueChanged: shell.settings.detoxModeIntervalEnd = value * 60000
+                roundingDecimal: 0
+                onValueChanged: shell.settings.detoxModeIntervalEnd = value * 1000
                 Binding {
                     target: detoxModeIntervalEnd
                     property: "value"
-                    value: shell.settings.detoxModeIntervalEnd / 60000
+                    value: shell.settings.detoxModeIntervalEnd / 1000
                 }
                 function formatDisplayValue(v) {
-                    return shell.msToTime(v * 60000)
+                    return shell.msToTime(v * 1000)
                 }
             }
 
@@ -8299,6 +8492,19 @@ Notable features are the following:\n\
                             value: shell.settings.useIndicatorSelectorForPanelBarWhenInverted
                         }
                     }
+                    LPSettingsCheckBox {
+                        id: indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(2)
+                        visible: shell.settings.useIndicatorSelectorForPanelBarWhenInverted
+                        text: "Select on highlight"
+                        onCheckedChanged: shell.settings.indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight = checked
+                        Binding {
+                            target: indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight
+                            property: "checked"
+                            value: shell.settings.indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight
+                        }
+                    }
                 }
             }
             Component {
@@ -9005,10 +9211,22 @@ Notable features are the following:\n\
                             value: lomiriSettings.forceEnableWorkspace
                         }
                     }
+                    LPSettingsSwitch {
+                        id: disableWorkspaceSwitcherUI
+                        Layout.fillWidth: true
+                        text: "Redesigned workspace switching behavior"
+                        onCheckedChanged: shell.settings.disableWorkspaceSwitcherUI = checked
+                        Binding {
+                            target: disableWorkspaceSwitcherUI
+                            property: "checked"
+                            value: shell.settings.disableWorkspaceSwitcherUI
+                        }
+                    }
                     LPSettingsCheckBox {
                         id: biggerWorkspaceSwitcherUI
                         Layout.fillWidth: true
                         text: "Bigger workpsace switcher UI"
+                        visible: !shell.settings.disableWorkspaceSwitcherUI
                         onCheckedChanged: shell.settings.biggerWorkspaceSwitcherUI = checked
                         Binding {
                             target: biggerWorkspaceSwitcherUI
@@ -9020,11 +9238,44 @@ Notable features are the following:\n\
                         id: delayedWorkspaceSwitcherUI
                         Layout.fillWidth: true
                         text: "Delay showing Workspace Switcher UI"
+                        visible: !shell.settings.disableWorkspaceSwitcherUI
                         onCheckedChanged: shell.settings.delayedWorkspaceSwitcherUI = checked
                         Binding {
                             target: delayedWorkspaceSwitcherUI
                             property: "checked"
                             value: shell.settings.delayedWorkspaceSwitcherUI
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: workspaceSwitcherViaScrollLauncher
+                        Layout.fillWidth: true
+                        text: "Switch between workpsace by scrolling over the Laucnher panel"
+                        onCheckedChanged: shell.settings.workspaceSwitcherViaScrollLauncher = checked
+                        Binding {
+                            target: workspaceSwitcherViaScrollLauncher
+                            property: "checked"
+                            value: shell.settings.workspaceSwitcherViaScrollLauncher
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Active only when the panel isn't scrollable"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
+                    LPSettingsCheckBox {
+                        id: workspaceSwitcherViaScrollTopBar
+                        Layout.fillWidth: true
+                        text: "Switch between workpsace by scrolling over the Top Bar"
+                        onCheckedChanged: shell.settings.workspaceSwitcherViaScrollTopBar = checked
+                        Binding {
+                            target: workspaceSwitcherViaScrollTopBar
+                            property: "checked"
+                            value: shell.settings.workspaceSwitcherViaScrollTopBar
                         }
                     }
                 }
@@ -9446,6 +9697,17 @@ Notable features are the following:\n\
                     target: placeFullAppGridToLast
                     property: "checked"
                     value: shell.settings.placeFullAppGridToLast
+                }
+            }
+            LPSettingsCheckBox {
+                id: appGridIndicatorSelectOnHighlight
+                Layout.fillWidth: true
+                text: "Select page on highlight"
+                onCheckedChanged: shell.settings.appGridIndicatorSelectOnHighlight = checked
+                Binding {
+                    target: appGridIndicatorSelectOnHighlight
+                    property: "checked"
+                    value: shell.settings.appGridIndicatorSelectOnHighlight
                 }
             }
             LPSettingsCheckBox {
@@ -12916,11 +13178,9 @@ Notable features are the following:\n\
         function reloadSource() {
             active = false
             active = true
-            active = Qt.binding(function() { return shell.settings.enableDynamicCove } )
             console.log("Media Player reloaded!!!!!!")
         }
 
-        active: shell.settings.enableDynamicCove
         asynchronous: true
         sourceComponent: Component {
             Item {
@@ -15463,10 +15723,10 @@ Notable features are the following:\n\
         readonly property bool doNotShow: notifications.thereIsNotificationButNotVolume || shell.showingGreeter
 
         readonly property int defaultDuration: 35000
-        readonly property int detoxModeDuration: 15000
+        readonly property int detoxModeDuration: shell.settings.detoxModeDuration
         //readonly property int detoxModeDuration: 3000 // For testing
         readonly property int defaultTo100Duration: 30000
-        readonly property int detoxModeTo100Duration: 13000
+        readonly property int detoxModeTo100Duration: shell.settings.detoxModeDuration >= 4000 ? shell.settings.detoxModeDuration - 2000 : 1000
 
         readonly property Timer delayShow: Timer {
             interval: 5000
@@ -15593,6 +15853,8 @@ Notable features are the following:\n\
                     return buruComponent
                 case 1: // Linux
                     return ttyComponent
+                case 3: // Horror
+                    return horrorComponent
                 case 2: // Combined
                 default:
                     return combinedComponent
@@ -15612,6 +15874,14 @@ Notable features are the following:\n\
             id: ttyComponent
 
             LPTTYPage {
+                dismissEnabled: buruIskunuru.dismissEnabled
+                onClose: buruIskunuru.hide()
+            }
+        }
+        Component {
+            id: horrorComponent
+
+            LPScarePage {
                 dismissEnabled: buruIskunuru.dismissEnabled
                 onClose: buruIskunuru.hide()
             }

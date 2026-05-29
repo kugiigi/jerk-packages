@@ -9,61 +9,40 @@ import "MediaPlayer" as MediaPlayer
 LPDynamicCoveItem {
     id: mediaPlayer
 
-    readonly property string allSongId: "dc-all"
+    readonly property var playlistPlayerObj: shell.playlistPlayer
+    readonly property string allSongId: playlistPlayerObj ? playlistPlayerObj.allSongId : ""
     readonly property var mediaPlayerObj: shell.mediaPlayer
-    readonly property bool playing: mediaPlayerObj && mediaPlayerObj.isPlaying
+    readonly property bool playing: playlistPlayerObj && playlistPlayerObj.playing
     readonly property bool controlIsHovered: playHoverHandler.hovered || clearHoverHandler.hovered
     readonly property bool aboutToTakeAction: (swipeArea.dragging && swipeArea.draggingCustom) || controlIsHovered
-    readonly property bool noMedia: mediaPlayerObj && mediaPlayerObj.noMedia
-    readonly property bool paused: mediaPlayerObj && mediaPlayerObj.isPaused
-    readonly property bool stopped: mediaPlayerObj && mediaPlayerObj.isStopped
-    readonly property bool noQueue: noMedia || stopped
-    readonly property string currentPlaylist: mediaPlayerObj ? mediaPlayerObj.currentPlaylist : ""
 
-    property bool playlistPending: false
-    property int pendingPlaylistTrackCount: -1
+    readonly property bool noMedia: playlistPlayerObj && playlistPlayerObj.noMedia
+    readonly property bool paused: playlistPlayerObj && playlistPlayerObj.paused
+    readonly property bool stopped: playlistPlayerObj && playlistPlayerObj.stopped
+    readonly property bool noQueue: playlistPlayerObj && playlistPlayerObj.noQueue
+    readonly property string currentPlaylist: mediaPlayerObj ? mediaPlayerObj.currentPlaylist : ""
 
     swipeAreaDirection: SwipeArea.Horizontal
     enableMouseArea: false
 
     function clearQueue() {
-        mediaPlayerObj.clear()
+        playlistPlayerObj.clearQueue()
     }
 
     function continuePlayback() {
-        mediaPlayerObj.play()
+        playlistPlayerObj.continuePlayback()
     }
 
-    function shuffle() {
-        let playlistId = playlists.currentItem.itemId
-        if (playlistId == allSongId) {
-            console.log("Shuffle all songs")
-            mediaPlayerObj.currentPlaylist = "All songs"
-            mediaPlayerObj.playRandomSong()
-        } else {
-            console.log("Shuffle " + playlistId)
-            playlistPending = true
-            pendingPlaylistTrackCount = playlists.currentItem.itemCount
-            mediaPlayerObj.currentPlaylist = playlistId
-            playlistTracksModel.filterPlaylistTracks(playlistId)
-        }
-
-        playFallbackTimer.restart()
+    function shuffle(_playlistId) {
+        playlistPlayerObj.shuffle(_playlistId)
     }
 
     function playPendingPlaylist() {
-        playlistPending = false
-        mediaPlayerObj.playRandomSong(playlistTracksModel)
+        playlistPlayerObj.playPendingPlaylist()
     }
 
-    function tryToPlay() {
-        if (!mediaPlayer.playing) {
-            if (mediaPlayer.paused) {
-                mediaPlayer.continuePlayback()
-            } else {
-                mediaPlayer.shuffle()
-            }
-        }
+    function tryToPlay(_playlistId) {
+        playlistPlayerObj.tryToPlay(_playlistId)
     }
 
     // Reload media player object when loaded and no playlist is on queue
@@ -85,25 +64,11 @@ LPDynamicCoveItem {
             if (target.goingNegative) {
                 mediaPlayer.clearQueue()
             } else if (target.goingPositive) {
-                mediaPlayer.tryToPlay()
+                mediaPlayer.tryToPlay(playlists.currentItem.itemId)
             }
         }
     }
 
-    // WORKAROUND: For playlist not playing immediately
-    Timer {
-        id: playFallbackTimer
-
-        running: false
-        interval: 500
-        onTriggered: {
-            if (!mediaPlayer.noQueue && !mediaPlayer.playing) {
-                console.log("Fallback play used")
-                mediaPlayer.continuePlayback()
-            }
-        }
-    }
-    
     // event eater
     // Nothing should leak to items behind the mouseArea
     MouseArea {
@@ -118,8 +83,6 @@ LPDynamicCoveItem {
 
         anchors.fill: parent
         visible: mediaPlayerObj.isReady
-        
-        Component.onCompleted: playlistsModel.filterPlaylists()
 
         Rectangle {
             id: bg
@@ -248,7 +211,7 @@ LPDynamicCoveItem {
 
                     visibleItemCount: 5
                     currentIndex: 0
-                    model: playlistsModel.model
+                    model: playlistPlayerObj ? playlistPlayerObj.playlistsModel.model : null
                     visible: mediaPlayer.noQueue && !mediaPlayer.controlIsHovered
                     delegate: QQC2.AbstractButton {
                         id: tumblerDelegate
@@ -296,28 +259,13 @@ LPDynamicCoveItem {
                         id: playTapHandler
                         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
                         //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
-                        onSingleTapped: mediaPlayer.tryToPlay()
+                        onSingleTapped: mediaPlayer.tryToPlay(playlists.currentItem.itemId)
                     }
 
                     HoverHandler {
                         id: playHoverHandler
                         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
                     }
-                }
-            }
-        }
-        
-        MediaPlayer.LPPlaylistsModel {
-            id: playlistsModel
-            syncFactor: 1
-        }
-        MediaPlayer.LPPlaylistsModel {
-            id: playlistTracksModel
-
-            onRowCountChanged: {
-                if (rowCount == mediaPlayer.pendingPlaylistTrackCount && mediaPlayer.playlistPending) {
-                    console.log("LoadComplete!!!! " + rowCount + " - " + mediaPlayer.pendingPlaylistTrackCount)
-                    mediaPlayer.playPendingPlaylist()
                 }
             }
         }

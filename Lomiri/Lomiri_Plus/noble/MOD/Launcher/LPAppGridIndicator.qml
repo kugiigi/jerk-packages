@@ -13,6 +13,8 @@ Item {
     readonly property real storedHeightBeforeSwipeSelectMode: internal.storedHeightBeforeSwipeSelectMode
     // WORKAROUND: !swipeHandler.pressed is a workaround for touch since it's still triggering hover when long pressing
     readonly property bool isHovered: bgHoverHandler.hovered && !swipeHandler.pressed
+
+    property bool highlightSelectMode: false // Select item immediately when highlighted/hovered
     property bool noExpandWithMouse: false
 
     property alias indicatorWidth: mainRowLayout.dotNormalWidth
@@ -100,6 +102,26 @@ Item {
         onHighlightedItemChanged: {
             if (highlightedItem) {
                 titleRec.show()
+
+                if (appGridIndicator.highlightSelectMode) {
+                    // Delay selection a bit to avoid extremely fast switching
+                    delayHighlightSelectTimer.startTimer(highlightedItem.itemIndex)
+                }
+            }
+        }
+        readonly property Timer delayHighlightSelectTimer: Timer {
+            property int selectedIndex: -1
+            interval: 50
+            
+            function startTimer(_index) {
+                selectedIndex = _index
+                restart()
+            }
+
+            onTriggered: {
+                if (internal.highlightedItem && internal.highlightedItem.itemIndex === selectedIndex) {
+                    appGridIndicator.newIndexSelected(internal.highlightedItem.itemIndex)
+                }
             }
         }
     }

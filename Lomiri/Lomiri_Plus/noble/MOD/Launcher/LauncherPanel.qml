@@ -868,6 +868,22 @@ Rectangle {
                         }
                     }
                 }
+
+                // ENH258 - Workspace switcher via scroll on Launcher
+                WheelHandler {
+                    enabled: shell.settings.workspaceSwitcherViaScrollLauncher && launcherListView.height >= launcherListView.contentHeight
+                    acceptedDevices: PointerDevice.Mouse
+                    acceptedButtons: Qt.NoButton
+
+                    onWheel: (event) => {
+                         if (event.angleDelta.y > 0) {
+                            shell.stage.switchToPreviousWorkspace();
+                         } else {
+                            shell.stage.switchToNextWorkspace();
+                         }
+                    }
+                }
+                // ENH258 - End
             }
 
             LauncherDelegate {
