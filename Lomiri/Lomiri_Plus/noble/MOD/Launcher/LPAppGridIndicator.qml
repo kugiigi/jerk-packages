@@ -3,6 +3,7 @@ import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.12
+import "../Components"
 
 Item {
     id: appGridIndicator
@@ -217,7 +218,7 @@ Item {
             right: mainRowLayout.left
             rightMargin: units.gu(1)
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: prevButton
 
             readonly property real iconWidth: units.gu(2)
@@ -236,7 +237,7 @@ Item {
             }
             onClicked: appGridIndicator.moveAppGridToLeft()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: deleteButton
 
             Layout.fillHeight: true
@@ -250,7 +251,7 @@ Item {
             }
             onClicked: appGridIndicator.deleteCurrentAppGrid()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: addAppsButton
 
             Layout.fillHeight: true
@@ -367,7 +368,7 @@ Item {
         Item {
             Layout.fillWidth: true
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: editButton
 
             Layout.fillHeight: true
@@ -380,7 +381,7 @@ Item {
             }
             onClicked: appGridIndicator.editCurrentAppGrid()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: addButton
 
             Layout.fillHeight: true
@@ -393,7 +394,7 @@ Item {
             }
             onClicked: appGridIndicator.addNewAppGrid()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: nextButton
 
             Layout.fillHeight: true

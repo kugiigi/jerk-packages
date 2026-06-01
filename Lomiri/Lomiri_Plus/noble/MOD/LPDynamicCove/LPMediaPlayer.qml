@@ -51,6 +51,11 @@ LPDynamicCoveItem {
         if (shell.mediaPlayerLoaderObj.active && (!mediaPlayerObj || mediaPlayer.noQueue)) {
             shell.mediaPlayerLoaderObj.reloadSource()
         }
+
+        // Reload playlist when loading
+        if (playlistPlayerObj) {
+            playlistPlayerObj.playlistsModel.filterPlaylists()
+        }
     }
 
     // Fixes some components not showing when rotating to landscape
@@ -218,12 +223,12 @@ LPDynamicCoveItem {
                         
                         property bool highlighted: Math.abs(QQC2.Tumbler.displacement) < 0.1
                         property string itemText: index == 0 ? model.name : "%1 (%2)".arg(model.name).arg(model.count)
-                        property string itemId: index == 0 ? mediaPlayer.allSongId : model.name
-                        property string itemCount: index == 0 ? -1 : model.count
+                        property string itemId: index == 0 ? mediaPlayer.allSongId : model && model.name ? model.name : ""
+                        property string itemCount: index == 0 ? -1 : model && model.count ? model.count : 0
                         
                         focusPolicy: Qt.NoFocus
                         opacity: 1 - ((1.6 * Math.abs(QQC2.Tumbler.displacement)) / (QQC2.Tumbler.tumbler.visibleItemCount - 1))
-                        width: parent.width
+                        width: parent ? parent.width : 0
                         // Needed otherwise height will be zero when only 1 item and you reload the component or switch dynamic cove item
                         height: playlists.availableHeight / playlists.visibleItemCount
                         hoverEnabled: false

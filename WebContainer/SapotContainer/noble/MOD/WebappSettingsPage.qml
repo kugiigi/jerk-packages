@@ -817,6 +817,24 @@ FocusScope {
                         value: settingsObject.hideBottomHint
                     }
                 }
+                ListItem {
+                    objectName: "bottomGestureAreaOverlapsWebView"
+
+                    ListItemLayout {
+                        title.text: i18n.tr("Gesture area overlaps webview")
+                        CheckBox {
+                            id: bottomGestureAreaOverlapsWebView
+                            SlotsLayout.position: SlotsLayout.Trailing
+                            onTriggered: settingsObject.bottomGestureAreaOverlapsWebView = checked
+                        }
+                    }
+
+                    Binding {
+                        target: bottomGestureAreaOverlapsWebView
+                        property: "checked"
+                        value: settingsObject.bottomGestureAreaOverlapsWebView
+                    }
+                }
 
                 ListItem {
                     objectName: "bottomGesturesAreaHeight"

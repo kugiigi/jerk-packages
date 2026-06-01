@@ -23,6 +23,7 @@ Item {
         , { "id": "openSearchInOverlay", "title": i18n.tr("Open search page"), "component": actionSearchInOverlay }
         , { "id": "toggleSiteVersion", "title": i18n.tr("Toggle site version"), "component": actionToggleSiteVersion }
         , { "id": "toggleReaderMode", "title": i18n.tr("Toggle Reader mode"), "component": actionToggleReaderMode }
+        , { "id": "contextMenu", "title": i18n.tr("Open Context menu"), "component": actionGeneralContextMenu }
         , { "id": "customUrl", "title": i18n.tr("Custom Url Action"), "component": actionCustomUrlAction }
     ]
 
@@ -235,6 +236,20 @@ Item {
         onTrigger: {
             if (webview) {
                 webview.toggleReaderMode()
+            }
+        }
+    }
+
+    Sapot.BaseAction {
+        id: actionGeneralContextMenu
+
+        enabled: webview ? true : false
+        iconName: "other-actions"
+        text: i18n.tr("Open context menu")
+
+        onTrigger: {
+            if (webview) {
+                webview.openGeneralContextMenu()
             }
         }
     }

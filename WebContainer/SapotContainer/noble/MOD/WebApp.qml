@@ -483,6 +483,7 @@ Common.BrowserView {
             right: parent.right
             top: parent.top
             bottom: findLoader.top
+            bottomMargin: findLoader.visible || webapp.settings.bottomGestureAreaOverlapsWebView ? 0 : bottomGestures.bottomAreaHeight
         }
 
         WebappContainerWebview {
@@ -888,12 +889,49 @@ Common.BrowserView {
         }
     }
 
+    // Bottom gesture area background
+    Rectangle {
+        id: bottomBackgroundRec
+
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: bottomGestures.bottomAreaHeight
+        color: theme.palette.normal.background
+        visible: !webapp.settings.bottomGestureAreaOverlapsWebView
+
+        // For dynamic bottom gesture area color but it doesn't work
+        /*
+        Connections {
+            target: webapp.currentWebview
+
+            function onLoadingChanged(loadRequest) {
+                if (loadRequest.status === WebEngineView.LoadSucceededStatus) {
+                    target.getCurrentWebviewBGColor();
+                } else {
+                    bottomBackgroundRec.color = Qt.binding( function() { return theme.palette.normal.background } );
+                }
+            }
+
+            function onPageBackgroundColorChanged() {
+                if (target.pageBackgroundColor) {
+                    bottomBackgroundRec.color = target.pageBackgroundColor;
+                }
+            }
+        }
+        */
+    }
+
     RowLayout {
         id: bottomGestures
 
         property real sideSwipeAreaWidth: webapp.currentWebview && !webapp.currentWebview.isFullScreen ?
                                                         webapp.width * (webapp.width > webapp.height ? 0.15 : 0.30)
                                                         : 0
+
+        readonly property alias bottomAreaHeight: bottomBackForwardHandle.height
 
         anchors {
             bottom: parent.bottom

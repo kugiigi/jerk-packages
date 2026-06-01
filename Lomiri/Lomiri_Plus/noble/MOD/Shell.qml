@@ -3543,11 +3543,9 @@ Notable features are the following:\n\
                         Layout.bottomMargin: units.dp(1)
                         RowLayout {
                             anchors.fill: parent
-                            QQC2.ToolButton {
+                            LPToolButton {
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: units.gu(4)
-                                icon.width: units.gu(2)
-                                icon.height: units.gu(2)
                                 action: QQC2.Action {
                                     icon.name:  stack.depth > 1 ? "back" : "close"
                                     shortcut: StandardKey.Cancel
@@ -5957,10 +5955,8 @@ Notable features are the following:\n\
                                 Layout.fillWidth: true
                                 text: i18n.tr("Current light value: %1").arg(currentValue)
                             }
-                            QQC2.ToolButton {
+                            LPToolButton {
                                 Layout.fillHeight: true
-                                icon.width: units.gu(2)
-                                icon.height: units.gu(2)
                                 action: QQC2.Action {
                                     icon.name:  "go-up"
                                     onTriggered: lightTextField.text = currentLightValueLabel.currentValue
@@ -7748,21 +7744,17 @@ Notable features are the following:\n\
                             text: AccountsService.realName
                             inputMethodHints: Qt.ImhNoPredictiveText
                         }
-                        QQC2.ToolButton {
+                        LPToolButton {
                             Layout.fillHeight: true
                             visible: deviceNameTextField.unsaved
-                            icon.width: units.gu(2)
-                            icon.height: units.gu(2)
                             action: QQC2.Action {
                                 icon.name:  "ok"
                                 onTriggered: AccountsService.realName = deviceNameTextField.validName
                             }
                         }
-                        QQC2.ToolButton {
+                        LPToolButton {
                             Layout.fillHeight: true
                             visible: deviceNameTextField.unsaved
-                            icon.width: units.gu(2)
-                            icon.height: units.gu(2)
                             action: QQC2.Action {
                                 icon.name:  "reset"
                                 onTriggered: deviceNameTextField.text = AccountsService.realName
@@ -8003,7 +7995,7 @@ Notable features are the following:\n\
 
                         TextField {
                             id: customTextField
-                            
+
                             readonly property string currentText: shell.settings.customInfographicsTexts[0]
                             readonly property string validName: text.trim()
                             readonly property bool unsaved: currentText !== validName
@@ -8012,11 +8004,9 @@ Notable features are the following:\n\
                             text: shell.settings.customInfographicsTexts[0]
                             inputMethodHints: Qt.ImhNoPredictiveText
                         }
-                        QQC2.ToolButton {
+                        LPToolButton {
                             Layout.fillHeight: true
                             visible: customTextField.unsaved
-                            icon.width: units.gu(2)
-                            icon.height: units.gu(2)
                             action: QQC2.Action {
                                 icon.name:  "ok"
                                 onTriggered: {
@@ -8026,11 +8016,9 @@ Notable features are the following:\n\
                                 }
                             }
                         }
-                        QQC2.ToolButton {
+                        LPToolButton {
                             Layout.fillHeight: true
                             visible: customTextField.unsaved
-                            icon.width: units.gu(2)
-                            icon.height: units.gu(2)
                             action: QQC2.Action {
                                 icon.name:  "reset"
                                 onTriggered: customTextField.text = customTextField.currentText

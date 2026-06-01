@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Controls 2.12 as QQC2
+import "Components"
 
 Rectangle {
     id: iconMenu
@@ -60,7 +61,7 @@ Rectangle {
         cellHeight: cellWidth
         snapMode: GridView.SnapToRow
 
-        delegate: QQC2.ToolButton {
+        delegate: LPToolButton {
             width: iconGridView.cellWidth
             height: width
             highlighted: iconGridView.currentIndex === index
