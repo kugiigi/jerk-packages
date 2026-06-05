@@ -46,6 +46,9 @@ Item {
     // ENH256 - Improve spread highlights
     property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
     // ENH256 - End
+    // ENH185 - Workspace spread UI fixes
+    property bool sideStageEnabled: false
+    // ENH185 - End
 
     Image {
         source: previewSpace.background
@@ -79,7 +82,7 @@ Item {
                 // ENH185 - Workspace spread UI fixes
                 readonly property int stage : WindowStateStorage.getStage(model.application.appId, ApplicationInfoInterface.MainStage)
                 readonly property bool isMainStage : !shell.isWindowedMode && stage == ApplicationInfoInterface.MainStage
-                readonly property bool isSideStage : !shell.isWindowedMode && stage == ApplicationInfoInterface.SideStage
+                readonly property bool isSideStage : !shell.isWindowedMode && stage == ApplicationInfoInterface.SideStage && previewSpace.sideStageEnabled
                 // ENH185 - End
                 width: {
                     // ENH185 - Workspace spread UI fixes

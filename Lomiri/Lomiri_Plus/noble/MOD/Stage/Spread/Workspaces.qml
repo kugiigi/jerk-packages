@@ -35,6 +35,9 @@ Item {
     property bool readOnly: true
     property var activeWorkspace: null
     property Item availableDesktopArea
+    // ENH185 - Workspace spread UI fixes
+    property bool sideStageEnabled: false
+    // ENH185 - End
 
     signal commitScreenSetup();
     signal closeSpread();
@@ -86,12 +89,19 @@ Item {
             var surface = drag.source.surface;
             drag.source.surface = null;
             var workspace = listView.model.get(listView.hoveredWorkspaceIndex);
-            WorkspaceManager.moveSurfaceToWorkspace(surface, workspace);
+            // ENH257 - Workspace redesign
+            // WorkspaceManager.moveSurfaceToWorkspace(surface, workspace);
+            // ENH257 - End
             drop.accept(Qt.MoveAction)
             if (listView.hoveredHalf == "right") {
                 root.closeSpread();
                 workspace.activate();
             }
+            // ENH257 - Workspace redesign
+            // Moved here to prevent an app that isn't the active in its workspace
+            // crash when dropped on the right side (move and go)
+            WorkspaceManager.moveSurfaceToWorkspace(surface, workspace);
+            // ENH257 - End
             surface.activate();
             listView.hoveredWorkspaceIndex = -1
         }
@@ -304,6 +314,9 @@ Item {
                     isActive: workspace.isSameAs(root.activeWorkspace)
                     isSelected: index === root.selectedIndex
                     workspace: model.workspace
+                    // ENH185 - Workspace spread UI fixes
+                    sideStageEnabled: root.sideStageEnabled
+                    // ENH185 - End
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -423,6 +436,9 @@ Item {
                     screenHeight: listView.screenSpaceHeight
                     launcherWidth: listView.launcherWidth
                     visible: Drag.active
+                    // ENH185 - Workspace spread UI fixes
+                    sideStageEnabled: root.sideStageEnabled
+                    // ENH185 - End
 
                     Drag.active: hoverMouseArea.drag.active
                     Drag.keys: ['workspace']

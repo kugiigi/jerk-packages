@@ -87,7 +87,42 @@ WebView {
     // Try to not flash white when in dark mode when loading a site
     backgroundColor: loadProgress < 50 ? theme.palette.normal.background : "white"
 
-    onZoomFactorChanged: zoomMenu.timedDisplay()
+    // For showing the menu when using Ctrl + mouse scroll
+    onZoomFactorChanged: {
+        // Prevent showing at startup or site loading
+        if (loadProgress > 80) {
+            zoomMenu.timedDisplay()
+        }
+    }
+
+    function openGeneralContextMenu() {
+        contextMenuObj = generalContextMenuComponent.createObject(webview)
+        contextMenuObj.show()
+    }
+
+    // For dynamic bottom gesture area color but it doesn't work
+    /*
+    property color pageBackgroundColor: null
+    function getCurrentWebviewBGColor() {
+        webview.runJavaScript(`
+            (function() {
+                // Get computed background color of <body> or :root/html
+                const body = document.body || document.documentElement;
+                const style = window.getComputedStyle(body);
+                return style.backgroundColor;  // Returns e.g. "rgb(255, 255, 255)" or "rgba(...)"
+            })()
+        `, function(result) {
+            if (result) {
+                console.log("Page background color:", result);
+                // You can store it in a QML property, convert to Qt color, etc.
+                pageBackgroundColor = result; // example
+            } else {
+                console.log("Could not retrieve background color");
+                pageBackgroundColor = null;
+            }
+        });
+    }
+    */
 
     QtObject {
         id: findController
@@ -944,7 +979,7 @@ WebView {
             }
             CustomizedMenuItem {
                 text: i18n.dtr('lomiri-ui-toolkit', "Select All")
-                enabled: contextMenuRequest.editFlags & ContextMenuRequest.CanSelectAll
+                enabled: contextMenuRequest ? contextMenuRequest.editFlags & ContextMenuRequest.CanSelectAll : true
                 onTriggered: {
                     // prevent creation of new context menu request
                     if (! domElementOfContextMenu.hasSelectMethod)
@@ -971,6 +1006,17 @@ WebView {
             }
             CustomizedMenuSeparator{}
 
+            CustomizedMenuItem {
+                text: i18n.tr("Find in page")
+                enabled: isWebApp && webview.url.toString() !== ""
+                onTriggered: {
+                    if (webapp.findInPageMode) {
+                        webapp.focusFindField()
+                    } else {
+                        webapp.findInPageMode = true
+                    }
+                }
+            }
             CustomizedMenuItem {
                 text: i18n.tr("Zoom settings")
                 enabled: ! domElementOfContextMenu.hasSelectMethod && ( contextMenuController.selectedTextLength === 0 || domElementOfContextMenu.isDocumentElement )

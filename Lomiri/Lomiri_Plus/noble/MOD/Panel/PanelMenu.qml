@@ -889,6 +889,7 @@ Showable {
         color: root.panelColor
         anchors.fill: handle
         visible: root.inverted
+        opacity: !shell.settings.enableTransparentExpandedTopBar || root.useCustomColorAndOpacity ? 1 : 0.85
     }
     // ENH054 - End
 
@@ -1072,6 +1073,7 @@ Showable {
             mouseHoverEnabled: true
             noExpandWithMouse: true
             swipeHandlerOutsideMargin: 0
+            highlightSelectMode: shell.settings.indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight
             model: bar.model
             currentIndex: bar.currentItemIndex
             indicatorWidth: units.gu(2)

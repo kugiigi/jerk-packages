@@ -62,12 +62,10 @@ Item {
                 RowLayout {
                     anchors.fill: parent
 
-                    QQC2.ToolButton {
+                    LPToolButton {
                         Layout.fillHeight: true
                         Layout.preferredWidth: units.gu(4)
 
-                        icon.width: units.gu(2)
-                        icon.height: units.gu(2)
                         action: QQC2.Action {
                             icon.name:  "close"
                             shortcut: StandardKey.Cancel

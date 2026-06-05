@@ -3,6 +3,7 @@ import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Controls 2.12 as QQC2
 import QtQuick.Layouts 1.12
+import "../Components"
 
 Item {
     id: appGridIndicator
@@ -13,6 +14,8 @@ Item {
     readonly property real storedHeightBeforeSwipeSelectMode: internal.storedHeightBeforeSwipeSelectMode
     // WORKAROUND: !swipeHandler.pressed is a workaround for touch since it's still triggering hover when long pressing
     readonly property bool isHovered: bgHoverHandler.hovered && !swipeHandler.pressed
+
+    property bool highlightSelectMode: false // Select item immediately when highlighted/hovered
     property bool noExpandWithMouse: false
 
     property alias indicatorWidth: mainRowLayout.dotNormalWidth
@@ -100,6 +103,26 @@ Item {
         onHighlightedItemChanged: {
             if (highlightedItem) {
                 titleRec.show()
+
+                if (appGridIndicator.highlightSelectMode) {
+                    // Delay selection a bit to avoid extremely fast switching
+                    delayHighlightSelectTimer.startTimer(highlightedItem.itemIndex)
+                }
+            }
+        }
+        readonly property Timer delayHighlightSelectTimer: Timer {
+            property int selectedIndex: -1
+            interval: 50
+            
+            function startTimer(_index) {
+                selectedIndex = _index
+                restart()
+            }
+
+            onTriggered: {
+                if (internal.highlightedItem && internal.highlightedItem.itemIndex === selectedIndex) {
+                    appGridIndicator.newIndexSelected(internal.highlightedItem.itemIndex)
+                }
             }
         }
     }
@@ -195,7 +218,7 @@ Item {
             right: mainRowLayout.left
             rightMargin: units.gu(1)
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: prevButton
 
             readonly property real iconWidth: units.gu(2)
@@ -214,7 +237,7 @@ Item {
             }
             onClicked: appGridIndicator.moveAppGridToLeft()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: deleteButton
 
             Layout.fillHeight: true
@@ -228,7 +251,7 @@ Item {
             }
             onClicked: appGridIndicator.deleteCurrentAppGrid()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: addAppsButton
 
             Layout.fillHeight: true
@@ -345,7 +368,7 @@ Item {
         Item {
             Layout.fillWidth: true
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: editButton
 
             Layout.fillHeight: true
@@ -358,7 +381,7 @@ Item {
             }
             onClicked: appGridIndicator.editCurrentAppGrid()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: addButton
 
             Layout.fillHeight: true
@@ -371,7 +394,7 @@ Item {
             }
             onClicked: appGridIndicator.addNewAppGrid()
         }
-        QQC2.ToolButton {
+        LPToolButton {
             id: nextButton
 
             Layout.fillHeight: true

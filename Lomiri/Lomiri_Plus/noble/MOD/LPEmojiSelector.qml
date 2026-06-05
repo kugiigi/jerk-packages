@@ -33,6 +33,12 @@ LPFloatingPopup {
         return _resultArr
     }
 
+    function addToRecent(_prop) {
+        const _tempArr = shell.settings.emojiSelectorRecentList.slice()
+        _tempArr.push(_prop)
+        shell.settings.emojiSelectorRecentList = _tempArr.slice()
+    }
+
     Component {
         id: headerComponent
 
@@ -94,24 +100,29 @@ LPFloatingPopup {
             sourceComponent: Button {
                 id: itemButton
 
-                 color: "transparent"
-                 scale: ListView.isCurrentItem ? 1.2 : 1
-                 onClicked: {
+                property var prop
+                color: "transparent"
+                scale: ListView.isCurrentItem ? 1.2 : 1
+                onClicked: {
                     const _mimeData = Clipboard.newData();
                     _mimeData.text = text;
                     Clipboard.push(_mimeData);
                     overlayRec.show(text)
-                 }
+                    root.addToRecent(prop)
+                }
 
-                 Label {
-                     anchors.centerIn: parent
-                     text: itemButton.text
-                     textSize: Label.XLarge
-                     color: theme.palette.normal.backgroundText
-                 }
+                Label {
+                    anchors.centerIn: parent
+                    text: itemButton.text
+                    textSize: Label.XLarge
+                    color: theme.palette.normal.backgroundText
+                }
             }
 
-            onLoaded: item.text = modelData.emoji
+            onLoaded: {
+                item.text = modelData.emoji
+                item.prop = modelData
+            }
         }
     }
 

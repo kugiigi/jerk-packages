@@ -321,6 +321,7 @@ Sapot.BrowserWindow {
          * ScrollPositionerItem.Position.Middle
         */
         property var internalDomainsAsExternal: []
+        property bool bottomGestureAreaOverlapsWebView: true
 
 
         Component.onCompleted: Sapot.Haptics.enabled = Qt.binding( function() { return enableHaptics } )
@@ -379,6 +380,7 @@ Sapot.BrowserWindow {
             enableFloatingScrollButtonAsPositioner = false;
             floatingScrollButtonVerticalMargin = 2;
             internalDomainsAsExternal = [];
+            bottomGestureAreaOverlapsWebView = true;
         }
 
         function restoreDefault_searchEngine() {

@@ -43,6 +43,19 @@ Item {
         return model.get(index);
     }
 
+    // finds a value from a specific role and return the index
+	function find(value, role) {
+		var i = 0
+
+		for (i = 0; i <= model.count - 1; i++) {
+			if (value == model.get(i)[role]) {
+				return i
+			}
+		}
+
+		return -1
+	}
+
     LPWorkerModelLoader {
         id: worker
         model: libraryListModelItem.model

@@ -97,53 +97,20 @@ FocusScope {
             fakeRectangle.visible ? fakeRectangle.commit() : _appDelegate.updateRestoredGeometry()
         }
     }
-    // TODO: Probably not needed anymore
-    /*
-    function fakeMaximizeAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximized) fakeRectangle.maximize(_amount, true)
-        }
-    }
-    function fakeMaximizeLeftAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximizedLeft) fakeRectangle.maximizeLeft(_amount, true)
-        }
-    }
-    function fakeMaximizeRightAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximizedRight) fakeRectangle.maximizeRight(_amount, true)
-        }
-    }
-    function fakeMaximizeTopLeftAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximizedTopLeft) fakeRectangle.maximizeTopLeft(_amount, true);
-        }
-    }
-    function fakeMaximizeTopRightAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximizedTopRight) fakeRectangle.maximizeTopRight(_amount, true);
-        }
-    }
-    function fakeMaximizeBottomLeftAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximizedBottomLeft) fakeRectangle.maximizeBottomLeft(_amount, true);
-        }
-    }
-    function fakeMaximizeBottomRightAnimationRequested(_appDelegate, _amount) {
-        if (_appDelegate) {
-            if (!_appDelegate.maximizedBottomRight) fakeRectangle.maximizeBottomRight(_amount, true);
-        }
-    }
-    function stopFakeAnimation() {
-        fakeRectangle.stop();
-    }
-    */
     // ENH243 - End
+    // ENH257 - Workspace redesign
+    property Item currentWorkspaceContainer: workspacesView.currentItem
+    property Repeater appRepeater: workspacesView.currentItem.appRepeater
+    property QtObject currentTopLevelSurfaceList: workspacesView.currentItem.windowModel
+    // ENH257 - End
 
     // Whether outside forces say that the Stage may have focus
     property bool allowInteractivity
 
-    readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity
+    // ENH135 - Show Desktop
+    // readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity
+    readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity && !desktopShown
+    // ENH135 - End
 
     // Configuration
     property string mode: "staged"
@@ -203,6 +170,8 @@ FocusScope {
 
     property int launcherLeftMargin : 0
     // ENH041 - Hide side-stage when main app go fullscreen
+    // ENH257 - Workspace redesign
+    /* Moved to workspaceContainer
     Connections {
         property bool sideStageTempHidden: false
         target: priv.focusedAppDelegate
@@ -222,6 +191,8 @@ FocusScope {
             }
         }
     }
+    */
+    // ENH257 - End
     // ENH041 - End
 
     // ENH185 - Workspace spread UI fixes
@@ -269,20 +240,32 @@ FocusScope {
     }
     function switchWorkspaceLeftMoveApp() {
         root.focus = true;
-        workspaceSwitcher.switchLeftMoveApp(false, focusedAppDelegate.surface)
+        workspaceSwitcher.showLeftMoveApp(priv.focusedAppDelegate, true, true)
     }
     function switchWorkspaceRightMoveApp() {
         root.focus = true;
-        workspaceSwitcher.switchRightMoveApp(false, focusedAppDelegate.surface)
+        workspaceSwitcher.showRightMoveApp(priv.focusedAppDelegate, true, true)
+    }
+    function switchToNextWorkspace() {
+        root.focus = true;
+        workspaceSwitcher.showRight(true, true);
+    }
+    function switchToPreviousWorkspace() {
+        root.focus = true;
+        workspaceSwitcher.showLeft(true, true);
     }
     // ENH154 - End
 
+    // ENH257 - Workspace redesign
+    /* Moved to each workspace container
     Binding {
         target: topLevelSurfaceList
         restoreMode: Binding.RestoreBinding
         property: "rootFocus"
         value: interactive
     }
+    */
+    // ENH257 - End
 
     onInteractiveChanged: {
         // Stage must have focus before activating windows, including null
@@ -451,11 +434,11 @@ FocusScope {
     GlobalShortcut {
         id: minimizeAllShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
-        onTriggered: priv.minimizeAllWindows()
         // ENH135 - Show Desktop
-        // active: root.state == "windowed"
-        active: false // Disable for now since minimize all is broken
+        // onTriggered: priv.minimizeAllWindows()
+        onTriggered: root.showDesktop()
         // ENH135 - End
+        active: root.state == "windowed"
     }
     // ENH135 - Show Desktop
     GlobalShortcut {
@@ -915,7 +898,14 @@ FocusScope {
         active: !workspaceSwitcher.active && root.workspaceEnabled
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showLeft()
+            // ENH259 - Option to disable workspace switcher UI
+            // workspaceSwitcher.showLeft()
+            if (shell.settings.disableWorkspaceSwitcherUI) {
+                workspaceSwitcher.showLeft(true, false);
+            } else {
+                workspaceSwitcher.showLeft(false, false);
+            }
+            // ENH259 - End
         }
     }
     GlobalShortcut {
@@ -924,7 +914,14 @@ FocusScope {
         active: !workspaceSwitcher.active && root.workspaceEnabled
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showRight()
+            // ENH259 - Option to disable workspace switcher UI
+            // workspaceSwitcher.showRight()
+            if (shell.settings.disableWorkspaceSwitcherUI) {
+                workspaceSwitcher.showRight(true, false);
+            } else {
+                workspaceSwitcher.showRight(false, false);
+            }
+            // ENH259 - End
         }
     }
     GlobalShortcut {
@@ -952,7 +949,17 @@ FocusScope {
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate.surface)
+            // ENH257 - Workspace redesign
+            // workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate.surface)
+            // ENH259 - Option to disable workspace switcher UI
+            //workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate)
+            if (shell.settings.disableWorkspaceSwitcherUI) {
+                workspaceSwitcher.showLeftMoveApp(priv.focusedAppDelegate, true, false);
+            } else {
+                workspaceSwitcher.showLeftMoveApp(priv.focusedAppDelegate, false, false);
+            }
+            // ENH259 - End
+            // ENH257 - End
         }
     }
     GlobalShortcut {
@@ -961,7 +968,17 @@ FocusScope {
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate.surface)
+            // ENH257 - Workspace redesign
+            // workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate.surface)
+            // ENH259 - Option to disable workspace switcher UI
+            //workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate)
+            if (shell.settings.disableWorkspaceSwitcherUI) {
+                workspaceSwitcher.showRightMoveApp(priv.focusedAppDelegate, true, false);
+            } else {
+                workspaceSwitcher.showRightMoveApp(priv.focusedAppDelegate, false, false);
+            }
+            // ENH259 - End
+            // ENH257 - End
         }
     }
     GlobalShortcut {
@@ -970,7 +987,10 @@ FocusScope {
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showUpMoveApp(root.focusedAppDelegate.surface)
+            // ENH257 - Workspace redesign
+            // workspaceSwitcher.showUpMoveApp(root.focusedAppDelegate.surface)
+            workspaceSwitcher.showUpMoveApp(priv.focusedAppDelegate)
+            // ENH257 - End
         }
     }
     GlobalShortcut {
@@ -979,7 +999,10 @@ FocusScope {
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showDownMoveApp(root.focusedAppDelegate.surface)
+            // ENH257 - Workspace redesign
+            // workspaceSwitcher.showDownMoveApp(root.focusedAppDelegate.surface)
+            workspaceSwitcher.showDownMoveApp(priv.focusedAppDelegate)
+            // ENH257 - End
         }
     }
 
@@ -995,8 +1018,12 @@ FocusScope {
             }
         }
 
-        property var focusedAppDelegate: null
-        property var foregroundMaximizedAppDelegate: null // for stuff like drop shadow and focusing maximized app by clicking panel
+        // ENH257 - Workspace redesign
+        // property var focusedAppDelegate: null
+        // property var foregroundMaximizedAppDelegate: null // for stuff like drop shadow and focusing maximized app by clicking panel
+        readonly property var focusedAppDelegate: workspacesView.currentItem.focusedAppDelegate
+        readonly property var foregroundMaximizedAppDelegate: workspacesView.currentItem.foregroundMaximizedAppDelegate // for stuff like drop shadow and focusing maximized app by clicking panel
+        // ENH257 - End
 
         // ENH252 - Disable mouse hover while Alt tabbing
         property bool altTabInProgress: false
@@ -1006,6 +1033,8 @@ FocusScope {
         property int closingIndex: -1
         property int animationDuration: LomiriAnimation.FastDuration
 
+        // ENH257 - Workspace redesign
+        /*
         function updateForegroundMaximizedApp() {
             var found = false;
             for (var i = 0; i < appRepeater.count && !found; i++) {
@@ -1019,25 +1048,35 @@ FocusScope {
                 foregroundMaximizedAppDelegate = null;
             }
         }
+        */
+        // ENH257 - End
 
         function minimizeAllWindows() {
+            // ENH257 - Workspace redesign
+            /*
             for (var i = appRepeater.count - 1; i >= 0; i--) {
                 var appDelegate = appRepeater.itemAt(i);
                 if (appDelegate && !appDelegate.minimized) {
                     appDelegate.requestMinimize();
                 }
-            }
+            }*/
+            workspacesView.currentItem.minimizeAllWindows()
+            // ENH257 - End
         }
 
         readonly property bool sideStageEnabled: root.mode === "stagedWithSideStage" &&
                                                  (root.shellOrientation == Qt.LandscapeOrientation ||
                                                  root.shellOrientation == Qt.InvertedLandscapeOrientation)
+        // ENH257 - Workspace redesign
+        /* Moved to each workspace container
         onSideStageEnabledChanged: {
             for (var i = 0; i < appRepeater.count; i++) {
                 appRepeater.itemAt(i).refreshStage();
             }
             priv.updateMainAndSideStageIndexes();
         }
+        */
+        // ENH257 - End
 
         // ENH135 - Show Desktop
         onGoneToSpreadChanged: {
@@ -1050,12 +1089,20 @@ FocusScope {
         }
         // ENH135 - End
 
-        property var mainStageDelegate: null
-        property var sideStageDelegate: null
-        property int mainStageItemId: 0
-        property int sideStageItemId: 0
-        property string mainStageAppId: ""
-        property string sideStageAppId: ""
+        // ENH257 - Workspace redesign
+        // property var mainStageDelegate: null
+        // property var sideStageDelegate: null
+        // property int mainStageItemId: 0
+        // property int sideStageItemId: 0
+        // property string mainStageAppId: ""
+        // property string sideStageAppId: ""
+        readonly property var mainStageDelegate: workspacesView.currentItem.mainStageDelegate
+        readonly property var sideStageDelegate: workspacesView.currentItem.sideStageDelegate
+        readonly property int mainStageItemId: workspacesView.currentItem.mainStageItemId
+        readonly property int sideStageItemId: workspacesView.currentItem.sideStageItemId
+        readonly property string mainStageAppId: workspacesView.currentItem.mainStageAppId
+        readonly property string sideStageAppId: workspacesView.currentItem.sideStageAppId
+        // ENH257 - End
 
         onSideStageDelegateChanged: {
             if (!sideStageDelegate) {
@@ -1074,6 +1121,8 @@ FocusScope {
         // ENH015 - End
 
         function updateMainAndSideStageIndexes() {
+            // ENH257 - Workspace redesign
+            /*
             if (root.mode != "stagedWithSideStage") {
                 priv.sideStageDelegate = null;
                 priv.sideStageItemId = 0;
@@ -1121,8 +1170,13 @@ FocusScope {
                 priv.sideStageItemId = 0;
                 priv.sideStageAppId = "";
             }
+            */
+            workspacesView.currentItem.updateMainAndSideStageIndexes()
+            // ENH257 - End
         }
 
+        // ENH257 - Workspace redesign
+        /*
         property int nextInStack: {
             var mainStageIndex = priv.mainStageDelegate ? priv.mainStageDelegate.itemIndex : -1;
             var sideStageIndex = priv.sideStageDelegate ? priv.sideStageDelegate.itemIndex : -1;
@@ -1137,6 +1191,9 @@ FocusScope {
             }
             return -1;
         }
+        */
+        property int nextInStack: workspacesView.currentItem.nextInStack
+        // ENH257 - End
 
         readonly property real virtualKeyboardHeight: root.inputMethodRect.height
 
@@ -1317,6 +1374,8 @@ FocusScope {
                 // ENH178 - End
                 function onFocusRequested() {
                     // ENH162 - Automatically switch to workspace when app gets focused
+                    // ENH257 - Workspace redesign
+                    /* Moved to window's onFocusRequested
                     if (root.workspaceEnabled) {
                         let _screensCount = screensAndWorkspaces.screensProxy.count
                         _screenLoop:
@@ -1337,6 +1396,8 @@ FocusScope {
                             }
                         }
                     }
+                    */
+                    // ENH257 - End
                     // ENH162 - End
                     // Application emits focusRequested when it has no surface (i.e. their processes died).
                     // Find the topmost window for this application and activate it, after which the app
@@ -1361,6 +1422,9 @@ FocusScope {
             name: "spread"; when: priv.goneToSpread
             PropertyChanges { target: floatingFlickable; enabled: true }
             PropertyChanges { target: root; focus: true }
+            // ENH257 - Workspace redesign
+            PropertyChanges { target: workspacesView; focus: false }
+            // ENH257 - End
             PropertyChanges { target: spreadItem; focus: true }
             PropertyChanges { target: hoverMouseArea; enabled: true }
             PropertyChanges { target: rightEdgeDragArea; enabled: false }
@@ -1412,6 +1476,9 @@ FocusScope {
             name: "staged"; when: root.mode === "staged"
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
+            // ENH257 - Workspace redesign
+            PropertyChanges { target: workspacesView; focus: true }
+            // ENH257 - End
         },
         State {
             name: "stagedWithSideStage"; when: root.mode === "stagedWithSideStage"
@@ -1422,11 +1489,17 @@ FocusScope {
             PropertyChanges { target: sideStage; visible: true }
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
+            // ENH257 - Workspace redesign
+            PropertyChanges { target: workspacesView; focus: true }
+            // ENH257 - End
         },
         State {
             name: "windowed"; when: root.mode === "windowed"
             PropertyChanges { target: root; focus: true }
             PropertyChanges { target: appContainer; focus: true }
+            // ENH257 - Workspace redesign
+            PropertyChanges { target: workspacesView; focus: true }
+            // ENH257 - End
         }
     ]
     transitions: [
@@ -1900,6 +1973,9 @@ FocusScope {
             enabled: workspaceEnabled
             mode: root.mode
             availableDesktopArea: root.availableDesktopArea
+            // ENH185 - Workspace spread UI fixes
+            sideStageEnabled: priv.sideStageEnabled
+            // ENH185 - End
             onCloseSpread: priv.goneToSpread = false;
             // Clicking a workspace should put it front and center
             onActiveWorkspaceChanged: activeWorkspace.activate()
@@ -1935,7 +2011,12 @@ FocusScope {
                 top: workspaceEnabled ? screensAndWorkspaces.bottom : parent.top;
             }
             leftMargin: root.availableDesktopArea.x
+            // ENH257 - Workspace redesign
+            // Fixes extra movement in Spread when you "drop and go" an app
+            // then you open the Spread
+            // model: root.topLevelSurfaceList
             model: root.topLevelSurfaceList
+            // ENH257 - End
             spreadFlickable: floatingFlickable
             z: root.topLevelSurfaceList.count
 
@@ -2095,10 +2176,14 @@ FocusScope {
             color: "#FFFFFF"
         }
 
+        // ENH257 - Workspace redesign
+        /* Moved to workspaceContainer
         Connections {
             target: root.topLevelSurfaceList
             function onListChanged() { priv.updateMainAndSideStageIndexes() }
         }
+        */
+        // ENH257 - End
 
 
         DropArea {
@@ -2136,6 +2221,9 @@ FocusScope {
             visible: false
             showHint: !priv.sideStageDelegate
             Behavior on opacity { LomiriNumberAnimation {} }
+            // ENH257 - Workspace redesign
+            parent: root.currentWorkspaceContainer
+            /*
             z: {
                 if (!priv.mainStageItemId) return 0;
 
@@ -2161,6 +2249,33 @@ FocusScope {
 
                 return 1;
             }
+            */
+            z: {
+                if (!priv.mainStageItemId) return -1;
+
+                if (priv.sideStageItemId && priv.nextInStack > 0) {
+
+                    // Due the order in which bindings are evaluated, this might be triggered while shuffling
+                    // the list and index doesn't yet match with itemIndex (even though itemIndex: index)
+                    // Let's walk the list and compare itemIndex to make sure we have the correct one.
+                    var nextDelegateInStack = -1;
+                    for (var i = 0; i < appRepeater.count; i++) {
+                        if (appRepeater.itemAt(i).itemIndex == priv.nextInStack) {
+                            nextDelegateInStack = appRepeater.itemAt(i);
+                            break;
+                        }
+                    }
+
+                    if (nextDelegateInStack.stage ===  ApplicationInfoInterface.MainStage) {
+                        // if the next app in stack is a main stage app, put the sidestage on top of it.
+                        return 1;
+                    }
+                    return 0;
+                }
+
+                return 0;
+            }
+            // ENH257 - End
 
             onShownChanged: {
                 if (!shown && priv.mainStageDelegate && !root.spreadShown) {
@@ -2245,21 +2360,228 @@ FocusScope {
             }
         }
         // ENH135 - End
+        // ENH155 - End
+        // ENH257 - Workspace redesign
+        ListView {
+            id: workspacesView
+            objectName: "workspacesView"
+            anchors.fill: parent
+            focus: true
+            model: WMScreen.workspaces
+            cacheBuffer: count * width * 2
+            orientation: ListView.Horizontal
+            snapMode: ListView.SnapOneItem
+            interactive: false
+            highlightMoveDuration: LomiriAnimation.FastDuration
+            highlightMoveVelocity: -1
+            highlightResizeDuration: 0
+            highlightResizeVelocity: -1
+
+            // Check if highlight animation is running since 'moving' doesn't apply to non-user movements
+            property bool highlightAnimationIsRunning: highlightAnimationTimer.running
+
+            Timer {
+                id: highlightAnimationTimer
+                interval: workspacesView.highlightMoveDuration
+            }
+            onCurrentIndexChanged: highlightAnimationTimer.restart()
+
+            delegate: FocusScope {
+                id: workspaceContainer
+                objectName: "workspaceContainer"
+                focus: true
+
+                // Do not hide other workspaces while the switching animation is still running
+                visible: isActive || ListView.view.moving || workspacesView.highlightAnimationIsRunning
+                anchors {
+                    top: parent.top
+                    bottom: parent.bottom
+                }
+                width: ListView.view.width
+
+                property var workspace: modelData
+                property int workspaceIndex: index
+                property var windowModel: workspace.windowModel
+                property bool isActive: workspace.active
+                property alias appRepeater: appRepeater
+
+                property var focusedAppDelegate: null
+                property var foregroundMaximizedAppDelegate: null
+
+                function updateForegroundMaximizedApp() {
+                    var found = false;
+                    for (var i = 0; i < appRepeater.count && !found; i++) {
+                        var item = appRepeater.itemAt(i);
+                        if (item && item.visuallyMaximized) {
+                            foregroundMaximizedAppDelegate = item;
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        foregroundMaximizedAppDelegate = null;
+                    }
+                }
+
+                function minimizeAllWindows() {
+                    for (var i = appRepeater.count - 1; i >= 0; i--) {
+                        var appDelegate = appRepeater.itemAt(i);
+                        if (appDelegate && !appDelegate.minimized) {
+                            appDelegate.requestMinimize();
+                        }
+                    }
+                }
+
+                property var mainStageDelegate: null
+                property var sideStageDelegate: null
+                property int mainStageItemId: 0
+                property int sideStageItemId: 0
+                property string mainStageAppId: ""
+                property string sideStageAppId: ""
+
+                onSideStageDelegateChanged: {
+                    if (!sideStageDelegate) {
+                        sideStage.hide();
+                    }
+                }
+
+                function updateMainAndSideStageIndexes() {
+                    if (root.mode != "stagedWithSideStage") {
+                        workspaceContainer.sideStageDelegate = null;
+                        workspaceContainer.sideStageItemId = 0;
+                        workspaceContainer.sideStageAppId = "";
+                        workspaceContainer.mainStageDelegate = appRepeater.itemAt(0);
+                        workspaceContainer.mainStageItemId = workspaceContainer.windowModel.idAt(0);
+                        workspaceContainer.mainStageAppId = workspaceContainer.windowModel.applicationAt(0) ? workspaceContainer.windowModel.applicationAt(0).appId : ""
+                        return;
+                    }
+
+                    var choseMainStage = false;
+                    var choseSideStage = false;
+
+                    if (!workspaceContainer.windowModel)
+                        return;
+
+                    for (var i = 0; i < appRepeater.count && (!choseMainStage || !choseSideStage); ++i) {
+                        var appDelegate = appRepeater.itemAt(i);
+                        if (!appDelegate) {
+                            // This might happen during startup phase... If the delegate appears and claims focus
+                            // things are updated and appRepeater.itemAt(x) still returns null while appRepeater.count >= x
+                            // Lets just skip it, on startup it will be generated at a later point too...
+                            continue;
+                        }
+                        if (sideStage.shown && appDelegate.stage == ApplicationInfoInterface.SideStage
+                                && !choseSideStage) {
+                            workspaceContainer.sideStageDelegate = appDelegate
+                            workspaceContainer.sideStageItemId = workspaceContainer.windowModel.idAt(i);
+                            workspaceContainer.sideStageAppId = workspaceContainer.windowModel.applicationAt(i).appId;
+                            choseSideStage = true;
+                        } else if (!choseMainStage && appDelegate.stage == ApplicationInfoInterface.MainStage) {
+                            workspaceContainer.mainStageDelegate = appDelegate;
+                            workspaceContainer.mainStageItemId = workspaceContainer.windowModel.idAt(i);
+                            workspaceContainer.mainStageAppId = workspaceContainer.windowModel.applicationAt(i).appId;
+                            choseMainStage = true;
+                        }
+                    }
+                    if (!choseMainStage && workspaceContainer.mainStageDelegate) {
+                        workspaceContainer.mainStageDelegate = null;
+                        workspaceContainer.mainStageItemId = 0;
+                        workspaceContainer.mainStageAppId = "";
+                    }
+                    if (!choseSideStage && workspaceContainer.sideStageDelegate) {
+                        workspaceContainer.sideStageDelegate = null;
+                        workspaceContainer.sideStageItemId = 0;
+                        workspaceContainer.sideStageAppId = "";
+                    }
+                }
+
+                property int nextInStack: {
+                    var mainStageIndex = workspaceContainer.mainStageDelegate ? workspaceContainer.mainStageDelegate.itemIndex : -1;
+                    var sideStageIndex = workspaceContainer.sideStageDelegate ? workspaceContainer.sideStageDelegate.itemIndex : -1;
+                    if (sideStageIndex == -1) {
+                        return workspaceContainer.windowModel.count > 1 ? 1 : -1;
+                    }
+                    if (mainStageIndex == 0 || sideStageIndex == 0) {
+                        if (mainStageIndex == 1 || sideStageIndex == 1) {
+                            return workspaceContainer.windowModel.count > 2 ? 2 : -1;
+                        }
+                        return 1;
+                    }
+                    return -1;
+                }
+
+                Binding {
+                    target: workspaceContainer.windowModel
+                    restoreMode: Binding.RestoreBinding
+                    property: "rootFocus"
+                    value: root.interactive && workspaceContainer.isActive
+                }
+
+                onIsActiveChanged: {
+                    if (isActive) {
+                        workspacesView.currentIndex = index;
+
+                        // Update stages when we change active workspace
+                        // Without this, selecting the first app on another workspace won't focus on that app and shows a blank workspace instead
+                        workspaceContainer.updateMainAndSideStageIndexes();
+                    }
+                }
+
+                Connections {
+                    target: workspaceContainer.windowModel
+                    function onListChanged() { workspaceContainer.updateMainAndSideStageIndexes() }
+                }
+
+                Connections {
+                    property bool sideStageTempHidden: false
+                    target: workspaceContainer.focusedAppDelegate
+                    function onFullscreenChanged() {
+                        if (target.stage == ApplicationInfoInterface.MainStage) {
+                            if (target.fullscreen && sideStage.shown) {
+                                sideStage.hide()
+                                sideStageTempHidden = true
+                            } else {
+                                if (sideStageTempHidden && !sideStage.shown
+                                        && priv.sideStageEnabled) {
+                                    sideStage.show()
+                                    workspaceContainer.updateMainAndSideStageIndexes()
+                                }
+                                sideStageTempHidden = false
+                            }
+                        }
+                    }
+                }
+
+                Connections {
+                    target: priv
+                    function onSideStageEnabledChanged() {
+                        for (var i = 0; i < appRepeater.count; i++) {
+                            appRepeater.itemAt(i).refreshStage();
+                        }
+                        workspaceContainer.updateMainAndSideStageIndexes();
+                    }
+                }
+        // ENH257 - End
         // ENH155 - Wobbly Windows
         Repeater {
             id: wobblyRepeater
-            model: topLevelSurfaceList
+            // ENH257 - Workspace redesign
+            //model: topLevelSurfaceList
+            model: workspaceContainer.windowModel
+            // ENH257 - End
             delegate: LPWobblyWindow {
                 active: shell.settings.enableWobblyWindows && root.mode === "windowed"
                 appItem: appRepeater.itemAt(index)
-                z: appItem.z + 1
+                z: appItem ? appItem.z + 1 : 0
                 anchors.fill: appItem
             }
         }
-        // ENH155 - End
+
         Repeater {
             id: appRepeater
-            model: topLevelSurfaceList
+            // ENH257 - Workspace redesign
+            // model: topLevelSurfaceList
+            model: workspaceContainer.windowModel
+            // ENH257 - End
             objectName: "appRepeater"
 
             function indexOf(delegateItem) {
@@ -2277,17 +2599,47 @@ FocusScope {
                 property int itemIndex: index // We need this from outside the repeater
                 // z might be overriden in some cases by effects, but we need z ordering
                 // to calculate occlusion detection
-                property int normalZ: topLevelSurfaceList.count - index
+                // ENH257 - Workspace redesign
+                // property int normalZ: topLevelSurfaceList.count - index
+                property int normalZ: workspaceContainer.windowModel.count - index
+                // ENH257 - End
                 onNormalZChanged: {
                     if (visuallyMaximized) {
-                        priv.updateForegroundMaximizedApp();
+                        // ENH257 - Workspace redesign
+                        // priv.updateForegroundMaximizedApp();
+                        workspaceContainer.updateForegroundMaximizedApp();
+                        // ENH257 - End
                     }
                 }
                 z: normalZ
                 // ENH135 - Show Desktop
                 enabled: !appContainer.showDesktop
                 // opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : 1
-                opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : appContainer.appDelegateOpacity
+                // ENH257 - Workspace redesign
+                //opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : appContainer.appDelegateOpacity
+                // Changed the sequence otherwise, sometimes it won't reevaluated even when the drag starts
+                // opacity: fakeDragItem.surface == model.window.surface && fakeDragItem.Drag.active ? 0 : 1
+                readonly property bool dragActiveInSpread: fakeDragItem.Drag.active && fakeDragItem.surface === model.window.surface
+                //opacity: dragActiveInSpread ? 0 : appContainer.appDelegateOpacity
+                opacity: dragActiveInSpread || isMoving ? 0 : appContainer.appDelegateOpacity
+
+                onDragActiveInSpreadChanged: {
+                    // Save window state when it is about to be moved to another workspace
+                    // Otherwise, we hit timing issue when it is being destroyed in current workspace
+                    // and being created in the new
+                    if (dragActiveInSpread) {
+                        appDelegate.saveWindowState();
+                    }
+                }
+
+                property bool isMoving: workspaceSwitcher.active && workspaceSwitcher.currentSurface === this.surface
+                onIsMovingChanged: {
+                    if (isMoving) {
+                        const rect = Qt.rect(appDelegate.x, appDelegate.y, appDelegate.width, appDelegate.height)
+                        movingWindowParent.showFakeWindow(appDelegate, rect);
+                    }
+                }
+                // ENH257 - End
                 // ENH135 - End
                 Behavior on opacity { LomiriNumberAnimation {} }
 
@@ -2463,7 +2815,10 @@ FocusScope {
                 function saveStage(newStage) {
                     appDelegate.stage = newStage;
                     WindowStateStorage.saveStage(appId, newStage);
-                    priv.updateMainAndSideStageIndexes()
+                    // ENH257 - Workspace redesign
+                    // priv.updateMainAndSideStageIndexes()
+                    workspaceContainer.updateMainAndSideStageIndexes();
+                    // ENH257 - End
                 }
 
                 readonly property var surface: model.window.surface
@@ -2516,7 +2871,10 @@ FocusScope {
                             model.window.activate();
                         } else {
                             // Otherwise, cause a respawn of the app, and trigger it's refocusing as the last window
-                            topLevelSurfaceList.raiseId(model.window.id);
+                            // ENH257 - Workspace redesign
+                            // topLevelSurfaceList.raiseId(model.window.id);
+                            workspaceContainer.windowModel.raiseId(model.window.id);
+                            // ENH257 - End
                         }
                     }
                     // ENH135 - Show Desktop
@@ -2547,19 +2905,30 @@ FocusScope {
                     if (root.state == "spread") {
                         spreadItem.highlightedIndex = index
                         // force pendingActivation so that when switching to staged mode, topLevelSurfaceList focus won't got to previous app ( case when apps are launched from outside )
-                        topLevelSurfaceList.pendingActivation();
+                        // ENH257 - Workspace redesign
+                        // topLevelSurfaceList.pendingActivation();
+                        workspaceContainer.windowModel.pendingActivation();
+
                         // ENH159 - Spread workaround in Ubuntu desktop
                         // priv.goneToSpread = false;
-                        if (!shell.settings.enableSpreadTouchFix) {
+                        //if (!shell.settings.enableSpreadTouchFix) {
+                        // Do not close the spread if the requesting window isn't in the active workspace
+                        // Stops closing spread when dragging an app to another workspace without directly activating it
+                        const inCurrentWorkspace = workspaceContainer.isActive;
+                        if (!shell.settings.enableSpreadTouchFix && inCurrentWorkspace) {
                             priv.goneToSpread = false;
                         }
+                        // ENH257 - End
                         // ENH159 - End
                     }
                     if (root.mode == "stagedWithSideStage") {
                         if (appDelegate.stage == ApplicationInfoInterface.SideStage && !sideStage.shown) {
                             sideStage.show();
                         }
-                        priv.updateMainAndSideStageIndexes();
+                        // ENH257 - Workspace redesign
+                        // priv.updateMainAndSideStageIndexes();
+                        workspaceContainer.updateMainAndSideStageIndexes();
+                        // ENH257 - End
                     }
                     appDelegate.focus = true;
                     // ENH019 - Side stage floating mode
@@ -2570,8 +2939,12 @@ FocusScope {
 
                     // Don't set focusedAppDelegate (and signal mainAppChanged) unnecessarily
                     // which can happen after getting interactive again.
-                    if (priv.focusedAppDelegate !== appDelegate)
-                        priv.focusedAppDelegate = appDelegate;
+                    // ENH257 - Workspace redesign
+                    // if (priv.focusedAppDelegate !== appDelegate)
+                    //     priv.focusedAppDelegate = appDelegate;
+                    if (workspaceContainer.focusedAppDelegate !== appDelegate)
+                        workspaceContainer.focusedAppDelegate = appDelegate;
+                    // ENH257 - End
                 }
 
                 function updateQmlFocusFromMirSurfaceFocus() {
@@ -2581,6 +2954,11 @@ FocusScope {
                     }
                 }
 
+                // ENH257 - Workspace redesign
+                function saveWindowState() {
+                    windowStateSaver.save();
+                }
+                // ENH257 - End
                 WindowStateSaver {
                     id: windowStateSaver
                     target: appDelegate
@@ -2599,6 +2977,12 @@ FocusScope {
                         }
                     }
                     function onFocusRequested() {
+                        // ENH257 - Workspace redesign
+                        // Switch to the workspace if the requesting window isn't the current one
+                        if (!workspaceContainer.isActive) {
+                            workspaceContainer.workspace.activate();
+                        }
+                        // ENH257 - End
                         appDelegate.activate();
                     }
                     function onStateChanged(value) {
@@ -2716,8 +3100,12 @@ FocusScope {
                     }
 
                     // First, cascade the newly created window, relative to the currently/old focused window.
-                    windowedX = priv.focusedAppDelegate ? priv.focusedAppDelegate.windowedX + units.gu(3) : (normalZ - 1) * units.gu(3)
-                    windowedY = priv.focusedAppDelegate ? priv.focusedAppDelegate.windowedY + units.gu(3) : normalZ * units.gu(3)
+                    // ENH257 - Workspace redesign
+                    // windowedX = priv.focusedAppDelegate ? priv.focusedAppDelegate.windowedX + units.gu(3) : (normalZ - 1) * units.gu(3)
+                    // windowedY = priv.focusedAppDelegate ? priv.focusedAppDelegate.windowedY + units.gu(3) : normalZ * units.gu(3)
+                    windowedX = workspaceContainer.focusedAppDelegate ? workspaceContainer.focusedAppDelegate.windowedX + units.gu(3) : (normalZ - 1) * units.gu(3)
+                    windowedY = workspaceContainer.focusedAppDelegate ? workspaceContainer.focusedAppDelegate.windowedY + units.gu(3) : normalZ * units.gu(3)
+                    // ENH257 - End
                     // Now load any saved state. This needs to happen *after* the cascading!
                     windowStateSaver.load();
 
@@ -2730,6 +3118,11 @@ FocusScope {
 
                     refreshStage();
                     _constructing = false;
+                    // ENH257 - Workspace redesign
+                    if (movingWindowParent.active) {
+                        movingWindowParent.delayedHideFakeWindow()
+                    }
+                    // ENH257 - End
                 }
                 Component.onDestruction: {
                     windowStateSaver.save();
@@ -2740,16 +3133,25 @@ FocusScope {
                     }
 
                     if (visuallyMaximized) {
-                        priv.updateForegroundMaximizedApp();
+                        // ENH257 - Workspace redesign
+                        // priv.updateForegroundMaximizedApp();
+                        workspaceContainer.updateForegroundMaximizedApp();
+                        // ENH257 - End
                     }
                 }
 
-                onVisuallyMaximizedChanged: priv.updateForegroundMaximizedApp()
+                // ENH257 - Workspace redesign
+                // onVisuallyMaximizedChanged: priv.updateForegroundMaximizedApp()
+                onVisuallyMaximizedChanged: workspaceContainer.updateForegroundMaximizedApp()
+                // ENH257 - End
 
                 property bool _constructing: true;
                 onStageChanged: {
                     if (!_constructing) {
-                        priv.updateMainAndSideStageIndexes();
+                        // ENH257 - Workspace redesign
+                        // priv.updateMainAndSideStageIndexes();
+                        workspaceContainer.updateMainAndSideStageIndexes();
+                        // ENH257 - End
                     }
                 }
                 // ENH135 - Show Desktop
@@ -2758,7 +3160,10 @@ FocusScope {
                 // ENH135 - End
                           !visuallyMinimized
                           && !greeter.fullyShown
-                          && (priv.foregroundMaximizedAppDelegate === null || priv.foregroundMaximizedAppDelegate.normalZ <= z)
+                          // ENH257 - Workspace redesign
+                          // && (priv.foregroundMaximizedAppDelegate === null || priv.foregroundMaximizedAppDelegate.normalZ <= z)
+                          && (workspaceContainer.foregroundMaximizedAppDelegate === null || workspaceContainer.foregroundMaximizedAppDelegate.normalZ <= z)
+                          // ENH257 - End
                          )
                          || appDelegate.fullscreen
                          || focusAnimation.running || rightEdgeFocusAnimation.running || hidingAnimation.running
@@ -2865,8 +3270,12 @@ FocusScope {
                     to: 1
                     duration: LomiriAnimation.SnapDuration
                     onStarted: {
-                        topLevelSurfaceList.pendingActivation();
-                        topLevelSurfaceList.raiseId(model.window.id);
+                        // ENH257 - Workspace redesign
+                        // topLevelSurfaceList.pendingActivation();
+                        // topLevelSurfaceList.raiseId(model.window.id);
+                        workspaceContainer.windowModel.pendingActivation();
+                        workspaceContainer.windowModel.raiseId(model.window.id);
+                        // ENH257 - End
                     }
                     onStopped: {
                         appDelegate.activate();
@@ -2879,7 +3288,10 @@ FocusScope {
                     LomiriNumberAnimation { target: decoratedWindow; properties: "angle"; to: 0; duration: priv.animationDuration }
                     LomiriNumberAnimation { target: decoratedWindow; properties: "itemScale"; to: 1; duration: priv.animationDuration }
                     onStarted: {
-                        topLevelSurfaceList.pendingActivation();
+                        // ENH257 - Workspace redesign
+                        // topLevelSurfaceList.pendingActivation();
+                        workspaceContainer.windowModel.pendingActivation();
+                        // ENH257 - End
                         inhibitSlideAnimation = true;
                     }
                     onStopped: {
@@ -2891,7 +3303,10 @@ FocusScope {
                     LomiriNumberAnimation { target: appDelegate; property: "opacity"; to: 0; duration: priv.animationDuration }
                     // ENH135 - Show Desktop
                     // onStopped: appDelegate.opacity = 1
-                    onStopped: appDelegate.opacity = Qt.binding( function() { return appContainer.appDelegateOpacity } )
+                    // ENH257 - Workspace redesign
+                    //onStopped: appDelegate.opacity = Qt.binding( function() { return appContainer.appDelegateOpacity } )
+                    onStopped: appDelegate.opacity = Qt.binding( function() { return appDelegate.dragActiveInSpread || appDelegate.isMoving ? 0 : appContainer.appDelegateOpacity } )
+                    // ENH257 - End
                     // ENH135 - End
                 }
 
@@ -2910,8 +3325,12 @@ FocusScope {
                     // ENH239 - End
                     stage: appDelegate.stage
                     thisDelegate: appDelegate
-                    mainStageDelegate: priv.mainStageDelegate
-                    sideStageDelegate: priv.sideStageDelegate
+                    // ENH257 - Workspace redesign
+                    // mainStageDelegate: priv.mainStageDelegate
+                    // sideStageDelegate: priv.sideStageDelegate
+                    mainStageDelegate: workspaceContainer.mainStageDelegate
+                    sideStageDelegate: workspaceContainer.sideStageDelegate
+                    // ENH257 - End
                     sideStageWidth: sideStage.panelWidth
                     sideStageHandleWidth: sideStage.handleWidth
                     sideStageX: sideStage.x
@@ -2919,7 +3338,10 @@ FocusScope {
                     sideStageFloating: sideStage.floating
                     // ENH019 - End
                     itemIndex: appDelegate.itemIndex
-                    nextInStack: priv.nextInStack
+                    // ENH257 - Workspace redesign
+                    // nextInStack: priv.nextInStack
+                    nextInStack: workspaceContainer.nextInStack
+                    // ENH257 - End
                     animationDuration: priv.animationDuration
                 }
 
@@ -2927,12 +3349,19 @@ FocusScope {
                     id: stagedRightEdgeMaths
                     sceneWidth: root.availableDesktopArea.width
                     sceneHeight: appContainer.height
-                    isMainStageApp: priv.mainStageDelegate == appDelegate
-                    isSideStageApp: priv.sideStageDelegate == appDelegate
+                    // ENH257 - Workspace redesign
+                    // isMainStageApp: priv.mainStageDelegate == appDelegate
+                    // isSideStageApp: priv.sideStageDelegate == appDelegate
+                    isMainStageApp: workspaceContainer.mainStageDelegate == appDelegate
+                    isSideStageApp: workspaceContainer.sideStageDelegate == appDelegate
+                    // ENH257 - End
                     sideStageWidth: sideStage.width
                     sideStageOpen: sideStage.shown
                     itemIndex: index
-                    nextInStack: priv.nextInStack
+                    // ENH257 - Workspace redesign
+                    // nextInStack: priv.nextInStack
+                    nextInStack: workspaceContainer.nextInStack
+                    // ENH257 - End
                     progress: 0
                     targetHeight: spreadItem.stackHeight
                     targetX: spreadMaths.targetX
@@ -3198,7 +3627,10 @@ FocusScope {
                         }
                         PropertyChanges { target: touchControls; enabled: true }
                         PropertyChanges { target: resizeArea; enabled: true }
-                        PropertyChanges { target: decoratedWindow; shadowOpacity: .3; windowControlButtonsVisible: true}
+                        // ENH257 - Workspace redesign
+                        // PropertyChanges { target: decoratedWindow; shadowOpacity: .3; windowControlButtonsVisible: true}
+                        PropertyChanges { target: decoratedWindow; shadowOpacity: movingWindowParent.active ? 0 : .3; windowControlButtonsVisible: true}
+                        // ENH257 - End
                         PropertyChanges {
                             target: appDelegate
                             requestedWidth: windowedWidth
@@ -3533,6 +3965,9 @@ FocusScope {
                     active: model.window.focused
                     focus: true
                     interactive: root.interactive
+                    // ENH257 - Workspace redesign
+                    opacity: appDelegate.isMoving ? 0 : 1
+                    // ENH257 - End
                     // ENH253 - Keyboard + Mouse shortcut for resizing windows
                     target: appDelegate
                     // ENH253 - End
@@ -3798,6 +4233,85 @@ FocusScope {
                 }
             }
         }
+        // ENH257 - Workspace redesign
+            }
+        }
+        Item {
+            id: movingWindowParent
+
+            property bool active: currentSurface !== null
+            property var sourceWorkspace: null
+            property alias currentSurface: fakeSurface.surface
+            anchors.fill: parent
+            focus: false
+
+            function showFakeWindow(appDelegate, rect) {
+                sourceWorkspace = root.currentWorkspaceContainer.workspace
+                fakeWindow.showDecoration = root.mode === "windowed" && !appDelegate.fullscreen // && !appDelegate.anyMaximized;
+                fakeSurface.surface = appDelegate.surface
+                fakeWindow.x = rect.x
+                fakeWindow.y = rect.y
+                fakeWindow.width = rect.width
+            }
+
+            function delayedHideFakeWindow() {
+                delayFakeWindowHide.restart();
+            }
+
+            function hideFakeWindow() {
+                fakeSurface.surface = null;
+                sourceWorkspace = null;
+            }
+
+            Timer {
+                id: delayFakeWindowHide
+                interval: 200
+                onTriggered: movingWindowParent.hideFakeWindow()
+            }
+            
+            BorderImage {
+                id: fakeShadow
+
+                visible: fakeWindow.visible
+                anchors {
+                    left: fakeWindow.left; top: fakeWindow.top; right: fakeWindow.right
+                    margins: -units.gu(2)
+                }
+                height: fakeSurface.height + fakeWindow.height + units.gu(4)
+                source: "../graphics/dropshadow2gu.sci"
+                opacity: 0.3
+            }
+
+            WindowDecoration {
+                id: fakeWindow
+
+                property bool showDecoration: false
+
+                active: false
+                focus: false
+                height: priv.windowDecorationHeight
+                title: fakeSurface.surface ? fakeSurface.surface.name : ""
+                // ENH180 - Match window titlebar with app
+                visible: fakeSurface.visible && showDecoration
+                blurSource: fakeSurface
+                blurUpdates: true
+                // ENH180 - End
+            }
+
+            MirSurfaceItem {
+                id: fakeSurface
+
+                x: fakeWindow.x
+                y: fakeWindow.visible ? fakeWindow.y + priv.windowDecorationHeight : fakeWindow.y
+                width: implicitWidth
+                height: implicitHeight
+                surfaceWidth: -1
+                surfaceHeight: -1
+                visible: surface != null
+                smooth: true
+            }
+        }
+        // ENH257 - End
     }
 
     FakeMaximizeDelegate {
@@ -3817,7 +4331,10 @@ FocusScope {
     Loader {
         id: workspaceSwitcherDim
 
-        readonly property bool shouldShow: workspaceSwitcher.opacity === 1
+        // ENH259 - Option to disable workspace switcher UI
+        //readonly property bool shouldShow: workspaceSwitcher.opacity === 1
+        readonly property bool shouldShow: workspaceSwitcher.state !== "indicator" && workspaceSwitcher.opacity === 1
+        // ENH259 - End
         readonly property Timer delayTimer: Timer {
             running: false
             interval: 1000
@@ -3875,6 +4392,9 @@ FocusScope {
     WorkspaceSwitcher {
         id: workspaceSwitcher
         enabled: workspaceEnabled
+        // ENH185 - Workspace spread UI fixes
+        sideStageEnabled: priv.sideStageEnabled
+        // ENH185 - End
         // ENH154 - Workspace switcher gesture
         // anchors.centerIn: parent
         // height: units.gu(20)
@@ -3883,11 +4403,46 @@ FocusScope {
             verticalCenter: parent.verticalCenter
             left: parent.left
             right: parent.right
-            leftMargin: root.availableDesktopArea.x + units.gu(4)
+            // ENH257 - Workspace redesign
+            // leftMargin: root.availableDesktopArea.x + units.gu(4)
+            leftMargin: state === "indicator" ? units.gu(4) : root.availableDesktopArea.x + units.gu(4)
+            // ENH257 - End
             rightMargin: units.gu(4)
         }
+        // ENH259 - Option to disable workspace switcher UI
+        hideScreenUI: false
+        scale: hideScreenUI ? 0.5 : 1
+        states: [
+            State {
+                name: "switcher"
+                AnchorChanges {
+                    target: workspaceSwitcher
+                    anchors {
+                        verticalCenter: parent.verticalCenter
+                        top: undefined
+                    }
+                }
+            }
+           ,  State {
+                name: "indicator"
+                when: shell.settings.disableWorkspaceSwitcherUI
+                AnchorChanges {
+                    target: workspaceSwitcher
+                    anchors {
+                        verticalCenter: undefined
+                        top: parent.top
+                    }
+                }
+                PropertyChanges {
+                    target: workspaceSwitcher
+                    hideScreenUI: true
+                }
+            }
+        ]
+        // ENH259 - End
 
-        height: units.gu(35)
+        biggerUI: shell.settings.biggerWorkspaceSwitcherUI
+        height: biggerUI ? units.gu(35) : units.gu(20)
         // ENH154 - End
         background: root.background
         availableDesktopArea: root.availableDesktopArea
@@ -3897,6 +4452,17 @@ FocusScope {
         onActiveChanged: {
             if (!active) {
                 appContainer.focus = true;
+                // ENH257 - Workspace redesign
+                // Immediately hide if we went back to the starting workspace
+                if (movingWindowParent.active && WMScreen.currentWorkspace.isSameAs(movingWindowParent.sourceWorkspace)) {
+                    movingWindowParent.hideFakeWindow()
+                }
+                // ENH257 - End
+            // ENH260 - Fix switching back to current workspace
+            // Fix issue where current app doesn't regain focus when switching back to current workspace
+            } else {
+                appContainer.focus = false;
+            // ENH260 - End
             }
         }
     }
@@ -4104,7 +4670,10 @@ FocusScope {
         onPressed: {
             function matchDelegate(obj) { return String(obj.objectName).indexOf("appDelegate") >= 0; }
 
-            var delegateAtCenter = Functions.itemAt(appContainer, x, y, matchDelegate);
+            // ENH257 - Workspace redesign
+            // var delegateAtCenter = Functions.itemAt(appContainer, x, y, matchDelegate);
+            var delegateAtCenter = Functions.itemAt(root.currentWorkspaceContainer, x, y, matchDelegate);
+            // ENH257 - End
             if (!delegateAtCenter) return;
 
             appDelegate = delegateAtCenter;
@@ -4201,7 +4770,12 @@ FocusScope {
         }
         blurRadius: enableBlur ? defaultRadius : 0
         height: root.height - root.availableDesktopArea.height
-        visible: !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
+        visible: sourceItem !== null && !greeter.shown && (enableBlur || shell.settings.enableTopPanelMatchAppTopColor)
+                    && !( (shell.settings.enableTransparentTopBarInGreeter && shell.showingGreeter)
+                            || (shell.settings.enableTransparentTopBarOnDesktop && shell.desktopShown)
+                            || (shell.settings.transparentTopBarOnSpread
+                                    && (root.spreadShown || root.rightEdgeDragProgress > 0 || root.rightEdgePushProgress > 0))
+                        )
         sourceItem: {
             if (enableBlur) {
                 // When drawer or indicator panel is open and we use wallpaper as blur source

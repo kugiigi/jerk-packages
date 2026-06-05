@@ -12,6 +12,8 @@ Item {
     readonly property bool isHovered: bgHoverHandler.hovered && !swipeHandler.pressed
 
     readonly property real oneRowHeight: mainRowLayout.dotNormalWidth + mainRowLayout.padding * 2
+
+    property bool highlightSelectMode: false // Select item immediately when highlighted/hovered
     property bool noExpandWithMouse: false
 
     property alias swipeEnabled: swipeHandler.enabled
@@ -97,6 +99,26 @@ Item {
         onHighlightedItemChanged: {
             if (highlightedItem) {
                 titleRec.show()
+
+                if (pageIndicatorSelector.highlightSelectMode) {
+                    // Delay selection a bit to avoid extremely fast switching
+                    delayHighlightSelectTimer.startTimer(highlightedItem.itemIndex)
+                }
+            }
+        }
+        readonly property Timer delayHighlightSelectTimer: Timer {
+            property int selectedIndex: -1
+            interval: 50
+            
+            function startTimer(_index) {
+                selectedIndex = _index
+                restart()
+            }
+
+            onTriggered: {
+                if (internal.highlightedItem && internal.highlightedItem.itemIndex === selectedIndex) {
+                    pageIndicatorSelector.newIndexSelected(internal.highlightedItem.itemIndex)
+                }
             }
         }
     }

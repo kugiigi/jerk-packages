@@ -73,6 +73,7 @@ FocusScope {
         id: containerWebView
         anchors {
             bottom: findLoader.top
+            bottomMargin: findLoader.visible || webapp.settings.bottomGestureAreaOverlapsWebView ? 0 : bottomGestures.bottomAreaHeight
             left: parent.left
             right: parent.right
             top: menubar.bottom
@@ -302,12 +303,44 @@ FocusScope {
         }
     }
 
+    // Bottom gesture area background
+    Rectangle {
+        id: bottomBackgroundRec
+
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: bottomGestures.bottomAreaHeight
+        color: theme.palette.normal.background
+        visible: !webapp.settings.bottomGestureAreaOverlapsWebView
+
+        Connections {
+            target: webapp.currentWebview
+
+            function  onLoadingChanged(loadRequest) {
+                if (loadRequest.status === WebEngineView.LoadSucceededStatus) {
+                    const _newColor = target.getCurrentWebviewBGColor();
+                    if (_newColor) {
+                        console.log(_newColor + " - " + Qt.rgba(_newColor))
+                        bottomBackgroundRec.color = _newColor;
+                    }
+                } else {
+                    bottomBackgroundRec.color = Qt.binding( function() { return theme.palette.normal.background } );
+                }
+            }
+        }
+    }
+
     RowLayout {
         id: bottomGestures
 
         property real sideSwipeAreaWidth: popup.currentWebview && !popup.currentWebview.isFullScreen ?
                                                         popup.width * (popup.width > popup.height ? 0.15 : 0.30)
                                                         : 0
+
+        readonly property alias bottomAreaHeight: bottomBackForwardHandle.height
 
         anchors {
             bottom: parent.bottom

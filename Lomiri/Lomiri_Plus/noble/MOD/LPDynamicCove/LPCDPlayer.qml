@@ -224,7 +224,7 @@ LPDynamicCoveItem {
             sourceSize: Qt.size(width, height)
             anchors {
                 fill: parent
-                margins: units.gu(1)
+                margins: units.gu(0.5)
             }
 
             layer.enabled: rounded
@@ -320,8 +320,9 @@ LPDynamicCoveItem {
         Rectangle {
             readonly property color _normalColor: theme.palette.normal.background
             anchors.fill: parent
+            anchors.margins: img.anchors.margins
             radius: width / 2
-            opacity: 0.5
+            opacity: 0.5 * overlayLayout.opacity
             color: mouseArea.pressed ? _normalColor.hslLightness > 0.1 ? Qt.darker(_normalColor, 1.2)
                                                                              : Qt.lighter(_normalColor, 3.0)
                                            : _normalColor
@@ -331,6 +332,15 @@ LPDynamicCoveItem {
                   duration: LomiriAnimation.SnapDuration
                 }
             }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: "transparent"
+            opacity: 0.3
+            border.color: "silver"
+            border.width: img.anchors.margins
         }
     }
     

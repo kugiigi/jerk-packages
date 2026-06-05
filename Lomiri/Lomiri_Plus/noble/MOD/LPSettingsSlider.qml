@@ -3,6 +3,7 @@ import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12 as QQC2
+import "Components"
 
 ColumnLayout {
     id: sliderItem
@@ -60,12 +61,10 @@ ColumnLayout {
     }
 
     RowLayout {
-        QQC2.ToolButton {
+        LPToolButton {
             Layout.fillHeight: true
             visible: sliderItem.enableFineControls && !sliderItem.locked
             enabled: slider.value > slider.minimumValue && !sliderItem.locked
-            icon.width: units.gu(2)
-            icon.height: units.gu(2)
             action: QQC2.Action {
                 icon.name:  "go-previous"
                 onTriggered: {
@@ -98,12 +97,10 @@ ColumnLayout {
                 }
             }
         }
-        QQC2.ToolButton {
+        LPToolButton {
             Layout.fillHeight: true
             visible: sliderItem.enableFineControls && !sliderItem.locked
             enabled: slider.value < slider.maximumValue && !sliderItem.locked
-            icon.width: units.gu(2)
-            icon.height: units.gu(2)
             action: QQC2.Action {
                 icon.name:  "go-next"
                 onTriggered: {
@@ -116,10 +113,8 @@ ColumnLayout {
                 }
             }
         }
-        QQC2.ToolButton {
+        LPToolButton {
             Layout.fillHeight: true
-            icon.width: units.gu(2)
-            icon.height: units.gu(2)
             visible: sliderItem.resetValue > -1 && !sliderItem.locked
             enabled: sliderItem.resetValue !== slider.value && !sliderItem.locked
             action: QQC2.Action {
@@ -127,10 +122,8 @@ ColumnLayout {
                 onTriggered: slider.value = sliderItem.resetValue
             }
         }
-        QQC2.ToolButton {
+        LPToolButton {
             Layout.fillHeight: true
-            icon.width: units.gu(2)
-            icon.height: units.gu(2)
             visible: !sliderItem.alwaysUnlocked
             action: QQC2.Action {
                 icon.name:  sliderItem.locked ? "lock-broken" : "lock"

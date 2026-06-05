@@ -176,7 +176,12 @@ Showable {
                 show();
                 d.startUnlock(false /* toTheRight */);
             }
-        } else {
+        // ENH257 - Workspace redesign
+        // } else {
+        // Let's not dismiss the cover page if there's no focused app
+        // Fixes the issue where cover page gets dismissed immediately at Lomiri's startup
+        } else if (appId !== "") {
+        // ENH257 - End
             d.startUnlock(false /* toTheRight */);
         }
     }

@@ -511,7 +511,7 @@ FocusScope {
                     name: "Inverted"
                     AnchorChanges {
                         target: searchFieldContainer
-                        anchors.bottom: keyboard.target.visible ? keyboardRec.top : parent.bottom
+                        anchors.bottom: keyboard.target.visible && !root.enableCustomSearch ? keyboardRec.top : parent.bottom
                         anchors.top: undefined
                     }
                     AnchorChanges {

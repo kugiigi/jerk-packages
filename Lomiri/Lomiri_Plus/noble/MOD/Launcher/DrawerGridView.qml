@@ -1193,6 +1193,8 @@ FocusScope {
 
         readonly property bool editMode: currentItem && currentItem.editMode ? true : false
 
+        // Make switching faster
+        Component.onCompleted: contentItem.highlightMoveDuration = LomiriAnimation.SnapDuration
         currentIndex: 0
         interactive: !currentItem.appDragIsActive
         anchors {
@@ -1350,6 +1352,7 @@ FocusScope {
             indicatorWidth: units.gu(2)
             indicatorExpandedWidth: units.gu(shell.settings.appGridIndicatorExpandedSize)
             noExpandWithMouse: shell.settings.appGridIndicatorDoNotExpandWithMouse
+            highlightSelectMode: shell.settings.appGridIndicatorSelectOnHighlight
             mouseHoverEnabled: root.mouseHoverOfSelectorIndicatorEnabled
             onNewIndexSelected: root.showAppGrid(newIndex)
             onAddNewAppGrid: root.addNewAppGrid()
