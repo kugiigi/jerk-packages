@@ -61,8 +61,37 @@ Item {
     }
 
     Loader {
+        id: symbolKeypadLoader
+        anchors.fill: parent
+        asynchronous: false
+        // ENH214 - Emoji mode
+        // visible: panel.state !== "CHARACTERS"
+        visible: panel.state === "SYMBOLS"
+        // ENH214 - End
+        source: internal.symbolKeypadSource
+        // ENH231 - Fix caps lock when 2nd layer symbols
+        // onLoaded: internal.afterKeypadLoaded(symbolKeypadLoader)
+        onVisibleChanged: internal.afterKeypadLoaded(symbolKeypadLoader)
+        // ENH231 - End
+    }
+    // ENH214 - Emoji mode
+    Loader {
+        id: emojiLoader
+        anchors.fill: parent
+        asynchronous: false
+        visible: panel.state === "EMOJI"
+        source: internal.emojiKeypadSource
+        // ENH231 - Fix caps lock when 2nd layer symbols
+        //onLoaded: internal.afterKeypadLoaded(emojiLoader)
+        onVisibleChanged: internal.afterKeypadLoaded(emojiLoader)
+        // ENH231 - End
+    }
+    // ENH214 - End
+
+    Loader {
         id: characterKeypadLoader
         objectName: "characterKeyPadLoader"
+
         // ENH081 - Number row
         // anchors.fill: parent
         anchors {
@@ -71,35 +100,21 @@ Item {
         }
         // ENH081 - End
         asynchronous: false
-        // ENH214 - Emoji mode
-        // source: panel.state === "CHARACTERS" ? internal.characterKeypadSource : internal.symbolKeypadSource
-        source: {
-            switch (panel.state) {
-                case "CHARACTERS":
-                    return internal.characterKeypadSource
-                case "EMOJI":
-                    return internal.emojiKeypadSource
-                default: 
-                    return internal.symbolKeypadSource
-            }
-        }
-        // ENH214 - End
-        onLoaded: {
-            if (delayedAutoCaps) {
-                activeKeypadState = "SHIFTED";
-                delayedAutoCaps = false;
-            } else {
-                activeKeypadState = "NORMAL";
-            }
-        }
+        visible: panel.state === "CHARACTERS"
+        source: internal.characterKeypadSource
+        // ENH231 - Fix caps lock when 2nd layer symbols
+        // onLoaded: internal.afterKeypadLoaded(characterKeypadLoader)
+        onVisibleChanged: internal.afterKeypadLoaded(characterKeypadLoader)
+        // ENH231 - End
     }
 
     // ENH081 - Number row
     Row {
         id: numberRow
 
-        visible: fullScreenItem.settings.showNumberRow && !panel.forceHideNumberRow
-                    && keypad.state == "CHARACTERS"
+        readonly property bool numberRowEnabled: fullScreenItem.settings.showNumberRow && !panel.forceHideNumberRow
+        visible: numberRowEnabled
+                    && panel.state === "CHARACTERS"
                     && maliit_input_method.activeLanguage !== "emoji"
                     && maliit_input_method.activeLanguage !== "ja"
                     && canvas.layoutId !== "number"
@@ -107,6 +122,20 @@ Item {
                     // ENH125 - Flick layout
                     && !panel.flickIsEnabled
                     // ENH125 - End
+        onNumberRowEnabledChanged: {
+            // Not sure why this needs to be delayed
+            delayNumberRowCalculate.restart()
+        }
+        Timer {
+            id: delayNumberRowCalculate
+            interval: 1
+            onTriggered: {
+                if (symbolKeypadLoader.item) {
+                    symbolKeypadLoader.item.calculateKeyWidth();
+                    symbolKeypadLoader.item.calculateKeyHeight();
+                }
+            }
+        }
         anchors {
             top: parent.top
             horizontalCenter: parent.horizontalCenter
@@ -220,6 +249,18 @@ Item {
             // FreeTextContentType used as fallback
             canvas.layoutId = "freetext";
             return maliit_input_method.currentPluginPath + "/Keyboard_" + language + ".qml";
+        }
+
+        function afterKeypadLoaded(keypad) {
+            if (!keypad.visible) {
+                return;
+            }
+            if (panel.delayedAutoCaps) {
+                panel.activeKeypadState = "SHIFTED";
+                panel.delayedAutoCaps = false;
+            } else {
+                panel.activeKeypadState = "NORMAL";
+            }
         }
     }
 }

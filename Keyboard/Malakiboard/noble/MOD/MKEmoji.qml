@@ -19,13 +19,24 @@ import QtQuick 2.4
 import QtQuick.LocalStorage 2.0
 import keys 1.0
 import "mkemoji.js" as Emoji
-import QtQuick.Layouts 1.12
 
 KeyPad {
     anchors.fill: parent
 
     content: c1
     symbols: "languages/Keyboard_symbols.qml"
+
+    onVisibleChanged: {
+        // Let's not bind keyHeight and keyWidth so that
+        // key size do not change every layout switch
+        // which causes the scroll position to change
+        // when switching from a layout with different
+        // row numbers as this layout
+        if (visible) {
+            internal.keyHeight = panel.keyHeight;
+            internal.keyWidth = panel.keyWidth;
+        }
+    }
 
     QtObject {
         id: internal
@@ -36,6 +47,9 @@ KeyPad {
         property var recentEmoji: []
         property var chars
         property var db
+
+        property real keyHeight: panel.keyHeight
+        property real keyWidth: panel.keyWidth
 
         Component.onCompleted: {
             db = LocalStorage.openDatabaseSync("Emoji", "1.0", "Storage for emoji keyboard layout", 1000000);
@@ -152,8 +166,8 @@ KeyPad {
         flickDeceleration: units.gu(500)
         snapMode: GridView.SnapToRow
         clip: true
-        cellWidth: fullScreenItem.keyboardLandscape ? panel.keyWidth * 0.7 : panel.keyWidth
-        cellHeight: keypad.keyHeight
+        cellWidth: fullScreenItem.keyboardLandscape ? internal.keyWidth * 0.7 : internal.keyWidth
+        cellHeight: internal.keyHeight
         cacheBuffer: units.gu(30)
         onContentXChanged: {
             magnifier.shown = false;
@@ -208,14 +222,14 @@ KeyPad {
 
      }
 
-     RowLayout {
+     Row {
         id: categories
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: panel.keyHeight
+        height: internal.keyHeight
 
-        spacing: fullScreenItem.tablet ? panel.keyWidth / 5 : 0
+        spacing: fullScreenItem.tablet ? internal.keyWidth / 5 : 0
 
         SymbolShiftKey {
             id: symShiftKey
@@ -226,7 +240,7 @@ KeyPad {
 
             // From LanguageKey to fix the layout
             padding: 0
-            width: panel.keyWidth
+            width: internal.keyWidth
         }
 
         MKEmojiCategoryKey {

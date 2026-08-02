@@ -44,19 +44,22 @@ Item {
     }
 
     Loader {
+        id: symbolKeypadLoader
+        anchors.fill: parent
+        asynchronous: false
+        visible: panel.state !== "CHARACTERS"
+        source: internal.symbolKeypadSource
+        onLoaded: internal.afterKeypadLoaded(symbolKeypadLoader)
+    }
+
+    Loader {
         id: characterKeypadLoader
         objectName: "characterKeyPadLoader"
         anchors.fill: parent
         asynchronous: false
-        source: panel.state === "CHARACTERS" ? internal.characterKeypadSource : internal.symbolKeypadSource
-        onLoaded: {
-            if (delayedAutoCaps) {
-                activeKeypadState = "SHIFTED";
-                delayedAutoCaps = false;
-            } else {
-                activeKeypadState = "NORMAL";
-            }
-        }
+        visible: panel.state === "CHARACTERS"
+        source: internal.characterKeypadSource
+        onLoaded: internal.afterKeypadLoaded(characterKeypadLoader)
     }
 
     ExtendedKeysSelector {
@@ -137,6 +140,18 @@ Item {
             // FreeTextContentType used as fallback
             canvas.layoutId = "freetext";
             return maliit_input_method.currentPluginPath + "/Keyboard_" + language + ".qml";
+        }
+
+        function afterKeypadLoaded(keypad) {
+            if (!keypad.visible) {
+                return;
+            }
+            if (panel.delayedAutoCaps) {
+                panel.activeKeypadState = "SHIFTED";
+                panel.delayedAutoCaps = false;
+            } else {
+                panel.activeKeypadState = "NORMAL";
+            }
         }
     }
 }

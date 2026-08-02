@@ -3330,7 +3330,7 @@ Item {
                     // visible: canvas.wordribbon_visible
                     // ENH215 - Shortcuts bar
                     //visible: canvas.wordribbon_visible || fullScreenItem.settings.enableSavedTexts
-                    visible: canvas.wordribbon_visible || fullScreenItem.settings.enableSavedTexts || fullScreenItem.settings.enableShortcutsBar
+                    visible: canvas.wordribbon_visible || fullScreenItem.settings.enableShortcutsBar
                     enableShortcutsToolbar: fullScreenItem.settings.enableShortcutsBar
                     leadingActions: fullScreenItem.settings.shortcutBarActions[0] ? actionsFactory.getActionsModel(fullScreenItem.settings.shortcutBarActions[0])
                                         : []
@@ -4275,6 +4275,7 @@ Item {
             text: i18n.tr("Emoji")
             checkable: true
             checked: keypad.state === "EMOJI"
+            visible: canvas.layoutId !== "number" && canvas.layoutId !== "telephone"
             onTrigger: {
                 if (keypad.state === "EMOJI") {
                     keypad.state = previousKeypadState
@@ -4289,6 +4290,7 @@ Item {
 
             iconName: "language-chooser"
             text: i18n.tr("Language Switcher")
+            visible: canvas.layoutId !== "number" && canvas.layoutId !== "telephone"
             onTrigger: {
                 if (maliit_input_method.previousLanguage && maliit_input_method.previousLanguage != maliit_input_method.activeLanguage) {
                     maliit_input_method.activeLanguage = maliit_input_method.previousLanguage
