@@ -61,6 +61,11 @@ MultiPointTouchArea {
             // mouse area to avoid conflict with swipe selection
             // of extended keys
             onYChanged: {
+                // ENH230 - Layout loading fix
+                // For some reason, touch points are triggered when switching between layouts with different heights
+                // Bail out if not visible
+                if (!visible) return;
+                // ENH230 - End
                 if (point.y > root.y + root.height) {
                     if (!swipedOut) {
                         // We've swiped out of the key
@@ -147,7 +152,12 @@ MultiPointTouchArea {
         // the bottom of the screen.
         if (!fullScreenItem.keyboardFloating && point.y > keypad.height) {
             console.warn("Touch point released past height of keyboard. Ignoring.");
-        } else if (!(point.y <= startY)) {
+        // ENH230 - Layout loading fix
+        // For some reason, touch points are triggered when switching between layouts with different heights
+        // Bail out if not visible
+        // } else if (!(point.y <= startY)) {
+        } else if (!(point.y <= startY) && visible) {
+        // ENH230 - End
             // Handles swiping away the keyboard
             // Hide if the end point is more than 8 grid units from the start
             if (!held && point.y > startY + units.gu(8)) {

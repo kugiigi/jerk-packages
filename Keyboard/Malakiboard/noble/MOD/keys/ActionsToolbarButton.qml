@@ -137,7 +137,9 @@ AbstractButton {
             
             name: customAction.iconName
             visible: customAction.iconName
+            rotation: customAction.iconRotation
             color: customAction.checked ? fullScreenItem.theme.selectionColor : fullScreenItem.theme.fontColor
+            Behavior on rotation { LomiriNumberAnimation {} }
         }
         
         Label {

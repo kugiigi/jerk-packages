@@ -37,6 +37,7 @@ Item {
 
     onWidthChanged: calculateKeyWidth()
     onHeightChanged: calculateKeyHeight();
+    onVisibleChanged: calculateKeyWidth();
 
     function numberOfRows() {
         if (typeof(content.numberOfRows) != 'undefined') {
@@ -48,7 +49,14 @@ Item {
     }
 
     // we don´t use a QML layout, because we want all keys to be equally sized
+    // FIXME: default QML layouts do just fine with equally sized items, but
+    // this should be a custom one so this doesn't have to be calculated in QML and
+    // passed through a few layers of components
     function calculateKeyWidth() {
+        // If the parent doesn't exist we don't have accurate visibility, bail too
+        if (!keyPadRoot.visible || !keyPadRoot.parent) {
+            return;
+        }
         var maxNrOfKeys = 0;
         var width = panel.width;
         

@@ -29,6 +29,9 @@ KeyPad {
         anchors.margins: 0;
 
         spacing: 0
+        // ENH081 - Number row
+        property int numberOfRows: numberRow.visible ? content.children.length : content.children.length - 1
+        // ENH081 - End
 
         Row {
             anchors.horizontalCenter: parent.horizontalCenter;
@@ -49,6 +52,7 @@ KeyPad {
 
         // ENH081 - Number row
         Row {
+            id: numberRow
             visible: fullScreenItem.settings.showNumberRow && !keypad.forceHideNumberRow
             anchors.horizontalCenter: parent.horizontalCenter;
             anchors.margins: 50;

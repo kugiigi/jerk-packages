@@ -37,24 +37,34 @@ Item {
 
     onWidthChanged: calculateKeyWidth()
     onHeightChanged: calculateKeyHeight();
+    // ENH230 - Layout loading fix
+    // onVisibleChanged: calculateKeyWidth();
+    onVisibleChanged: {
+        calculateKeyWidth();
+        calculateKeyHeight();
+    }
+    // ENH230 - End
 
     function numberOfRows() {
         if (typeof(content.numberOfRows) != 'undefined') {
             // Allow layouts to calculate this themselves if they're not using
             // a column/row layout
-            // ENH081 - Number row
-            // return content.numberOfRows;
-            return content.numberOfRows + (numberRow.visible ? 1 : 0);
-            // ENH081 - ENd
+            return content.numberOfRows;
         }
         // ENH081 - Number row
         // return content.children.length;
-        return content.visibleChildren.length + (numberRow.visible ? 1 : 0);
+        return content.children.length + (numberRow.visible ? 1 : 0);
         // ENH081 - End
     }
 
-    // we don´t use a QML layout, because we want all keys to be equally sized
+    // FIXME: default QML layouts do just fine with equally sized items, but
+    // this should be a custom one so this doesn't have to be calculated in QML and
+    // passed through a few layers of components
     function calculateKeyWidth() {
+        // If the parent doesn't exist we don't have accurate visibility, bail too
+        if (!keyPadRoot.visible || !keyPadRoot.parent) {
+            return;
+        }
         var maxNrOfKeys = 0;
         var width = panel.width;
         
@@ -74,6 +84,12 @@ Item {
     }
 
     function calculateKeyHeight() {
+        // ENH230 - Layout loading fix
+        // If the parent doesn't exist we don't have accurate visibility, bail too
+        if (!keyPadRoot.visible || !keyPadRoot.parent) {
+            return;
+        }
+        // ENH230 - End
         panel.keyHeight = panel.height / numberOfRows();
     }
 }

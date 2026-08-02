@@ -59,7 +59,9 @@ SwipeArea {
     }
 
     onStageChanged: {
-        swipeHoldTimer.restart()
+        if (dragging) {
+            swipeHoldTimer.restart()
+        }
     }
 
     onDraggingChanged: if (!dragging) swipeHoldTimer.stop()
