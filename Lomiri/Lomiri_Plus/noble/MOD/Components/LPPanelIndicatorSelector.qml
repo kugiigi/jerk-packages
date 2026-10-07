@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
+import Lomiri.Indicators 0.1
 
 Item {
     id: pageIndicatorSelector
@@ -19,11 +20,8 @@ Item {
     property bool mouseHoverEnabled: true
     property alias indicatorWidth: mainRowLayout.dotNormalWidth
     property alias indicatorExpandedWidth: mainRowLayout.dotExpandedWidth
-    property alias indicatorSpacing: mainRowLayout.spacing
 
     property real highlightScale: 1.5
-    property alias backgroundPadding: mainRowLayout.padding
-    property alias backgroundSidePadding: mainRowLayout.leftPadding
     property color backgroundColor: theme.palette.normal.foreground
     property real backgroundOpacity: 0.8
     property real swipeHandlerOutsideMargin: units.gu(2)
@@ -238,14 +236,58 @@ Item {
                 isExtraHighlighted: index == pageIndicatorSelector.extraHighlightedIndex
                 swipeSelectMode: pageIndicatorSelector.swipeSelectMode
                 itemIndex: index
-                itemTitle: model.title ? model.title : index + 1
-                itemIconName: modelData && modelData.iconName ? modelData.iconName
-                                    : model.iconName && model.iconName ? model.iconName : ""
-                itemText: modelData && modelData.shortText ? modelData.shortText
-                                    : model.shortText && model.shortText ? model.shortText : index + 1
+                itemTitle: rootActionState.title || rootActionState.accessibleName
+                itemIconSource: {
+                    if (icons && icons.length > 0) return icons[0]
+
+                    // Hardcode when there's no alarm which means no icon in the Timer and Date indicator
+                    if (identifier === "ayatana-indicator-datetime")
+                        return "image://theme/preferences-system-time-symbolic"
+
+                    return ""
+                }
                 isMouseHovered: pageIndicatorSelector.noExpandWithMouse && pageIndicatorSelector.isHovered
 
                 onSelected: pageIndicatorSelector.newIndexSelected(itemIndex)
+
+                property string identifier: model.identifier
+                property string busName: indicatorProperties.busName
+                property string actionsObjectPath: indicatorProperties.actionsObjectPath
+                property string menuObjectPath: indicatorProperties.menuObjectPath
+                property string rootMenuType: "com.canonical.indicator.root"
+
+                property alias menuModel: cachedModel.model
+                property alias rootActionState: rootAction
+                property string leftLabel
+                property string rightLabel
+                property var icons: undefined
+
+                SharedLomiriMenuModel {
+                    id: cachedModel
+                    busName: delegateItem.busName
+                    actions: { "indicator": delegateItem.actionsObjectPath }
+                    menuObjectPath: delegateItem.menuObjectPath
+                }
+
+                ModelActionRootState {
+                    id: rootAction
+                    menu: menuModel ? menuModel : null
+                    
+                    onUpdated: {
+                        if (rootActionState == undefined) {
+                            delegateItem.itemTitle = "";
+                            delegateItem.leftLabel = "";
+                            delegateItem.rightLabel = "";
+                            delegateItem.icons = undefined;
+                            return;
+                        }
+
+                        delegateItem.itemTitle = rootActionState.title ? rootActionState.title : rootActionState.accessibleName;
+                        delegateItem.leftLabel = rootActionState.leftLabel ? rootActionState.leftLabel : "";
+                        delegateItem.rightLabel = rootActionState.rightLabel ? rootActionState.rightLabel : "";
+                        delegateItem.icons = rootActionState.icons;
+                    }
+                }
             }
         }
     }

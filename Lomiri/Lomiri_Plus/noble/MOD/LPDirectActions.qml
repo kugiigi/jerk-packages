@@ -28,6 +28,7 @@ Item {
     }
 
     readonly property bool actionsShown: directActionsItems.visible
+    property bool enableSwipe: true
     property bool noSwipeCommit: false
     property real preferredActionItemWidthPhysical: shell.convertFromInch(0.35)
     property real preferredActionItemWidth: units.gu(7)
@@ -293,7 +294,7 @@ Item {
 
             property bool isDragging: dragging && distance >= directActions.sideMargins
 
-            enabled: directActions.enabled && !rightSwipeArea.dragging
+            enabled: directActions.enableSwipe && !rightSwipeArea.dragging
                         && (directActions.swipeAreaSides == 0 || directActions.swipeAreaSides == 1)
             direction: SwipeArea.Rightwards
             immediateRecognition: true
@@ -335,7 +336,7 @@ Item {
 
             property bool isDragging: dragging && distance >= directActions.sideMargins
 
-            enabled: directActions.enabled && !leftSwipeArea.dragging
+            enabled: directActions.enableSwipe && !leftSwipeArea.dragging
                         && (directActions.swipeAreaSides == 0 || directActions.swipeAreaSides == 2)
             direction: SwipeArea.Leftwards
             immediateRecognition: true

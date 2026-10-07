@@ -294,6 +294,8 @@ Rectangle {
         LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: appContainerHeight }
     }
 
+    // ENH265 - Snapped window margins
+    /*
     ParallelAnimation {
         id: fakeMaximizeLeftAnimation
         LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin }
@@ -341,6 +343,59 @@ Rectangle {
         LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 }
         LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: appContainerHeight/2 }
     }
+    */
+    property real snappedWindowMargin: 0
+    property real snappedWindowMarginHalf: 0
+    property real snappedWindowMarginDouble: 0
+
+    ParallelAnimation {
+        id: fakeMaximizeLeftAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: panelState.panelHeight + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: appContainerHeight - panelState.panelHeight - fakeRectangle.snappedWindowMarginDouble }
+    }
+
+    ParallelAnimation {
+        id: fakeMaximizeRightAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth + leftMargin)/2 + fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: panelState.panelHeight + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: appContainerHeight - panelState.panelHeight - fakeRectangle.snappedWindowMarginDouble }
+    }
+
+    ParallelAnimation {
+        id: fakeMaximizeTopLeftAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: panelState.panelHeight + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+    }
+
+    ParallelAnimation {
+        id: fakeMaximizeTopRightAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth + leftMargin)/2 + root.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: panelState.panelHeight + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+    }
+
+    ParallelAnimation {
+        id: fakeMaximizeBottomLeftAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight + panelState.panelHeight)/2 + fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+    }
+
+    ParallelAnimation {
+        id: fakeMaximizeBottomRightAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth + leftMargin)/2 + fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight + panelState.panelHeight)/2 + fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: (appContainerWidth - leftMargin)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+    }
+    // ENH265 - End
 
     // ENH156 - Advanced snapping keyboard shortcuts
     ParallelAnimation {
@@ -357,6 +412,8 @@ Rectangle {
         LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: fakeRectangle.target ? fakeRectangle.target.normalWidth : 0 }
         LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: fakeRectangle.target ? fakeRectangle.target.normalHeight : 0 }
     }
+    // ENH265 - Snapped window margins
+    /*
     ParallelAnimation {
         id: fakeMaximizeTopAnimation
         LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin }
@@ -371,5 +428,21 @@ Rectangle {
         LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: appContainerWidth - leftMargin }
         LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 }
     }
+    */
+    ParallelAnimation {
+        id: fakeMaximizeTopAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: panelState.panelHeight + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: appContainerWidth - leftMargin - fakeRectangle.snappedWindowMarginDouble }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+    }
+    ParallelAnimation {
+        id: fakeMaximizeBottomAnimation
+        LomiriNumberAnimation { target: fakeRectangle; properties: "x"; duration: LomiriAnimation.BriskDuration; to: leftMargin + fakeRectangle.snappedWindowMargin }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "y"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight + panelState.panelHeight)/2 + fakeRectangle.snappedWindowMarginHalf }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "width"; duration: LomiriAnimation.BriskDuration; to: appContainerWidth - leftMargin - fakeRectangle.snappedWindowMarginDouble }
+        LomiriNumberAnimation { target: fakeRectangle; properties: "height"; duration: LomiriAnimation.BriskDuration; to: (appContainerHeight - panelState.panelHeight)/2 - fakeRectangle.snappedWindowMargin - fakeRectangle.snappedWindowMarginHalf }
+    }
+    // ENH265 - End
     // ENH156 - End
 }

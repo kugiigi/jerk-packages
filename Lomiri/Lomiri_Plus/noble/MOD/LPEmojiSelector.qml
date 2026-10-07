@@ -34,9 +34,10 @@ LPFloatingPopup {
     }
 
     function addToRecent(_prop) {
-        const _tempArr = shell.settings.emojiSelectorRecentList.slice()
-        _tempArr.push(_prop)
-        shell.settings.emojiSelectorRecentList = _tempArr.slice()
+        let _tempArr = shell.settings.emojiSelectorRecentList.slice();
+        _tempArr.push(_prop);
+        _tempArr = [...new Map(_tempArr.map(item => [item.emoji, item])).values()];
+        shell.settings.emojiSelectorRecentList = _tempArr.slice();
     }
 
     Component {

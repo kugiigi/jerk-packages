@@ -224,6 +224,10 @@ Item {
         objectName: "panelArea"
 
         anchors.fill: parent
+        // ENH018 - Immersive mode
+        // Totally disable when hidden especially in fullscreen
+        visible: opacity > 0
+        // ENH018 - End
 
         transform: Translate {
             y: indicators.state === "initial"
@@ -364,23 +368,118 @@ Item {
             // ENH046 - End
 
             Behavior on color { ColorAnimation { duration: LomiriAnimation.FastDuration } }
-            
+
             // ENH258 - Workspace switcher via scroll on Launcher
             WheelHandler {
+                
                 enabled: shell.settings.workspaceSwitcherViaScrollTopBar
-                acceptedDevices: PointerDevice.Mouse
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 acceptedButtons: Qt.NoButton
+                orientation: Qt.Vertical
 
                 onWheel: (event) => {
-                     if (event.angleDelta.y > 0) {
+                    if (event.angleDelta.y >= 120) {
                         shell.stage.switchToPreviousWorkspace();
-                     } else {
+                    } else if (event.angleDelta.y >= -120 && event.angleDelta.y < 0) {
                         shell.stage.switchToNextWorkspace();
-                     }
+                    }
+                }
+            }
+
+            Timer {
+                id: activeTimeoutTimer
+                interval: horizontalWheelHandler.activeTimeout
+                onTriggered: {
+                    horizontalWheelHandler.accumulated = 0;
+                }
+            }
+
+            WheelHandler {
+                id: horizontalWheelHandler
+
+                enabled: shell.settings.workspaceSwitcherViaScrollTopBar
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                acceptedButtons: Qt.NoButton
+                orientation: Qt.Horizontal
+
+                property real accumulated: 0
+                readonly property real step: 1500 // 2500 for almost full touchpad width
+                activeTimeout: 200
+
+                onWheel: (event) => {
+                    //console.log("DEVICE!!!!!!!!!! " + [PointerDevice.TouchPad, PointerDevice.Mouse, event.device.type,event.angleDelta.x,event.angleDelta.y,event.pixelDelta.x,event.pixelDelta.y].join(" - "))
+
+                    // Prefer angleDelta (works on both mouse and touchpad)
+                    accumulated += event.angleDelta.x
+
+                    // Trigger only when a full step is reached
+                    while (accumulated >= step) {
+                        shell.stage.switchToPreviousWorkspace();
+                        accumulated -= step
+                    }
+                    while (accumulated <= -step) {
+                        shell.stage.switchToNextWorkspace();
+                        accumulated += step
+                    }
+
+                    activeTimeoutTimer.restart();
+
+                    event.accepted = true
                 }
             }
             // ENH258 - End
         }
+
+        // ENH262 - Workspace indicator
+        Loader {
+            id: indicatorSelectorLoader
+            
+            readonly property bool swipeSelectMode: item && item.swipeSelectMode
+            readonly property bool isHovered: item && item.isHovered
+            readonly property real defaultBottomMargin: 0
+
+            property var model: shell.stage.workspacesView.model
+
+            active: shell.settings.workspaceSwitcherTopBarIndicator && model.count > 1
+                        && !shell.showingGreeter && root.width >= units.gu(120)
+            asynchronous: true
+            height: item ? item.height : 0 // Since height doesn't reset when inactive
+            focus: false
+            anchors {
+                left: panelAreaBackground.left
+                right: panelAreaBackground.right
+                bottom: panelAreaBackground.bottom
+                bottomMargin: (swipeSelectMode && !isHovered ? shell.convertFromInch(0.3) : 0) + defaultBottomMargin
+                leftMargin: units.gu(1)
+                rightMargin: units.gu(1)
+            }
+
+            Behavior on anchors.bottomMargin { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+            Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
+
+            sourceComponent: LPIndicatorSelector {
+                id: indicatorSelector
+
+                swipeEnabled: false
+                mouseHoverEnabled: true
+                noExpandWithMouse: true
+                swipeHandlerOutsideMargin: 0
+                highlightSelectMode: false
+                model: indicatorSelectorLoader.model
+                currentIndex: shell.stage.workspacesView.currentIndex
+                indicatorWidth: units.gu(2.5)
+                indicatorExpandedWidth: units.gu(2.5)
+                indicatorSpacing: units.gu(0.8)
+                highlightScale: 1
+                hoverHandlerOutsideMargin: 1 // For some reason settings this to 0 breaks it
+                backgroundPadding: units.gu(0.5)
+                backgroundSidePadding: units.gu(1)
+                backgroundOpacity: panelAreaBackground.opacity
+
+                onNewIndexSelected: shell.stage.switchToWorkspace(newIndex);
+            }
+        }
+        // ENH262 - End
 
         MouseArea {
             id: decorationMouseArea
@@ -717,6 +816,16 @@ Item {
                                 && !root.greeterShown
                 }
                 // ENH102 - End
+                // ENH267 - Battery saver mode in Windowed mode
+                Icon {
+                    name: "gpm-battery-missing"
+                    Layout.preferredWidth: units.gu(2)
+                    Layout.preferredHeight: implicitHeight
+                    Layout.alignment: Qt.AlignVCenter
+                    color: theme.palette.normal.foregroundText
+                    visible: shell.settings.batterySaverMode
+                }
+                // ENH267 - End
             }
             // ENH056 - End
         }

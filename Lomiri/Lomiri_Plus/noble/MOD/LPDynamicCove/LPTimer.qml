@@ -286,10 +286,10 @@ LPDynamicCoveItem {
                 console.log("Timer started")
                 shell.settings.dcLastTimeTimer = root_timesetter.timerduration
 
-                console.log("TEST!!!!!!!!!!!! " + [root_timesetter.h, root_timesetter.m, root_timesetter.s].join(" - "))
+                //console.log("TEST!!!!!!!!!!!! " + [root_timesetter.h, root_timesetter.m, root_timesetter.s].join(" - "))
                 endTime = internal.tempEndTime(root_timesetter.h, root_timesetter.m, root_timesetter.s)
                 let targetdt = new Date((new Date()).setTime(endTime))
-                console.log("DATE!!!!!!! " + targetdt)
+                //console.log("DATE!!!!!!! " + targetdt)
 
                 targettime = targetdt.getTime()
                 timer.alarm.reset()

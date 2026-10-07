@@ -56,6 +56,7 @@ FocusScope {
     property alias verticalLayoutDirection: gridView.verticalLayoutDirection
     // ENH007 - End
     // ENH105 - Custom app drawer
+    property alias indicatorSelector: appGridIndicatorLoader
     readonly property bool inverted: gridView.verticalLayoutDirection == GridView.BottomToTop
     property bool launcherInverted: false
     property real viewMargin: 0
@@ -1295,6 +1296,8 @@ FocusScope {
         active: root.showSearchButton
         height: active ? units.gu(7) : 0
         visible: active
+        opacity: root.indicatorSelector.swipeSelectMode || root.indicatorSelector.isHovered ? 0 : 1
+        Behavior on opacity { LomiriNumberAnimation {} }
         anchors {
             bottom: appGridIndicatorLoader.top
             bottomMargin: appGridIndicatorLoader.active ? units.gu(1) : units.gu(-1)

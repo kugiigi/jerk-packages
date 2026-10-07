@@ -36,6 +36,9 @@ import "../OuterWilds"
 // ENH243 - Virtual Touchpad Enhancements
 import ".." 0.1
 // ENH243 - End
+// ENH178 - Option to delay app suspension
+import Powerd 0.1
+// ENH178 - End
 
 FocusScope {
     id: root
@@ -102,6 +105,7 @@ FocusScope {
     property Item currentWorkspaceContainer: workspacesView.currentItem
     property Repeater appRepeater: workspacesView.currentItem.appRepeater
     property QtObject currentTopLevelSurfaceList: workspacesView.currentItem.windowModel
+    property alias workspacesView: workspacesView
     // ENH257 - End
 
     // Whether outside forces say that the Stage may have focus
@@ -111,6 +115,11 @@ FocusScope {
     // readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity
     readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity && !desktopShown
     // ENH135 - End
+    // ENH265 - Snapped window margins
+    readonly property real snappedWindowMargin: units.gu(shell.settings.snappedWindowsMargin)
+    readonly property real snappedWindowMarginHalf: snappedWindowMargin / 2
+    readonly property real snappedWindowMarginDouble: snappedWindowMargin * 2
+    // ENH265 - End
 
     // Configuration
     property string mode: "staged"
@@ -255,6 +264,12 @@ FocusScope {
         workspaceSwitcher.showLeft(true, true);
     }
     // ENH154 - End
+    // ENH262 - Workspace indicator
+    function switchToWorkspace(index) {
+        const item = workspacesView.itemAtIndex(index)
+        if (item) item.workspace.activate();
+    }
+    // ENH262 - End
 
     // ENH257 - Workspace redesign
     /* Moved to each workspace container
@@ -417,7 +432,16 @@ FocusScope {
         id: showSpreadShortcut
         shortcut: Qt.MetaModifier|Qt.Key_W
         active: root.spreadEnabled
-        onTriggered: priv.goneToSpread = true
+        // ENH263 - Super + W also closes spread
+        // onTriggered: priv.goneToSpread = true
+        // ENH264 - Workaround for opening Drawer when using Super combos
+        //onTriggered: priv.goneToSpread = !priv.goneToSpread
+        onTriggered: {
+            priv.goneToSpread = !priv.goneToSpread;
+            shell.superComboFinish();
+        }
+        // ENH264 - End
+        // ENH263 - End
     }
 
     // ENH015 - Add shortcuts for side stage
@@ -427,6 +451,9 @@ FocusScope {
         active: priv.sideStageEnabled
         onTriggered: {
            priv.toggleSideStage()
+           // ENH264 - Workaround for opening Drawer when using Super combos
+           shell.superComboFinish();
+           // ENH264 - End
         }
     }
     // ENH015 - End
@@ -434,17 +461,23 @@ FocusScope {
     GlobalShortcut {
         id: minimizeAllShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
+        onTriggered: priv.minimizeAllWindows()
         // ENH135 - Show Desktop
-        // onTriggered: priv.minimizeAllWindows()
-        onTriggered: root.showDesktop()
+        // active: root.state == "windowed"
+        active: true
         // ENH135 - End
-        active: root.state == "windowed"
     }
     // ENH135 - Show Desktop
     GlobalShortcut {
         id: showDesktopShortcut
-        shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
-        onTriggered: appContainer.toggleShowDesktop()
+        shortcut: Qt.MetaModifier|Qt.Key_D
+        // ENH264 - Workaround for opening Drawer when using Super combos
+        //onTriggered: appContainer.toggleShowDesktop()
+        onTriggered: {
+            appContainer.toggleShowDesktop();
+            shell.superComboFinish();
+        }
+        // ENH264 - ENd
         active: true
     }
     // ENH135 - End
@@ -892,10 +925,49 @@ FocusScope {
         }
     }
 
+    // ENH261 - Disable workspace shortcuts when it make sense
+    readonly property bool multipleWorkspaces: workspacesView.count > 1
+    readonly property bool virtualTouchpadMode: shell.settings.externalDisplayBehavior === 0
+    // ENH261 - End
+    // ENH262 - Workspace indicator
+    property int previousWorkspaceIndex: 1 // Set to 1 so initially you can always switch to the 2nd one
+    GlobalShortcut {
+        id: swicthToPreviousWorkspaceShortcut
+        shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Tab
+        active: !workspaceSwitcher.active && root.workspaceEnabled
+                    && root.multipleWorkspaces
+        // ENH264 - Workaround for opening Drawer when using Super combos
+        //onTriggered: root.switchToWorkspace(root.previousWorkspaceIndex);
+        onTriggered: {
+            root.switchToWorkspace(root.previousWorkspaceIndex);
+            shell.superComboFinish();
+        }
+        // ENH264 - End
+    }
+    GlobalShortcut {
+        id: swicthToFirstWorkspaceShortcut
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Home
+        active: !workspaceSwitcher.active && root.workspaceEnabled
+                    && root.multipleWorkspaces
+        onTriggered: root.switchToWorkspace(0);
+        // ENH264 - End
+    }
+    GlobalShortcut {
+        id: swicthToLastWorkspaceShortcut
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_End
+        active: !workspaceSwitcher.active && root.workspaceEnabled
+                    && root.multipleWorkspaces
+        onTriggered: root.switchToWorkspace(workspacesView.count - 1);
+        // ENH264 - End
+    }
+    // ENH262 - End
     GlobalShortcut {
         id: showWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Left
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH259 - Option to disable workspace switcher UI
@@ -912,6 +984,9 @@ FocusScope {
         id: showWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Right
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH259 - Option to disable workspace switcher UI
@@ -928,6 +1003,9 @@ FocusScope {
         id: showWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Up
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showUp()
@@ -937,6 +1015,9 @@ FocusScope {
         id: showWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Down
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showDown()
@@ -947,6 +1028,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Left
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -966,6 +1050,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Right
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -985,6 +1072,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Up
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -997,6 +1087,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Down
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -1286,6 +1379,10 @@ FocusScope {
         panelState.dropShadow = false;
     }
 
+    // ENH178 - Option to delay app suspension
+    readonly property bool screenIsOff: Powerd.status === Powerd.Off
+    // ENH178 - End
+
     Instantiator {
         model: root.applicationManager
         delegate: QtObject {
@@ -1311,14 +1408,14 @@ FocusScope {
                 }
             }
             Component.onCompleted: {
-                if (shell.settings.enableDelayedStartingAppSuspension) {
+                if (shell.settings.enableDelayedStartingAppSuspension && !root.screenIsOff) {
                     temporaryLifeCycleExemption = true
                     appStartsuspendDelay.restart()
                 }
             }
             onAppIsForegroundChanged: {
                 if (shell.settings.enableDelayedAppSuspension) {
-                    if (!appIsForeground) {
+                    if (!appIsForeground && !root.screenIsOff) {
                         temporaryLifeCycleExemption = true
                         suspendDelay.restart()
                     } else {
@@ -1332,9 +1429,12 @@ FocusScope {
             // TODO: If the device has a dozen suspended apps because it was running
             //       in staged mode, when it switches to Windowed mode it will suddenly
             //       resume all those apps at once. We might want to avoid that.
-            property var requestedState: root.mode === "windowed"
+            // ENH267 - Battery saver mode in Windowed mode
+            // property var requestedState: root.mode === "windowed"
+            property var requestedState: (root.mode === "windowed" && !shell.settings.batterySaverMode)
+            // ENH267 - End
             // ENH178 - Option to delay app suspension
-                || temporaryLifeCycleExemption
+                || (temporaryLifeCycleExemption && !root.screenIsOff)
             // ENH178 - End
                    || (!root.suspended && model.application && priv.focusedAppDelegate &&
                        (priv.focusedAppDelegate.appId === model.application.appId ||
@@ -2393,6 +2493,8 @@ FocusScope {
 
                 // Do not hide other workspaces while the switching animation is still running
                 visible: isActive || ListView.view.moving || workspacesView.highlightAnimationIsRunning
+                            // Also show current workspaces in other inactive screens
+                            || (!WMScreen.active && WMScreen.currentWorkspace.isSameAs(workspace))
                 anchors {
                     top: parent.top
                     bottom: parent.bottom
@@ -2524,6 +2626,11 @@ FocusScope {
                         // Without this, selecting the first app on another workspace won't focus on that app and shows a blank workspace instead
                         workspaceContainer.updateMainAndSideStageIndexes();
                     }
+                    // ENH262 - Workspace indicator
+                    else {
+                        root.previousWorkspaceIndex = index;
+                    }
+                    // ENH262 - End
                 }
 
                 Connections {
@@ -3652,10 +3759,17 @@ FocusScope {
                     State {
                         name: "maximizedLeft"; when: appDelegate.maximizedLeft && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: root.availableDesktopArea.y
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x
+                            // windowedY: root.availableDesktopArea.y
+                            windowedX: root.availableDesktopArea.x + root.snappedWindowMargin
+                            windowedY: root.availableDesktopArea.y + root.snappedWindowMargin
+                            // ENH265 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width / 2
                             // windowedHeight: root.availableDesktopArea.height
@@ -3665,8 +3779,12 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate
                             restoreEntryValues: false
-                            requestedWidth: root.availableDesktopArea.width / 2
-                            requestedHeight: root.availableDesktopArea.height
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width / 2
+                            // requestedHeight: root.availableDesktopArea.height
+                            requestedWidth: root.availableDesktopArea.width / 2 - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                            requestedHeight: root.availableDesktopArea.height - root.snappedWindowMarginDouble
+                            // ENH265 - End
                         }
                         // ENH187 - End
                     },
@@ -3675,16 +3793,26 @@ FocusScope {
                         extend: "maximizedLeft"
                         PropertyChanges {
                             target: appDelegate;
-                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                     },
                     State {
                         name: "maximizedTopLeft"; when: appDelegate.maximizedTopLeft && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: root.availableDesktopArea.y
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x
+                            // windowedY: root.availableDesktopArea.y
+                            windowedX: root.availableDesktopArea.x + root.snappedWindowMargin
+                            windowedY: root.availableDesktopArea.y + root.snappedWindowMargin
+                            // ENH265 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width / 2
                             // windowedHeight: root.availableDesktopArea.height / 2
@@ -3694,8 +3822,12 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate
                             restoreEntryValues: false
-                            requestedWidth: root.availableDesktopArea.width / 2
-                            requestedHeight: root.availableDesktopArea.height / 2
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width / 2
+                            // requestedHeight: root.availableDesktopArea.height / 2
+                            requestedWidth: (root.availableDesktopArea.width / 2) - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                            requestedHeight: (root.availableDesktopArea.height / 2) - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                         // ENH187 - End
                     },
@@ -3704,16 +3836,26 @@ FocusScope {
                         extend: "maximizedTopLeft"
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                     },
                     State {
                         name: "maximizedBottomLeft"; when: appDelegate.maximizedBottomLeft && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x
+                            // windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                            windowedX: root.availableDesktopArea.x + root.snappedWindowMargin
+                            windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width / 2
                             // windowedHeight: root.availableDesktopArea.height / 2
@@ -3724,8 +3866,12 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate
                             restoreEntryValues: false
-                            requestedWidth: root.availableDesktopArea.width / 2
-                            requestedHeight: root.availableDesktopArea.height / 2
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width / 2
+                            // requestedHeight: root.availableDesktopArea.height / 2
+                            requestedWidth: root.availableDesktopArea.width / 2 - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                            requestedHeight: root.availableDesktopArea.height / 2 - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                         // ENH187 - End
                     },
@@ -3734,18 +3880,30 @@ FocusScope {
                         extend: "maximizedBottomLeft"
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                     },
                     State {
                         name: "maximizedHorizontally"; when: appDelegate.maximizedHorizontally && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
                             // ENH156 - Advanced snapping keyboard shortcuts
                             // windowedX: root.availableDesktopArea.x; windowedY: windowedY
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y : windowedY
+                            // ENH265 - Snapped window margins
+                            //windowedX: root.availableDesktopArea.x
+                            //windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y : windowedY
+                            windowedX: root.availableDesktopArea.x + root.snappedWindowMargin
+                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                            ? root.availableDesktopArea.y + root.snappedWindowMargin
+                                            : windowedY
+                            // ENH265 - End
                             // ENH156 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width; windowedHeight: windowedHeight
@@ -3757,8 +3915,14 @@ FocusScope {
                             restoreEntryValues: false
                             // ENH156 - Advanced snapping keyboard shortcuts
                             //requestedWidth: root.availableDesktopArea.width; requestedHeight: requestedHeight
-                            requestedWidth: root.availableDesktopArea.width
-                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : requestedHeight
+                            // ENH265 - Snapped window margins
+                            //requestedWidth: root.availableDesktopArea.width
+                            //requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : requestedHeight
+                            requestedWidth: root.availableDesktopArea.width - root.snappedWindowMarginDouble
+                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                ? root.availableDesktopArea.height / 2 - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                                                : requestedHeight
+                            // ENH265 - End
                             // ENH156 - End
                         }
                         // ENH187 - End
@@ -3766,13 +3930,24 @@ FocusScope {
                     State {
                         name: "maximizedVertically"; when: appDelegate.maximizedVertically && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
                             // ENH156 - Advanced snapping keyboard shortcuts
                             // windowedX: windowedX; windowedY: root.availableDesktopArea.y
-                            windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.x : windowedX
-                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
-                                                                                                     : root.availableDesktopArea.y
+                            // ENH265 - Snapped window margins
+                            //windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.x : windowedX
+                            //windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                            //                                                                         : root.availableDesktopArea.y
+                            windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                            ? root.availableDesktopArea.x + root.snappedWindowMargin
+                                            : windowedX
+                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                            ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2) + root.snappedWindowMarginHalf
+                                            : root.availableDesktopArea.y + root.snappedWindowMargin
+                             // ENH265 - End
                             // ENH156 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: windowedWidth; windowedHeight: root.availableDesktopArea.height
@@ -3784,8 +3959,16 @@ FocusScope {
                             restoreEntryValues: false
                             // ENH156 - Advanced snapping keyboard shortcuts
                             //requestedWidth: requestedWidth; requestedHeight: root.availableDesktopArea.height
-                            requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.width : requestedWidth;
-                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : root.availableDesktopArea.height
+                            // ENH265 - Snapped window margins
+                            //requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.width : requestedWidth;
+                            //requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : root.availableDesktopArea.height
+                            requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                ? root.availableDesktopArea.width - root.snappedWindowMarginDouble
+                                                : requestedWidth;
+                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                ? root.availableDesktopArea.height / 2 - root.snappedWindowMargin - root.snappedWindowMarginHalf
+                                                : root.availableDesktopArea.height - root.snappedWindowMarginDouble;
+                            // ENH265 - End
                             // ENH156 - End
                         }
                         // ENH187 - End
@@ -4248,6 +4431,8 @@ FocusScope {
             function showFakeWindow(appDelegate, rect) {
                 sourceWorkspace = root.currentWorkspaceContainer.workspace
                 fakeWindow.showDecoration = root.mode === "windowed" && !appDelegate.fullscreen // && !appDelegate.anyMaximized;
+                                        && !(shell.settings.noDecorationWindowedMode && root.mode === "windowed"
+                                                && !appDelegate.fullscreen && !appDelegate.maximized)
                 fakeSurface.surface = appDelegate.surface
                 fakeWindow.x = rect.x
                 fakeWindow.y = rect.y
@@ -4287,7 +4472,7 @@ FocusScope {
 
                 property bool showDecoration: false
 
-                active: false
+                active: true
                 focus: false
                 height: priv.windowDecorationHeight
                 title: fakeSurface.surface ? fakeSurface.surface.name : ""
@@ -4326,6 +4511,11 @@ FocusScope {
         delayedSnappingIsInitialShow: windowSnapper.initialShow
         launcherWidth: root.launcherLeftMargin
         // ENH156 - End
+        // ENH265 - Snapped window margins
+        snappedWindowMargin: root.snappedWindowMargin
+        snappedWindowMarginHalf: root.snappedWindowMarginHalf
+        snappedWindowMarginDouble: root.snappedWindowMarginDouble
+        // ENH265 - End
     }
     // ENH154 - Workspace switcher gesture
     Loader {
