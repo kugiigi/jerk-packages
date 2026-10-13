@@ -11,6 +11,7 @@ Rectangle {
     property bool isExtraHighlighted: false
     property bool swipeSelectMode: false
     property bool isMouseHovered: false
+    property bool tapEnabled: false
 
     property color backgroundColor: theme.palette.normal.base
     property color currentItemBackgroundColor: theme.palette.normal.baseText
@@ -100,7 +101,8 @@ Rectangle {
     }
 
     TapHandler {
-        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+        acceptedPointerTypes: indicatorRec.tapEnabled ? PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen | PointerDevice.TouchScreen
+                        : PointerDevice.GenericPointer | PointerDevice.Cursor
         onSingleTapped: {
             indicatorRec.selected()
         }

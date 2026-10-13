@@ -1790,7 +1790,11 @@ Notable features are the following:\n\
         property alias autoImmersiveInFullscreen: settingsObj.autoImmersiveInFullscreen
         property alias autoImmersiveInFullscreenOnlyExternal: settingsObj.autoImmersiveInFullscreenOnlyExternal
         property alias snappedWindowsMargin: settingsObj.snappedWindowsMargin
+        property alias snappedWindowsMarginExceptEdges: settingsObj.snappedWindowsMarginExceptEdges
+        property alias enableStackedSnappedWindows: settingsObj.enableStackedSnappedWindows
+        property alias includeOthersInStackedSnappedWindows: settingsObj.includeOthersInStackedSnappedWindows
         property alias autoBatterySaverModeInWindowedMode: settingsObj.autoBatterySaverModeInWindowedMode
+        property alias windowSnapVisualHintAnimationSpeed: settingsObj.windowSnapVisualHintAnimationSpeed
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -2248,6 +2252,7 @@ Notable features are the following:\n\
         property alias workspaceSwitcherViaScrollLauncher: settingsObj.workspaceSwitcherViaScrollLauncher
         property alias workspaceSwitcherViaScrollTopBar: settingsObj.workspaceSwitcherViaScrollTopBar
         property alias workspaceSwitcherTopBarIndicator: settingsObj.workspaceSwitcherTopBarIndicator
+        property alias enableDynamicWorkspaces: settingsObj.enableDynamicWorkspaces
 
         // Others
         property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
@@ -3117,6 +3122,17 @@ Notable features are the following:\n\
             property bool autoBatterySaverModeInWindowedMode: false
             property real virtualTouchpadHorizontalScrollSensitivity: 1 // Multiplier so higher means higher sensitivity
             property var customImagesList: []
+            property bool snappedWindowsMarginExceptEdges: false
+            property bool enableStackedSnappedWindows: false
+            property int windowSnapVisualHintAnimationSpeed: 0
+            /*
+               0 - Default
+               1 - Fast
+               2 - Faster
+               3 - Instantaneous
+            */
+            property bool includeOthersInStackedSnappedWindows: false
+            property bool enableDynamicWorkspaces: false
         }
     }
 
@@ -6423,6 +6439,69 @@ Notable features are the following:\n\
                 }
 
             }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Visual hint animation speed")
+                model: [
+                    i18n.tr("Default"),
+                    i18n.tr("Fast"),
+                    i18n.tr("Faster"),
+                    i18n.tr("Instantaneous")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.windowSnapVisualHintAnimationSpeed
+                onSelectedIndexChanged: shell.settings.windowSnapVisualHintAnimationSpeed = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableStackedSnappedWindows
+                Layout.fillWidth: true
+                text: "Stacked Windows Tabs Bar"
+                onCheckedChanged: shell.settings.enableStackedSnappedWindows = checked
+                Binding {
+                    target: enableStackedSnappedWindows
+                    property: "checked"
+                    value: shell.settings.enableStackedSnappedWindows
+                }
+
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Displays a Tabs bar to quickly switch between snapped windows of the same maximized state"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: includeOthersInStackedSnappedWindows
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableStackedSnappedWindows
+                text: "Include tabs from other snap states "
+                onCheckedChanged: shell.settings.includeOthersInStackedSnappedWindows = checked
+                Binding {
+                    target: includeOthersInStackedSnappedWindows
+                    property: "checked"
+                    value: shell.settings.includeOthersInStackedSnappedWindows
+                }
+
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: includeOthersInStackedSnappedWindows.visible
+                text: "This adds tabs that give quick access to other snap states that occupy the same space.\n\
+For example, Right maximized windows will have a tab each for top right and bottom right maximized windows.\n\
+This way you can switch to them even if they are visually behind or hidden."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
             LPSettingsSlider {
                 id: snappedWindowsMargin
                 Layout.fillWidth: true
@@ -6445,6 +6524,20 @@ Notable features are the following:\n\
                     property: "value"
                     value: shell.settings.snappedWindowsMargin
                 }
+            }
+            LPSettingsCheckBox {
+                id: snappedWindowsMarginExceptEdges
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                visible: shell.settings.snappedWindowsMargin > 0
+                text: "No margin on edges"
+                onCheckedChanged: shell.settings.snappedWindowsMarginExceptEdges = checked
+                Binding {
+                    target: snappedWindowsMarginExceptEdges
+                    property: "checked"
+                    value: shell.settings.snappedWindowsMarginExceptEdges
+                }
+
             }
         }
     }
@@ -9466,6 +9559,17 @@ Notable features are the following:\n\
                             target: forceEnableWorkspace
                             property: "checked"
                             value: lomiriSettings.forceEnableWorkspace
+                        }
+                    }
+                    LPSettingsSwitch {
+                        id: enableDynamicWorkspaces
+                        Layout.fillWidth: true
+                        text: "Dynamic workspaces"
+                        onCheckedChanged: shell.settings.enableDynamicWorkspaces = checked
+                        Binding {
+                            target: enableDynamicWorkspaces
+                            property: "checked"
+                            value: shell.settings.enableDynamicWorkspaces
                         }
                     }
                     LPSettingsSwitch {

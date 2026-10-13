@@ -93,9 +93,13 @@ FocusScope {
     property bool matchTitleBartoApp: shell.settings.enableTitlebarMatchAppTopColor
     property alias blurSource: decoration.blurSource
     // ENH180 - End
+    // ENH268 - Tabbed snapped windows
+    property alias titleBar: decoration
+    // ENH268 - End
     // ENH225 - Clean Windowed Mode
     readonly property alias topIsHovered: topHoverHandler.hovered
     readonly property alias decorIsHovered: decorHoverHandler.hovered
+    property bool externalHovered: false // Use for external hovering
     property bool forceDecor: false
     property bool cleanMode: false
     readonly property Timer showDecorTimer: Timer {
@@ -127,7 +131,7 @@ FocusScope {
                     root.showDecorTimer.restart()
                 } else {
                     root.showDecorTimer.stop()
-                    if (!root.decorIsHovered) {
+                    if (!root.decorIsHovered && !root.externalHovered) {
                         root.hideDecorTimer.restart()
                         root.showDecorTimer.stop()
                     }

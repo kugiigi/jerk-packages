@@ -244,6 +244,7 @@ Item {
                 itemText: modelData && modelData.shortText ? modelData.shortText
                                     : model.shortText && model.shortText ? model.shortText : index + 1
                 isMouseHovered: pageIndicatorSelector.noExpandWithMouse && pageIndicatorSelector.isHovered
+                tapEnabled: !pageIndicatorSelector.swipeEnabled
 
                 onSelected: pageIndicatorSelector.newIndexSelected(itemIndex)
             }

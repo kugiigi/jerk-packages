@@ -441,7 +441,9 @@ Item {
             property var model: shell.stage.workspacesView.model
 
             active: shell.settings.workspaceSwitcherTopBarIndicator && model.count > 1
-                        && !shell.showingGreeter && root.width >= units.gu(120)
+                        && !shell.showingGreeter && shell.stage.workspaceEnabled
+                        && root.width >= units.gu(120)
+            z: 99
             asynchronous: true
             height: item ? item.height : 0 // Since height doesn't reset when inactive
             focus: false
