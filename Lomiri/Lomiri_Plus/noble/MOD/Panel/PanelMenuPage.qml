@@ -512,6 +512,26 @@ PageStack {
                                 }
                             }
                             // ENH136 - End
+                            // ENH267 - Battery saver mode in Windowed mode
+                            Menus.SwitchMenu {
+                                id: batterySaverModeSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.isWindowedMode
+                                text: "Battery Saver mode"
+                                iconSource: "image://theme/gpm-battery-missing"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: shell.settings.batterySaverMode = checked
+
+                                Binding {
+                                    target: batterySaverModeSwitch
+                                    property: "checked"
+                                    value: shell.settings.batterySaverMode
+                                }
+                            }
+                            // ENH267 - End
                             Menus.BaseLayoutMenu {
                                 property QtObject menuData: null
                                 property int menuIndex: -1

@@ -497,6 +497,14 @@ Item {
             }
         }
         // ENH064 - Dynamic Cove
+        // Dim background of infographics
+        Rectangle {
+            opacity: dynamicCove.isInfographic ? 0.6 : 0
+            anchors.fill: parent
+            color: theme.palette.normal.foreground
+            radius: width / 2
+            Behavior on opacity { NumberAnimation { duration: LomiriAnimation.FastDuration } }
+        }
         ListModel {
             id: discoModeModel
             

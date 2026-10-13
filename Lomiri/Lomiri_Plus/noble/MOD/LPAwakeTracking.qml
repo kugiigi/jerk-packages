@@ -12,7 +12,7 @@ Item {
     property string alarmPrefix: "[WAKEUP]"
 
     function disableAlarms() {
-        console.log("Wake up alarms disabled")
+        //console.log("Wake up alarms disabled")
         // Make sure alarm data are updated
         alarmModel.refresh()
 
@@ -29,8 +29,8 @@ Item {
             const _regex = new RegExp("^" + escapeRegExp(alarmPrefix), "g")
             const _now = new Date();
 
-            console.log("ALARM TO DISABLE!!!!! " + _alarmName + ": " + [("Enabled: " + _alarmEnabled), ("Today: " + root.isToday(_alarmDate)), (_alarmDate + " > " + _now)
-            , ("Datecompare: " + (_alarmDate > _now)), (_alarmDate.getTime() + " > " + _now.getTime())].join(" - "))
+            //console.log("ALARM TO DISABLE!!!!! " + _alarmName + ": " + [("Enabled: " + _alarmEnabled), ("Today: " + root.isToday(_alarmDate)), (_alarmDate + " > " + _now)
+            //, ("Datecompare: " + (_alarmDate > _now)), (_alarmDate.getTime() + " > " + _now.getTime())].join(" - "))
             // Disable all remaining wake up alarms for today
             if (_regex.test(_alarmName) && _alarmEnabled && isToday(_alarmDate)
                     && _alarmDate > _now) {
@@ -53,7 +53,7 @@ Item {
         shell.settings.latestWakeUpAlarm = _latestEpoch
 
         shell.settings.listOfDisabledWakeAlarms = _arr.slice()
-        console.log("LIST OF DISABLED ALARMS: " + JSON.stringify(shell.settings.listOfDisabledWakeAlarms))
+        //console.log("LIST OF DISABLED ALARMS: " + JSON.stringify(shell.settings.listOfDisabledWakeAlarms))
     }
 
     Timer {
@@ -92,8 +92,8 @@ Item {
             const _regex = new RegExp("^" + escapeRegExp(root.alarmPrefix), "g")
             const _now = new Date();
 
-            console.log("ALARM TO DISABLE!!!!! " + _alarmName + ": " + [("Enabled: " + _alarmEnabled), ("Today: " + root.isTodayOrPast(_alarmDate)), (_alarmDate + " > " + _now)
-                            , ("Datecompare: " + (timeIsFuture(_alarmDate))), (_alarmDate.getTime() + " > " + _now.getTime())].join(" - "))
+            //console.log("ALARM TO DISABLE!!!!! " + _alarmName + ": " + [("Enabled: " + _alarmEnabled), ("Today: " + root.isTodayOrPast(_alarmDate)), (_alarmDate + " > " + _now)
+            //                , ("Datecompare: " + (timeIsFuture(_alarmDate))), (_alarmDate.getTime() + " > " + _now.getTime())].join(" - "))
             // Disable all remaining wake up alarms for today
             // Some alarms are set in the past even though they are indeed enabled and will go off today
             // Also check if the alarm date is in the past and only compare the time
@@ -102,7 +102,7 @@ Item {
                     
                 _alarm.enabled = false
                 _alarm.save()
-                console.log("DISABLED ALARM: " + _alarmName + " - " + _alarmDate)
+                //console.log("DISABLED ALARM: " + _alarmName + " - " + _alarmDate)
                 let _arr = disabledModel.slice()
                 _arr.push(_alarmName)
                 disabledModel = _arr.slice()
@@ -127,7 +127,7 @@ Item {
                 shell.settings.latestWakeUpAlarm = _latestEpoch
 
                 shell.settings.listOfDisabledWakeAlarms = disabledModel.slice()
-                console.log("LIST OF DISABLED ALARMS: " + JSON.stringify(shell.settings.listOfDisabledWakeAlarms))
+                //console.log("LIST OF DISABLED ALARMS: " + JSON.stringify(shell.settings.listOfDisabledWakeAlarms))
             }
         }
 
@@ -135,7 +135,7 @@ Item {
     }
 
     function reenableAlarms() {
-        console.log("Wake up alarms reenabled")
+        //console.log("Wake up alarms reenabled")
         // Make sure alarm data are updated
         alarmModel.refresh()
 
@@ -200,7 +200,7 @@ Item {
 
             const _regex = new RegExp("^" + escapeRegExp(alarmPrefix), "g")
 
-            console.log("CHECK EARLIEST: " + [_alarmName, _alarmDate, "Enabled: " + _alarmEnabled, "Today: " + isToday(_alarmDate)].join(" - "))
+            //console.log("CHECK EARLIEST: " + [_alarmName, _alarmDate, "Enabled: " + _alarmEnabled, "Today: " + isToday(_alarmDate)].join(" - "))
             if (_regex.test(_alarmName) && _alarmEnabled && isToday(_alarmDate) ) {
                 if (_earliestDate.getTime() > 0) {
                     if (_alarmDate < _earliestDate) {
@@ -214,7 +214,7 @@ Item {
 
         const _earliestEpoch = _earliestDate.getTime()
         shell.settings.earliestWakeUpAlarm = _earliestEpoch
-        console.log("NEW EARLIEST ALARM: " + _earliestDate)
+        //console.log("NEW EARLIEST ALARM: " + _earliestDate)
     }
 
     Timer {
@@ -226,7 +226,7 @@ Item {
     }
 
     function checkIfDayChanged() {
-        console.log("DATE CHANGED?????? " + (!isToday(new Date(shell.settings.currentDateForAlarms))) + " - " + new Date(shell.settings.currentDateForAlarms))
+        //console.log("DATE CHANGED?????? " + (!isToday(new Date(shell.settings.currentDateForAlarms))) + " - " + new Date(shell.settings.currentDateForAlarms))
         if (!isToday(new Date(shell.settings.currentDateForAlarms))) {
             shell.settings.currentDateForAlarms = new Date().getTime()
             getEarliestAlarmToday()
@@ -245,7 +245,7 @@ Item {
             const _earliestDate = new Date(shell.settings.earliestWakeUpAlarm)
             const _hourFromNow = addMilliseconds(addHours(_today, 1), 1000)
 
-            console.log("CHECK IF ENABLE AWAKE BUTTON: " + _hourFromNow + " >= " + _earliestDate + " && " + (shell.settings.earliestWakeUpAlarm > 0))
+            //console.log("CHECK IF ENABLE AWAKE BUTTON: " + _hourFromNow + " >= " + _earliestDate + " && " + (shell.settings.earliestWakeUpAlarm > 0))
             if (_hourFromNow >= _earliestDate && shell.settings.earliestWakeUpAlarm > 0) {
                 isAwake = false
             }

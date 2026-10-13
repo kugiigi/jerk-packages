@@ -223,6 +223,17 @@ StyledItem {
     readonly property string focusedAppName: stage.focusedAppName
     readonly property url focusedAppIcon: stage.focusedAppIcon
     readonly property string focusedAppId: stage.focusedAppId
+    // ENH267 - Battery saver mode in Windowed mode
+    onIsWindowedModeChanged: {
+        if (isWindowedMode) {
+            if (shell.settings.autoBatterySaverModeInWindowedMode) {
+                shell.settings.batterySaverMode = true;
+            }
+        } else {
+            shell.settings.batterySaverMode = false;
+        }
+    }
+    // ENH267 - End
     
     function exemptFromLifecycle(_appId) {
         stage.exemptFromLifecycle(_appId)
@@ -1365,8 +1376,10 @@ Notable features are the following:\n\
         sourceComponent: LPAutoBrightness {
             autoBrightnessData: shell.settings.customAutoBrightnessData
             // ENH224 - Brightness control in Virtual Touchpad mode
-            override: shell.shouldBeLowBrightness
-            overrideValue: shell.settings.brightnessWhenTouchpadMode / 100
+            // ENH198 - Pocket Mode
+            override: shell.shouldBeLowBrightness || shell.isPocketMode
+            overrideValue: shell.isPocketMode ? 0 : shell.settings.brightnessWhenTouchpadMode / 100
+            // ENH198 - End
             // ENH224 - End
         }
     }
@@ -1774,6 +1787,14 @@ Notable features are the following:\n\
         property alias enableVirtualTouchpadLowerClickThreshold: settingsObj.enableVirtualTouchpadLowerClickThreshold
         property alias windowResizeShortcutSimpleMode: settingsObj.windowResizeShortcutSimpleMode
         property alias welcomeDialogShown: settingsObj.welcomeDialogShown
+        property alias autoImmersiveInFullscreen: settingsObj.autoImmersiveInFullscreen
+        property alias autoImmersiveInFullscreenOnlyExternal: settingsObj.autoImmersiveInFullscreenOnlyExternal
+        property alias snappedWindowsMargin: settingsObj.snappedWindowsMargin
+        property alias snappedWindowsMarginExceptEdges: settingsObj.snappedWindowsMarginExceptEdges
+        property alias enableStackedSnappedWindows: settingsObj.enableStackedSnappedWindows
+        property alias includeOthersInStackedSnappedWindows: settingsObj.includeOthersInStackedSnappedWindows
+        property alias autoBatterySaverModeInWindowedMode: settingsObj.autoBatterySaverModeInWindowedMode
+        property alias windowSnapVisualHintAnimationSpeed: settingsObj.windowSnapVisualHintAnimationSpeed
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -2155,6 +2176,7 @@ Notable features are the following:\n\
         property alias invertMouseScroll: settingsObj.invertMouseScroll
         property alias invertSideMouseScroll: settingsObj.invertSideMouseScroll
         property alias virtualTouchpadScrollSensitivity: settingsObj.virtualTouchpadScrollSensitivity
+        property alias virtualTouchpadHorizontalScrollSensitivity: settingsObj.virtualTouchpadHorizontalScrollSensitivity
         property alias sideMouseScrollSensitivity: settingsObj.sideMouseScrollSensitivity
         property alias sideMouseScrollPosition: settingsObj.sideMouseScrollPosition
         property alias enableSideMouseScrollHaptics: settingsObj.enableSideMouseScrollHaptics
@@ -2164,6 +2186,7 @@ Notable features are the following:\n\
         property alias touchpadHideBottomButtonsOnlyAirMouse: settingsObj.touchpadHideBottomButtonsOnlyAirMouse
         property alias touchpadDragWindowSensitivity: settingsObj.touchpadDragWindowSensitivity
         property alias touchpadEnableAdvancedGestures: settingsObj.touchpadEnableAdvancedGestures
+        property alias virtualTouchpadMouseSensitivity: settingsObj.virtualTouchpadMouseSensitivity
 
         // Hot Corners
         property alias enableHotCorners: settingsObj.enableHotCorners
@@ -2228,6 +2251,8 @@ Notable features are the following:\n\
         property alias disableWorkspaceSwitcherUI: settingsObj.disableWorkspaceSwitcherUI
         property alias workspaceSwitcherViaScrollLauncher: settingsObj.workspaceSwitcherViaScrollLauncher
         property alias workspaceSwitcherViaScrollTopBar: settingsObj.workspaceSwitcherViaScrollTopBar
+        property alias workspaceSwitcherTopBarIndicator: settingsObj.workspaceSwitcherTopBarIndicator
+        property alias enableDynamicWorkspaces: settingsObj.enableDynamicWorkspaces
 
         // Others
         property alias enableAppSpreadFlickMod: settingsObj.enableAppSpreadFlickMod
@@ -2250,6 +2275,7 @@ Notable features are the following:\n\
         property alias detoxModeType: settingsObj.detoxModeType
         property alias detoxModePeriod: settingsObj.detoxModePeriod
         property alias detoxModeDuration: settingsObj.detoxModeDuration
+        property alias customImagesList: settingsObj.customImagesList
 
         // Extras
         property alias blueScreenNotYetShown: settingsObj.blueScreenNotYetShown
@@ -2260,6 +2286,7 @@ Notable features are the following:\n\
         property bool showInfographics: true
         property bool immersiveMode: false
         property bool showTouchVisuals: false
+        property bool batterySaverMode: false
 
         // For Charging Alarm
         property bool temporaryEnableChargingAlarm: false
@@ -2377,6 +2404,8 @@ Notable features are the following:\n\
                 ShellNotifier.availableDesktopArea = Qt.binding( function() { return stage ? stage.availableDesktopArea : null  } )
                 ShellNotifier.dragWindowSensitivity = Qt.binding( function() { return touchpadDragWindowSensitivity  } )
                 ShellNotifier.virtualTouchpadScrollSensitivity = Qt.binding( function() { return virtualTouchpadScrollSensitivity  } )
+                ShellNotifier.virtualTouchpadHorizontalScrollSensitivity = Qt.binding( function() { return virtualTouchpadHorizontalScrollSensitivity  } )
+                ShellNotifier.virtualTouchpadMouseSensitivity = Qt.binding( function() { return virtualTouchpadMouseSensitivity  } )
                 // ENH243 - End
             }
             // ENH056 - End
@@ -3085,6 +3114,25 @@ Notable features are the following:\n\
             property var emojiSelectorRecentList: []
             property bool indicatorSelectorForPanelBarWhenInvertedSelectOnHighlight: false
             property bool appGridIndicatorSelectOnHighlight: false
+            property real virtualTouchpadMouseSensitivity: 1 // Multiplier so higher means higher sensitivity
+            property bool autoImmersiveInFullscreen: false
+            property bool workspaceSwitcherTopBarIndicator: false
+            property bool autoImmersiveInFullscreenOnlyExternal: false
+            property real snappedWindowsMargin: 0 // In GU
+            property bool autoBatterySaverModeInWindowedMode: false
+            property real virtualTouchpadHorizontalScrollSensitivity: 1 // Multiplier so higher means higher sensitivity
+            property var customImagesList: []
+            property bool snappedWindowsMarginExceptEdges: false
+            property bool enableStackedSnappedWindows: false
+            property int windowSnapVisualHintAnimationSpeed: 0
+            /*
+               0 - Default
+               1 - Fast
+               2 - Faster
+               3 - Instantaneous
+            */
+            property bool includeOthersInStackedSnappedWindows: false
+            property bool enableDynamicWorkspaces: false
         }
     }
 
@@ -4426,10 +4474,17 @@ Notable features are the following:\n\
                     , "Linux"
                     , "Combined"
                     , "Horror"
+                    , "Pets"
+                    , "Custom Images"
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.detoxModeType
                 onSelectedIndexChanged: shell.settings.detoxModeType = selectedIndex
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Custom Images"
+                onClicked: settingsLoader.item.stack.push(customImagesPage, {"title": text})
             }
             Button {
                 Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
@@ -4531,10 +4586,17 @@ Notable features are the following:\n\
                     , "Linux"
                     , "Combined"
                     , "Horror"
+                    , "Pets"
+                    , "Custom Images"
                 ]
                 containerHeight: itemHeight * 6
                 selectedIndex: shell.settings.detoxModeType
                 onSelectedIndexChanged: shell.settings.detoxModeType = selectedIndex
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Custom Images"
+                onClicked: settingsLoader.item.stack.push(customImagesPage, {"title": text})
             }
             LPSettingsSlider {
                 id: detoxModeDuration
@@ -4836,6 +4898,113 @@ Notable features are the following:\n\
                          Button {
                              text: "Cancel"
                              onClicked: PopupUtils.close(detoxModeDialogue)
+                         }
+                     }
+                }
+            }
+        }
+    }
+    Component {
+        id: customImagesPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: units.gu(2)
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                text: "Put the image files at ~/Pictures/lomiriplus then list the filenames here"
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                Layout.rightMargin: units.gu(2)
+                Layout.topMargin: units.gu(1)
+                Layout.bottomMargin: units.gu(1)
+
+                text: "Add Filename"
+                color: theme.palette.normal.positive
+                onClicked: {
+                    let _dialogAdd = addCustomImageDialog.createObject(shell.popupParent);
+                    _dialogAdd.show()
+                }
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentHeight
+
+                interactive: false
+                model: shell.settings.customImagesList
+
+                delegate: ListItem {
+                    id: customImagesListItem
+
+                    readonly property string appId: modelData
+
+                    height: detoxModeLayout.height + (divider.visible ? divider.height : 0)
+                    color: dragging ? theme.palette.selected.base : "transparent"
+
+                    ListItemLayout {
+                        id: detoxModeLayout
+
+                        title.text: modelData
+                        title.wrapMode: Text.WordWrap
+                    }
+
+                    leadingActions: ListItemActions {
+                        actions: [
+                            Action {
+                                iconName: "delete"
+                                onTriggered: {
+                                    let _arrNewValues = shell.settings.customImagesList.slice()
+                                    let _indexToDelete = _arrNewValues.findIndex((element) => (element == customImagesListItem.appId));
+                                    _arrNewValues.splice(_indexToDelete, 1)
+                                    shell.settings.customImagesList = _arrNewValues.slice()
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                Component {
+                    id: addCustomImageDialog
+                    Dialog {
+                        id: customImageDialogue
+                        
+                        property bool reparentToRootItem: false
+                        anchorToKeyboard: false // Handle the keyboard anchor via shell.popupParent
+
+                        property int selectedIndex: 0
+
+
+                        RowLayout {
+                            TextField {
+                                id: imageFilenameTextField
+                                Layout.fillWidth: true
+                                placeholderText: "Type image filename"
+                                inputMethodHints: Qt.ImhNoPredictiveText
+                            }
+                        }
+
+                        Button {
+                            id: btnAdd
+                             text: "Add"
+                             color: theme.palette.normal.positive
+                             enabled: imageFilenameTextField.text !== ""
+                             onClicked: {
+                                let _arrNewValues = shell.settings.customImagesList.slice()
+                                _arrNewValues.push(imageFilenameTextField.text)
+                                shell.settings.customImagesList = _arrNewValues.slice()
+                                PopupUtils.close(customImageDialogue)
+                             }
+                         }
+                         Button {
+                             text: "Cancel"
+                             onClicked: PopupUtils.close(customImageDialogue)
                          }
                      }
                 }
@@ -5388,6 +5557,31 @@ Notable features are the following:\n\
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: autoImmersiveInFullscreen
+                Layout.fillWidth: true
+                text: "Automatically enter immersive mode when current app is fullscreen"
+                onCheckedChanged: shell.settings.autoImmersiveInFullscreen = checked
+                Binding {
+                    target: autoImmersiveInFullscreen
+                    property: "checked"
+                    value: shell.settings.autoImmersiveInFullscreen
+                }
+            }
+            LPSettingsCheckBox {
+                id: autoImmersiveInFullscreenOnlyExternal
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                visible: shell.settings.autoImmersiveInFullscreen
+                text: "Only in external displays and windowed mode"
+                onCheckedChanged: shell.settings.autoImmersiveInFullscreenOnlyExternal = checked
+                Binding {
+                    target: autoImmersiveInFullscreenOnlyExternal
+                    property: "checked"
+                    value: shell.settings.autoImmersiveInFullscreenOnlyExternal
+                }
             }
             LPSettingsCheckBox {
                 id: enableShowDesktop
@@ -6184,6 +6378,27 @@ Notable features are the following:\n\
                     value: shell.settings.windowResizeShortcutSimpleMode
                 }
             }
+            LPSettingsCheckBox {
+                id: autoBatterySaverModeInWindowedMode
+                Layout.fillWidth: true
+                text: "Automatically enter Battery Saver mode when entering Windowed mode"
+                onCheckedChanged: shell.settings.autoBatterySaverModeInWindowedMode = checked
+                Binding {
+                    target: autoBatterySaverModeInWindowedMode
+                    property: "checked"
+                    value: shell.settings.autoBatterySaverModeInWindowedMode
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "In Battery Saver mode, background apps will still suspend just like in Stage mode"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
         }
     }
     Component {
@@ -6222,6 +6437,107 @@ Notable features are the following:\n\
                     property: "checked"
                     value: shell.settings.onlyCommitOnReleaseWhenKeyboardSnapping
                 }
+
+            }
+            OptionSelector {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: i18n.tr("Visual hint animation speed")
+                model: [
+                    i18n.tr("Default"),
+                    i18n.tr("Fast"),
+                    i18n.tr("Faster"),
+                    i18n.tr("Instantaneous")
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: shell.settings.windowSnapVisualHintAnimationSpeed
+                onSelectedIndexChanged: shell.settings.windowSnapVisualHintAnimationSpeed = selectedIndex
+            }
+            LPSettingsSwitch {
+                id: enableStackedSnappedWindows
+                Layout.fillWidth: true
+                text: "Stacked Windows Tabs Bar"
+                onCheckedChanged: shell.settings.enableStackedSnappedWindows = checked
+                Binding {
+                    target: enableStackedSnappedWindows
+                    property: "checked"
+                    value: shell.settings.enableStackedSnappedWindows
+                }
+
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Displays a Tabs bar to quickly switch between snapped windows of the same maximized state"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: includeOthersInStackedSnappedWindows
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(2)
+                visible: shell.settings.enableStackedSnappedWindows
+                text: "Include tabs from other snap states "
+                onCheckedChanged: shell.settings.includeOthersInStackedSnappedWindows = checked
+                Binding {
+                    target: includeOthersInStackedSnappedWindows
+                    property: "checked"
+                    value: shell.settings.includeOthersInStackedSnappedWindows
+                }
+
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                visible: includeOthersInStackedSnappedWindows.visible
+                text: "This adds tabs that give quick access to other snap states that occupy the same space.\n\
+For example, Right maximized windows will have a tab each for top right and bottom right maximized windows.\n\
+This way you can switch to them even if they are visually behind or hidden."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsSlider {
+                id: snappedWindowsMargin
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Snapped windows margin"
+                minimumValue: 0
+                maximumValue: 10
+                stepSize: 0.1
+                resetValue: 0
+                live: false
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "GU"
+                enableFineControls: true
+                onValueChanged: shell.settings.snappedWindowsMargin = value
+                Binding {
+                    target: snappedWindowsMargin
+                    property: "value"
+                    value: shell.settings.snappedWindowsMargin
+                }
+            }
+            LPSettingsCheckBox {
+                id: snappedWindowsMarginExceptEdges
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                visible: shell.settings.snappedWindowsMargin > 0
+                text: "No margin on edges"
+                onCheckedChanged: shell.settings.snappedWindowsMarginExceptEdges = checked
+                Binding {
+                    target: snappedWindowsMarginExceptEdges
+                    property: "checked"
+                    value: shell.settings.snappedWindowsMarginExceptEdges
+                }
+
             }
         }
     }
@@ -6488,6 +6804,29 @@ Notable features are the following:\n\
                 onClicked: settingsLoader.item.stack.push(touchpadAdvancedGesturesPage, {"title": text})
             }
             LPSettingsSlider {
+                id: virtualTouchpadMouseSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0.1
+                maximumValue: 5
+                stepSize: 0.1
+                resetValue: 1
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "x"
+                enableFineControls: true
+                onValueChanged: shell.settings.virtualTouchpadMouseSensitivity = value
+                Binding {
+                    target: virtualTouchpadMouseSensitivity
+                    property: "value"
+                    value: shell.settings.virtualTouchpadMouseSensitivity
+                }
+            }
+            LPSettingsSlider {
                 id: virtualTouchpadScrollSensitivity
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
@@ -6508,6 +6847,29 @@ Notable features are the following:\n\
                     target: virtualTouchpadScrollSensitivity
                     property: "value"
                     value: shell.settings.virtualTouchpadScrollSensitivity
+                }
+            }
+            LPSettingsSlider {
+                id: virtualTouchpadHorizontalScrollSensitivity
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                title: "Horizontal Scroll Sensitivity (Higher means higher sensitivity)"
+                minimumValue: 0.1
+                maximumValue: 2
+                stepSize: 0.1
+                resetValue: 1
+                live: true
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                unitsLabel: "x"
+                enableFineControls: true
+                onValueChanged: shell.settings.virtualTouchpadHorizontalScrollSensitivity = value
+                Binding {
+                    target: virtualTouchpadHorizontalScrollSensitivity
+                    property: "value"
+                    value: shell.settings.virtualTouchpadHorizontalScrollSensitivity
                 }
             }
             LPSettingsCheckBox {
@@ -9200,6 +9562,17 @@ Notable features are the following:\n\
                         }
                     }
                     LPSettingsSwitch {
+                        id: enableDynamicWorkspaces
+                        Layout.fillWidth: true
+                        text: "Dynamic workspaces"
+                        onCheckedChanged: shell.settings.enableDynamicWorkspaces = checked
+                        Binding {
+                            target: enableDynamicWorkspaces
+                            property: "checked"
+                            value: shell.settings.enableDynamicWorkspaces
+                        }
+                    }
+                    LPSettingsSwitch {
                         id: disableWorkspaceSwitcherUI
                         Layout.fillWidth: true
                         text: "Redesigned workspace switching behavior"
@@ -9264,6 +9637,17 @@ Notable features are the following:\n\
                             target: workspaceSwitcherViaScrollTopBar
                             property: "checked"
                             value: shell.settings.workspaceSwitcherViaScrollTopBar
+                        }
+                    }
+                    LPSettingsCheckBox {
+                        id: workspaceSwitcherTopBarIndicator
+                        Layout.fillWidth: true
+                        text: "Display workspaces indicator in the Top Bar"
+                        onCheckedChanged: shell.settings.workspaceSwitcherTopBarIndicator = checked
+                        Binding {
+                            target: workspaceSwitcherTopBarIndicator
+                            property: "checked"
+                            value: shell.settings.workspaceSwitcherTopBarIndicator
                         }
                     }
                 }
@@ -13655,7 +14039,21 @@ Notable features are the following:\n\
     /* Detect Immersive mode */
     // ENH115 - Standalone Immersive mode
     //property bool immersiveMode: settings.edgeDragWidth == 0
-    property bool immersiveMode: settings.edgeDragWidth == 0 || shell.settings.immersiveMode
+    readonly property bool autoImmersiveMode: {
+        if (shell.settings.autoImmersiveInFullscreen && panel.state === "offscreen") {
+            if (! shell.settings.autoImmersiveInFullscreenOnlyExternal)
+                return true
+
+            if (!shell.isBuiltInScreen && shell.isWindowedMode)
+                return true
+
+        }
+
+        return false
+    }
+    readonly property bool immersiveMode: settings.edgeDragWidth == 0 || shell.settings.immersiveMode
+                                    || autoImmersiveMode
+
     // ENH115 - End
     // ENH018 - End
 
@@ -13849,7 +14247,10 @@ Notable features are the following:\n\
         objectName: "windowInputMonitor"
         onHomeKeyActivated: {
             // Ignore when greeter is active, to avoid pocket presses
-            if (!greeter.active) {
+            // ENH264 - Workaround for opening Drawer when using Super combos
+            // if (!greeter.active) {
+            if (!greeter.active && !shell.wasSuperComboed) {
+            // ENH264 - End
                 launcher.toggleDrawer(/* focusInputField */  false,
                                       /* onlyOpen */         false,
                                       /* alsoToggleLauncher */ true);
@@ -14172,7 +14573,7 @@ Notable features are the following:\n\
         }
         z: shell.settings.directActionsSwipeOverOSK ? itemGrabber.z - 1 : settingsLoader.z + 1
         sourceComponent: LPDirectActions {
-            enabled: !shell.immersiveMode
+            enableSwipe: !shell.immersiveMode
             noSwipeCommit: shell.settings.directActionsNoSwipeCommit
             swipeAreaHeight: shell.convertFromInch(shell.settings.directActionsSwipeAreaHeight)
             swipeAreaWidth: shell.edgeSize
@@ -14198,10 +14599,29 @@ Notable features are the following:\n\
 
             GlobalShortcut {
                 shortcut: Qt.MetaModifier | Qt.Key_Q
-                onTriggered: shell.toggleQuickActions()
+                // ENH264 - Workaround for opening Drawer when using Super combos
+                //onTriggered: shell.toggleQuickActions()
+                onTriggered: {
+                    shell.toggleQuickActions();
+                    shell.superComboFinish();
+                }
+                // ENH264 - End
             }
         }
     }
+    // ENH264 - Workaround for opening Drawer when using Super combos
+    // Super combo was just triggered
+    property bool wasSuperComboed: false
+    function superComboFinish() {
+        wasSuperComboed = true;
+        superComboTimer.restart();
+    }
+    Timer {
+        id: superComboTimer
+        interval: 150
+        onTriggered: shell.wasSuperComboed = false;
+    }
+    // ENH264 - End
     // ENH139 - End
 
     // ENH028 - Open indicators via gesture
@@ -14972,13 +15392,19 @@ Notable features are the following:\n\
                     // launcher.toggleDrawer(true);
                     launcher.searchInDrawer("apps")
                     // ENH236 - End
+                    // ENH264 - Workaround for opening Drawer when using Super combos
+                    shell.superComboFinish();
+                    // ENH264 - End
                 }
             }
             // ENH236 - Custom drawer search
             GlobalShortcut {
                 shortcut: Qt.MetaModifier | Qt.Key_Z
                 onTriggered: {
-                    launcher.searchInDrawer("web")
+                    launcher.searchInDrawer("web");
+                    // ENH264 - Workaround for opening Drawer when using Super combos
+                    shell.superComboFinish();
+                    // ENH264 - End
                 }
             }
             // ENH236 - End
@@ -14994,6 +15420,9 @@ Notable features are the following:\n\
                     if (LauncherModel.get(9)) {
                         activateApplication(LauncherModel.get(9).appId);
                     }
+                    // ENH264 - Workaround for opening Drawer when using Super combos
+                        shell.superComboFinish();
+                        // ENH264 - End
                 }
             }
             Repeater {
@@ -15004,9 +15433,37 @@ Notable features are the following:\n\
                         if (LauncherModel.get(index)) {
                             activateApplication(LauncherModel.get(index).appId);
                         }
+                        // ENH264 - Workaround for opening Drawer when using Super combos
+                        shell.superComboFinish();
+                        // ENH264 - End
                     }
                 }
             }
+            // ENH262 - Workspace indicator
+            GlobalShortcut {
+                shortcut: Qt.MetaModifier | Qt.ControlModifier | Qt.Key_0
+                // ENH264 - Workaround for opening Drawer when using Super combos
+                //onTriggered: stage.switchToWorkspace(9);
+                onTriggered: {
+                    stage.switchToWorkspace(9);
+                    shell.superComboFinish();
+                }
+                // ENH264 - End
+            }
+            Repeater {
+                model: 9
+                GlobalShortcut {
+                    shortcut: Qt.MetaModifier | Qt.ControlModifier | (Qt.Key_1 + index)
+                    // ENH264 - Workaround for opening Drawer when using Super combos
+                    //onTriggered: stage.switchToWorkspace(index);
+                    onTriggered: {
+                        stage.switchToWorkspace(index);
+                        shell.superComboFinish();
+                    }
+                    // ENH264 - End
+                }
+            }
+            // ENH262 - End
         }
 
         KeyboardShortcutsOverlay {
@@ -15128,7 +15585,10 @@ Notable features are the following:\n\
             // enabled: !greeter.shown
             // ENH133 - Hot corners
             //enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
-            enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
+            // ENH018 - Immersive mode
+            //enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush
+            enabled: !greeter.shown && !shell.settings.disableRightEdgeMousePush && !shell.immersiveMode
+            // ENH018 - End
             // ENH133 - End
             // ENH104 - End
 
@@ -15239,6 +15699,9 @@ Notable features are the following:\n\
                         // ENH243 - Virtual Touchpad Enhancements
                         && !ShellNotifier.appIsBeingDragged
                         // ENH243 - End
+                        // ENH018 - Immersive mode
+                        && !shell.immersiveMode
+                        // ENH018 - End
             edge: LPHotCorner.Edge.TopLeft
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
@@ -15282,6 +15745,9 @@ Notable features are the following:\n\
                         // ENH243 - Virtual Touchpad Enhancements
                         && !ShellNotifier.appIsBeingDragged
                         // ENH243 - End
+                        // ENH018 - Immersive mode
+                        && !shell.immersiveMode
+                        // ENH018 - End
             edge: LPHotCorner.Edge.TopRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
@@ -15325,6 +15791,9 @@ Notable features are the following:\n\
                         // ENH243 - Virtual Touchpad Enhancements
                         && !ShellNotifier.appIsBeingDragged
                         // ENH243 - End
+                        // ENH018 - Immersive mode
+                        && !shell.immersiveMode
+                        // ENH018 - End
             edge: LPHotCorner.Edge.BottomRight
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
             onTrigger: overlay.triggerHotCorner(actionType, actionValue, edge)
@@ -15368,6 +15837,9 @@ Notable features are the following:\n\
                         // ENH243 - Virtual Touchpad Enhancements
                         && !ShellNotifier.appIsBeingDragged
                         // ENH243 - End
+                        // ENH018 - Immersive mode
+                        && !shell.immersiveMode
+                        // ENH018 - End
             edge: LPHotCorner.Edge.BottomLeft
             useHover: shell.settings.hotCornerBottomLeftWorkAround && !shell.isBuiltInScreen
             enableVisualFeedback: shell.settings.enableHotCornersVisualFeedback
@@ -15843,6 +16315,10 @@ Notable features are the following:\n\
                     return ttyComponent
                 case 3: // Horror
                     return horrorComponent
+                case 4: // Pets
+                    return petsComponent
+                case 5: // Pets
+                    return customImagesComponent
                 case 2: // Combined
                 default:
                     return combinedComponent
@@ -15871,6 +16347,41 @@ Notable features are the following:\n\
 
             LPScarePage {
                 dismissEnabled: buruIskunuru.dismissEnabled
+                model: [
+                    "blackface_scare.jpg"
+                    , "eye_scare.jpg"
+                    , "lady_scare.gif"
+                    , "lady2_scare.gif"
+                ]
+                onClose: buruIskunuru.hide()
+            }
+        }
+        Component {
+            id: petsComponent
+
+            LPScarePage {
+                fillMode: Image.PreserveAspectFit
+                transparentBackground: true
+                dismissEnabled: buruIskunuru.dismissEnabled
+                model: [
+                    "dog_glasses.webp"
+                    , "cat_3D.gif"
+                    , "cat_standing.gif"
+                    , "cartoon.gif"
+                ]
+                onClose: buruIskunuru.hide()
+            }
+        }
+        Component {
+            id: customImagesComponent
+
+            LPScarePage {
+                fillMode: Image.PreserveAspectFit
+                transparentBackground: true
+                dismissEnabled: buruIskunuru.dismissEnabled
+                customPath: LabsPlatform.StandardPaths.writableLocation(LabsPlatform.StandardPaths.HomeLocation).toString()
+                                                    + "/Pictures/lomiriplus/"
+                model: shell.settings.customImagesList
                 onClose: buruIskunuru.hide()
             }
         }

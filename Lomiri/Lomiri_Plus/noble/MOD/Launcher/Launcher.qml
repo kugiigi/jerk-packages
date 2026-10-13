@@ -783,7 +783,10 @@ FocusScope {
         // enabled: root.available
         // ENH133 - Hot corners
         //enabled: root.available && !shell.settings.disableLeftEdgeMousePush
-        enabled: root.available && !shell.settings.disableLeftEdgeMousePush
+        // ENH018 - Immersive mode
+        //enabled: root.available && !shell.settings.disableLeftEdgeMousePush
+        enabled: root.available && !shell.settings.disableLeftEdgeMousePush && !shell.immersiveMode
+        // ENH018 - End
         // ENH133 - End
         // ENH104 - End
         // ENH163 - Less sensitive edge barrier

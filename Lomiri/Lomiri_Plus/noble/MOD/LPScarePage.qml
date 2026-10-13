@@ -9,22 +9,22 @@ Item {
     property bool dismissEnabled: true
     property int duration: 5000
     property int currentIndex: 0
+    property bool transparentBackground: false
+    property alias fillMode: image.fillMode
 
-    readonly property var model: [
-        "blackface_scare.jpg"
-        , "eye_scare.jpg"
-        , "lady_scare.gif"
-        , "lady2_scare.gif"
-    ]
+    property string customPath: ""
+    property var model: []
 
     signal close
 
     Component.onCompleted: {
         currentIndex = shell.randomWholeNumber(0, model.length - 1)
-        image.source = "LPGraphics/" + model[currentIndex]
+        const _path = root.customPath !== "" ? root.customPath : "LPGraphics/";
+        image.source = _path + model[currentIndex]
     }
 
     Rectangle {
+        visible: !root.transparentBackground
         anchors.fill: parent
         color: "black"
     }

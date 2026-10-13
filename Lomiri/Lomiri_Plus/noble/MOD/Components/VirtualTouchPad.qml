@@ -427,7 +427,10 @@ Item {
                 isDrag = true;
             }
 
-            UInput.moveMouse(tp.x - tp.previousX, tp.y - tp.previousY);
+            // ENH243 - Virtual Touchpad Enhancements
+            // UInput.moveMouse(tp.x - tp.previousX, tp.y - tp.previousY);
+            const _sensitivity = ShellNotifier.virtualTouchpadMouseSensitivity;
+            UInput.moveMouse((tp.x - tp.previousX) * _sensitivity, (tp.y - tp.previousY) * _sensitivity);
         }
 
         function scroll(touchPoints) {
@@ -455,14 +458,21 @@ Item {
             dh /= 2;
             dv /= 2;
             // ENH243 - Virtual Touchpad Enhancements
+            if (Math.abs(dv) >= Math.abs(dh)) {
+                dh = 0;
+            } else {
+                dv = 0;
+            }
+
             if (ShellNotifier.invertMouseScroll) {
                 dh = -dh;
                 dv = -dv;
             }
 
             // UInput.scrollMouse(dh, dv);
-            const _sensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
-            UInput.scrollMouse(dh * _sensitivity, dv * _sensitivity);
+            const _vSensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
+            const _hSensitivity = ShellNotifier.virtualTouchpadHorizontalScrollSensitivity
+            UInput.scrollMouse(dh * _hSensitivity, dv * _vSensitivity);
             // ENH243 - End
         }
 
@@ -627,13 +637,20 @@ Item {
             dh /= 2;
             dv /= 2;
 
+            if (Math.abs(dv) >= Math.abs(dh)) {
+                dh = 0;
+            } else {
+                dv = 0;
+            }
+
             if (ShellNotifier.invertMouseScroll) {
                 dh = -dh;
                 dv = -dv;
             }
 
-            const _sensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
-            UInput.scrollMouse(dh * _sensitivity, dv * _sensitivity);
+            const _vSensitivity = ShellNotifier.virtualTouchpadScrollSensitivity
+            const _hSensitivity = ShellNotifier.virtualTouchpadHorizontalScrollSensitivity
+            UInput.scrollMouse(dh * _hSensitivity, dv * _vSensitivity);
         }
     }
     // For moving windows

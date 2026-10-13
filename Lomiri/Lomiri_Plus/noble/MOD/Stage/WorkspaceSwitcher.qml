@@ -274,7 +274,20 @@ Item {
         }
         function nextWorkspace() {
             var screen = screensProxy.get(highlightedScreenIndex);
-            highlightedWorkspaceIndex = Math.min(highlightedWorkspaceIndex + 1, screen.workspaces.count - 1);
+            // ENH269 - Dynamic workspace
+            const _workspace = screen.workspaces.get(d.highlightedWorkspaceIndex);
+            let _addedIndex = 0;
+            if (shell.settings.enableDynamicWorkspaces) {
+                if (highlightedWorkspaceIndex === screen.workspaces.count - 1
+                        && _workspace && _workspace.windowModel.count > 0) {
+                    screen.workspaces.addWorkspace();
+                    Screens.sync(root.screensProxy);
+                    _addedIndex = 1;
+                }
+            }
+            // highlightedWorkspaceIndex = Math.min(highlightedWorkspaceIndex + 1, screen.workspaces.count - 1);
+            highlightedWorkspaceIndex = Math.min(highlightedWorkspaceIndex + 1 + _addedIndex, screen.workspaces.count - 1);
+            // ENH269 - End
             // ENH259 - Option to disable workspace switcher UI
             if (switchImmediately) {
                 commitSwitchToWorkspace()

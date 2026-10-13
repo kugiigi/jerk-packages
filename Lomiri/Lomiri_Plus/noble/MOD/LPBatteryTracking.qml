@@ -87,10 +87,10 @@ Item {
             shell.settings.batteryTrackingData = _tempArr.slice()
             shell.settings.batteryTrackingLastDate = _datetime
             delayedAddTimer.clear()
-            console.log("BATTERY TRACK ADDED!!! " + JSON.stringify(_newItem))
+            //console.log("BATTERY TRACK ADDED!!! " + JSON.stringify(_newItem))
         } else {
             delayedAddTimer.startDelay(_forcedValue)
-            console.log("BATTERY TRACK DELAYED!!! " + JSON.stringify(_newItem))
+            //console.log("BATTERY TRACK DELAYED!!! " + JSON.stringify(_newItem))
         }
     }
 
