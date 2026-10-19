@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.4
+import QtQuick 2.15
 import Lomiri.Components 1.3
 // ENH192 - Swipe gesture in the header
 import Qt.labs.settings 1.0
@@ -487,6 +487,53 @@ Header {
         rightSwipeHoldEnabled: false
         leftSwipeHoldEnabled: false
 
+        function processActions() {
+            if (header.parent instanceof Page) {
+                // Maybe animate too?
+            }
+            header.leadingActionsVisibleCount = 0
+            header.trailingActionsVisibleCount = 0
+
+            let leadingActionBarActions = header.leadingActionBar.actions
+
+            if (leadingActionBarActions.length > 0) {
+                for (let i = 0; i < leadingActionBarActions.length; i++) {
+                    if (leadingActionBarActions[i].visible
+                            && leadingActionBarActions[i].enabled) {
+                        header.leadingActionsVisibleCount += 1
+                        header.leadingActionVisible = leadingActionBarActions[i]
+                    }
+                }
+            }
+            if (header.leadingActionsVisibleCount == 1) {
+                goBackIcon.iconName = header.leadingActionVisible.iconName
+            } else if (header.leadingActionsVisibleCount > 1) {
+                goBackIcon.iconName = "navigation-menu"
+            } else {
+                goBackIcon.iconName = "go-previous"
+            }
+            
+            let trailingActionBarActions = header.trailingActionBar.actions
+
+            if (trailingActionBarActions.length > 0) {
+                for (let i = 0; i < trailingActionBarActions.length; i++) {
+
+                    if (trailingActionBarActions[i].visible
+                            && trailingActionBarActions[i].enabled) {
+                        header.trailingActionsVisibleCount += 1
+                        header.trailingActionVisible = trailingActionBarActions[i]
+                    }
+                }
+            }
+            if (header.trailingActionsVisibleCount == 1) {
+                goForwardIcon.iconName = header.trailingActionVisible.iconName
+            } else if (header.trailingActionsVisibleCount > 1) {
+                goForwardIcon.iconName = "navigation-menu"
+            } else {
+                goForwardIcon.iconName = "go-next"
+            }
+        }
+
         onRightSwipe: {
             if (header.leadingActionsVisibleCount == 1) {
                 leadingActionVisible.trigger()
@@ -506,50 +553,7 @@ Header {
 
         onPressedChanged: {
             if (pressed) {
-                if (header.parent instanceof Page) {
-                    // Maybe animate too?
-                }
-                header.leadingActionsVisibleCount = 0
-                header.trailingActionsVisibleCount = 0
-
-                let leadingActionBarActions = header.leadingActionBar.actions
-
-                if (leadingActionBarActions.length > 0) {
-                    for (let i = 0; i < leadingActionBarActions.length; i++) {
-                        if (leadingActionBarActions[i].visible
-                                && leadingActionBarActions[i].enabled) {
-                            header.leadingActionsVisibleCount += 1
-                            header.leadingActionVisible = leadingActionBarActions[i]
-                        }
-                    }
-                }
-                if (header.leadingActionsVisibleCount == 1) {
-                    goBackIcon.iconName = header.leadingActionVisible.iconName
-                } else if (header.leadingActionsVisibleCount > 1) {
-                    goBackIcon.iconName = "navigation-menu"
-                } else {
-                    goBackIcon.iconName = "go-previous"
-                }
-                
-                let trailingActionBarActions = header.trailingActionBar.actions
-
-                if (trailingActionBarActions.length > 0) {
-                    for (let i = 0; i < trailingActionBarActions.length; i++) {
-
-                        if (trailingActionBarActions[i].visible
-                                && trailingActionBarActions[i].enabled) {
-                            header.trailingActionsVisibleCount += 1
-                            header.trailingActionVisible = trailingActionBarActions[i]
-                        }
-                    }
-                }
-                if (header.trailingActionsVisibleCount == 1) {
-                    goForwardIcon.iconName = header.trailingActionVisible.iconName
-                } else if (header.trailingActionsVisibleCount > 1) {
-                    goForwardIcon.iconName = "navigation-menu"
-                } else {
-                    goForwardIcon.iconName = "go-next"
-                }
+                processActions();
             }
         }
     }
@@ -562,7 +566,8 @@ Header {
 
             iconName: "go-next"
             enabled: header.trailingActionBar.width > 0
-            swipeProgress: bottomGestureItem && bottomGestureItem.dragging ? bottomGestureItem.swipeProgress : bottomBackForwardHandle.swipeProgress
+            swipeProgress: horizontalWheelHandler.active ? horizontalWheelHandler.scrollProgress
+                                : bottomGestureItem && bottomGestureItem.dragging ? bottomGestureItem.swipeProgress : bottomBackForwardHandle.swipeProgress
             defaultWidth: units.gu(2.8)
             anchors {
                 right: parent.right
@@ -576,13 +581,87 @@ Header {
 
             iconName: "go-previous"
             enabled: header.leadingActionBar.width > 0
-            swipeProgress: bottomGestureItem && bottomGestureItem.dragging ? bottomGestureItem.swipeProgress : bottomBackForwardHandle.swipeProgress
+            swipeProgress: horizontalWheelHandler.active ? horizontalWheelHandler.scrollProgress
+                                : bottomGestureItem && bottomGestureItem.dragging ? bottomGestureItem.swipeProgress : bottomBackForwardHandle.swipeProgress
             defaultWidth: units.gu(2.8)
             anchors {
                 left: parent.left
                 leftMargin: units.gu(1.5)
                 verticalCenter: parent.verticalCenter
             }
+        }
+    }
+
+    WheelHandler {
+        id: horizontalWheelHandler
+
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        acceptedButtons: Qt.NoButton
+        orientation: Qt.Horizontal
+
+        property real accumulated: 0
+        property int initialTriggerStage: 1
+        property int actionTriggerStage: 3
+        readonly property int actionTriggerStageValue: stageValues[3]
+        readonly property real scrollProgress: Math.min(1, Math.abs(accumulated) / actionTriggerStageValue)
+        readonly property var stageValues: [
+            0, 500, 1000, 1500
+        ]
+        readonly property int stage: {
+            switch (true) {
+                case accumulated >= stageValues[3]:
+                    return 3
+                case accumulated >= stageValues[2]:
+                    return 2
+                case (accumulated >= stageValues[1]):
+                    return 1
+                case accumulated <= -stageValues[3]:
+                    return -3
+                case accumulated <= -stageValues[2]:
+                    return -2
+                case (accumulated <= -stageValues[1]):
+                    return -1
+                default:
+                    return 0
+            }
+        }
+
+        activeTimeout: 500
+        onActiveChanged: {
+            if (active) {
+                bottomBackForwardHandle.processActions();
+            } else {
+                if (goBackIcon.visible && Math.abs(stage) >= actionTriggerStage) {
+                    bottomBackForwardHandle.rightSwipe();
+                }
+                if (goForwardIcon.visible && Math.abs(stage) >= actionTriggerStage) {
+                    bottomBackForwardHandle.leftSwipe();
+                }
+
+                goBackIcon.hide();
+                goForwardIcon.hide();
+
+                accumulated = 0;
+            }
+        }
+
+        onStageChanged: {
+            if (Math.abs(stage) === initialTriggerStage) {
+                if (stage > 0 && bottomBackForwardHandle.rightSwipeEnabled) {
+                    goBackIcon.show();
+                } else if (stage < 0 && bottomBackForwardHandle.leftSwipeEnabled) {
+                    goForwardIcon.show();
+                }
+            }
+
+            if (Math.abs(stage) === actionTriggerStage) {
+                Haptics.play();
+            }
+        }
+
+        onWheel: (event) => {
+            accumulated += event.angleDelta.x
+            event.accepted = true
         }
     }
 
