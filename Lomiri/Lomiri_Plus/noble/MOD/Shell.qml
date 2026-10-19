@@ -1795,6 +1795,7 @@ Notable features are the following:\n\
         property alias includeOthersInStackedSnappedWindows: settingsObj.includeOthersInStackedSnappedWindows
         property alias autoBatterySaverModeInWindowedMode: settingsObj.autoBatterySaverModeInWindowedMode
         property alias windowSnapVisualHintAnimationSpeed: settingsObj.windowSnapVisualHintAnimationSpeed
+        property alias enableHorizontalScrollLauncherDrawer: settingsObj.enableHorizontalScrollLauncherDrawer
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -2287,6 +2288,7 @@ Notable features are the following:\n\
         property bool immersiveMode: false
         property bool showTouchVisuals: false
         property bool batterySaverMode: false
+        property bool extremeBatterySaverMode: false
 
         // For Charging Alarm
         property bool temporaryEnableChargingAlarm: false
@@ -3133,6 +3135,7 @@ Notable features are the following:\n\
             */
             property bool includeOthersInStackedSnappedWindows: false
             property bool enableDynamicWorkspaces: false
+            property bool enableHorizontalScrollLauncherDrawer: false
         }
     }
 
@@ -6394,7 +6397,8 @@ Notable features are the following:\n\
                 Layout.leftMargin: units.gu(4)
                 Layout.rightMargin: units.gu(2)
                 Layout.bottomMargin: units.gu(2)
-                text: "In Battery Saver mode, background apps will still suspend just like in Stage mode"
+                text: "In Battery Saver mode, the system smartly detects apps that are visually in the background and suspend them."
+                + "\nExtreme battery saver mode will suspend all background apps just like in Staged mode."
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
@@ -7150,6 +7154,27 @@ This way you can switch to them even if they are visually behind or hidden."
                 Layout.fillWidth: true
                 text: "Hot Corners"
                 onClicked: settingsLoader.item.stack.push(hotcornersPage, {"title": text})
+            }
+            LPSettingsSwitch {
+                id: enableHorizontalScrollLauncherDrawer
+                Layout.fillWidth: true
+                text: "Scroll to toggle Launcher/Drawer"
+                onCheckedChanged: shell.settings.enableHorizontalScrollLauncherDrawer = checked
+                Binding {
+                    target: enableHorizontalScrollLauncherDrawer
+                    property: "checked"
+                    value: shell.settings.enableHorizontalScrollLauncherDrawer
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Horizontal scroll on the Launcher or the left edge will toggle the Launcher or the Drawer"
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
             LPSettingsCheckBox {
                 id: disableLeftEdgeMousePush

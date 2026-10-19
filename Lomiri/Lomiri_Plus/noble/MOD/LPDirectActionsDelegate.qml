@@ -1,5 +1,5 @@
 // ENH139 - System Direct Actions
-import QtQuick 2.12
+import QtQuick 2.15
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 import Qt.labs.platform 1.0 as LabsPlatform
@@ -399,6 +399,7 @@ Item {
             id: hoverHandler
             target: bgRec
             acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+            cursorShape: Qt.PointingHandCursor
         }
     }
 

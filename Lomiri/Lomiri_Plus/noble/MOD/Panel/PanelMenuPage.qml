@@ -531,6 +531,24 @@ PageStack {
                                     value: shell.settings.batterySaverMode
                                 }
                             }
+                            Menus.SwitchMenu {
+                                id: extremeBatterySaverModeSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.isWindowedMode && shell.settings.batterySaverMode
+                                text: "Extreme Battery Saver"
+                                iconSource: "image://theme/gpm-battery-missing"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: shell.settings.extremeBatterySaverMode = checked
+
+                                Binding {
+                                    target: extremeBatterySaverModeSwitch
+                                    property: "checked"
+                                    value: shell.settings.extremeBatterySaverMode
+                                }
+                            }
                             // ENH267 - End
                             Menus.BaseLayoutMenu {
                                 property QtObject menuData: null

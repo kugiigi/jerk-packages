@@ -455,6 +455,7 @@ Item {
                 leftMargin: units.gu(1)
                 rightMargin: units.gu(1)
             }
+            width: item ? item.width : 0
 
             Behavior on anchors.bottomMargin { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
             Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
@@ -481,6 +482,34 @@ Item {
                 onNewIndexSelected: shell.stage.switchToWorkspace(newIndex);
             }
         }
+
+        LPNavigationButton {
+            visible: shell.settings.workspaceSwitcherTopBarIndicator
+                        && !shell.showingGreeter && shell.stage.workspaceEnabled
+                        && root.width >= units.gu(120)
+            anchors {
+                bottom: indicatorSelectorLoader.bottom
+                bottomMargin: units.gu(0.5)
+                horizontalCenter: panelAreaBackground.horizontalCenter
+                horizontalCenterOffset: indicatorSelectorLoader.item ? indicatorSelectorLoader.item.layoutWidth / 2 + units.gu(1)
+                                                                     : 0
+            }
+            height: indicatorSelectorLoader.item ? indicatorSelectorLoader.item.indicatorWidth : units.gu(2.5)
+            width: height
+            backgroundColor: theme.palette.normal.base
+            textColor: theme.palette.normal.baseText
+            iconName: "add"
+            icon {
+                width: units.gu(1.5)
+                height: units.gu(1.5)
+            }
+            HoverHandler {
+                acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                cursorShape: Qt.PointingHandCursor
+            }
+
+            onSingleClick: shell.stage.addWorkspace();
+        }
         // ENH262 - End
 
         MouseArea {
@@ -495,6 +524,7 @@ Item {
             }
             height: minimizedPanelHeight
             hoverEnabled: !__indicators.shown
+            cursorShape: undefined
             onClicked: {
                 if (callHint.visible) {
                     callHint.showLiveCall();

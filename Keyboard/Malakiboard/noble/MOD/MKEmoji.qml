@@ -35,6 +35,8 @@ KeyPad {
         if (visible) {
             internal.keyHeight = panel.keyHeight;
             internal.keyWidth = panel.keyWidth;
+
+            internal.restoreGridPosition();
         }
     }
 
@@ -85,6 +87,25 @@ KeyPad {
                     }
                 }
             );
+        }
+
+        function restoreGridPosition() {
+            if (db) {
+                db.transaction(
+                    function(tx) {
+                        const rs = tx.executeSql('SELECT contentX, visibleIndex FROM State');
+                        if (rs.rows.length > 0) {
+                            internal.oldVisibleIndex = rs.rows.item(0).visibleIndex;
+                            c1.contentX = rs.rows.item(0).contentX;
+                        } else {
+                            tx.executeSql('INSERT INTO State VALUES(0, 0)');
+                            // Start on the smiley page
+                            c1.positionViewAtIndex(recentEmoji.length, GridView.Beginning)
+                            updatePositionDb();
+                        }
+                    }
+                );
+            }
         }
 
         function jumpTo(position) {

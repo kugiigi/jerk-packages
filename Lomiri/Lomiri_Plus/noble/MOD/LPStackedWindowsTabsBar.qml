@@ -47,7 +47,11 @@ Extras.TabsBar {
         if (_item && _item.appName)
             return _prefix + _item.appName
 
-        return _prefix + _item.appId
+        if (_item) {
+            return _prefix + _item.appId
+        }
+
+        return ""
     }
 
     // Hold show titlebar when hovered in Clean Mode

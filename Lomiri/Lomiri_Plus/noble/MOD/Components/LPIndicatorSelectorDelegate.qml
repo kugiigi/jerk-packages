@@ -1,4 +1,4 @@
-import QtQuick 2.12
+import QtQuick 2.15
 import Lomiri.Components 1.3
 import QtQuick.Controls 2.12
 
@@ -106,5 +106,9 @@ Rectangle {
         onSingleTapped: {
             indicatorRec.selected()
         }
+    }
+    HoverHandler {
+        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+        cursorShape: Qt.PointingHandCursor
     }
 }

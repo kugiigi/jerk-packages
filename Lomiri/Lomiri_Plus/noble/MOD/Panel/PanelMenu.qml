@@ -799,6 +799,7 @@ Showable {
                     anchors.fill: gridLayout
                     hoverEnabled: enabled
                     propagateComposedEvents: true
+                    cursorShape: undefined
 
                     onClicked: {
                         if (currentItem) {

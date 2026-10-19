@@ -275,6 +275,11 @@ FocusScope {
 
         updateActiveWorkspace(item.workspace);
     }
+    function addWorkspace() {
+        const _screen = screensAndWorkspaces.screensProxy.get(screensAndWorkspaces.screensProxy.activeScreen);
+        _screen.workspaces.addWorkspace();
+        Screens.sync(screensAndWorkspaces.screensProxy);
+    }
     // ENH262 - End
 
     // ENH257 - Workspace redesign
@@ -1400,10 +1405,32 @@ FocusScope {
         delegate: QtObject {
             id: applicationDelegate
             // ENH178 - Option to delay app suspension
-            readonly property bool appIsForeground: model.application && priv.focusedAppDelegate &&
-                                                   (priv.focusedAppDelegate.appId === model.application.appId ||
-                                                    priv.mainStageAppId === model.application.appId ||
-                                                    priv.sideStageAppId === model.application.appId)
+            // ENH267 - Battery saver mode in Windowed mode
+            //readonly property bool appIsForeground: model.application && priv.focusedAppDelegate &&
+            //                                       (priv.focusedAppDelegate.appId === model.application.appId ||
+            //                                        priv.mainStageAppId === model.application.appId ||
+            //                                        priv.sideStageAppId === model.application.appId)
+            readonly property bool appIsForeground: model.application
+                && priv.focusedAppDelegate
+                && (
+                    priv.focusedAppDelegate.appId === model.application.appId
+                    || priv.mainStageAppId === model.application.appId
+                    || priv.sideStageAppId === model.application.appId
+                    || (
+                        shell.settings.batterySaverMode && !shell.settings.extremeBatterySaverMode
+                        && (
+                            (currentWorkspaceContainer.topLeftForegroundAppDelegate
+                                    && currentWorkspaceContainer.topLeftForegroundAppDelegate.appId === model.application.appId)
+                            || (currentWorkspaceContainer.topRightForegroundAppDelegate
+                                    && currentWorkspaceContainer.topRightForegroundAppDelegate.appId === model.application.appId)
+                            || (currentWorkspaceContainer.bottomLeftForegroundAppDelegate
+                                    && currentWorkspaceContainer.bottomLeftForegroundAppDelegate.appId === model.application.appId)
+                            || (currentWorkspaceContainer.bottomRightForegroundAppDelegate
+                                    && currentWorkspaceContainer.bottomRightForegroundAppDelegate.appId === model.application.appId)
+                        )
+                    )
+                )
+            // ENH267 - End
             property bool temporaryLifeCycleExemption: false
             property Timer appStartsuspendDelay: Timer {
                 running: false
@@ -1447,11 +1474,12 @@ FocusScope {
             // ENH267 - End
             // ENH178 - Option to delay app suspension
                 || (temporaryLifeCycleExemption && !root.screenIsOff)
+                   // || (!root.suspended && model.application && priv.focusedAppDelegate &&
+                   //     (priv.focusedAppDelegate.appId === model.application.appId ||
+                   //      priv.mainStageAppId === model.application.appId ||
+                   //      priv.sideStageAppId === model.application.appId))
+                   || (!root.suspended && appIsForeground)
             // ENH178 - End
-                   || (!root.suspended && model.application && priv.focusedAppDelegate &&
-                       (priv.focusedAppDelegate.appId === model.application.appId ||
-                        priv.mainStageAppId === model.application.appId ||
-                        priv.sideStageAppId === model.application.appId))
                    ? ApplicationInfoInterface.RequestedRunning
                    : ApplicationInfoInterface.RequestedSuspended
             property bool temporaryAwaken: ProcessControl.awakenProcesses.indexOf(model.application.appId) >= 0
@@ -2525,6 +2553,14 @@ FocusScope {
 
                 // ENH268 - Tabbed snapped windows
                 readonly property bool showTitleBarOfMaximized: maximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfLeftMaximized: leftMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfRightMaximized: rightMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfTopLeftMaximized: topLeftMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfBottomLeftMaximized: bottomLeftMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfTopRightMaximized: topRightMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfBottomRightMaximized: bottomRightMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfTopHalfMaximized: topHalfMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfBottomHalfMaximized: bottomHalfMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
 
                 property LPStackedWindowsModel maximizedWindows: LPStackedWindowsModel {
                     onCountChanged: {
@@ -2686,6 +2722,115 @@ FocusScope {
                             }
                         }
                     }
+                }
+
+                readonly property var topLeftForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (topLeftMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = topLeftMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (leftMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < leftMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = leftMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (topHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < topHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = topHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+                readonly property var topRightForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (topRightMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = topRightMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (rightMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < rightMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = rightMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (topHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < topHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = topHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+                readonly property var bottomLeftForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (bottomLeftMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = bottomLeftMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (leftMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < leftMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = leftMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (bottomHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < bottomHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = bottomHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+                readonly property var bottomRightForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (bottomRightMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = bottomRightMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (rightMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < rightMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = rightMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (bottomHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < bottomHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = bottomHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
                 }
 
                 function addToMaximized(_appDelegate) {
@@ -4603,7 +4748,27 @@ FocusScope {
                                     && !appDelegate.fullscreen
                                     // ENH268 - Tabbed snapped windows
                                     //&& !appDelegate.maximized
-                                    && (!appDelegate.maximized || !(appDelegate.maximized && !workspaceContainer.showTitleBarOfMaximized))
+                                    && (
+                                        !(appDelegate.maximized && !workspaceContainer.showTitleBarOfMaximized)
+                                        &&
+                                        !(appDelegate.maximized && workspaceContainer.showTitleBarOfMaximized)
+                                        &&
+                                        !(appDelegate.maximizedLeft && workspaceContainer.showTitleBarOfLeftMaximized)
+                                        &&
+                                        !(appDelegate.maximizedRight && workspaceContainer.showTitleBarOfRightMaximized)
+                                        &&
+                                        !(appDelegate.maximizedTopLeft && workspaceContainer.showTitleBarOfTopLeftMaximized)
+                                        &&
+                                        !(appDelegate.maximizedTopRight && workspaceContainer.showTitleBarOfTopRightMaximized)
+                                        &&
+                                        !(appDelegate.maximizedBottomLeft && workspaceContainer.showTitleBarOfBottomLeftMaximized)
+                                        &&
+                                        !(appDelegate.maximizedBottomRight && workspaceContainer.showTitleBarOfBottomRightMaximized)
+                                        &&
+                                        !(appDelegate.maximizedHorizontally && workspaceContainer.showTitleBarOfTopHalfMaximized)
+                                        &&
+                                        !(appDelegate.maximizedVertically && workspaceContainer.showTitleBarOfBottomHalfMaximized)
+                                    )
                                     // ENH268 - End
                     hasDecoration: !cleanMode
                     // ENH225 - End

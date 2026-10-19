@@ -3,10 +3,10 @@ import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 
 LPQuickToggleButton {
-	id: mediaPlayer
+    id: mediaPlayer
 
-	property var mediaPlayerObj
-	property var playBackObj
+    property var mediaPlayerObj
+    property var playBackObj
 
     readonly property real margins: units.gu(1.5)
     readonly property bool canGoNext: playBackObj && playBackObj.canGoNext ? true : false
@@ -74,35 +74,35 @@ LPQuickToggleButton {
         }
     }
     
-	NumberAnimation {
-		id: hideAnimiation
+    NumberAnimation {
+        id: hideAnimiation
 
-		running: false
-		targets: [textContainer, albumArtShape]
-		property: "opacity"
-		duration: LomiriAnimation.BriskDuration
-		from: 1
-		to: 0
-		onFinished: {
-			songTitle.text = songTitle.nextText
-			artistName.text = artistName.nextText
-			albumTitle.text = albumTitle.nextText
+        running: false
+        targets: [textContainer, albumArtShape]
+        property: "opacity"
+        duration: LomiriAnimation.BriskDuration
+        from: 1
+        to: 0
+        onFinished: {
+            songTitle.text = songTitle.nextText
+            artistName.text = artistName.nextText
+            albumTitle.text = albumTitle.nextText
             albumArtShape.sourceImage = albumArtShape.nextAlbumArt
-			showAnimation.restart()
-		}
-	}
-	NumberAnimation {
-		id: showAnimation
+            showAnimation.restart()
+        }
+    }
+    NumberAnimation {
+        id: showAnimation
 
-		running: false
-		targets: [textContainer, albumArtShape]
-		property: "opacity"
-		duration: LomiriAnimation.BriskDuration
-		from: 0
-		to: 1
-	}
-	
-	RowLayout {
+        running: false
+        targets: [textContainer, albumArtShape]
+        property: "opacity"
+        duration: LomiriAnimation.BriskDuration
+        from: 0
+        to: 1
+    }
+
+    RowLayout {
         id: mainLayout
         
         readonly property bool narrowWidth: width < units.gu(40)
@@ -119,12 +119,12 @@ LPQuickToggleButton {
             LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
         }
 
-		LomiriShape {
+        LomiriShape {
             id: albumArtShape
 
-			Layout.preferredWidth: units.gu(5)
-			Layout.preferredHeight: units.gu(5)
-			Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: units.gu(5)
+            Layout.preferredHeight: units.gu(5)
+            Layout.alignment: Qt.AlignVCenter
 
             property alias sourceImage: albumArtImage.source
             property string nextAlbumArt: {
@@ -135,112 +135,112 @@ LPQuickToggleButton {
                 }
             }
 
-			visible: !mainLayout.narrowWidth || mediaPlayer.gestureMode
+            visible: !mainLayout.narrowWidth || mediaPlayer.gestureMode
             sourceFillMode: LomiriShape.PreserveAspectCrop
-			source: Image {
-				id: albumArtImage
-				sourceSize: Qt.size(width, height)
-				anchors.fill: parent
-			}
-		}
+            source: Image {
+                id: albumArtImage
+                sourceSize: Qt.size(width, height)
+                anchors.fill: parent
+            }
+        }
 
-		ColumnLayout {
-			id: textContainer
+        ColumnLayout {
+            id: textContainer
 
-			Layout.fillWidth: true
-			Layout.alignment: Qt.AlignVCenter
-			spacing: 0
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
+            spacing: 0
 
-			Label {
-				id: songTitle
+            Label {
+                id: songTitle
 
-				property string nextText: mediaPlayer.song
+                property string nextText: mediaPlayer.song
 
-				Layout.fillWidth: true
-				Layout.alignment: Qt.AlignVCenter
-				verticalAlignment: Text.AlignVCenter
-				textSize: Label.Medium
-				color: "white"
-				elide: Text.ElideRight
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                verticalAlignment: Text.AlignVCenter
+                textSize: Label.Medium
+                color: "white"
+                elide: Text.ElideRight
                 maximumLineCount: 3
                 wrapMode: mainLayout.narrowWidth ? Text.WordWrap : Text.NoWrap
 
-				onNextTextChanged: {
-					hideAnimiation.restart()
-				}
-			}
+                onNextTextChanged: {
+                    hideAnimiation.restart()
+                }
+            }
 
-			Label {
-				id: artistName
-				Layout.fillWidth: true
+            Label {
+                id: artistName
+                Layout.fillWidth: true
 
                 property string nextText: mediaPlayer.artist
 
                 visible: !mainLayout.narrowWidth
-				opacity: text.trim().length > 0 ? 1 : 0
-				textSize: Label.Small
-				color: theme.palette.normal.backgroundText
-				elide: Text.ElideRight
-				Behavior on opacity {
-					LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-				}
-				Layout.preferredHeight: text.trim().length > 0 ? contentHeight: 0 
-				Behavior on Layout.preferredHeight {
-					LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-				}
-			}
+                opacity: text.trim().length > 0 ? 1 : 0
+                textSize: Label.Small
+                color: theme.palette.normal.backgroundText
+                elide: Text.ElideRight
+                Behavior on opacity {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+                Layout.preferredHeight: text.trim().length > 0 ? contentHeight: 0 
+                Behavior on Layout.preferredHeight {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+            }
 
-			Label {
-				id: albumTitle
-				Layout.fillWidth: true
+            Label {
+                id: albumTitle
+                Layout.fillWidth: true
 
                 property string nextText: mediaPlayer.album
 
                 visible: !mainLayout.narrowWidth
-				opacity: text.trim().length > 0 ? 1 : 0
-				textSize: Label.XSmall
-				color: theme.palette.normal.backgroundText
-				elide: Text.ElideRight
-				Behavior on opacity {
-					LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-				}
-				Layout.preferredHeight: text.trim().length > 0 ? contentHeight: 0 
-				Behavior on Layout.preferredHeight {
-					LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
-				}
-			}
-		}
+                opacity: text.trim().length > 0 ? 1 : 0
+                textSize: Label.XSmall
+                color: theme.palette.normal.backgroundText
+                elide: Text.ElideRight
+                Behavior on opacity {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+                Layout.preferredHeight: text.trim().length > 0 ? contentHeight: 0 
+                Behavior on Layout.preferredHeight {
+                    LomiriNumberAnimation { duration: LomiriAnimation.SlowDuration }
+                }
+            }
+        }
 
-		RowLayout {
-			Layout.alignment: Qt.AlignVCenter
+        RowLayout {
+            Layout.alignment: Qt.AlignVCenter
 
             visible: !mediaPlayer.gestureMode
 
-			LPQuickToggleButton {
-				Layout.preferredHeight: quickToggles.toggleHeight
-				Layout.preferredWidth: height
-
-				enabled: mediaPlayer.canGoPrevious
-				iconName: "media-skip-backward"
-				onClicked: mediaPlayer.previous()
-			}
             LPQuickToggleButton {
-				Layout.preferredHeight: quickToggles.toggleHeight
-				Layout.preferredWidth: height
+                Layout.preferredHeight: quickToggles.toggleHeight
+                Layout.preferredWidth: height
 
-				enabled: mediaPlayer.canGoNext
-				iconName: "media-skip-forward"
-				onClicked: mediaPlayer.next()
-			}
-			LPQuickToggleButton {
-				Layout.preferredHeight: quickToggles.toggleHeight
-				Layout.preferredWidth: height
+                enabled: mediaPlayer.canGoPrevious
+                iconName: "media-skip-backward"
+                onClicked: mediaPlayer.previous()
+            }
+            LPQuickToggleButton {
+                Layout.preferredHeight: quickToggles.toggleHeight
+                Layout.preferredWidth: height
 
-				enabled: mediaPlayer.canPlay
-				iconName: mediaPlayer.playing ? "media-playback-pause" : "media-playback-start"
-				onClicked: mediaPlayer.playPause()
-			}
-		}
+                enabled: mediaPlayer.canGoNext
+                iconName: "media-skip-forward"
+                onClicked: mediaPlayer.next()
+            }
+            LPQuickToggleButton {
+                Layout.preferredHeight: quickToggles.toggleHeight
+                Layout.preferredWidth: height
+
+                enabled: mediaPlayer.canPlay
+                iconName: mediaPlayer.playing ? "media-playback-pause" : "media-playback-start"
+                onClicked: mediaPlayer.playPause()
+            }
+        }
         
         Icon {
             implicitHeight: units.gu(3)
@@ -250,7 +250,7 @@ LPQuickToggleButton {
             visible: mediaPlayer.gestureMode
             color: theme.palette.normal.foregroundText
         }
-	}
+    }
     
 
     LPSwipeIndicator {

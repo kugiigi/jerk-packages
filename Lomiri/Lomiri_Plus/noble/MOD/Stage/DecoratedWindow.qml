@@ -301,7 +301,9 @@ FocusScope {
         // visible: opacity > 0 // don't eat input when decoration is fully translucent
         // ENH225 - Clean Windowed Mode
         //opacity: root.hasDecoration && !root.transparentDecoration ? Math.min(1, root.showDecoration) : 0        
-        opacity: (root.hasDecoration && !root.transparentDecoration) || root.cleanMode ? Math.min(1, root.showDecoration) : 0
+        opacity: root.overlayShown ? 1
+                    : (root.hasDecoration && !root.transparentDecoration) || root.cleanMode ? Math.min(1, root.showDecoration)
+                                                                                            : 0
         HoverHandler {
             id: decorHoverHandler
             enabled: root.cleanMode

@@ -1,6 +1,6 @@
 // Based and From https://gitlab.com/Danfro/timer
 // ENH064 - Dynamic Cove
-import QtQuick 2.12
+import QtQuick 2.15
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.12
 import "Timer"
@@ -508,13 +508,13 @@ LPDynamicCoveItem {
                         TapHandler {
                             id: resetTapHandler
                             acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                            //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                             onSingleTapped: root_timesetter.reset()
                         }
 
                         HoverHandler {
                             id: resetHoverHandler
                             acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                            cursorShape: Qt.PointingHandCursor
                         }
                     }
                     Label {
@@ -567,13 +567,13 @@ LPDynamicCoveItem {
                         TapHandler {
                             id: startTapHandler
                             acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                            //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                             onSingleTapped: timer.tryToStart()
                         }
 
                         HoverHandler {
                             id: startHoverHandler
                             acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                            cursorShape: Qt.PointingHandCursor
                         }
                     }
                 }

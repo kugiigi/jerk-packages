@@ -11,6 +11,7 @@ Item {
     readonly property bool isHovered: bgHoverHandler.hovered && !swipeHandler.pressed
 
     readonly property real oneRowHeight: mainRowLayout.dotNormalWidth + mainRowLayout.padding * 2
+    readonly property real layoutWidth: mainRowLayout.width
 
     property bool highlightSelectMode: false // Select item immediately when highlighted/hovered
     property bool noExpandWithMouse: false

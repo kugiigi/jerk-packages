@@ -17,7 +17,7 @@
  */
 
 // ENH064 - Dynamic Cove
-import QtQuick 2.12
+import QtQuick 2.15
 import Lomiri.Components 1.3
 import QtSystemInfo 5.0
 import "Clock"
@@ -213,13 +213,13 @@ LPDynamicCoveItem {
             TapHandler {
                 id: clearTapHandler
                 acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                 onSingleTapped: stopwatchCircle.clear()
             }
 
             HoverHandler {
                 id: clearHoverHandler
                 acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                cursorShape: Qt.PointingHandCursor
             }
             Binding {
                 target: stopWatch
