@@ -512,6 +512,44 @@ PageStack {
                                 }
                             }
                             // ENH136 - End
+                            // ENH267 - Battery saver mode in Windowed mode
+                            Menus.SwitchMenu {
+                                id: batterySaverModeSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.isWindowedMode
+                                text: "Battery Saver mode"
+                                iconSource: "image://theme/gpm-battery-missing"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: shell.settings.batterySaverMode = checked
+
+                                Binding {
+                                    target: batterySaverModeSwitch
+                                    property: "checked"
+                                    value: shell.settings.batterySaverMode
+                                }
+                            }
+                            Menus.SwitchMenu {
+                                id: extremeBatterySaverModeSwitch
+
+                                Layout.fillWidth: true
+
+                                visible: shell.isWindowedMode && shell.settings.batterySaverMode
+                                text: "Extreme Battery Saver"
+                                iconSource: "image://theme/gpm-battery-missing"
+                                highlightWhenPressed: false
+
+                                onCheckedChanged: shell.settings.extremeBatterySaverMode = checked
+
+                                Binding {
+                                    target: extremeBatterySaverModeSwitch
+                                    property: "checked"
+                                    value: shell.settings.extremeBatterySaverMode
+                                }
+                            }
+                            // ENH267 - End
                             Menus.BaseLayoutMenu {
                                 property QtObject menuData: null
                                 property int menuIndex: -1

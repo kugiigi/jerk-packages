@@ -41,6 +41,7 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        cursorShape: undefined
         onClicked: {
             if (roundMouseArea.containsMouse) {
                 roundMouseArea.clicked()

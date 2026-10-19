@@ -799,6 +799,7 @@ Showable {
                     anchors.fill: gridLayout
                     hoverEnabled: enabled
                     propagateComposedEvents: true
+                    cursorShape: undefined
 
                     onClicked: {
                         if (currentItem) {
@@ -1067,7 +1068,7 @@ Showable {
         Behavior on anchors.bottomMargin { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.BriskDuration } }
 
-        sourceComponent: LPIndicatorSelector {
+        sourceComponent: LPPanelIndicatorSelector {
             id: indicatorSelector
             swipeEnabled: true
             mouseHoverEnabled: true

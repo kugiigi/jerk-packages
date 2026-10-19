@@ -120,6 +120,10 @@ Rectangle {
     // ENH169 - Launcher bottom margin for rounded corners
     readonly property real panelBottomMargin: mainColumn.anchors.topMargin
     // ENH169 - End
+    // ENH270 - Horizontal Scroll to open the Launcher/Drawer
+    signal openDrawer
+    signal closeDrawer
+    // ENH270 - End
 
     signal applicationSelected(string appId)
     signal showDashHome()
@@ -874,6 +878,7 @@ Rectangle {
                     enabled: shell.settings.workspaceSwitcherViaScrollLauncher && launcherListView.height >= launcherListView.contentHeight
                     acceptedDevices: PointerDevice.Mouse
                     acceptedButtons: Qt.NoButton
+                    orientation: Qt.Vertical
 
                     onWheel: (event) => {
                          if (event.angleDelta.y > 0) {
@@ -884,6 +889,46 @@ Rectangle {
                     }
                 }
                 // ENH258 - End
+                // ENH270 - Horizontal Scroll to open the Launcher/Drawer
+                Timer {
+                    id: activeTimeoutTimer
+                    interval: horizontalWheelHandler.activeTimeout
+                    onTriggered: {
+                        horizontalWheelHandler.accumulated = 0;
+                    }
+                }
+                WheelHandler {
+                    id: horizontalWheelHandler
+
+                    enabled: shell.settings.enableHorizontalScrollLauncherDrawer
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    acceptedButtons: Qt.NoButton
+                    orientation: Qt.Horizontal
+
+                    property real accumulated: 0
+                    readonly property real step: 1000 //1500 // 2500 for almost full touchpad width
+                    activeTimeout: 200
+
+                    onWheel: (event) => {
+                        // Prefer angleDelta (works on both mouse and touchpad)
+                        accumulated += event.angleDelta.x
+
+                        // Trigger only when a full step is reached
+                        while (accumulated >= step) {
+                            root.openDrawer();
+                            accumulated -= step
+                        }
+                        while (accumulated <= -step) {
+                            root.closeDrawer();
+                            accumulated += step
+                        }
+
+                        activeTimeoutTimer.restart();
+
+                        event.accepted = true
+                    }
+                }
+                // ENH270 - End
             }
 
             LauncherDelegate {

@@ -85,7 +85,7 @@ function getPlaylistTracks(playlist) {
         db.readTransaction(function (tx) {
             var rs = tx.executeSql('SELECT * FROM track WHERE playlist=?;',
                                    [playlist])
-		    console.log("Length: " + rs.rows.length)
+            //console.log("Length: " + rs.rows.length)
             for (j = 0; j < rs.rows.length; j++) {
                 var dbItem = rs.rows.item(j)
 

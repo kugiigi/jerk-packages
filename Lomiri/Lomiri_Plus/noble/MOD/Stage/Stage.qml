@@ -36,6 +36,9 @@ import "../OuterWilds"
 // ENH243 - Virtual Touchpad Enhancements
 import ".." 0.1
 // ENH243 - End
+// ENH178 - Option to delay app suspension
+import Powerd 0.1
+// ENH178 - End
 
 FocusScope {
     id: root
@@ -102,6 +105,7 @@ FocusScope {
     property Item currentWorkspaceContainer: workspacesView.currentItem
     property Repeater appRepeater: workspacesView.currentItem.appRepeater
     property QtObject currentTopLevelSurfaceList: workspacesView.currentItem.windowModel
+    property alias workspacesView: workspacesView
     // ENH257 - End
 
     // Whether outside forces say that the Stage may have focus
@@ -111,6 +115,12 @@ FocusScope {
     // readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity
     readonly property bool interactive: (state === "staged" || state === "stagedWithSideStage" || state === "windowed") && allowInteractivity && !desktopShown
     // ENH135 - End
+    // ENH265 - Snapped window margins
+    readonly property bool snappedWindowNoEdgeMargin: shell.settings.snappedWindowsMarginExceptEdges
+    readonly property real snappedWindowMargin: units.gu(shell.settings.snappedWindowsMargin)
+    readonly property real snappedWindowMarginHalf: snappedWindowMargin / 2
+    readonly property real snappedWindowMarginDouble: snappedWindowMargin * 2
+    // ENH265 - End
 
     // Configuration
     property string mode: "staged"
@@ -255,6 +265,22 @@ FocusScope {
         workspaceSwitcher.showLeft(true, true);
     }
     // ENH154 - End
+    // ENH262 - Workspace indicator
+    function updateActiveWorkspace(_workspace) {
+        screensAndWorkspaces.activeWorkspace = _workspace;
+    }
+
+    function switchToWorkspace(index) {
+        const item = workspacesView.itemAtIndex(index)
+
+        updateActiveWorkspace(item.workspace);
+    }
+    function addWorkspace() {
+        const _screen = screensAndWorkspaces.screensProxy.get(screensAndWorkspaces.screensProxy.activeScreen);
+        _screen.workspaces.addWorkspace();
+        Screens.sync(screensAndWorkspaces.screensProxy);
+    }
+    // ENH262 - End
 
     // ENH257 - Workspace redesign
     /* Moved to each workspace container
@@ -417,7 +443,16 @@ FocusScope {
         id: showSpreadShortcut
         shortcut: Qt.MetaModifier|Qt.Key_W
         active: root.spreadEnabled
-        onTriggered: priv.goneToSpread = true
+        // ENH263 - Super + W also closes spread
+        // onTriggered: priv.goneToSpread = true
+        // ENH264 - Workaround for opening Drawer when using Super combos
+        //onTriggered: priv.goneToSpread = !priv.goneToSpread
+        onTriggered: {
+            priv.goneToSpread = !priv.goneToSpread;
+            shell.superComboFinish();
+        }
+        // ENH264 - End
+        // ENH263 - End
     }
 
     // ENH015 - Add shortcuts for side stage
@@ -427,6 +462,9 @@ FocusScope {
         active: priv.sideStageEnabled
         onTriggered: {
            priv.toggleSideStage()
+           // ENH264 - Workaround for opening Drawer when using Super combos
+           shell.superComboFinish();
+           // ENH264 - End
         }
     }
     // ENH015 - End
@@ -434,17 +472,23 @@ FocusScope {
     GlobalShortcut {
         id: minimizeAllShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
+        onTriggered: priv.minimizeAllWindows()
         // ENH135 - Show Desktop
-        // onTriggered: priv.minimizeAllWindows()
-        onTriggered: root.showDesktop()
+        // active: root.state == "windowed"
+        active: true
         // ENH135 - End
-        active: root.state == "windowed"
     }
     // ENH135 - Show Desktop
     GlobalShortcut {
         id: showDesktopShortcut
-        shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
-        onTriggered: appContainer.toggleShowDesktop()
+        shortcut: Qt.MetaModifier|Qt.Key_D
+        // ENH264 - Workaround for opening Drawer when using Super combos
+        //onTriggered: appContainer.toggleShowDesktop()
+        onTriggered: {
+            appContainer.toggleShowDesktop();
+            shell.superComboFinish();
+        }
+        // ENH264 - ENd
         active: true
     }
     // ENH135 - End
@@ -892,10 +936,49 @@ FocusScope {
         }
     }
 
+    // ENH261 - Disable workspace shortcuts when it make sense
+    readonly property bool multipleWorkspaces: workspacesView.count > 1
+    readonly property bool virtualTouchpadMode: shell.settings.externalDisplayBehavior === 0
+    // ENH261 - End
+    // ENH262 - Workspace indicator
+    property int previousWorkspaceIndex: 1 // Set to 1 so initially you can always switch to the 2nd one
+    GlobalShortcut {
+        id: swicthToPreviousWorkspaceShortcut
+        shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Tab
+        active: !workspaceSwitcher.active && root.workspaceEnabled
+                    && root.multipleWorkspaces
+        // ENH264 - Workaround for opening Drawer when using Super combos
+        //onTriggered: root.switchToWorkspace(root.previousWorkspaceIndex);
+        onTriggered: {
+            root.switchToWorkspace(root.previousWorkspaceIndex);
+            shell.superComboFinish();
+        }
+        // ENH264 - End
+    }
+    GlobalShortcut {
+        id: swicthToFirstWorkspaceShortcut
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Home
+        active: !workspaceSwitcher.active && root.workspaceEnabled
+                    && root.multipleWorkspaces
+        onTriggered: root.switchToWorkspace(0);
+        // ENH264 - End
+    }
+    GlobalShortcut {
+        id: swicthToLastWorkspaceShortcut
+        shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_End
+        active: !workspaceSwitcher.active && root.workspaceEnabled
+                    && root.multipleWorkspaces
+        onTriggered: root.switchToWorkspace(workspacesView.count - 1);
+        // ENH264 - End
+    }
+    // ENH262 - End
     GlobalShortcut {
         id: showWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Left
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH259 - Option to disable workspace switcher UI
@@ -912,6 +995,12 @@ FocusScope {
         id: showWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Right
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+        // ENH269 - Dynamic workspace
+                    //&& root.multipleWorkspaces
+                    && (root.multipleWorkspaces || (shell.settings.enableDynamicWorkspaces && root.appRepeater.count > 0))
+        // ENH269 - End
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH259 - Option to disable workspace switcher UI
@@ -928,6 +1017,9 @@ FocusScope {
         id: showWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Up
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showUp()
@@ -937,6 +1029,9 @@ FocusScope {
         id: showWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.Key_Down
         active: !workspaceSwitcher.active && root.workspaceEnabled
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             workspaceSwitcher.showDown()
@@ -947,6 +1042,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Left
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -966,6 +1064,12 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Right
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+        // ENH269 - Dynamic workspace
+                    //&& root.multipleWorkspaces
+                    && (root.multipleWorkspaces || (shell.settings.enableDynamicWorkspaces  && root.appRepeater.count > 0))
+        // ENH269 - End
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -985,6 +1089,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Up
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -997,6 +1104,9 @@ FocusScope {
         id: moveAppShowWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Down
         active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        // ENH261 - Disable workspace shortcuts when it make sense
+                    && root.multipleWorkspaces && !root.virtualTouchpadMode
+        // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
@@ -1286,15 +1396,41 @@ FocusScope {
         panelState.dropShadow = false;
     }
 
+    // ENH178 - Option to delay app suspension
+    readonly property bool screenIsOff: Powerd.status === Powerd.Off
+    // ENH178 - End
+
     Instantiator {
         model: root.applicationManager
         delegate: QtObject {
             id: applicationDelegate
             // ENH178 - Option to delay app suspension
-            readonly property bool appIsForeground: model.application && priv.focusedAppDelegate &&
-                                                   (priv.focusedAppDelegate.appId === model.application.appId ||
-                                                    priv.mainStageAppId === model.application.appId ||
-                                                    priv.sideStageAppId === model.application.appId)
+            // ENH267 - Battery saver mode in Windowed mode
+            //readonly property bool appIsForeground: model.application && priv.focusedAppDelegate &&
+            //                                       (priv.focusedAppDelegate.appId === model.application.appId ||
+            //                                        priv.mainStageAppId === model.application.appId ||
+            //                                        priv.sideStageAppId === model.application.appId)
+            readonly property bool appIsForeground: model.application
+                && priv.focusedAppDelegate
+                && (
+                    priv.focusedAppDelegate.appId === model.application.appId
+                    || priv.mainStageAppId === model.application.appId
+                    || priv.sideStageAppId === model.application.appId
+                    || (
+                        shell.settings.batterySaverMode && !shell.settings.extremeBatterySaverMode
+                        && (
+                            (currentWorkspaceContainer.topLeftForegroundAppDelegate
+                                    && currentWorkspaceContainer.topLeftForegroundAppDelegate.appId === model.application.appId)
+                            || (currentWorkspaceContainer.topRightForegroundAppDelegate
+                                    && currentWorkspaceContainer.topRightForegroundAppDelegate.appId === model.application.appId)
+                            || (currentWorkspaceContainer.bottomLeftForegroundAppDelegate
+                                    && currentWorkspaceContainer.bottomLeftForegroundAppDelegate.appId === model.application.appId)
+                            || (currentWorkspaceContainer.bottomRightForegroundAppDelegate
+                                    && currentWorkspaceContainer.bottomRightForegroundAppDelegate.appId === model.application.appId)
+                        )
+                    )
+                )
+            // ENH267 - End
             property bool temporaryLifeCycleExemption: false
             property Timer appStartsuspendDelay: Timer {
                 running: false
@@ -1311,14 +1447,14 @@ FocusScope {
                 }
             }
             Component.onCompleted: {
-                if (shell.settings.enableDelayedStartingAppSuspension) {
+                if (shell.settings.enableDelayedStartingAppSuspension && !root.screenIsOff) {
                     temporaryLifeCycleExemption = true
                     appStartsuspendDelay.restart()
                 }
             }
             onAppIsForegroundChanged: {
                 if (shell.settings.enableDelayedAppSuspension) {
-                    if (!appIsForeground) {
+                    if (!appIsForeground && !root.screenIsOff) {
                         temporaryLifeCycleExemption = true
                         suspendDelay.restart()
                     } else {
@@ -1332,14 +1468,18 @@ FocusScope {
             // TODO: If the device has a dozen suspended apps because it was running
             //       in staged mode, when it switches to Windowed mode it will suddenly
             //       resume all those apps at once. We might want to avoid that.
-            property var requestedState: root.mode === "windowed"
+            // ENH267 - Battery saver mode in Windowed mode
+            // property var requestedState: root.mode === "windowed"
+            property var requestedState: (root.mode === "windowed" && !shell.settings.batterySaverMode)
+            // ENH267 - End
             // ENH178 - Option to delay app suspension
-                || temporaryLifeCycleExemption
+                || (temporaryLifeCycleExemption && !root.screenIsOff)
+                   // || (!root.suspended && model.application && priv.focusedAppDelegate &&
+                   //     (priv.focusedAppDelegate.appId === model.application.appId ||
+                   //      priv.mainStageAppId === model.application.appId ||
+                   //      priv.sideStageAppId === model.application.appId))
+                   || (!root.suspended && appIsForeground)
             // ENH178 - End
-                   || (!root.suspended && model.application && priv.focusedAppDelegate &&
-                       (priv.focusedAppDelegate.appId === model.application.appId ||
-                        priv.mainStageAppId === model.application.appId ||
-                        priv.sideStageAppId === model.application.appId))
                    ? ApplicationInfoInterface.RequestedRunning
                    : ApplicationInfoInterface.RequestedSuspended
             property bool temporaryAwaken: ProcessControl.awakenProcesses.indexOf(model.application.appId) >= 0
@@ -2393,6 +2533,8 @@ FocusScope {
 
                 // Do not hide other workspaces while the switching animation is still running
                 visible: isActive || ListView.view.moving || workspacesView.highlightAnimationIsRunning
+                            // Also show current workspaces in other inactive screens
+                            || (!WMScreen.active && WMScreen.currentWorkspace.isSameAs(workspace))
                 anchors {
                     top: parent.top
                     bottom: parent.bottom
@@ -2404,9 +2546,395 @@ FocusScope {
                 property var windowModel: workspace.windowModel
                 property bool isActive: workspace.active
                 property alias appRepeater: appRepeater
+                readonly property bool isEmpty: appRepeater.count === 0
 
                 property var focusedAppDelegate: null
                 property var foregroundMaximizedAppDelegate: null
+
+                // ENH268 - Tabbed snapped windows
+                readonly property bool showTitleBarOfMaximized: maximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfLeftMaximized: leftMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfRightMaximized: rightMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfTopLeftMaximized: topLeftMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfBottomLeftMaximized: bottomLeftMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfTopRightMaximized: topRightMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfBottomRightMaximized: bottomRightMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfTopHalfMaximized: topHalfMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+                readonly property bool showTitleBarOfBottomHalfMaximized: bottomHalfMaximizedWindows.count > 1 && snappedWindowsTabsBarLoader.active
+
+                property LPStackedWindowsModel maximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromLeftMaximized(this);
+                                workspaceContainer.removeFromRightMaximized(this);
+                                workspaceContainer.removeFromTopLeftMaximized(this);
+                                workspaceContainer.removeFromTopRightMaximized(this);
+                                workspaceContainer.removeFromTopHalfMaximized(this);
+                                workspaceContainer.removeFromBottomLeftMaximized(this);
+                                workspaceContainer.removeFromBottomRightMaximized(this);
+                                workspaceContainer.removeFromBottomHalfMaximized(this);
+                            } else {
+                                if (leftMaximizedWindows.count > 0) workspaceContainer.addToLeftMaximized(this);
+                                if (rightMaximizedWindows.count > 0) workspaceContainer.addToRightMaximized(this);
+                                if (topLeftMaximizedWindows.count > 0) workspaceContainer.addToTopLeftMaximized(this);
+                                if (topRightMaximizedWindows.count > 0) workspaceContainer.addToTopRightMaximized(this);
+                                if (topHalfMaximizedWindows.count > 0) workspaceContainer.addToTopHalfMaximized(this);
+                                if (bottomLeftMaximizedWindows.count > 0) workspaceContainer.addToBottomLeftMaximized(this);
+                                if (bottomRightMaximizedWindows.count > 0) workspaceContainer.addToBottomRightMaximized(this);
+                                if (bottomHalfMaximizedWindows.count > 0) workspaceContainer.addToBottomHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel rightMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromTopRightMaximized(this);
+                                workspaceContainer.removeFromTopHalfMaximized(this);
+                                workspaceContainer.removeFromBottomRightMaximized(this);
+                                workspaceContainer.removeFromBottomHalfMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (topRightMaximizedWindows.count > 0) workspaceContainer.addToTopRightMaximized(this);
+                                if (topHalfMaximizedWindows.count > 0) workspaceContainer.addToTopHalfMaximized(this);
+                                if (bottomRightMaximizedWindows.count > 0) workspaceContainer.addToBottomRightMaximized(this);
+                                if (bottomHalfMaximizedWindows.count > 0) workspaceContainer.addToBottomHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel leftMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromTopLeftMaximized(this);
+                                workspaceContainer.removeFromTopHalfMaximized(this);
+                                workspaceContainer.removeFromBottomLeftMaximized(this);
+                                workspaceContainer.removeFromBottomHalfMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (topLeftMaximizedWindows.count > 0) workspaceContainer.addToTopLeftMaximized(this);
+                                if (topHalfMaximizedWindows.count > 0) workspaceContainer.addToTopHalfMaximized(this);
+                                if (bottomLeftMaximizedWindows.count > 0) workspaceContainer.addToBottomLeftMaximized(this);
+                                if (bottomHalfMaximizedWindows.count > 0) workspaceContainer.addToBottomHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel topLeftMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromLeftMaximized(this);
+                                workspaceContainer.removeFromTopHalfMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (leftMaximizedWindows.count > 0) workspaceContainer.addToLeftMaximized(this);
+                                if (topHalfMaximizedWindows.count > 0) workspaceContainer.addToTopHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel topRightMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromRightMaximized(this);
+                                workspaceContainer.removeFromTopHalfMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (rightMaximizedWindows.count > 0) workspaceContainer.addToRightMaximized(this);
+                                if (topHalfMaximizedWindows.count > 0) workspaceContainer.addToTopHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel bottomLeftMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromLeftMaximized(this);
+                                workspaceContainer.removeFromBottomHalfMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (leftMaximizedWindows.count > 0) workspaceContainer.addToLeftMaximized(this);
+                                if (bottomHalfMaximizedWindows.count > 0) workspaceContainer.addToBottomHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel bottomRightMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromRightMaximized(this);
+                                workspaceContainer.removeFromBottomHalfMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (rightMaximizedWindows.count > 0) workspaceContainer.addToRightMaximized(this);
+                                if (bottomHalfMaximizedWindows.count > 0) workspaceContainer.addToBottomHalfMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel topHalfMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromLeftMaximized(this);
+                                workspaceContainer.removeFromRightMaximized(this);
+                                workspaceContainer.removeFromTopLeftMaximized(this);
+                                workspaceContainer.removeFromTopRightMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (leftMaximizedWindows.count > 0) workspaceContainer.addToLeftMaximized(this);
+                                if (rightMaximizedWindows.count > 0) workspaceContainer.addToRightMaximized(this);
+                                if (topLeftMaximizedWindows.count > 0) workspaceContainer.addToTopLeftMaximized(this);
+                                if (topRightMaximizedWindows.count > 0) workspaceContainer.addToTopRightMaximized(this);
+                            }
+                        }
+                    }
+                }
+                property LPStackedWindowsModel bottomHalfMaximizedWindows: LPStackedWindowsModel {
+                    onCountChanged: {
+                        if (shell.settings.includeOthersInStackedSnappedWindows) {
+                            if (count === 0) {
+                                workspaceContainer.removeFromMaximized(this);
+                                workspaceContainer.removeFromLeftMaximized(this);
+                                workspaceContainer.removeFromRightMaximized(this);
+                                workspaceContainer.removeFromBottomLeftMaximized(this);
+                                workspaceContainer.removeFromBottomRightMaximized(this);
+                            } else {
+                                if (maximizedWindows.count > 0) workspaceContainer.addToMaximized(this);
+                                if (leftMaximizedWindows.count > 0) workspaceContainer.addToLeftMaximized(this);
+                                if (rightMaximizedWindows.count > 0) workspaceContainer.addToRightMaximized(this);
+                                if (bottomLeftMaximizedWindows.count > 0) workspaceContainer.addToBottomLeftMaximized(this);
+                                if (bottomRightMaximizedWindows.count > 0) workspaceContainer.addToBottomRightMaximized(this);
+                            }
+                        }
+                    }
+                }
+
+                readonly property var topLeftForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (topLeftMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = topLeftMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (leftMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < leftMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = leftMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (topHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < topHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = topHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+                readonly property var topRightForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (topRightMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = topRightMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (rightMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < rightMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = rightMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (topHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < topHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = topHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+                readonly property var bottomLeftForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (bottomLeftMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = bottomLeftMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (leftMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < leftMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = leftMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (bottomHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < bottomHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = bottomHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+                readonly property var bottomRightForegroundAppDelegate: {
+                    let _appDelegate = null;
+
+                    if (bottomRightMaximizedWindows.currentAppDelegate) {
+                        _appDelegate = bottomRightMaximizedWindows.currentAppDelegate
+                    }
+
+                    if (rightMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < rightMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = rightMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (maximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < maximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = maximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    if (bottomHalfMaximizedWindows.currentAppDelegate) {
+                        if (_appDelegate === null || (_appDelegate && _appDelegate.z < bottomHalfMaximizedWindows.currentAppDelegate.z)) {
+                            _appDelegate = bottomHalfMaximizedWindows.currentAppDelegate
+                        }
+                    }
+
+                    return _appDelegate
+                }
+
+                function addToMaximized(_appDelegate) {
+                    maximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromMaximized(_appDelegate) {
+                    maximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToRightMaximized(_appDelegate) {
+                    rightMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromRightMaximized(_appDelegate) {
+                    rightMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToLeftMaximized(_appDelegate) {
+                    leftMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromLeftMaximized(_appDelegate) {
+                    leftMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToTopLeftMaximized(_appDelegate) {
+                    topLeftMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromTopLeftMaximized(_appDelegate) {
+                    topLeftMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToTopRightMaximized(_appDelegate) {
+                    topRightMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromTopRightMaximized(_appDelegate) {
+                    topRightMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToBottomLeftMaximized(_appDelegate) {
+                    bottomLeftMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromBottomLeftMaximized(_appDelegate) {
+                    bottomLeftMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToBottomRightMaximized(_appDelegate) {
+                    bottomRightMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromBottomRightMaximized(_appDelegate) {
+                    bottomRightMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToTopHalfMaximized(_appDelegate) {
+                    topHalfMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromTopHalfMaximized(_appDelegate) {
+                    topHalfMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                function addToBottomHalfMaximized(_appDelegate) {
+                    bottomHalfMaximizedWindows.addItem(_appDelegate);
+                }
+                function removeFromBottomHalfMaximized(_appDelegate) {
+                    bottomHalfMaximizedWindows.removeItem(_appDelegate);
+                }
+
+                Loader {
+                    id: snappedWindowsTabsBarLoader
+
+                    active: shell.settings.enableStackedSnappedWindows
+                    asynchronous: true
+                    sourceComponent: Repeater {
+                        model: [
+                            workspaceContainer.maximizedWindows
+                            , workspaceContainer.rightMaximizedWindows
+                            , workspaceContainer.leftMaximizedWindows
+                            , workspaceContainer.topLeftMaximizedWindows
+                            , workspaceContainer.topRightMaximizedWindows
+                            , workspaceContainer.bottomLeftMaximizedWindows
+                            , workspaceContainer.bottomRightMaximizedWindows
+                            , workspaceContainer.topHalfMaximizedWindows
+                            , workspaceContainer.bottomHalfMaximizedWindows
+                        ]
+
+                        delegate: Loader {
+                            active: modelData.count > 1
+                            asynchronous: true
+                            visible: active && parent !== null && parent.visible
+                            anchors {
+                                top: parent ? parent.top : undefined
+                                left: parent ? parent.left : undefined
+                                right: parent ? parent.right : undefined
+                            }
+                            height: priv.windowDecorationHeight
+                            parent: modelData.currentAppDelegate ? modelData.currentAppDelegate.decoration.titleBar : null
+
+                            sourceComponent: LPStackedWindowsTabsBar {
+                                model: modelData
+                                enableHover: modelData.currentAppDelegate && modelData.currentAppDelegate.decoration.cleanMode
+                                appDelegate: modelData.currentAppDelegate
+                            }
+                        }
+                    }
+                }
+                // ENH268 - End
 
                 function updateForegroundMaximizedApp() {
                     var found = false;
@@ -2516,6 +3044,32 @@ FocusScope {
                     value: root.interactive && workspaceContainer.isActive
                 }
 
+                // ENH269 - Dynamic workspace
+                function updateCurrentIndex() {
+                    if (isActive) {
+                        workspacesView.currentIndex = index;
+
+                        // Update stages when we change active workspace
+                        // Without this, selecting the first app on another workspace won't focus on that app and shows a blank workspace instead
+                        workspaceContainer.updateMainAndSideStageIndexes();
+                    }
+                    // ENH262 - Workspace indicator
+                    else {
+                        root.previousWorkspaceIndex = index;
+                    }
+                    // ENH262 - End
+                }
+                // Delay for now since currentIndex won't update
+                // when adding new workspace without this
+                Timer {
+                    id: delayUpdateIndexTimer
+                    interval: 1
+                    onTriggered: updateCurrentIndex();
+                }
+                Component.onCompleted: {
+                    delayUpdateIndexTimer.restart();
+                }
+                /*
                 onIsActiveChanged: {
                     if (isActive) {
                         workspacesView.currentIndex = index;
@@ -2524,7 +3078,15 @@ FocusScope {
                         // Without this, selecting the first app on another workspace won't focus on that app and shows a blank workspace instead
                         workspaceContainer.updateMainAndSideStageIndexes();
                     }
+                    // ENH262 - Workspace indicator
+                    else {
+                        root.previousWorkspaceIndex = index;
+                    }
+                    // ENH262 - End
                 }
+                */
+                onIsActiveChanged: updateCurrentIndex();
+                // ENH269 - End
 
                 Connections {
                     target: workspaceContainer.windowModel
@@ -2787,6 +3349,69 @@ FocusScope {
                 readonly property bool maximizedBottomRight: windowState === WindowStateStorage.WindowStateMaximizedBottomRight
                 readonly property bool anyMaximized: maximized || maximizedLeft || maximizedRight || maximizedHorizontally || maximizedVertically ||
                                                      maximizedTopLeft || maximizedTopRight || maximizedBottomLeft || maximizedBottomRight
+                // ENH268 - Tabbed snapped windows
+                property alias decoration: decoratedWindow
+                onMaximizedRightChanged: {
+                    if (maximizedRight) {
+                        workspaceContainer.addToRightMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromRightMaximized(appDelegate);
+                    }
+                }
+                onMaximizedLeftChanged: {
+                    if (maximizedLeft) {
+                        workspaceContainer.addToLeftMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromLeftMaximized(appDelegate);
+                    }
+                }
+                onMaximizedTopLeftChanged: {
+                    if (maximizedTopLeft) {
+                        workspaceContainer.addToTopLeftMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromTopLeftMaximized(appDelegate);
+                    }
+                }
+                onMaximizedTopRightChanged: {
+                    if (maximizedTopRight) {
+                        workspaceContainer.addToTopRightMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromTopRightMaximized(appDelegate);
+                    }
+                }
+                onMaximizedBottomLeftChanged: {
+                    if (maximizedBottomLeft) {
+                        workspaceContainer.addToBottomLeftMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromBottomLeftMaximized(appDelegate);
+                    }
+                }
+                onMaximizedBottomRightChanged: {
+                    if (maximizedBottomRight) {
+                        workspaceContainer.addToBottomRightMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromBottomRightMaximized(appDelegate);
+                    }
+                }
+                onMaximizedHorizontallyChanged: {
+                    if (shell.settings.replaceHorizontalVerticalSnappingWithBottomTop) {
+                        if (maximizedHorizontally) {
+                            workspaceContainer.addToTopHalfMaximized(appDelegate);
+                        } else {
+                            workspaceContainer.removeFromTopHalfMaximized(appDelegate);
+                        }
+                    }
+                }
+                onMaximizedVerticallyChanged: {
+                    if (shell.settings.replaceHorizontalVerticalSnappingWithBottomTop) {
+                        if (maximizedVertically) {
+                            workspaceContainer.addToBottomHalfMaximized(appDelegate);
+                        } else {
+                            workspaceContainer.removeFromBottomHalfMaximized(appDelegate);
+                        }
+                    }
+                }
+                // ENH268 - End
 
                 readonly property bool minimized: windowState & WindowStateStorage.WindowStateMinimized
                 readonly property bool fullscreen: windowState === WindowStateStorage.WindowStateFullscreen
@@ -2853,6 +3478,13 @@ FocusScope {
                     } else {
                         root.maximizedWindowCount -= 1
                     }
+                    // ENH268 - Tabbed snapped windows
+                    if (maximized) {
+                        workspaceContainer.addToMaximized(appDelegate);
+                    } else {
+                        workspaceContainer.removeFromMaximized(appDelegate);
+                    }
+                    // ENH268 - End
                 }
                 onFullscreenChanged: {
                     if (fullscreen) {
@@ -2980,7 +3612,7 @@ FocusScope {
                         // ENH257 - Workspace redesign
                         // Switch to the workspace if the requesting window isn't the current one
                         if (!workspaceContainer.isActive) {
-                            workspaceContainer.workspace.activate();
+                            root.updateActiveWorkspace(workspaceContainer.workspace);
                         }
                         // ENH257 - End
                         appDelegate.activate();
@@ -3138,6 +3770,36 @@ FocusScope {
                         workspaceContainer.updateForegroundMaximizedApp();
                         // ENH257 - End
                     }
+
+                    // ENH268 - Tabbed snapped windows
+                    if (appDelegate.maximized) {
+                        workspaceContainer.removeFromMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedRight) {
+                        workspaceContainer.removeFromRightMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedLeft) {
+                        workspaceContainer.removeFromLeftMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedTopRight) {
+                        workspaceContainer.removeFromTopRightMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedTopLeft) {
+                        workspaceContainer.removeFromTopLeftMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedBottomRight) {
+                        workspaceContainer.removeFromBottomRightMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedBottomLeft) {
+                        workspaceContainer.removeFromBottomLeftMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedHorizontally && shell.settings.replaceHorizontalVerticalSnappingWithBottomTop) {
+                        workspaceContainer.removeFromTopHalfMaximized(appDelegate);
+                    }
+                    if (appDelegate.maximizedVertically && shell.settings.replaceHorizontalVerticalSnappingWithBottomTop) {
+                        workspaceContainer.removeFromBottomHalfMaximized(appDelegate);
+                    }
+                    // ENH268 - End
                 }
 
                 // ENH257 - Workspace redesign
@@ -3400,7 +4062,10 @@ FocusScope {
                             scaleToPreviewProgress: 1
                             // ENH187 - Fix for app window size when entering spread
                             // hasDecoration: root.mode === "windowed"
-                            hasDecoration: root.mode === "windowed" && !appDelegate.fullscreen
+                            // ENH225 - Clean Windowed Mode
+                            //hasDecoration: root.mode === "windowed" && !appDelegate.fullscreen
+                            hasDecoration: root.mode === "windowed" && !appDelegate.fullscreen && !decoratedWindow.cleanMode
+                            // ENH225 - End
                             // ENH187 - End
                             shadowOpacity: spreadMaths.shadowOpacity
                             showHighlight: spreadItem.highlightedIndex === index
@@ -3571,15 +4236,27 @@ FocusScope {
                             target: appDelegate;
                             // ENH187 - Fix for app window size when entering spread
                             // requestedX: root.availableDesktopArea.x;
-                            windowedX: root.availableDesktopArea.x;
+                            // ENH265 - Snapped window margins
+                            //windowedX: root.availableDesktopArea.x;
+                            windowedX: root.availableDesktopArea.x + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin);
+                            // ENH265 - End
                             // ENH187 - End
                             // ENH002 - Notch/Punch hole fix
                             // requestedY: 0;
                             // ENH187 - Fix for app window size when entering spread
                             //requestedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
                             //                                     : 0;
-                            windowedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
-                                                                 : 0;
+                            // ENH265 - Snapped window margins
+                            //windowedY: shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight
+                            //                                     : 0;
+                            // ENH268 - Tabbed snapped windows
+                            //windowedY: (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0)
+                            windowedY: (workspaceContainer.showTitleBarOfMaximized ? root.availableDesktopArea.y
+                                            : (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0)
+                                       )
+                            // ENH268 - End
+                                             + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            // ENH265 - End
                             // ENH187 - End
                             // ENH002 - End
                             visuallyMinimized: false;
@@ -3587,17 +4264,32 @@ FocusScope {
                         }
                         PropertyChanges {
                             target: appDelegate
-                            requestedWidth: root.availableDesktopArea.width;
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width;
+                            requestedWidth: root.availableDesktopArea.width - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMarginDouble);
+                            // ENH265 - End
                             // ENH002 - Notch/Punch hole fix
                             // requestedHeight: appContainer.height;
-                            requestedHeight: appContainer.height - (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0);
+                            // ENH265 - Snapped window margins
+                            //requestedHeight: appContainer.height - (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0);
+                            // ENH268 - Tabbed snapped windows
+                            //requestedHeight: appContainer.height - (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0)
+                            requestedHeight: (workspaceContainer.showTitleBarOfMaximized ? root.availableDesktopArea.height
+                                                : appContainer.height - (shell.shellTopMargin > 0 ? shell.shellTopMargin - decoratedWindow.decorationHeight : 0)
+                                             )
+                            // ENH268 - End
+                                                - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMarginDouble);
+                            // ENH265 - End
                             // ENH002 - End
                             restoreEntryValues: false
                         }
                         PropertyChanges { target: touchControls; enabled: true }
                         PropertyChanges { target: decoratedWindow; windowControlButtonsVisible: false }
                         // ENH179 - Hide window title bar when maximized
-                        PropertyChanges { target: decoratedWindow; transparentDecoration: true }
+                        // ENH268 - Tabbed snapped windows
+                        //PropertyChanges { target: decoratedWindow; transparentDecoration: true }
+                        PropertyChanges { target: decoratedWindow; transparentDecoration: !workspaceContainer.showTitleBarOfMaximized }
+                        // ENH268 - End
                         // ENH179 - End
                     },
                     State {
@@ -3652,10 +4344,17 @@ FocusScope {
                     State {
                         name: "maximizedLeft"; when: appDelegate.maximizedLeft && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: root.availableDesktopArea.y
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x
+                            // windowedY: root.availableDesktopArea.y
+                            windowedX: root.availableDesktopArea.x + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            windowedY: root.availableDesktopArea.y + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            // ENH265 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width / 2
                             // windowedHeight: root.availableDesktopArea.height
@@ -3665,8 +4364,12 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate
                             restoreEntryValues: false
-                            requestedWidth: root.availableDesktopArea.width / 2
-                            requestedHeight: root.availableDesktopArea.height
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width / 2
+                            // requestedHeight: root.availableDesktopArea.height
+                            requestedWidth: root.availableDesktopArea.width / 2 - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                            requestedHeight: root.availableDesktopArea.height - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMarginDouble)
+                            // ENH265 - End
                         }
                         // ENH187 - End
                     },
@@ -3675,16 +4378,26 @@ FocusScope {
                         extend: "maximizedLeft"
                         PropertyChanges {
                             target: appDelegate;
-                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                     },
                     State {
                         name: "maximizedTopLeft"; when: appDelegate.maximizedTopLeft && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: root.availableDesktopArea.y
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x
+                            // windowedY: root.availableDesktopArea.y
+                            windowedX: root.availableDesktopArea.x + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            windowedY: root.availableDesktopArea.y + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            // ENH265 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width / 2
                             // windowedHeight: root.availableDesktopArea.height / 2
@@ -3694,8 +4407,12 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate
                             restoreEntryValues: false
-                            requestedWidth: root.availableDesktopArea.width / 2
-                            requestedHeight: root.availableDesktopArea.height / 2
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width / 2
+                            // requestedHeight: root.availableDesktopArea.height / 2
+                            requestedWidth: (root.availableDesktopArea.width / 2) - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                            requestedHeight: (root.availableDesktopArea.height / 2) - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                         // ENH187 - End
                     },
@@ -3704,16 +4421,26 @@ FocusScope {
                         extend: "maximizedTopLeft"
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                     },
                     State {
                         name: "maximizedBottomLeft"; when: appDelegate.maximizedBottomLeft && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x
+                            // windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                            windowedX: root.availableDesktopArea.x + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            windowedY: root.availableDesktopArea.y + (root.availableDesktopArea.height / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width / 2
                             // windowedHeight: root.availableDesktopArea.height / 2
@@ -3724,8 +4451,12 @@ FocusScope {
                         PropertyChanges {
                             target: appDelegate
                             restoreEntryValues: false
-                            requestedWidth: root.availableDesktopArea.width / 2
-                            requestedHeight: root.availableDesktopArea.height / 2
+                            // ENH265 - Snapped window margins
+                            // requestedWidth: root.availableDesktopArea.width / 2
+                            // requestedHeight: root.availableDesktopArea.height / 2
+                            requestedWidth: root.availableDesktopArea.width / 2 - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                            requestedHeight: root.availableDesktopArea.height / 2 - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                         // ENH187 - End
                     },
@@ -3734,18 +4465,30 @@ FocusScope {
                         extend: "maximizedBottomLeft"
                         PropertyChanges {
                             target: appDelegate
-                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            // ENH265 - Snapped window margins
+                            // windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2)
+                            windowedX: root.availableDesktopArea.x + (root.availableDesktopArea.width / 2) + root.snappedWindowMarginHalf
+                            // ENH265 - End
                         }
                     },
                     State {
                         name: "maximizedHorizontally"; when: appDelegate.maximizedHorizontally && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
                             // ENH156 - Advanced snapping keyboard shortcuts
                             // windowedX: root.availableDesktopArea.x; windowedY: windowedY
-                            windowedX: root.availableDesktopArea.x
-                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y : windowedY
+                            // ENH265 - Snapped window margins
+                            //windowedX: root.availableDesktopArea.x
+                            //windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y : windowedY
+                            windowedX: root.availableDesktopArea.x + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                            ? root.availableDesktopArea.y + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                                            : windowedY
+                            // ENH265 - End
                             // ENH156 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: root.availableDesktopArea.width; windowedHeight: windowedHeight
@@ -3757,8 +4500,14 @@ FocusScope {
                             restoreEntryValues: false
                             // ENH156 - Advanced snapping keyboard shortcuts
                             //requestedWidth: root.availableDesktopArea.width; requestedHeight: requestedHeight
-                            requestedWidth: root.availableDesktopArea.width
-                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : requestedHeight
+                            // ENH265 - Snapped window margins
+                            //requestedWidth: root.availableDesktopArea.width
+                            //requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : requestedHeight
+                            requestedWidth: root.availableDesktopArea.width - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMarginDouble)
+                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                ? root.availableDesktopArea.height / 2 - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                                                : requestedHeight
+                            // ENH265 - End
                             // ENH156 - End
                         }
                         // ENH187 - End
@@ -3766,13 +4515,24 @@ FocusScope {
                     State {
                         name: "maximizedVertically"; when: appDelegate.maximizedVertically && !appDelegate.minimized
                         extend: "normal"
+                        // ENH266 - Disable resize in snapped windows
+                        PropertyChanges { target: resizeArea; enabled: false }
+                        // ENH266 - End
                         PropertyChanges {
                             target: appDelegate
                             // ENH156 - Advanced snapping keyboard shortcuts
                             // windowedX: windowedX; windowedY: root.availableDesktopArea.y
-                            windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.x : windowedX
-                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
-                                                                                                     : root.availableDesktopArea.y
+                            // ENH265 - Snapped window margins
+                            //windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.x : windowedX
+                            //windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2)
+                            //                                                                         : root.availableDesktopArea.y
+                            windowedX: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                            ? root.availableDesktopArea.x + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                                            : windowedX
+                            windowedY: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                            ? root.availableDesktopArea.y + (root.availableDesktopArea.height / 2) + root.snappedWindowMarginHalf
+                                            : root.availableDesktopArea.y + (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin)
+                             // ENH265 - End
                             // ENH156 - End
                             // ENH187 - Fix for app window size when entering spread
                             // windowedWidth: windowedWidth; windowedHeight: root.availableDesktopArea.height
@@ -3784,8 +4544,16 @@ FocusScope {
                             restoreEntryValues: false
                             // ENH156 - Advanced snapping keyboard shortcuts
                             //requestedWidth: requestedWidth; requestedHeight: root.availableDesktopArea.height
-                            requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.width : requestedWidth;
-                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : root.availableDesktopArea.height
+                            // ENH265 - Snapped window margins
+                            //requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.width : requestedWidth;
+                            //requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop ? root.availableDesktopArea.height / 2 : root.availableDesktopArea.height
+                            requestedWidth: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                ? root.availableDesktopArea.width - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMarginDouble)
+                                                : requestedWidth;
+                            requestedHeight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
+                                                ? root.availableDesktopArea.height / 2 - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMargin) - root.snappedWindowMarginHalf
+                                                : root.availableDesktopArea.height - (root.snappedWindowNoEdgeMargin ? 0 : root.snappedWindowMarginDouble);
+                            // ENH265 - End
                             // ENH156 - End
                         }
                         // ENH187 - End
@@ -3977,7 +4745,31 @@ FocusScope {
                                               : 1
 
                     cleanMode: shell.settings.noDecorationWindowedMode && root.mode === "windowed"
-                                    && !appDelegate.fullscreen && !appDelegate.maximized
+                                    && !appDelegate.fullscreen
+                                    // ENH268 - Tabbed snapped windows
+                                    //&& !appDelegate.maximized
+                                    && (
+                                        !(appDelegate.maximized && !workspaceContainer.showTitleBarOfMaximized)
+                                        &&
+                                        !(appDelegate.maximized && workspaceContainer.showTitleBarOfMaximized)
+                                        &&
+                                        !(appDelegate.maximizedLeft && workspaceContainer.showTitleBarOfLeftMaximized)
+                                        &&
+                                        !(appDelegate.maximizedRight && workspaceContainer.showTitleBarOfRightMaximized)
+                                        &&
+                                        !(appDelegate.maximizedTopLeft && workspaceContainer.showTitleBarOfTopLeftMaximized)
+                                        &&
+                                        !(appDelegate.maximizedTopRight && workspaceContainer.showTitleBarOfTopRightMaximized)
+                                        &&
+                                        !(appDelegate.maximizedBottomLeft && workspaceContainer.showTitleBarOfBottomLeftMaximized)
+                                        &&
+                                        !(appDelegate.maximizedBottomRight && workspaceContainer.showTitleBarOfBottomRightMaximized)
+                                        &&
+                                        !(appDelegate.maximizedHorizontally && workspaceContainer.showTitleBarOfTopHalfMaximized)
+                                        &&
+                                        !(appDelegate.maximizedVertically && workspaceContainer.showTitleBarOfBottomHalfMaximized)
+                                    )
+                                    // ENH268 - End
                     hasDecoration: !cleanMode
                     // ENH225 - End
                     decorationHeight: priv.windowDecorationHeight
@@ -4042,10 +4834,10 @@ FocusScope {
 
                     // ENH006 - Rounded app spread
                     RoundedCornersMask {
-						id: roundedCornerEffect
-						anchors.fill: parent
-					}
-					// ENH006 - End
+                        id: roundedCornerEffect
+                        anchors.fill: parent
+                    }
+                    // ENH006 - End
                 }
 
                 OpacityMask {
@@ -4248,6 +5040,8 @@ FocusScope {
             function showFakeWindow(appDelegate, rect) {
                 sourceWorkspace = root.currentWorkspaceContainer.workspace
                 fakeWindow.showDecoration = root.mode === "windowed" && !appDelegate.fullscreen // && !appDelegate.anyMaximized;
+                                        && !(shell.settings.noDecorationWindowedMode && root.mode === "windowed"
+                                                && !appDelegate.fullscreen && !appDelegate.maximized)
                 fakeSurface.surface = appDelegate.surface
                 fakeWindow.x = rect.x
                 fakeWindow.y = rect.y
@@ -4287,7 +5081,7 @@ FocusScope {
 
                 property bool showDecoration: false
 
-                active: false
+                active: true
                 focus: false
                 height: priv.windowDecorationHeight
                 title: fakeSurface.surface ? fakeSurface.surface.name : ""
@@ -4326,6 +5120,12 @@ FocusScope {
         delayedSnappingIsInitialShow: windowSnapper.initialShow
         launcherWidth: root.launcherLeftMargin
         // ENH156 - End
+        // ENH265 - Snapped window margins
+        snappedWindowNoEdgeMargin: root.snappedWindowNoEdgeMargin
+        snappedWindowMargin: root.snappedWindowMargin
+        snappedWindowMarginHalf: root.snappedWindowMarginHalf
+        snappedWindowMarginDouble: root.snappedWindowMarginDouble
+        // ENH265 - End
     }
     // ENH154 - Workspace switcher gesture
     Loader {

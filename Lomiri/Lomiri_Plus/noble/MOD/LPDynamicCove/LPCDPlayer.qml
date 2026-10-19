@@ -1,5 +1,5 @@
 // ENH064 - Dynamic Cove
-import QtQuick 2.12
+import QtQuick 2.15
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.3
 import QtGraphicalEffects 1.12
@@ -164,6 +164,7 @@ LPDynamicCoveItem {
         id: timeoutHoverHandler
         acceptedButtons: Qt.NoButton
         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+        cursorShape: Qt.PointingHandCursor
     }
 
     Rectangle {
@@ -503,13 +504,13 @@ LPDynamicCoveItem {
                 TapHandler {
                     id: prevTapHandler
                     acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                    //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                     onSingleTapped: cdPlayer.playBackObj.previous()
                 }
 
                 HoverHandler {
                     id: prevHoverHandler
                     acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                    cursorShape: Qt.PointingHandCursor
                 }
             }
 
@@ -649,13 +650,13 @@ LPDynamicCoveItem {
                 TapHandler {
                     id: nextTapHandler
                     acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                    //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                     onSingleTapped: cdPlayer.playBackObj.next()
                 }
 
                 HoverHandler {
                     id: nextHoverHandler
                     acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                    cursorShape: Qt.PointingHandCursor
                 }
             }
         }

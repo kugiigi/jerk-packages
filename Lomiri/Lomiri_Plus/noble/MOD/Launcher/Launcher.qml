@@ -743,6 +743,10 @@ FocusScope {
             root.hide(ignoreHideIfMouseOverLauncher);
             root.showDashHome();
         }
+        // ENH270 - Horizontal Scroll to open the Launcher/Drawer
+        onOpenDrawer: root.toggleDrawer(false, true);
+        onCloseDrawer: root.hide();
+        // ENH270 - End
 
         onPreventHidingChanged: {
             if (panel.dismissTimer.running) {
@@ -783,7 +787,10 @@ FocusScope {
         // enabled: root.available
         // ENH133 - Hot corners
         //enabled: root.available && !shell.settings.disableLeftEdgeMousePush
-        enabled: root.available && !shell.settings.disableLeftEdgeMousePush
+        // ENH018 - Immersive mode
+        //enabled: root.available && !shell.settings.disableLeftEdgeMousePush
+        enabled: root.available && !shell.settings.disableLeftEdgeMousePush && !shell.immersiveMode
+        // ENH018 - End
         // ENH133 - End
         // ENH104 - End
         // ENH163 - Less sensitive edge barrier
@@ -868,6 +875,51 @@ FocusScope {
         readonly property int disableTopSection: shell.settings.disableLeftEdgeForWaydroidEdge === 0
 
         onHeightMultiplierChanged: if (shell.settingsShown) previewHintRec.show()
+
+        // ENH270 - Horizontal Scroll to open the Launcher/Drawer
+        Timer {
+            id: activeTimeoutTimer
+            interval: horizontalWheelHandler.activeTimeout
+            onTriggered: {
+                horizontalWheelHandler.accumulated = 0;
+            }
+        }
+        WheelHandler {
+            id: horizontalWheelHandler
+
+            enabled: shell.settings.enableHorizontalScrollLauncherDrawer
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            acceptedButtons: Qt.NoButton
+            orientation: Qt.Horizontal
+
+            property real accumulated: 0
+            readonly property real step: 1000 //1500 // 2500 for almost full touchpad width
+            activeTimeout: 200
+
+            onWheel: (event) => {
+                // Prefer angleDelta (works on both mouse and touchpad)
+                accumulated += event.angleDelta.x
+
+                // Trigger only when a full step is reached
+                while (accumulated >= step) {
+                    if (root.shown) {
+                        root.toggleDrawer(false, true);
+                    } else {
+                        root.show();
+                    }
+                    accumulated -= step
+                }
+                while (accumulated <= -step) {
+                    root.hide();
+                    accumulated += step
+                }
+
+                activeTimeoutTimer.restart();
+
+                event.accepted = true
+            }
+        }
+        // ENH270 - End
 
         Rectangle {
             id: previewHintRec

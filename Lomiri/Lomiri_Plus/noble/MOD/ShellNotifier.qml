@@ -95,6 +95,8 @@ QtObject {
     property bool enableAdvancedGestures: false
     property bool enableVirtualTouchpadLowerClickThreshold: false
     property real virtualTouchpadScrollSensitivity: 1
+    property real virtualTouchpadHorizontalScrollSensitivity: 1
+    property real virtualTouchpadMouseSensitivity: 1
     property bool inWindowedMode: false
     property bool workspaceEnabled: false
     property Item appForDragging: null

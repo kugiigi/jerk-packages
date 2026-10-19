@@ -1,4 +1,4 @@
-import QtQuick 2.12
+import QtQuick 2.15
 import Lomiri.Components 1.3
 import QtQuick.Controls 2.12
 
@@ -11,6 +11,7 @@ Rectangle {
     property bool isExtraHighlighted: false
     property bool swipeSelectMode: false
     property bool isMouseHovered: false
+    property bool tapEnabled: false
 
     property color backgroundColor: theme.palette.normal.base
     property color currentItemBackgroundColor: theme.palette.normal.baseText
@@ -100,9 +101,14 @@ Rectangle {
     }
 
     TapHandler {
-        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+        acceptedPointerTypes: indicatorRec.tapEnabled ? PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen | PointerDevice.TouchScreen
+                        : PointerDevice.GenericPointer | PointerDevice.Cursor
         onSingleTapped: {
             indicatorRec.selected()
         }
+    }
+    HoverHandler {
+        acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+        cursorShape: Qt.PointingHandCursor
     }
 }

@@ -1,5 +1,5 @@
 // ENH064 - Dynamic Cove
-import QtQuick 2.12
+import QtQuick 2.15
 import QtQuick.Controls 2.12 as QQC2
 import Lomiri.Components 1.3
 import QtQuick.Layouts 1.3
@@ -81,6 +81,7 @@ LPDynamicCoveItem {
         width: mediaPlayer.mouseArea.width
         height: width
         hoverEnabled: false
+        cursorShape: undefined
     }
 
     Item {
@@ -169,13 +170,13 @@ LPDynamicCoveItem {
                     TapHandler {
                         id: clearTapHandler
                         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                        //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                         onSingleTapped: mediaPlayer.clearQueue()
                     }
 
                     HoverHandler {
                         id: clearHoverHandler
                         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
                 
@@ -263,13 +264,13 @@ LPDynamicCoveItem {
                     TapHandler {
                         id: playTapHandler
                         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
-                        //cursorShape: Qt.PointingHandCursor // Needs Qt5.15
                         onSingleTapped: mediaPlayer.tryToPlay(playlists.currentItem.itemId)
                     }
 
                     HoverHandler {
                         id: playHoverHandler
                         acceptedPointerTypes: PointerDevice.GenericPointer | PointerDevice.Cursor | PointerDevice.Pen
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
             }
