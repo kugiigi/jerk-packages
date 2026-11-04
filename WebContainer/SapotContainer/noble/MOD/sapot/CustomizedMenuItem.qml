@@ -1,7 +1,7 @@
 import QtQuick 2.9
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.5 as QQC2
-import QtQuick.Controls.Suru 2.2
+//~ import QtQuick.Controls.Suru 2.2
 import QtQuick.Layouts 1.12
 import "../.." as Common
 
@@ -21,8 +21,10 @@ QQC2.MenuItem {
 
     height: visible ? implicitHeight : 0
 
-    topPadding: Suru.units.gu(1) - Suru.units.dp(1)
-    bottomPadding: Suru.units.gu(1) + Suru.units.dp(1)
+//~     topPadding: Suru.units.gu(1) - Suru.units.dp(1)
+//~     bottomPadding: Suru.units.gu(1) + Suru.units.dp(1)
+    topPadding: units.gu(1) - units.dp(1)
+    bottomPadding: units.gu(1) + units.dp(1)
 
     onEnabledChanged: {
         if ((menu && menu.visible) || (subMenu && subMenu.visible)) {
@@ -95,7 +97,9 @@ QQC2.MenuItem {
             wrapMode: Text.WordWrap
             elide: Text.ElideRight
             maximumLineCount: 2
-            Suru.textLevel: Suru.Paragraph
+//~             Suru.textLevel: Suru.Paragraph
+            font.pixelSize: 0.875 * units.dp(16)
+            font.weight: Font.Light
         }
 
         Loader {
@@ -139,7 +143,9 @@ QQC2.MenuItem {
                 QQC2.Label {
                     horizontalAlignment:  Text.AlignRight
                     text: customMenuItem.rightDisplay
-                    Suru.textLevel: Suru.Small
+//~                     Suru.textLevel: Suru.Small
+                    font.pixelSize: 0.875 * units.dp(14)
+                    font.weight: Font.Light
                 }
             }
         }

@@ -18,10 +18,10 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import QtQuick.Controls 2.5 as QQC2
-import QtWebEngine 1.10
+import QtWebEngine
 import Morph.Web 0.1
 import webbrowsercommon.private 0.1
 import "TextUtils.js" as TextUtils
@@ -39,6 +39,7 @@ WebView {
 
     property var currentWebview: webview
     property ContextMenuRequest contextMenuRequest: null
+    property TouchSelectionMenuRequest touchMenuRequest: null
 
     // Current context menu displayed
     property var contextMenuObj
@@ -62,9 +63,6 @@ WebView {
     signal shareTextRequested(string text)
 
     enableSelectOverride: true //let Morph.Web handle the dropdowns overlay
-
-    //property real contextMenux: contextMenuRequest.x + (webview.scrollPosition.x - contextMenuStartScroll.x)
-    //property real contextMenuy: contextMenuRequest.y + (webview.scrollPosition.y - contextMenuStartScroll.y)
 
     //enable using plugins, such as widevine or flash, to be installed separate
     settings.pluginsEnabled: true
@@ -335,7 +333,7 @@ WebView {
           webview.profile.certificateErrorsMapChanged();
           certificateVerificationDialog.localizedErrorMessage = certificateError.description;
           certificateVerificationDialog.errorIsOverridable = certificateError.overridable;
-          certificateVerificationDialog.accept.connect(certificateError.ignoreCertificateError);
+          certificateVerificationDialog.accept.connect(certificateError.acceptCertificate);
           certificateVerificationDialog.reject.connect(certificateError.rejectCertificate);
       }
 
@@ -362,10 +360,13 @@ WebView {
 
         if (request.linkUrl.toString() || request.mediaType)
         {
+            // contextMenuRequest = request;
+
+            // var contextMenu = PopupUtils.open(Qt.resolvedUrl("ContextMenuMobile.qml"), this);
             contextMenuObj = contextMenuComponent.createObject(webview)
 
             if (webview.wide) {
-                contextMenuObj.popup(request.x + units.gu(2), request.y)
+                contextMenuObj.popup(request.position.x + units.gu(2), request.position.y)
             } else {
                 contextMenuObj.show()
             }
@@ -375,12 +376,12 @@ WebView {
             if (contextMenuObj) {
                 contextMenuObj.close()
             }
-            contextMenuObj = editableMenuComponent.createObject(webview)
-            contextMenuObj.popup(request.x - (contextMenuObj.width / 2), request.y + units.gu(5))
+            contextMenuObj = editableMenuComponent.createObject(webview, { fromTouchMenu: false })
+            contextMenuObj.popup(request.position.x - (contextMenuObj.width / 2), request.position.y + units.gu(5))
         }
         else
         {
-            contextMenuController.selectedTextLength = contextMenuRequest.selectedText.length
+            contextMenuController.selectedTextLength = request.selectedText.length
             contextMenuController.textSelectionLevels = []
             contextMenuController.textSelectionIsAtRootLevel = false
 
@@ -390,38 +391,123 @@ WebView {
                 contextMenuObj = generalContextMenuComponent.createObject(webview)
 
                 if (webview.wide) {
-                    contextMenuObj.popup(request.x + units.gu(2), request.y)
+                    contextMenuObj.popup(request.position.x + units.gu(2), request.position.y)
                 } else {
                     contextMenuObj.show()
                 }
             }
         }
 
-        var commandGetContextMenuInfo = "
-        var morphElemContextMenu = document.elementFromPoint(%1, %2);
-        var morphContextMenuIsDocumentElement = false;
-        if (morphElemContextMenu === null)
-        {
-            morphElemContextMenu = document.documentElement;
-            morphContextMenuIsDocumentElement = true;
-        }
-        var morphContextMenuElementHasSelectMethod = (typeof morphElemContextMenu.select === 'function') ? true : false;
-        // result array
-        // [0]..[3] : bounds of the selected element
-        // [4] : boolean variable morphContextMenuIsDocumentElement
-        //    true: context menu for the whole HTML document
-        //    false: context menu for a specific element (e.g. input, span, ...)
-        // [5] : boolean variable morphContextMenuElementHasSelectMethod
-        [morphElemContextMenu.offsetLeft, morphElemContextMenu.offsetTop, morphElemContextMenu.offsetWidth, morphElemContextMenu.offsetHeight, morphContextMenuIsDocumentElement, morphContextMenuElementHasSelectMethod];
-        ".arg(request.x / webview.zoomFactor).arg(request.y / webview.zoomFactor)
+        getContextMenuInfo(
+            request.position.x,
+            request.position.y,
+            /* ignoreBounds */ false
+        )
+   }
 
-        webview.runJavaScript(commandGetContextMenuInfo, function(result)
-                                                    {
-                                                       console.log("commandGetContextMenuInfo returned array " + JSON.stringify(result))
-                                                       domElementOfContextMenu.isDocumentElement = result[4]
-                                                       domElementOfContextMenu.hasSelectMethod = result[5]
-                                                    }
-                                 );
+
+   onTouchSelectionMenuRequested: function (request) {
+        touchMenuRequest = request;
+
+//~         request.accepted = true;
+
+        zoomMenu.close()
+        if (contextMenuObj) {
+            contextMenuObj.close()
+        }
+
+        let flags = request.touchSelectionCommandFlags;
+
+        if ((flags & (TouchSelectionMenuRequest.Cut | TouchSelectionMenuRequest.Paste)) != 0)
+        {
+            request.accepted = true;
+//~             if (contextMenuObj) {
+//~                 contextMenuObj.close()
+//~             }
+            contextMenuObj = editableMenuComponent.createObject(webview, { fromTouchMenu: true })
+            contextMenuObj.popup(request.selectionBounds.x - (contextMenuObj.width / 2), request.selectionBounds.y + units.gu(5))
+        }
+        else
+        {
+            // Disable for now since it has quirks and has no easy way to get selected texts
+            // which this menu needs
+            request.accepted = false;
+            return
+
+            contextMenuController.selectedTextLength = (flags & (TouchSelectionMenuRequest.Cut | TouchSelectionMenuRequest.Copy)) ? 1 : 0;
+            contextMenuController.textSelectionLevels = []
+            contextMenuController.textSelectionIsAtRootLevel = false
+
+            if (flags & TouchSelectionMenuRequest.Copy) {
+                showSelectionMenu(true)
+            } else {
+                contextMenuObj = generalContextMenuComponent.createObject(webview)
+
+                if (webview.wide) {
+                    contextMenuObj.popup(request.selectionBounds.x + units.gu(2), request.selectionBounds.y)
+                } else {
+                    contextMenuObj.show()
+                }
+            }
+        }
+
+        /*
+        // Include touch handle into the bounds. Even though we have a custom
+        // touch handle, its height is managed by Qt and eventually boils down
+        // to the height of Chromium's stock touch handle.
+        // https://github.com/qt/qtwebengine-chromium/blob/122-based/chromium/ui/touch_selection/vector_icons/text_selection_handle_left.icon
+        const touchHandleHeight = 32;
+        quickMenu.bounds = Qt.rect(
+            request.selectionBounds.x, request.selectionBounds.y,
+            request.selectionBounds.width,
+            request.selectionBounds.height + touchHandleHeight
+        );
+
+        quickMenu.visible = true;
+        */
+
+        getContextMenuInfo(
+            request.selectionBounds.x,
+            request.selectionBounds.y,
+            /* ignoreBounds */ true
+        );
+    }
+
+    function getContextMenuInfo(x, y, ignoreBounds) {
+                var commandGetContextMenuInfo = "
+                var morphElemContextMenu = document.elementFromPoint(%1, %2);
+                var morphContextMenuIsDocumentElement = false;
+                if (morphElemContextMenu === null)
+                {
+                    morphElemContextMenu = document.documentElement;
+                    morphContextMenuIsDocumentElement = true;
+                }
+                var morphContextMenuElementHasSelectMethod = (typeof morphElemContextMenu.select === 'function') ? true : false;
+                // result array
+                // [0]..[3] : bounds of the selected element
+                // [4] : boolean variable morphContextMenuIsDocumentElement
+                //    true: context menu for the whole HTML document
+                //    false: context menu for a specific element (e.g. input, span, ...)
+                // [5] : boolean variable morphContextMenuElementHasSelectMethod
+                [morphElemContextMenu.offsetLeft, morphElemContextMenu.offsetTop, morphElemContextMenu.offsetWidth, morphElemContextMenu.offsetHeight, morphContextMenuIsDocumentElement, morphContextMenuElementHasSelectMethod];
+                ".arg(x / webview.zoomFactor).arg(y / webview.zoomFactor)
+
+                webview.runJavaScript(commandGetContextMenuInfo, function(result)
+                {
+                    console.log("commandGetContextMenuInfo returned array " + JSON.stringify(result))
+                    /*
+                    if (!ignoreBounds) {
+                        quickMenu.bounds = Qt.rect(
+                            result[0] * webview.zoomFactor,
+                            result[1] * webview.zoomFactor,
+                            result[2] * webview.zoomFactor,
+                            result[3] * webview.zoomFactor
+                        )
+                    }
+                    */
+                    domElementOfContextMenu.isDocumentElement = result[4]
+                    domElementOfContextMenu.hasSelectMethod = result[5]
+                });
    }
 
     Component {
@@ -684,11 +770,20 @@ WebView {
             }
         }
     }
-    
-    function showSelectionMenu() {
+
+    function showSelectionMenu(_fromTouchMenu = false) {
         if (selectionMenuObj) selectionMenuObj.close()
-        selectionMenuObj = selectElementMenuComponent.createObject(webview)
-        selectionMenuObj.popup(contextMenuRequest.x - (selectionMenuObj.width / 2), contextMenuRequest.y + units.gu(5))
+        selectionMenuObj = selectElementMenuComponent.createObject(webview, { fromTouchMenu: _fromTouchMenu })
+        let _x = 0
+        let _y = 0
+        if (_fromTouchMenu) {
+            _x = touchMenuRequest.selectionBounds.x;
+            _y = touchMenuRequest.selectionBounds.y;
+        } else {
+            _x = contextMenuRequest.position.x;
+            _y = contextMenuRequest.position.y;
+        }
+        selectionMenuObj.popup(_x - (selectionMenuObj.width / 2), _y + units.gu(5))
     }
 
     function showZoomMenu() {
@@ -741,12 +836,14 @@ WebView {
             id: editableMenu
             
             property bool tempCopyEnabled: false
+            property bool fromTouchMenu: false
 
             focus: false
             showShortcuts: !isWebApp && browser.hasKeyboard
             destroyOnClose: true
             modal: false
-            closePolicy: QQC2.Popup.CloseOnEscape
+//~             closePolicy: QQC2.Popup.CloseOnEscape
+            minimumWidth: units.gu(40)
 
             ActionRowMenu {
                 menu: editableMenu
@@ -783,7 +880,8 @@ WebView {
                         text: i18n.dtr('lomiri-ui-toolkit', "Select All")
                         icon.name: "edit-select-all"
                         // can we make it so that it only appears for non-empty inputs ?
-                        enabled: contextMenuRequest.editFlags & ContextMenuRequest.CanSelectAll
+                        enabled: fromTouchMenu ? true
+                                               : contextMenuRequest.editFlags & ContextMenuRequest.CanSelectAll
                         closeMenuOnTrigger: false
                         onTriggered: {
                             webview.triggerWebAction(WebEngineView.SelectAll)
@@ -793,7 +891,8 @@ WebView {
                     , RowMenuAction {
                         text: i18n.dtr('lomiri-ui-toolkit', "Cut")
                         icon.name: "edit-cut"
-                        enabled: (contextMenuRequest.editFlags & ContextMenuRequest.CanCut) || editableMenu.tempCopyEnabled
+                        enabled: fromTouchMenu ? (touchMenuRequest.touchSelectionCommandFlags & TouchSelectionMenuRequest.Cut) != 0
+                                               : (contextMenuRequest.editFlags & ContextMenuRequest.CanCut) || editableMenu.tempCopyEnabled
                         closeMenuOnTrigger: true
                         onTriggered: {
                             webview.triggerWebAction(WebEngineView.Cut);
@@ -802,7 +901,8 @@ WebView {
                     , RowMenuAction {
                         text: i18n.dtr('lomiri-ui-toolkit', "Copy")
                         icon.name: "edit-copy"
-                        enabled: (contextMenuRequest.editFlags & ContextMenuRequest.CanCopy) || editableMenu.tempCopyEnabled
+                        enabled: fromTouchMenu ? (touchMenuRequest.touchSelectionCommandFlags & TouchSelectionMenuRequest.Copy) != 0
+                                               : (contextMenuRequest.editFlags & ContextMenuRequest.CanCopy) || editableMenu.tempCopyEnabled
                         closeMenuOnTrigger: true
                         onTriggered: {
                             webview.triggerWebAction(WebEngineView.Copy);
@@ -811,7 +911,8 @@ WebView {
                     , RowMenuAction {
                         text: i18n.dtr('lomiri-ui-toolkit', "Paste")
                         icon.name: "edit-paste"
-                        enabled: contextMenuRequest.editFlags & ContextMenuRequest.CanPaste
+                        enabled: fromTouchMenu ? (touchMenuRequest.touchSelectionCommandFlags & TouchSelectionMenuRequest.Paste) != 0
+                                               : contextMenuRequest.editFlags & ContextMenuRequest.CanPaste
                         closeMenuOnTrigger: true
                         onTriggered: {
                             webview.triggerWebAction(WebEngineView.Paste);
@@ -820,9 +921,13 @@ WebView {
                     , RowMenuAction {
                         text: i18n.dtr('lomiri-ui-toolkit', "Share")
                         icon.name: "share"
-                        enabled: ((!isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready)
+                        enabled: {
+                            const _canBeEnabled = fromTouchMenu ? (touchMenuRequest.touchSelectionCommandFlags & TouchSelectionMenuRequest.Copy) != 0
+                                                                : (contextMenuRequest.editFlags & ContextMenuRequest.CanCopy)
+                            return ((!isWebApp && browserTab.contentHandlerLoader && browserTab.contentHandlerLoader.status === Loader.Ready)
                                     || (isWebApp && webview.contentHandlerLoaderObj && webview.contentHandlerLoaderObj.status === Loader.Ready))
-                                        && ((contextMenuRequest.editFlags & ContextMenuRequest.CanCopy) || editableMenu.tempCopyEnabled)
+                                    && (_canBeEnabled || editableMenu.tempCopyEnabled)
+                        }
                         closeMenuOnTrigger: true
                         onTriggered: {
                             if (isWebApp) {
@@ -1043,10 +1148,13 @@ WebView {
         AdvancedMenu {
             id: selectElementMenu
 
+            property bool fromTouchMenu: false
+
             focus: false
             destroyOnClose: true
             modal: false
-            closePolicy: QQC2.Popup.CloseOnEscape
+//~             closePolicy: QQC2.Popup.CloseOnEscape
+            minimumWidth: units.gu(40)
 
             ActionRowMenu {
                 menu: selectElementMenu
@@ -1081,7 +1189,8 @@ WebView {
                         text: i18n.dtr('lomiri-ui-toolkit', "Select All")
                         icon.name: "edit-select-all"
                         // can we make it so that it only appears for non-empty inputs ?
-                        enabled: contextMenuRequest.editFlags & ContextMenuRequest.CanSelectAll
+                        enabled: fromTouchMenu ? true
+                                               : contextMenuRequest.editFlags & ContextMenuRequest.CanSelectAll
                         closeMenuOnTrigger: false
                         onTriggered: {
                             webview.triggerWebAction(WebEngineView.SelectAll)
@@ -1112,8 +1221,9 @@ WebView {
                         }
                     }
                     , RowMenuAction {
-                        readonly property bool isUrl: UrlUtils.looksLikeAUrl(contextMenuRequest.selectedText)
-                        readonly property string elidedText: TextUtils.elideText(contextMenuRequest.selectedText, 20)
+                        readonly property string selectedText: fromTouchMenu ? touchMenuRequest : contextMenuRequest.selectedText
+                        readonly property bool isUrl: UrlUtils.looksLikeAUrl(selectedText)
+                        readonly property string elidedText: TextUtils.elideText(selectedText, 20)
 
                         text: isUrl ? i18n.tr('Go to "%1"').arg(elidedText)
                                             : i18n.tr('Search for "%1"').arg(elidedText)
@@ -1262,14 +1372,14 @@ WebView {
         request.accept();
     }
 
-    onLoadingChanged: {
+    onLoadingChanged: (loadingInfo) => {
         // not about current url (e.g. finished loading of page we have already navigated away from)
-        if (loadRequest.url !== webview.url) {
+        if (loadingInfo.url !== webview.url) {
             return;
         }
 
-        if (loadRequest.status === WebEngineLoadRequest.LoadFailedStatus) {
-            if (loadRequest.errorCode < 0) { // Positive errorCode means HTTP error
+        if (loadingInfo.status === WebEngineView.LoadFailedStatus) {
+            if (loadingInfo.errorCode < 0) { // Positive errorCode means HTTP error
                 /*
                  * This intends to remove Chromium's error page. Ideally, we could set
                  * webView.settings.errorPageEnabled = false and we wouldn't have to do
@@ -1282,7 +1392,7 @@ WebView {
             }
         }
 
-        if ((loadRequest.status === WebEngineLoadRequest.LoadSucceededStatus) && ! UrlUtils.isPdfViewerExtensionUrl(webview.url)) {
+        if ((loadingInfo.status === WebEngineView.LoadSucceededStatus) && ! UrlUtils.isPdfViewerExtensionUrl(webview.url)) {
            webview.runJavaScript("document.contentType", function(docContentType) {
                if (docContentType === "application/pdf") {
                    // ToDo: decide how we handle PDFs:
@@ -1322,7 +1432,7 @@ WebView {
    Connections {
        // user clicks in a browser text field, the keyboard is not yet open
        target: Qt.inputMethod
-       onVisibleChanged: {
+       function onVisibleChanged() {
          if (visible && ! inputMethodTimer.running) {
            inputMethodTimer.restart()
          }

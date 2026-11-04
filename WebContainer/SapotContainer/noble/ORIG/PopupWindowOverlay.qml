@@ -19,8 +19,8 @@
 import QtQuick 2.4
 import QtQuick.Window 2.2
 import Morph.Web 0.1
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import ".."
 
 FocusScope {
@@ -199,7 +199,7 @@ FocusScope {
             top: menubar.bottom
         }
 
-        onNewViewRequested: {
+        onNewWindowRequested: {
 
             if (!request.userInitiated) {
                 return
@@ -215,16 +215,16 @@ FocusScope {
                     disposition === WebEngineView.NewViewInTab;
         }
 
-        onNavigationRequested: {
+        onNavigationRequested: (request) => {
             var url = request.url.toString()
-            request.action = WebEngineNavigationRequest.AcceptRequest
             if (isNewForegroundWebViewDisposition(request.disposition)) {
                 var shouldAcceptRequest =
                         popupWindowController.handleNewForegroundNavigationRequest(url, request, false);
                 if (!shouldAcceptRequest) {
-                    request.action = WebEngineNavigationRequest.IgnoreRequest
+                    request.reject();
                 }
             }
+            request.accept();
         }
 /*
         onCloseRequested: {

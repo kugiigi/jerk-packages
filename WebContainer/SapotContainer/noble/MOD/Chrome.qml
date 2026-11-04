@@ -17,7 +17,7 @@
  */
 
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import ".."
 import "sapot" as Sapot
 
@@ -63,11 +63,11 @@ Sapot.ChromeBase {
     }
 
     function showBackNavHistory(fromBottom, caller) {
-        showNavHistory(webview.navigationHistory.backItems, fromBottom, caller)
+        showNavHistory(webview.history.backItems, fromBottom, caller)
     }
 
     function showForwardNavHistory(fromBottom, caller) {
-        showNavHistory(webview.navigationHistory.forwardItems, fromBottom, caller)
+        showNavHistory(webview.history.forwardItems, fromBottom, caller)
     }
 
     signal closeOverlay
@@ -81,7 +81,7 @@ Sapot.ChromeBase {
 
         availHeight: chrome.availableHeight
         availWidth: chrome.width
-        onNavigate: {
+        onNavigate: (offset) => {
             // Navigate only after the dialog has closed
             // so history list won't be seen updating
             navOffset = offset
@@ -155,7 +155,7 @@ Sapot.ChromeBase {
                 chrome.webview.goBack()
             }
 
-            onShowContextMenu: showNavHistory(chrome.webview.navigationHistory.backItems, false, backButton)
+            onShowContextMenu: showNavHistory(chrome.webview.history.backItems, false, backButton)
         }
 
         ChromeButton {
@@ -186,7 +186,7 @@ Sapot.ChromeBase {
                 chrome.webview.goForward()
             }
 
-            onShowContextMenu: showNavHistory(chrome.webview.navigationHistory.forwardItems, false, forwardButton)
+            onShowContextMenu: showNavHistory(chrome.webview.history.forwardItems, false, forwardButton)
         }
 
         Item {
@@ -301,7 +301,7 @@ Sapot.ChromeBase {
                 target: root
                 ignoreUnknownSignals: true
 
-                onDownloadNotifyChanged: {
+                function onDownloadNotifyChanged() {
                     if (downloadNotify) {
                         shakeAnimation.start()
                     }

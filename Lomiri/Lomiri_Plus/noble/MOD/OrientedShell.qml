@@ -42,6 +42,7 @@ Item {
     property bool lightIndicators: false
 
     property var screen: null
+    property alias screenIndex: shell.screenIndex
     Connections {
         target: screen
         function onFormFactorChanged() { calculateUsageMode(); }
@@ -204,10 +205,32 @@ Item {
     function toggleRotation() {
         if (orientationLocked && Powerd.status === Powerd.On) {
             orientationLock.savedOrientation = root.orientation
-            if (orientation == Qt.InvertedLandscapeOrientation) {
-                orientation = Qt.PortraitOrientation
+
+            if (shell.isBuiltInScreen) {
+                if (shell.settings.rotateActionBasedOnPhysical) {
+                    rotateButton.clicked()
+                } else {
+                    if (orientation == shell.settings.rotateActionAlternateOrientation) {
+                        orientation = QtQuickWindow.Screen.primaryOrientation
+                    } else {
+                        orientation = shell.settings.rotateActionAlternateOrientation
+                    }
+                }
             } else {
-                orientation = Qt.InvertedLandscapeOrientation
+                switch(orientation) {
+                    case Qt.PortraitOrientation:
+                        orientation = Qt.InvertedLandscapeOrientation
+                        break
+                    case Qt.InvertedLandscapeOrientation:
+                        orientation = Qt.InvertedPortraitOrientation
+                        break
+                    case Qt.InvertedPortraitOrientation:
+                        orientation = Qt.LandscapeOrientation
+                        break
+                    case Qt.LandscapeOrientation:
+                        orientation = Qt.PortraitOrientation
+                        break
+                }
             }
         }
     }
@@ -366,6 +389,7 @@ Item {
                 onActivated: shell.isPocketMode = false
             }
         }
+        property Item orientedShell: root
         // ENH198 - End
         id: shell
         objectName: "shell"
@@ -625,6 +649,21 @@ Item {
             left: parent.left
             right: parent.right
         }
+        states: [
+            State {
+                name: "inverted"
+                when: root.orientation === Qt.InvertedPortraitOrientation
+                AnchorChanges {
+                    target: navigationButtonsLoader
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+                PropertyChanges {
+                    target: navigationButtonsLoader
+                    anchors.topMargin: shell.shellMargin
+                }
+            }
+        ]
         sourceComponent: LPNavigationButtons {
             id: navigationButtons
 
@@ -633,6 +672,66 @@ Item {
         }
     }
     // ENH238 - End
+    // ENH152 - Touch visuals
+    MouseArea {
+        id: touchMouseArea
+
+        enabled: shell.settings.showTouchVisuals
+        visible: enabled
+        z: Number.MAX_VALUE
+        anchors.fill: parent
+        hoverEnabled: true
+        propagateComposedEvents: true
+        onPressed: {
+            touchRec.show()
+            mouse.accepted = false
+        }
+        onReleased: mouse.accepted = false
+        onClicked: mouse.accepted = false
+        onDoubleClicked: mouse.accepted = false
+        onPressAndHold: mouse.accepted = false
+        onWheel: wheel.accepted = false
+        onPositionChanged: {
+            touchRec.show()
+        }
+    }
+
+    Timer {
+        id: touchRecTimer
+        interval: 200
+        onTriggered: touchRec.opacity = 0
+    }
+
+    Loader {
+        id: touchRec
+
+        readonly property real visibleOpacity: 0.8
+        readonly property real centerX: width / 2
+        readonly property real centerY: height / 2
+
+        z: touchMouseArea.z
+        asynchronous: true
+        active: touchMouseArea.enabled
+        opacity: 0
+        width: units.gu(5)
+        height: width
+        x: touchMouseArea.mouseX - centerX
+        y: touchMouseArea.mouseY - centerY
+
+        function show() {
+            touchRecTimer.stop()
+            opacity = visibleOpacity
+            touchRecTimer.restart()
+        }
+
+        Behavior on opacity { LomiriNumberAnimation {} }
+
+        sourceComponent: Rectangle {
+            color: shell.settings.touchVisualColor !== "" ? shell.settings.touchVisualColor : "white"
+            radius: width / 2
+        }
+    }
+    // ENH152 - End
 
     RotateButton {
         id: rotateButton

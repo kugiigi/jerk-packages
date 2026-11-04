@@ -18,8 +18,9 @@
 import QtQuick 2.15
 import Lomiri.Components 1.3
 import Lomiri.Gestures 0.1
-import "../Components"
-import "Indicators"
+import "../../../Components"
+import "../../Indicators"
+import "../.."
 // ENH056 - Quick toggles
 import QtQuick.Layouts 1.12
 import Lomiri.Components.ListItems 1.3 as ListItems
@@ -42,9 +43,9 @@ Showable {
     readonly property color customPanelColor: shell.settings.useCustomIndicatorPanelColor ? shell.settings.customIndicatorPanelColor : "#000000"
     readonly property real colorOpacity: shell.settings.useCustomIndicatorPanelOpacity ? shell.settings.customIndicatorPanelOpacity : 0.85
     readonly property bool useCustomColorAndOpacity: shell.settings.useCustomIndicatorPanelColor || shell.settings.useCustomIndicatorPanelOpacity
-    // property color panelColor: lightMode ? "#FFFFFF" : "#000000"
+    // property color panelColor: Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
     property color panelColor: useCustomColorAndOpacity ? Qt.hsla(customPanelColor.hslHue, customPanelColor.hslSaturation, customPanelColor.hslLightness, colorOpacity)
-                : lightMode ? "#FFFFFF" : "#000000"
+                : Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
     // ENH166 - End
     // ENH111 - End
     property real menuContentX: 0
@@ -101,7 +102,6 @@ Showable {
 
     property var blurSource : null
     property rect blurRect : Qt.rect(0, 0, 0, 0)
-    property bool lightMode : false
 
     readonly property real unitProgress: Math.max(0, (height - minimizedPanelHeight) / (openedHeight - minimizedPanelHeight))
     readonly property bool fullyOpened: unitProgress >= 1
@@ -1008,7 +1008,6 @@ Showable {
         expanded: false
         enableLateralChanges: false
         lateralPosition: -1
-        lightMode: root.lightMode
         unitProgress: root.unitProgress
         // ENH028 - Open indicators via gesture
         inverted: root.inverted

@@ -1,9 +1,9 @@
 import QtQuick 2.5
-import Lomiri.Components 1.3                  // For LomiriShape.
+import Lomiri.Components                  // For LomiriShape.
 import QtWebEngine 1.7
 import webbrowsercommon.private 0.1           // For DomainSettingsModel singleton.
 import QtQuick.Controls 2.5 as QQC2
-import QtQuick.Controls.Suru 2.2
+//~ import QtQuick.Controls.Suru 2.2
 import QtQuick.Layouts 1.12
 
 // ZoomControls object to provide zoom menu, control and autofit logic for WebViewImpl.
@@ -23,7 +23,9 @@ QQC2.Dialog {
                                                                     : (controller.currentZoomFactor === controller.defaultZoomFactor ? i18n.tr("Default") 
                                                                                                                                 : i18n.tr("Auto-fit")))
     width: units.gu(40)
-    height: units.gu(13)
+//~     height: units.gu(13)
+    dim: false
+    height: units.gu(18)
 
     x: browser.wide ? webview.width - width - units.gu(3) : (webview.width - width) / 2
     y: browser.wide ? units.gu(3) : webview.height - height - units.gu(3)
@@ -48,6 +50,7 @@ QQC2.Dialog {
     RowLayout {
         id: zoomActionsRow
 
+        spacing: units.gu(1)
         anchors {
             left: parent ? parent.left : undefined
             top: parent ? parent.top : undefined
@@ -64,7 +67,8 @@ QQC2.Dialog {
         }
 
         QQC2.Button {
-            Layout.preferredHeight: units.gu(5)
+//~             Layout.preferredHeight: units.gu(5)
+            Layout.preferredHeight: units.gu(7)
             Layout.preferredWidth: units.gu(5)
 
             enabled: controller.resetAvailable
@@ -82,7 +86,8 @@ QQC2.Dialog {
         }
 
         QQC2.Button {
-            Layout.preferredHeight: units.gu(5)
+//~             Layout.preferredHeight: units.gu(5)
+            Layout.preferredHeight: units.gu(7)
             Layout.preferredWidth: units.gu(5)
 
             enabled: controller.saveAvailable
@@ -230,10 +235,10 @@ QQC2.Dialog {
             ColumnLayout {
                 id: contentColumn
 
-                spacing: Suru.units.gu(3)
+                spacing: units.gu(3)
                 anchors {
                     top: parent.top
-                    topMargin: Suru.units.gu(2)
+                    topMargin: units.gu(2)
                     left: parent.left
                     right: parent.right
                 }
@@ -474,16 +479,16 @@ QQC2.Dialog {
             }
 
             // A page loading status has been changed. If it is our current page and the status is a LoadSucceededStatus, then now is our time to handle autofit or retrieve scroll width if oom menu is visible.
-            onLoadingChanged: {
+            onLoadingChanged: (loadingInfo) => {
                 //console.log("[ZC] webview.onLoadingChanged: %1".arg(webview.url));
                 //console.log("[ZC]   webview.loading: %1".arg(webview.loading));
 
                 // Not our current url (e.g. finished loading of page we have already navigated away from).
-                if (loadRequest.url !== webview.url) {
+                if (loadingInfo.url !== webview.url) {
                     return;
                 }
 
-                if (loadRequest.status !== WebEngineLoadRequest.LoadSucceededStatus) {
+                if (loadingInfo.status !== WebEngineView.LoadSucceededStatus) {
                     return;
                 }
 
@@ -537,7 +542,7 @@ QQC2.Dialog {
 
             // This is mainly here, to handle domain ZoomFactor changes outside this zoom menu (eg. from domain specific settings in privacy settings).
             // Also this trigger on user zoom actions, so sometimes is everything up to date and zoom doesn't need any corrections.
-            onDomainZoomFactorChanged: {
+            onDomainZoomFactorChanged: (domainZoomFactor) => {
                 //console.log("[ZC] DomainSettingsModel.onDomainZoomFactorChanged triggered: %1".arg(domain));
                 if (domain != controller.currentDomain) {
                     //console.log("[ZC]   not my domain (%1) changed".arg(controller.currentDomain));
@@ -597,7 +602,7 @@ QQC2.Dialog {
 
     // Ctrl+Plus: zoom in
     Shortcut {
-        sequence: StandardKey.ZoomIn
+        sequences: [StandardKey.ZoomIn]
         onActivated: controller.zoomIn(true)
     }
     // For improved compatibility with qwerty-based keyboard layouts, where "="
@@ -609,7 +614,7 @@ QQC2.Dialog {
 
     // Ctrl+Minus: zoom out
     Shortcut {
-        sequence: StandardKey.ZoomOut
+        sequences: [StandardKey.ZoomOut]
         onActivated: controller.zoomOut(true)
     }
     // For improved compatibility with qwerty-based keyboard layouts, where "-"

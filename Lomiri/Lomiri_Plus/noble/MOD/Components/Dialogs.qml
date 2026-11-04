@@ -354,7 +354,14 @@ MouseArea {
                 text: i18n.tr("Screenshot")
                 onClicked: {
                     powerDialog.hide();
-                    itemGrabber.capture(shell);
+                    // ENH273 - Option to screenshot OrientedShell
+                    // itemGrabber.capture(shell);
+                    let _item = shell;
+                    if (shell.settings.screenshotOrientedShell) {
+                        _item = shell.parent
+                    }
+                    itemGrabber.capture(_item);
+                    // ENH273 - End
                 }
             }
             Button {

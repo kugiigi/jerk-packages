@@ -1,7 +1,7 @@
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.2 as QQC2
-import QtQuick.Controls.Suru 2.2
+//~ import QtQuick.Controls.Suru 2.2
 import QtQuick.Layouts 1.12
 
 QQC2.ItemDelegate {
@@ -12,12 +12,17 @@ QQC2.ItemDelegate {
         height: units.gu(2)
         color: theme.palette.normal.backgroundText
     }
+//~     Suru.textLevel
+    property string textLevel
 
     property real radius: units.gu(1)
     property bool transparentBackground: false
-    property color backgroundColor: Suru.backgroundColor
-    property color borderColor: Suru.backgroundColor
-    property color highlightedBorderColor: Suru.highlightColor
+//~     property color backgroundColor: Suru.backgroundColor
+    property color backgroundColor: theme.palette.normal.background
+//~     property color borderColor: Suru.backgroundColor
+    property color borderColor: theme.palette.normal.background
+//~     property color highlightedBorderColor: Suru.highlightColor
+    property color highlightedBorderColor: theme.palette.highlighted.background
     property string tooltipText
     property int alignment: Qt.AlignCenter
 
@@ -104,7 +109,68 @@ QQC2.ItemDelegate {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter
                 text: customizedButton.text
-                Suru.textLevel: customizedButton.Suru.textLevel
+//~                 Suru.textLevel: customizedButton.Suru.textLevel
+                readonly property real font_size_multiplier: 0.875
+                property string textLevel: customizedButton.textLevel
+                font.pixelSize: {
+                    let _value = 0
+                    switch (textLevel) {
+                        case "Small":
+                            _value = units.dp(14)
+                            break
+                        case "HeadingOne":
+                            _value = units.dp(32)
+                            break
+                        case "HeadingTwo":
+                            _value = units.dp(24)
+                            break
+                        case "HeadingThree":
+                            _value = units.dp(22)
+                            break
+                        case "Caption":
+                            _value = units.dp(14)
+                            break
+                        case "Paragraph":
+                            _value = units.dp(16)
+                            break
+                        case "CodeBlock":
+                            _value = units.dp(16)
+                            break
+                        default:
+                            _value = units.dp(16)
+                    }
+
+                    return _value * font_size_multiplier
+                }
+                font.weight: {
+                    switch (textLevel) {
+                        case "Small":
+                        case "HeadingOne":
+                        case "HeadingTwo":
+                        case "HeadingThree":
+                        case "Caption":
+                        case "Paragraph":
+                        case "CodeBlock":
+                            return Font.Light
+                        default:
+                            return Font.Normal
+                    }
+                }
+                font.family: {
+                    switch (textLevel) {
+                        case "CodeBlock":
+                            return "Ubuntu Mono"
+                        case "Small":
+                        case "HeadingOne":
+                        case "HeadingTwo":
+                        case "HeadingThree":
+                        case "Caption":
+                        case "Paragraph":
+                        default:
+                            return "Ubuntu"
+                    }
+                }
+                font.italic: textLevel === "Caption"
                 color: theme.palette.normal.backgroundText
                 visible: opacity > 0
                 opacity: {
@@ -169,23 +235,27 @@ QQC2.ItemDelegate {
             radius: background.radius
             color: {
                 if (customizedButton.highlighted)
-                    return Suru.highlightColor
+//~                     return Suru.highlightColor
+                    return theme.palette.highlighted.background
 
-                return customizedButton.down ? Qt.darker(Suru.backgroundColor, 1.2) : Qt.darker(Suru.backgroundColor, 1.1)
+//~                 return customizedButton.down ? Qt.darker(Suru.backgroundColor, 1.2) : Qt.darker(Suru.backgroundColor, 1.1)
+                return customizedButton.down ? Qt.darker(theme.palette.normal.background, 1.2) : Qt.darker(theme.palette.normal.background, 1.1)
             }
 
             Behavior on color {
                 enabled: !customizedButton.highlighted
                 ColorAnimation {
-                    duration: Suru.animations.FastDuration
-                    easing: Suru.animations.EasingIn
+//~                     duration: Suru.animations.FastDuration
+                    duration: LomiriAnimation.FastDuration
+//~                     easing: Suru.animations.EasingIn
                 }
             }
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: Suru.animations.FastDuration
-                    easing: Suru.animations.EasingIn
+//~                     duration: Suru.animations.FastDuration
+                    duration: LomiriAnimation.FastDuration
+//~                     easing: Suru.animations.EasingIn
                 }
             }
         }

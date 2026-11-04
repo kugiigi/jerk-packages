@@ -1,11 +1,11 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.5 as QQC2
-import Lomiri.Components 1.3
+import Lomiri.Components
 
 QQC2.Menu {
     id: customMenu
 
-    readonly property real defaultWidth: Math.max(minimumWidth, Math.min(preferredWidth, maximumWidth))
+    readonly property real defaultWidth: Math.min(Math.max(minimumWidth, Math.min(preferredWidth, maximumWidth)), availWidth - units.gu(2))
     property real availWidth: parent.width
     property real availHeight: parent.height
     property string iconName

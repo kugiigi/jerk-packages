@@ -120,6 +120,7 @@ FocusScope {
         }
 
         Keys.onEscapePressed: {
+            lomiriSettings.alwaysShowOsk = false
             root.canceled();
             event.accepted = true;
         }

@@ -25,6 +25,7 @@ import QtQuick.Controls 2.12 as QQC2
 import Lomiri.Components.Extras 0.2 as Extras
 import Lomiri.Content 1.3
 import ScreenshotDirectory 0.1
+import Utils 0.1
 import "Components"
 
 /*
@@ -40,6 +41,8 @@ Item {
     property bool advancedMode: false
     property real topPanelHeight: 0
     property bool silentMode: false
+
+    signal snapshotTaken(string path)
 
     ScreenshotDirectory {
         id: screenshotDirectory
@@ -75,6 +78,13 @@ Item {
     }
 
     function capture(item) {
+        // Disallow spamming the lightdm home directory with screenshots
+        // without access to remove them easily.
+        if (!root.enabled) {
+            console.log("Taking screenshots is blocked.");
+            return;
+        }
+
         d.target = item;
         show();
         if (!root.silentMode) {
@@ -462,6 +472,20 @@ Item {
                     icon.width: height * 0.3
                     icon.height: height * 0.3
                     action: QQC2.Action {
+                        icon.name:  "edit-delete"
+                        onTriggered: {
+                            toolbarItem.hide()
+                            FileIo.remove(d.fileName);
+                        }
+                    }
+                }
+                LPToolButton {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignCenter
+                    icon.width: height * 0.3
+                    icon.height: height * 0.3
+                    action: QQC2.Action {
                         icon.name:  "close"
                         onTriggered: toolbarItem.close()
                     }
@@ -476,17 +500,24 @@ Item {
         property string fileName: ""
 
         function saveScreenshot(result) {
-            let _fileName = screenshotDirectory.makeFileName();
+            const _fileName = screenshotDirectory.makeFileName();
             if (_fileName.length === 0) {
                 console.warn("ItemGrabber: No fileName to save image to");
-            } else {
-                console.log("ItemGrabber: Saving image to " + _fileName);
-                if (result) {
-                    fileName = _fileName
-                    result.saveToFile(_fileName);
-                    if (advancedMode) {
-                        toolbar.show(fileName, true)
-                    }
+                return;
+            }
+
+            console.log("ItemGrabber: Saving image to " + _fileName);
+            if (result) {
+                fileName = _fileName
+                const _success = result.saveToFile(_fileName);
+                if (!_success) {
+                    console.log("Failed to save image.");
+                    return;
+                }
+                if (advancedMode) {
+                    toolbar.show(fileName, true)
+                } else {
+                    root.snapshotTaken(fileName);
                 }
             }
         }

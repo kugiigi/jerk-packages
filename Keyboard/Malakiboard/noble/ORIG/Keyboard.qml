@@ -43,7 +43,10 @@ Item {
     objectName: "fullScreenItem"
 
     property bool landscape: width > height
-    readonly property bool tablet: landscape ? width >= units.gu(90) : height >= units.gu(90)
+    readonly property bool tablet: landscape ? width / height <= 1.8 && width >= units.gu(90)
+                                        : height / width <= 1.8 && height >= units.gu(90)
+    readonly property bool tall: landscape ? width >= units.gu(90) : height >= units.gu(90)
+    readonly property bool tallPhone: !tablet && tall
 
     property bool cursorSwipe: false
     property int prevSwipePositionX
@@ -70,11 +73,29 @@ Item {
         anchors.left: parent.left
 
         width: parent.width
-        height: fullScreenItem.height * (fullScreenItem.landscape ? fullScreenItem.tablet ? UI.tabletKeyboardHeightLandscape 
-                                                                                          : UI.phoneKeyboardHeightLandscape
-                                                                  : fullScreenItem.tablet ? UI.tabletKeyboardHeightPortrait 
-                                                                                          : UI.phoneKeyboardHeightPortrait)
-                                      + wordRibbon.height + borderTop.height
+        height: {
+            let multiplier = 0.5
+
+            if (fullScreenItem.landscape) {
+                if (fullScreenItem.tablet) {
+                    multiplier = UI.tabletKeyboardHeightLandscape
+                } else if (fullScreenItem.tallPhone) {
+                    multiplier = UI.tallPhoneKeyboardHeightLandscape
+                } else {
+                    multiplier = UI.phoneKeyboardHeightLandscape
+                }
+            } else {
+                if (fullScreenItem.tablet) {
+                    multiplier = UI.tabletKeyboardHeightPortrait
+                } else if (fullScreenItem.tallPhone) {
+                    multiplier = UI.tallPhoneKeyboardHeightPortrait
+                } else {
+                    multiplier = UI.phoneKeyboardHeightPortrait
+                }
+            }
+
+            return fullScreenItem.height * multiplier + wordRibbon.height + borderTop.height
+        }
 
         property int keypadHeight: height;
 

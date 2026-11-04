@@ -18,7 +18,7 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import Lomiri.Components 1.3
+import Lomiri.Components
 import Lomiri.Action 1.1 as LomiriActions
 import webbrowsercommon.private 0.1
 import QtQuick.Controls 2.2 as QQC2
@@ -92,20 +92,19 @@ FocusScope {
                 }
             }
         }
-
     }
 
     Connections {
         target: webappContainerWebViewLoader.item
-        onSamlRequestUrlPatternReceived: {
+        function onSamlRequestUrlPatternReceived(urlPattern) {
             samlRequestUrlPatternReceived(urlPattern)
         }
 
-        onThemeColorMetaInformationDetected: {
+        function onThemeColorMetaInformationDetected(theme_color) {
             themeColorMetaInformationDetected(theme_color)
         }
 
-        onLastLoadSucceededChanged: {
+        function onLastLoadSucceededChanged() {
           if (! initialUrlLoaded && webappContainerWebViewLoader.item.lastLoadSucceeded) {
              if (!webapp.settings.restorePreviousURL && UrlUtils.extractScheme(containerWebView.url) !== 'file') {
                 webappContainerWebViewLoader.item.runJavaScript("window.location.replace('%1')".arg(containerWebView.url))
@@ -114,7 +113,7 @@ FocusScope {
           }
         }
         
-        onIsFullScreenChanged: {
+        function onIsFullScreenChanged() {
             target.pullUpWebview()
             if (target.isFullScreen) {
                 fullscreenExitHintComponent.createObject(webappContainerWebViewLoader)
@@ -123,7 +122,7 @@ FocusScope {
             }
         }
 
-        onUrlChanged: {
+        function onUrlChanged() {
             if (webapp.settings.restorePreviousURL) {
                 webapp.settings.previousURL = target.url
             }
@@ -176,11 +175,20 @@ FocusScope {
 
         Connections {
             target: webapp
-            onSensorOrientationChanged: {
+            function onSensorOrientationChanged() {
                 if (webappContainerWebViewLoader.rotateAvailable) {
                     webappContainerWebViewLoader.showRotateButton()
                 }
             }
+        }
+    }
+
+    // Workaround for QtWebEngine 6.10 with libhybris ANGLE & Ozone buffer sharing
+    Loader {
+        anchors.fill: parent
+        active: __onHybris && !__disableWindowSnapshots
+        sourceComponent: Component {
+            Sapot.RedrawOrchestrator { webview: containerWebview.currentWebview }
         }
     }
 
@@ -312,7 +320,7 @@ FocusScope {
 
             Connections {
                 target: webappContainerWebViewLoader.item
-                onIsFullScreenChanged: {
+                function onIsFullScreenChanged() {
                     if (!target.isFullScreen) {
                         rotateButton.destroy()
                     }
@@ -404,7 +412,7 @@ FocusScope {
 
             Connections {
                 target: webappContainerWebViewLoader.item
-                onIsFullScreenChanged: {
+                function onIsFullScreenChanged() {
                     if (!target.isFullScreen) {
                         fullscreenExitHint.destroy()
                     }

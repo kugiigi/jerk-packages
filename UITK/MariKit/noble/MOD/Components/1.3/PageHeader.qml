@@ -601,8 +601,8 @@ Header {
 
         property real accumulated: 0
         property int initialTriggerStage: 1
-        property int actionTriggerStage: 3
-        readonly property int actionTriggerStageValue: stageValues[3]
+        property int actionTriggerStage: 2
+        readonly property int actionTriggerStageValue: stageValues[actionTriggerStage]
         readonly property real scrollProgress: Math.min(1, Math.abs(accumulated) / actionTriggerStageValue)
         readonly property var stageValues: [
             0, 500, 1000, 1500

@@ -74,7 +74,7 @@ Rectangle {
                 readonly property real preferredSize: rootRec.isCompact ? units.gu(15) : units.gu(25)
                 Layout.preferredHeight: preferredSize
                 Layout.preferredWidth: preferredSize
-                source: "graphics/qrcode.png"
+                source: "LPGraphics/qrcode.png"
             }
 
             Label {

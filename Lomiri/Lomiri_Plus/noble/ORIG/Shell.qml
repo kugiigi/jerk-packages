@@ -45,10 +45,14 @@ import Lomiri.Session 0.1
 import Lomiri.Indicators 0.1 as Indicators
 import Cursor 1.1
 import WindowManager 1.0
-
+import LomiriPanel 1.0
 
 StyledItem {
     id: shell
+
+    DeviceConfiguration {
+        id: deviceConfig
+    }
 
     readonly property bool lightMode: settings.lightMode
     theme.name: lightMode ? "Lomiri.Components.Themes.Ambiance" :
@@ -63,6 +67,7 @@ StyledItem {
     property alias panelAreaShowProgress: panel.panelAreaShowProgress
     property string usageScenario: "phone" // supported values: "phone", "tablet" or "desktop"
     property string mode: "full-greeter"
+    property int screenIndex: -1
     property alias oskEnabled: inputMethod.enabled
     function updateFocusedAppOrientation() {
         stage.updateFocusedAppOrientation();
@@ -214,6 +219,19 @@ StyledItem {
 
     readonly property alias greeter: greeterLoader.item
 
+    readonly property var blurSource: {
+        if (!settings.enableBlur)
+            return null;
+
+        if (screenshotEditorContainer.visible)
+            return screenshotEditorContainer;
+
+        if (greeter.shown)
+            return greeter;
+
+        return stages;
+    }
+
     function activateApplication(appId) {
         topLevelSurfaceList.pendingActivation();
 
@@ -262,6 +280,13 @@ StyledItem {
 
     VolumeControl {
         id: volumeControl
+    }
+
+    UDFPSDimmer {
+        visible: Powerd.highBrightnessModeEnabled
+        anchors.fill: parent
+        /* Dimmer overlay must cover everything. */
+        z: 100
     }
 
     PhysicalKeysMapper {
@@ -332,7 +357,6 @@ StyledItem {
             objectName: "stage"
             anchors.fill: parent
             focus: true
-            lightMode: shell.lightMode
 
             dragAreaWidth: shell.edgeSize
             background: wallpaperResolver.resolvedImage
@@ -373,6 +397,7 @@ StyledItem {
             onSpreadShownChanged: {
                 panel.indicators.hide();
                 panel.applicationMenus.hide();
+                launcher.hide()
             }
         }
 
@@ -587,17 +612,30 @@ StyledItem {
             }
         }
 
+        // TODO: remove when we no longer have With/WithoutCutouts split, this just prevents warnings
+        // about assigning to a property that doesn't exist if the WithoutCutouts variant is loaded
+        // FIXME: use attached properties instead of huge blocks of passthrough properties
+        Binding {
+            target: panel
+            property: "orientation"
+            value: shell.orientation
+            when: panel.hasOwnProperty("orientation")
+        }
+
         Panel {
             id: panel
             objectName: "panel"
             anchors.fill: parent //because this draws indicator menus
-            blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
-            lightMode: shell.lightMode
-
+            blurSource: shell.blurSource
+            z: screenshotEditor.visible ? screenshotEditorContainer.z + 1 : 0
             mode: shell.usageScenario == "desktop" ? "windowed" : "staged"
-            minimizedPanelHeight: units.gu(3)
+            minimizedPanelHeight: shell.screenIndex === 0
+                               && shell.orientation === Qt.PortraitOrientation
+                               && deviceConfig.collapsedPanelHeight
+                               || units.gu(3)
             expandedPanelHeight: units.gu(7)
             applicationMenuContentX: launcher.lockedVisible ? launcher.panelWidth : 0
+            screenIndex: shell.screenIndex
 
             indicators {
                 hides: [launcher]
@@ -606,6 +644,7 @@ StyledItem {
                         && (!greeter || !greeter.hasLockedApp)
                         && !shell.waitingOnGreeter
                         && settings.enableIndicatorMenu
+                        && !screenshotEditor.visible
 
                 model: Indicators.IndicatorsModel {
                     id: indicatorsModel
@@ -615,7 +654,13 @@ StyledItem {
                     // greeter or tell the session to load the app.  This will
                     // involve taking the url-dispatcher dbus name and using
                     // SessionBroadcast to tell the session.
-                    profile: shell.mode === "greeter" ? "desktop_greeter" : "phone"
+                    // For now indicators will just hide their buttons that
+                    // usually spawn lomiri-system-settings, based on the
+                    // active username being 'lightdm'.
+                    profile: shell.mode === "greeter"
+                                 ? ((shell.usageScenario === "phone" || shell.usageScenario === "tablet")
+                                     ? "phone_greeter" : "desktop_greeter")
+                                 : "phone"
                     Component.onCompleted: {
                         load();
                     }
@@ -627,6 +672,7 @@ StyledItem {
                 available: (!greeter || !greeter.shown)
                         && !shell.waitingOnGreeter
                         && !stage.spreadShown
+                        && !screenshotEditor.visible
             }
 
             readonly property bool focusedSurfaceIsFullscreen: shell.topLevelSurfaceList.focusedWindow
@@ -645,7 +691,7 @@ StyledItem {
             objectName: "launcher"
 
             anchors.top: parent.top
-            anchors.topMargin: inverted ? 0 : panel.panelHeight
+            anchors.topMargin: panel.panelHeight
             anchors.bottom: parent.bottom
             width: parent.width
             dragAreaWidth: shell.edgeSize
@@ -654,15 +700,15 @@ StyledItem {
                     && !greeter.hasLockedApp
                     && !shell.waitingOnGreeter
                     && shell.mode !== "greeter"
+                    && !screenshotEditor.visible
             visible: shell.mode !== "greeter"
             inverted: shell.usageScenario !== "desktop"
             superPressed: physicalKeysMapper.superPressed
             superTabPressed: physicalKeysMapper.superTabPressed
             panelWidth: units.gu(settings.launcherWidth)
             lockedVisible: (lockedByUser || shell.atDesktop) && lockAllowed
-            blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
+            blurSource: shell.blurSource
             topPanelHeight: panel.panelHeight
-            lightMode: shell.lightMode
             drawerEnabled: !greeter.active && tutorial.launcherLongSwipeEnabled
             privateMode: greeter.active
             background: wallpaperResolver.resolvedImage
@@ -799,6 +845,7 @@ StyledItem {
             privacyMode: greeter.locked && AccountsService.hideNotificationContentWhileLocked
 
             y: topmostIsFullscreen ? 0 : panel.panelHeight
+            z: screenshotEditor.visible ? screenshotEditorContainer.z + 1 : 0
             height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
 
             states: [
@@ -850,6 +897,48 @@ StyledItem {
                 }
             }
         }
+
+        Item {
+            id: screenshotEditorContainer
+            anchors.fill: parent
+            z: itemGrabber.z - 2
+            visible: false
+
+            ScreenshotEditor {
+                id: screenshotEditor
+                anchors.fill: parent
+                anchors.topMargin: panel.panelHeight
+                enabled: !wizard.active
+
+                // Always hide the Launcher and Panel
+                onShown: {
+                    console.log("Showing screenshot editor.");
+
+                    launcher.hide();
+                    panel.indicators.hide();
+                    panel.applicationMenus.hide();
+
+                    screenshotEditorContainer.visible = true;
+                }
+
+                onHidden: {
+                    screenshotEditorContainer.visible = false;
+                }
+
+                // Make locking the screen abort the editing session, otherwise we
+                // would show the editor above the lockscreen.
+                Connections {
+                    target: greeter
+                    function onLockedChanged() {
+                        if (!screenshotEditor.visible)
+                            return;
+
+                        if (greeter.locked)
+                            screenshotEditor.hide()
+                    }
+                }
+            }
+        }
     }
 
     Dialogs {
@@ -883,11 +972,18 @@ StyledItem {
         id: itemGrabber
         anchors.fill: parent
         z: dialogs.z + 10
+        enabled: shell.mode !== "greeter"
         GlobalShortcut { shortcut: Qt.Key_Print; onTriggered: itemGrabber.capture(shell) }
         Connections {
             target: stage
             ignoreUnknownSignals: true
             function onItemSnapshotRequested(item) { itemGrabber.capture(item) }
+        }
+        onSnapshotTaken: {
+            if (!settings.enableScreenshotEditor)
+                return;
+
+            screenshotEditor.show(path)
         }
     }
 

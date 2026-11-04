@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.12 as QQC2
 import QtWebEngine 1.5
 import QtQuick.Layouts 1.12

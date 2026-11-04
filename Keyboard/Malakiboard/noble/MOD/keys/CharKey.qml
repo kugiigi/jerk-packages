@@ -45,6 +45,10 @@ Item {
 
     property alias acceptDoubleClick: keyMouseArea.acceptDoubleClick
     property alias horizontalSwipe: keyMouseArea.horizontalSwipe
+    property alias enabled: keyMouseArea.enabled
+    property alias pressTimeout: pressTimer.interval
+    property int annotationXOffset: 0
+    property int annotationYOffset: 0
 
     property string action
     property bool noMagnifier: false
@@ -84,8 +88,8 @@ Item {
     property alias currentlyPressed: keyMouseArea.pressed
 
     /* internal */
-    property string __annotationLabelNormal
-    property string __annotationLabelShifted
+    property string __annotationLabelNormal: annotation || (extended ? extended[0] : "")
+    property string __annotationLabelShifted: annotation || (extendedShifted ? extendedShifted[0]: "")
 
     /**
      * this property specifies if the key can submit its value or not (e.g. when the popover is shown, it does not commit its value)
@@ -123,18 +127,6 @@ Item {
     signal pressAndHold()
     signal doubleClicked()
     signal keySent(string key)
-
-    Component.onCompleted: {
-        if (annotation) {
-            __annotationLabelNormal = annotation
-            __annotationLabelShifted = annotation
-        } else {
-            if (extended)
-                __annotationLabelNormal = extended[0]
-            if (extendedShifted)
-                __annotationLabelShifted = extendedShifted[0]
-        }
-    }
 
     // Make it possible for the visible area of the key to differ from the
     // actual key size. This allows us to extend the touch area of the bottom
@@ -200,6 +192,10 @@ Item {
                 anchors.top: parent.top
                 anchors.topMargin: units.gu(UI.annotationTopMargin)
                 anchors.rightMargin: units.gu(UI.annotationRightMargin)
+                transform: Translate {
+                    x: annotationXOffset
+                    y: annotationYOffset
+                }
                 // ENH091 - Font settings
                 // font.family: UI.annotationFont
                 font.family: fullScreenItem.settings.useCustomFont
@@ -219,6 +215,8 @@ Item {
     PressArea {
         id: keyMouseArea
         anchors.fill: parent
+
+        onEnabledChanged: keyMouseArea.cancelPress()
 
         onPressAndHold: {
             if (overridePressArea) {
@@ -256,61 +254,12 @@ Item {
         }
 
         onReleased: {
+            if (!swipedOut && pressTimer.running) {
+                pressTimer.stop();
+                evaluatePress();
+            }
             key.released();
-            if (overridePressArea) {
-                return;
-            }
-            if (extendedKeysShown) {
-                if (currentExtendedKey) {
-                    // ENH119 - Extended selector language key
-                    if (key.overrideExtendedKeySelection) {
-                        key.extendedKeySelected(currentExtendedKey.commitStr)
-                        currentExtendedKey = null;
-                        keypad.extendedKeysSelector.closePopover();
-                    } else {
-                        currentExtendedKey.commit();
-                        currentExtendedKey = null;
-                    }
-                    // ENH119 - End
-                } else {
-                    keypad.extendedKeysSelector.closePopover();
-                }
-            // ENH119 - Extended selector language key
-            // } else if(!swipedOut) {
-            } else if(!swipedOut && key.action !== "language") {
-            // ENH119 - End
-                // Read this prior to altering autocaps
-                var keyToSend = valueToSubmit;
-                if (keypad.magnifier.currentlyAssignedKey == key) {
-                    keypad.magnifier.shown = false;
-                }
-
-                if (keypad.autoCapsTriggered && action != "backspace") {
-                    keypad.autoCapsTriggered = false;
-                }
-                else if (!skipAutoCaps) {
-                    if (keypad.activeKeypadState === "SHIFTED" && keypad.state === "CHARACTERS")
-                        keypad.activeKeypadState = "NORMAL";
-                }
-                if (switchBackFromSymbols && keypad.state === "SYMBOLS") {
-                    keypad.state = "CHARACTERS";
-                }
-
-                if (allowPreeditHandler && preeditHandler) {
-                    preeditHandler.onKeyReleased(keyToSend, action);
-                    return;
-                }
-
-                event_handler.onKeyReleased(keyToSend, action);
-                keySent(keyToSend);
-            } else if (action == "backspace") {
-                // Send release from backspace if we're swiped out since
-                // backspace activates on press and deactivates on release
-                // to allow for repeated backspaces, unlike normal keys
-                // which activate on release.
-                event_handler.onKeyReleased(valueToSubmit, action);
-                keySent(valueToSubmit);
-            }
+            releaseTimer.start();
         }
 
         onSwipedOutChanged: {
@@ -324,20 +273,8 @@ Item {
             if (overridePressArea) {
                 return;
             }
-            keypad.magnifier.currentlyAssignedKey = key
-            keypad.magnifier.shown = !noMagnifier && maliit_input_method.enableMagnifier
 
-            if (maliit_input_method.useAudioFeedback)
-                audioFeedback.play();
-
-            if (maliit_input_method.useHapticFeedback)
-                 pressEffect.start();
-
-            // Quick workaround to fix initial autocaps - not beautiful, but works
-            if(action != "backspace") {
-                keypad.autoCapsTriggered = false;
-            }
-            event_handler.onKeyPressed(valueToSubmit, action);
+            pressTimer.restart()
         }
 
         onDoubleClicked: {
@@ -373,6 +310,91 @@ Item {
                 }
             }
         }
+
+        function evaluatePress() {
+            if (!key.enabled) {
+                return;
+            }
+
+            magnifier.currentlyAssignedKey = key;
+            magnifier.shown = !noMagnifier && maliit_input_method.enableMagnifier
+
+            if (maliit_input_method.useAudioFeedback) {
+                audioFeedback.play();
+            }
+
+            if (maliit_input_method.useHapticFeedback) {
+                pressEffect.start();
+            }
+
+            // Quick workaround to fix initial autocaps - not beautiful, but works
+            if (action !== "backspace") {
+                panel.autoCapsTriggered = false;
+            }
+
+            event_handler.onKeyPressed(valueToSubmit, action);
+        }
+
+        function evaluateRelease() {
+            if (overridePressArea) {
+                return;
+            }
+            if (extendedKeysShown) {
+                if (currentExtendedKey) {
+                    // ENH119 - Extended selector language key
+                    // keySent(currentExtendedKey.commitStr);
+                    // currentExtendedKey.commit();
+                    // currentExtendedKey = null;
+                    if (key.overrideExtendedKeySelection) {
+                        key.extendedKeySelected(currentExtendedKey.commitStr)
+                        currentExtendedKey = null;
+                        keypad.extendedKeysSelector.closePopover();
+                    } else {
+                        keySent(currentExtendedKey.commitStr);
+                        currentExtendedKey.commit();
+                        currentExtendedKey = null;
+                    }
+                    // ENH119 - End
+                } else {
+                    keypad.extendedKeysSelector.closePopover();
+                }
+            // ENH119 - Extended selector language key
+            // } else if(!keyMouseArea.swipedOut) {
+            } else if(!keyMouseArea.swipedOut && key.action !== "language") {
+            // ENH119 - End
+                // Read this prior to altering autocaps
+                const keyToSend = valueToSubmit;
+                if (keypad.magnifier.currentlyAssignedKey == key) {
+                    keypad.magnifier.shown = false;
+                }
+
+                if (keypad.autoCapsTriggered && action != "backspace") {
+                    keypad.autoCapsTriggered = false;
+                }
+                else if (!skipAutoCaps) {
+                    if (keypad.activeKeypadState === "SHIFTED" && keypad.state === "CHARACTERS")
+                        keypad.activeKeypadState = "NORMAL";
+                }
+                if (switchBackFromSymbols && keypad.state === "SYMBOLS") {
+                    keypad.state = "CHARACTERS";
+                }
+
+                if (allowPreeditHandler && preeditHandler) {
+                    preeditHandler.onKeyReleased(keyToSend, action);
+                    return;
+                }
+
+                event_handler.onKeyReleased(keyToSend, action);
+                keySent(keyToSend);
+            } else if (action == "backspace") {
+                // Send release from backspace if we're swiped out since
+                // backspace activates on press and deactivates on release
+                // to allow for repeated backspaces, unlike normal keys
+                // which activate on release.
+                event_handler.onKeyReleased(valueToSubmit, action);
+                keySent(valueToSubmit);
+            }
+        }
     }
 
     Timer {
@@ -382,6 +404,18 @@ Item {
             swipeReady = true;
             keyMouseArea.evaluateSelectorSwipe();
         }
+    }
+
+    Timer {
+        id: pressTimer
+        interval: 0
+        onTriggered: keyMouseArea.evaluatePress()
+    }
+
+    Timer {
+        id: releaseTimer
+        interval: pressTimer.interval
+        onTriggered: keyMouseArea.evaluateRelease();
     }
 
     Connections {

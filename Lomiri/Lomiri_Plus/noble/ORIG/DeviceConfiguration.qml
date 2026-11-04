@@ -38,6 +38,8 @@ QtObject {
 
     readonly property alias category: priv.category
 
+    readonly property alias collapsedPanelHeight: priv.collapsedPanelHeight
+
     readonly property var deviceConfig: DeviceConfig {}
 
     readonly property var binding: Binding {
@@ -62,6 +64,8 @@ QtObject {
         property string category: deviceConfig.category
         property string name: deviceConfig.name
         property bool supportsMultiColorLed: deviceConfig.supportsMultiColorLed
+
+        property int collapsedPanelHeight: deviceConfig.collapsedPanelHeight
 
         states: [
             State {
@@ -170,5 +174,13 @@ QtObject {
                 }
             }
         ]
+    }
+
+    readonly property var debugConnections: Connections {
+        target: DebuggingController
+
+        function onDeviceInfoReloadRequested() {
+            deviceConfig.reload();
+        }
     }
 }

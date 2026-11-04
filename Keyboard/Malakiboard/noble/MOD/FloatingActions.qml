@@ -6,6 +6,8 @@ import "keys/"
 ColumnLayout {
     id: floatingActions
 
+    readonly property bool isWide: width > units.gu(60)
+
     RowLayout {
         Layout.fillWidth: true
         
@@ -52,8 +54,8 @@ ColumnLayout {
             // ENH087 - Redesigned done button
             // Layout.alignment: Qt.AlignHCenter
             // Layout.fillWidth: true
-            Layout.alignment: spacer.widthIsLong ? Qt.AlignLeft : Qt.AlignHCenter
-            Layout.fillWidth: spacer.widthIsLong ? false : true
+            Layout.alignment: floatingActions.isWide ? Qt.AlignLeft : Qt.AlignHCenter
+            Layout.fillWidth: floatingActions.isWide ? false : true
             // ENH087 - End
             Layout.minimumWidth: units.gu(5)
             Layout.preferredHeight: units.gu(5)
@@ -72,12 +74,10 @@ ColumnLayout {
         // ENH087 - Redesigned done button
         Item {
             id: spacer
-            
-            property bool widthIsLong: keyboardSurface.width > units.gu(60)
 
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
-            visible: widthIsLong
+            visible: floatingActions.isWide
         }
 
         FloatingActionKey {
@@ -86,7 +86,7 @@ ColumnLayout {
             Layout.alignment: Qt.AlignRight
             Layout.minimumWidth: units.gu(5)
             Layout.preferredHeight: units.gu(5)
-            visible: spacer.widthIsLong
+            visible: floatingActions.isWide
             keyFeedback: false
             action: Action {
                     iconName: "input-keyboard-symbolic"

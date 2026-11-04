@@ -73,7 +73,7 @@ Item {
         enabled: !tutorial.running || tutorial.paused
 
         // FIXME: Once we have Qt DPR support, this should be Qt.styleHints.startDragDistance
-        readonly property int clickThreshold: internalGu * 1.5
+        readonly property int clickThreshold: internalGu * 0.5
         property bool isClick: false
         property bool isDoubleClick: false
         property bool isDrag: false
@@ -266,6 +266,7 @@ Item {
             anchors.fill: parent
             anchors.margins: internalGu * 1.5
             name: "input-keyboard-symbolic"
+            color: settings.oskEnabled ? LomiriColors.porcelain : LomiriColors.red
         }
     }
 

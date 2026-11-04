@@ -39,7 +39,6 @@ FocusScope {
     property bool drawerEnabled: true
     property alias privateMode: panel.privateMode
     property url background
-    property bool lightMode : false
 
     property int panelWidth: units.gu(10)
     property int dragAreaWidth: units.gu(1)
@@ -486,10 +485,6 @@ FocusScope {
         objectName: "drawer"
         anchors {
             top: parent.top
-            // ENH131 - Extend drawer to behind top panel
-            // topMargin: root.inverted ? root.topPanelHeight : 0
-            topMargin: shell.settings.extendDrawerOverTopBar ? 0 : root.inverted ? root.topPanelHeight : 0
-            // ENH131 - End
             bottom: parent.bottom
             right: parent.left
         }
@@ -500,7 +495,6 @@ FocusScope {
         width: Math.min(root.width, units.gu(81))
         panelWidth: panel.width
         allowSlidingAnimation: !dragArea.dragging && !launcherDragArea.drag.active && panel.animate
-        lightMode: root.lightMode
         // ENH007 - Bottom search in drawer
         // ENH046 - Lomiri Plus Settings
         //inverted: root.inverted
@@ -592,8 +586,7 @@ FocusScope {
             bottom: parent.bottom
         }
         x: -width
-        visible: root.x > 0 || x > -width || dragArea.pressed
-        lightMode: root.lightMode
+        visible: root.x > 0 || x > -width || dragArea.pressed || panel.hasPeekingIcon
         model: LauncherModel
 
         // ENH167 - Behavior changes for custom opacity/color of components
@@ -718,6 +711,15 @@ FocusScope {
             }
         }
         // ENH126 - End
+        // ENH271 - Workarounds for External Display Plug/Unplug
+        // Workaround for messed up Launcher
+        Component.onCompleted: launcherRefreshDelay.restart();
+        Timer {
+            id: launcherRefreshDelay
+            interval: 1
+            onTriggered: LauncherModel.refresh();
+        }
+        // ENH271 - End
 
         property var dismissTimer: Timer { interval: 500 }
         Connections {

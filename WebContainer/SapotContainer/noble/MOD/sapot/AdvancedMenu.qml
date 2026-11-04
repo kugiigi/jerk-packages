@@ -1,7 +1,7 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.5 as QQC2
-import Lomiri.Components 1.3
-import QtQuick.Controls.Suru 2.2
+import Lomiri.Components
+//~ import QtQuick.Controls.Suru 2.2
 import QtQuick.Layouts 1.12
 import "../.." as Common
 
@@ -129,7 +129,8 @@ CustomizedMenu {
                 }
                 implicitHeight: implicitWidth
                 name: advancedMenu.iconName
-                color: Suru.foregroundColor
+//~                 color: Suru.foregroundColor
+                color: theme.palette.normal.backgroundText
                 visible: name && !advancedMenu.useFavicon ? true : false
             }
 
@@ -168,19 +169,92 @@ CustomizedMenu {
                 wrapMode: advancedMenu.multilineTitle ? Text.WrapAnywhere : Text.NoWrap
                 maximumLineCount: advancedMenu.maximumLineCount
 
-                Suru.textLevel: {
+//~                 Suru.textLevel: {
+//~                     switch(advancedMenu.titleSize) {
+//~                         case AdvancedMenu.TitleSize.Small:
+//~                             return Suru.Paragraph
+//~                             break
+//~                         case AdvancedMenu.TitleSize.Large:
+//~                             return Suru.HeadingTwo
+//~                             break
+//~                         default: 
+//~                             return advancedMenu.multilineTitle ? Suru.Small : Suru.HeadingThree
+//~                             break
+//~                     }
+//~                 }
+                readonly property real font_size_multiplier: 0.875
+                property string textLevel: {
                     switch(advancedMenu.titleSize) {
                         case AdvancedMenu.TitleSize.Small:
-                            return Suru.Paragraph
+                            return "Paragraph"
                             break
                         case AdvancedMenu.TitleSize.Large:
-                            return Suru.HeadingTwo
+                            return "HeadingTwo"
                             break
                         default: 
-                            return advancedMenu.multilineTitle ? Suru.Small : Suru.HeadingThree
+                            return advancedMenu.multilineTitle ? "Small" : "HeadingThree"
                             break
                     }
                 }
+                font.pixelSize: {
+                    let _value = 0
+                    switch (textLevel) {
+                        case "Small":
+                            _value = units.dp(14)
+                            break
+                        case "HeadingOne":
+                            _value = units.dp(32)
+                            break
+                        case "HeadingTwo":
+                            _value = units.dp(24)
+                            break
+                        case "HeadingThree":
+                            _value = units.dp(22)
+                            break
+                        case "Caption":
+                            _value = units.dp(14)
+                            break
+                        case "Paragraph":
+                            _value = units.dp(16)
+                            break
+                        case "CodeBlock":
+                            _value = units.dp(16)
+                            break
+                        default:
+                            _value = units.dp(16)
+                    }
+
+                    return _value * font_size_multiplier
+                }
+                font.weight: {
+                    switch (textLevel) {
+                        case "Small":
+                        case "HeadingOne":
+                        case "HeadingTwo":
+                        case "HeadingThree":
+                        case "Caption":
+                        case "Paragraph":
+                        case "CodeBlock":
+                            return Font.Light
+                        default:
+                            return Font.Normal
+                    }
+                }
+                font.family: {
+                    switch (textLevel) {
+                        case "CodeBlock":
+                            return "Ubuntu Mono"
+                        case "Small":
+                        case "HeadingOne":
+                        case "HeadingTwo":
+                        case "HeadingThree":
+                        case "Caption":
+                        case "Paragraph":
+                        default:
+                            return "Ubuntu"
+                    }
+                }
+                font.italic: textLevel === "Caption"
             }
         }
     }
@@ -204,8 +278,8 @@ CustomizedMenu {
             iconName: modelData ? modelData.iconName : ""
             onTriggered: modelData.trigger(advancedMenu.isBottom, menuItem)
         }
-        onObjectAdded: advancedMenu.insertItem(index, object)
-        onObjectRemoved: advancedMenu.removeItem(object)
+        onObjectAdded: (index, object) => { advancedMenu.insertItem(index, object) }
+        onObjectRemoved: (index, object) => { advancedMenu.removeItem(object) }
     }
 
     QtObject {

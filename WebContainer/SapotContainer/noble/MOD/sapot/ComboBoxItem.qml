@@ -29,12 +29,15 @@ RowLayout {
 		Layout.preferredWidth: units.gu(10)
 		Layout.alignment: Qt.AlignVCenter
 		text: comboBoxItem.text + ":"
+        color: theme.palette.normal.backgroundText
 	}
 
 	QQC2.ComboBox {
 		id: comboBox
 
-		Layout.maximumWidth: units.gu(20)
+//~ 		Layout.maximumWidth: units.gu(20)
+		Layout.preferredWidth: units.gu(20)
+        Layout.preferredHeight: units.gu(5)
 		Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
 	}
 }

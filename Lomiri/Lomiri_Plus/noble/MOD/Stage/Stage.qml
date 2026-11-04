@@ -58,7 +58,6 @@ FocusScope {
     property bool spreadEnabled: true // If false, animations and right edge will be disabled
     property bool suspended
     property bool oskEnabled: false
-    property bool lightMode: false
     property rect inputMethodRect
     property real rightEdgePushProgress: 0
     property Item availableDesktopArea
@@ -86,9 +85,6 @@ FocusScope {
     // ENH174 - Top panel background based on current app
     readonly property var focusedAppDelegate: priv.focusedAppDelegate // ? priv.focusedAppDelegate.focusedSurface : null
     // ENH174 - End
-    // ENH256 - Improve spread highlights
-    property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
-    // ENH256 - End
     // ENH243 - Virtual Touchpad Enhancements
     readonly property alias appContainerItem: appContainer
     function toggleSideStage() {
@@ -455,7 +451,6 @@ FocusScope {
         // ENH263 - End
     }
 
-    // ENH015 - Add shortcuts for side stage
     GlobalShortcut {
         id: toggleSideStageShortcut
         shortcut: Qt.MetaModifier|Qt.Key_S
@@ -467,7 +462,6 @@ FocusScope {
            // ENH264 - End
         }
     }
-    // ENH015 - End
 
     GlobalShortcut {
         id: minimizeAllShortcut
@@ -578,10 +572,39 @@ FocusScope {
     GlobalShortcut {
         id: maximizeWindowLeftShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Left
-        // ENH015 - Add shortcuts for side stage
-        // onTriggered: priv.focusedAppDelegate.requestMaximizeLeft()
-        // active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight
         // ENH156 - Advanced snapping keyboard shortcuts
+        /*
+        onTriggered: {
+            switch (root.mode) {
+                case "stagedWithSideStage":
+                    if (    priv.focusedAppDelegate
+                         && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage
+                    ) {
+                        priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.MainStage);
+                        priv.focusedAppDelegate.focus = true;
+                    }
+                    break;
+                case "windowed":
+                    if (priv.focusedAppDelegate) {
+                        priv.focusedAppDelegate.requestMaximizeLeft();
+                    }
+                    break;
+            }
+        }
+        active: {
+            switch (root.state) {
+                case "stagedWithSideStage":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage
+                           && priv.sideStageEnabled;
+                case "windowed":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.canBeMaximizedLeftRight;
+                default:
+                    return false;
+            }
+        }
+        */
         readonly property bool willBeMaximizedTopLeft: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
                                                             ? priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedHorizontally && priv.focusedAppDelegate.canBeCornerMaximized
                                                             : priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedTopRight && priv.focusedAppDelegate.canBeCornerMaximized
@@ -597,18 +620,18 @@ FocusScope {
                                                         && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
                                                         && priv.focusedAppDelegate.maximizedBottomRight
         readonly property bool willBeRestored: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedRight
-        // ENH156 - End
+
         onTriggered: {
             switch (root.mode) {
                 case "stagedWithSideStage":
-                    if (priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage) {
+                    if (    priv.focusedAppDelegate
+                         && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage
+                    ) {
                         priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.MainStage);
                         priv.focusedAppDelegate.focus = true;
                     }
                     break;
                 case "windowed":
-                    // ENH156 - Advanced snapping keyboard shortcuts
-                    //priv.focusedAppDelegate.requestMaximizeLeft()
                     let _commitOnRelease = fakeRectangle.useForKeyboardShortcut
                     if (_commitOnRelease) {
                         root.focus = true;
@@ -659,16 +682,9 @@ FocusScope {
                         }
                     }
 
-                    // ENH156 - End
                     break;
             }
         }
-        // ENH156 - Advanced snapping keyboard shortcuts
-        /*
-        active: (root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
-                    ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate 
-                                            && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage && priv.sideStageEnabled)
-        */
         active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? (root.state == "windowed" && priv.focusedAppDelegate
                         && (willBeMaximizedTopLeft || willBeMaximizedBottomLeft || willBeMaximizedLeft
                                 || willBeMaximizedTop || willBeMaximizedBottom || willBeRestored))
@@ -676,16 +692,46 @@ FocusScope {
                                                 && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage && priv.sideStageEnabled)
                     : root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
         // ENH156 - End
-		// ENH015 - End
     }
 
     GlobalShortcut {
         id: maximizeWindowRightShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Right
-        // ENH015 - Add shortcuts for side stage
-        // onTriggered: priv.focusedAppDelegate.requestMaximizeRight()
-        // active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight
         // ENH156 - Advanced snapping keyboard shortcuts
+        /*
+        onTriggered: {
+            switch (root.mode) {
+                case "stagedWithSideStage":
+                    if (    priv.focusedAppDelegate
+                         && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage
+                    ) {
+                        priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.SideStage);
+                        priv.focusedAppDelegate.focus = true;
+                        sideStage.show();
+                        priv.updateMainAndSideStageIndexes();
+                    }
+                    break;
+                case "windowed":
+                    if (priv.focusedAppDelegate) {
+                        priv.focusedAppDelegate.requestMaximizeRight();
+                    }
+                    break;
+            }
+        }
+        active: {
+            switch (root.state) {
+                case "stagedWithSideStage":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage
+                           && priv.sideStageEnabled;
+                case "windowed":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.canBeMaximizedLeftRight;
+                default:
+                    return false;
+            }
+        }
+        */
         readonly property bool willBeMaximizedTopRight: shell.settings.replaceHorizontalVerticalSnappingWithBottomTop
                                                             ? priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedHorizontally && priv.focusedAppDelegate.canBeCornerMaximized
                                                             : priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedTopLeft && priv.focusedAppDelegate.canBeCornerMaximized
@@ -701,20 +747,20 @@ FocusScope {
                                                         && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedHorizontally
                                                         && priv.focusedAppDelegate.maximizedBottomLeft
         readonly property bool willBeRestored: priv.focusedAppDelegate && priv.focusedAppDelegate.maximizedLeft
-        // ENH156 - End
+
         onTriggered: {
             switch (root.mode) {
                 case "stagedWithSideStage":
-                    if (priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage) {
+                    if (    priv.focusedAppDelegate
+                         && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage
+                    ) {
                         priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.SideStage);
                         priv.focusedAppDelegate.focus = true;
                         sideStage.show();
-                        priv.updateMainAndSideStageIndexes()
+                        priv.updateMainAndSideStageIndexes();
                     }
                     break;
                 case "windowed":
-                    // ENH156 - Advanced snapping keyboard shortcuts
-                    //priv.focusedAppDelegate.requestMaximizeRight()
                     let _commitOnRelease = fakeRectangle.useForKeyboardShortcut
                     if (_commitOnRelease) {
                         root.focus = true;
@@ -765,16 +811,9 @@ FocusScope {
                         }
                     }
 
-                    // ENH156 - End
                     break;
             }
         }
-        // ENH156 - Advanced snapping keyboard shortcuts
-        /*
-        active: (root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
-                    ||  (root.state == "stagedWithSideStage" && priv.focusedAppDelegate
-                                    && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && priv.sideStageEnabled)
-        */
         active: !windowSnapper.visible && (shell.settings.enableAdvancedKeyboardSnapping ? (root.state == "windowed" && priv.focusedAppDelegate
                             && (willBeMaximizedTopRight || willBeMaximizedBottomRight || willBeMaximizedRight
                                     || willBeMaximizedTop || willBeMaximizedBottom || willBeRestored))
@@ -782,7 +821,6 @@ FocusScope {
                              && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage && priv.sideStageEnabled)
                     : root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight)
         // ENH156 - End
-        // ENH015 - End
     }
 
     GlobalShortcut {
@@ -1041,14 +1079,14 @@ FocusScope {
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Left
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         // ENH261 - Disable workspace shortcuts when it make sense
                     && root.multipleWorkspaces
         // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
-            // workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate.surface)
+            // workspaceSwitcher.showLeftMoveApp(priv.focusedAppDelegate.surface)
             // ENH259 - Option to disable workspace switcher UI
             //workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate)
             if (shell.settings.disableWorkspaceSwitcherUI) {
@@ -1063,7 +1101,7 @@ FocusScope {
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Right
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         // ENH261 - Disable workspace shortcuts when it make sense
         // ENH269 - Dynamic workspace
                     //&& root.multipleWorkspaces
@@ -1073,7 +1111,7 @@ FocusScope {
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
-            // workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate.surface)
+            // workspaceSwitcher.showRightMoveApp(priv.focusedAppDelegate.surface)
             // ENH259 - Option to disable workspace switcher UI
             //workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate)
             if (shell.settings.disableWorkspaceSwitcherUI) {
@@ -1088,14 +1126,14 @@ FocusScope {
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Up
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         // ENH261 - Disable workspace shortcuts when it make sense
                     && root.multipleWorkspaces && !root.virtualTouchpadMode
         // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
-            // workspaceSwitcher.showUpMoveApp(root.focusedAppDelegate.surface)
+            // workspaceSwitcher.showUpMoveApp(priv.focusedAppDelegate.surface)
             workspaceSwitcher.showUpMoveApp(priv.focusedAppDelegate)
             // ENH257 - End
         }
@@ -1103,14 +1141,14 @@ FocusScope {
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Down
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         // ENH261 - Disable workspace shortcuts when it make sense
                     && root.multipleWorkspaces && !root.virtualTouchpadMode
         // ENH261 - End
         onTriggered: {
             root.focus = true;
             // ENH257 - Workspace redesign
-            // workspaceSwitcher.showDownMoveApp(root.focusedAppDelegate.surface)
+            // workspaceSwitcher.showDownMoveApp(priv.focusedAppDelegate.surface)
             workspaceSwitcher.showDownMoveApp(priv.focusedAppDelegate)
             // ENH257 - End
         }
@@ -1219,7 +1257,7 @@ FocusScope {
                 sideStage.hide();
             }
         }
-        // ENH015 - Add shortcuts for side stage
+
         function toggleSideStage() {
             if (sideStage.shown) {
                 sideStage.hide();
@@ -1228,7 +1266,6 @@ FocusScope {
                 updateMainAndSideStageIndexes()
             }
         }
-        // ENH015 - End
 
         function updateMainAndSideStageIndexes() {
             // ENH257 - Workspace redesign
@@ -1411,13 +1448,12 @@ FocusScope {
             //                                        priv.mainStageAppId === model.application.appId ||
             //                                        priv.sideStageAppId === model.application.appId)
             readonly property bool appIsForeground: model.application
-                && priv.focusedAppDelegate
                 && (
-                    priv.focusedAppDelegate.appId === model.application.appId
+                    priv.focusedAppDelegate && priv.focusedAppDelegate.appId === model.application.appId
                     || priv.mainStageAppId === model.application.appId
                     || priv.sideStageAppId === model.application.appId
                     || (
-                        shell.settings.batterySaverMode && !shell.settings.extremeBatterySaverMode
+                        shell.settings.batterySaverMode && shell.settings.isHighBatterySaver
                         && (
                             (currentWorkspaceContainer.topLeftForegroundAppDelegate
                                     && currentWorkspaceContainer.topLeftForegroundAppDelegate.appId === model.application.appId)
@@ -1429,7 +1465,32 @@ FocusScope {
                                     && currentWorkspaceContainer.bottomRightForegroundAppDelegate.appId === model.application.appId)
                         )
                     )
+                    || shell.settings.batterySaverMode && shell.settings.isStandardBatterySaver && isForegroundInAWorkspace
                 )
+            readonly property bool isForegroundInAWorkspace: {
+                const _workspacesCount = workspacesView.count
+                for (let i = 0; i < _workspacesCount; i++) {
+                    const _workspace = workspacesView.itemAtIndex(i)
+                    if ((_workspace.focusedAppDelegate && _workspace.focusedAppDelegate.appId === model.application.appId)
+                            || _workspace.mainStageAppId === model.application.appId
+                            || _workspace.sideStageAppId === model.application.appId
+                            || (
+                                (_workspace.topLeftForegroundAppDelegate
+                                    && _workspace.topLeftForegroundAppDelegate.appId === model.application.appId)
+                                || (_workspace.topRightForegroundAppDelegate
+                                    && _workspace.topRightForegroundAppDelegate.appId === model.application.appId)
+                                || (_workspace.bottomLeftForegroundAppDelegate
+                                    && _workspace.bottomLeftForegroundAppDelegate.appId === model.application.appId)
+                                || (_workspace.bottomRightForegroundAppDelegate
+                                    && _workspace.bottomRightForegroundAppDelegate.appId === model.application.appId)
+                                )
+                    ) 
+                    return true
+                        
+                }
+
+                return false
+            }
             // ENH267 - End
             property bool temporaryLifeCycleExemption: false
             property Timer appStartsuspendDelay: Timer {
@@ -1469,6 +1530,8 @@ FocusScope {
             //       in staged mode, when it switches to Windowed mode it will suddenly
             //       resume all those apps at once. We might want to avoid that.
             // ENH267 - Battery saver mode in Windowed mode
+            // For debugging
+            //onRequestedStateChanged: console.log(model.application.appId + ": " + (requestedState === ApplicationInfoInterface.RequestedRunning ? "RUNNING" : "SUSPENDED"))
             // property var requestedState: root.mode === "windowed"
             property var requestedState: (root.mode === "windowed" && !shell.settings.batterySaverMode)
             // ENH267 - End
@@ -1570,10 +1633,7 @@ FocusScope {
             PropertyChanges { target: rightEdgeDragArea; enabled: false }
             PropertyChanges { target: cancelSpreadMouseArea; enabled: true }
             PropertyChanges { target: noAppsRunningHint; visible: (root.topLevelSurfaceList.count < 1) }
-            // ENH256 - Improve spread highlights
-            // PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
-            PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: root.enableRedesignedSpread ? .50 : .65; opacity: 1 }
-            // ENH256 - End
+            PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .50; opacity: 1 }
             // ENH032 - Infographics Outer Wilds
             // PropertyChanges { target: wallpaper; visible: false }
             // For some reason, when side stage is disabled, wallpaper completely hides
@@ -1997,6 +2057,7 @@ FocusScope {
                 active: show && enableItem && !suspended
                 asynchronous: true
                 anchors.fill: parent
+                scale: shell.settings.ow_showSolarSystemOnDesktopScale
                 sourceComponent: solarSystemComp
                 /*
                 onPausedChanged: {
@@ -2038,7 +2099,7 @@ FocusScope {
             anchors.fill: parent
             color: "black"
             opacity: shell.settings.darkenWallpaperWhenInfographicsOpacity / 100
-            visible: shell.settings.darkenWallpaperWhenInfographics && shell.settings.showInfographics
+            visible: shell.settings.showInfographicsOnDesktop && shell.settings.darkenWallpaperWhenInfographics && shell.settings.showInfographics
         }
         Item {
             id: infographicsArea
@@ -3741,12 +3802,9 @@ FocusScope {
                     // Now load any saved state. This needs to happen *after* the cascading!
                     windowStateSaver.load();
 
-                    // ENH250 - Do not close spread when selecting current workspace
-                    // updateQmlFocusFromMirSurfaceFocus();
                     if (!root.spreadShown) {
                         updateQmlFocusFromMirSurfaceFocus();
                     }
-                    // ENH250 - End
 
                     refreshStage();
                     _constructing = false;
@@ -4087,7 +4145,7 @@ FocusScope {
                         PropertyChanges {
                             target: roundedCornerEffect;
                             sourceItem: shell.settings.roundedAppPreview ? decoratedWindow.clientAreaItem : null
-							cornerRadius: shell.deviceConfiguration.roundedCornerRadius
+                            cornerRadius: shell.deviceConfiguration.roundedCornerRadius
                         }
                         // ENH006 - End
                     },
@@ -4123,7 +4181,7 @@ FocusScope {
                         PropertyChanges {
                             target: roundedCornerEffect;
                             sourceItem: shell.settings.roundedAppPreview ? decoratedWindow.clientAreaItem : null
-							cornerRadius: shell.deviceConfiguration.roundedCornerRadius
+                            cornerRadius: shell.deviceConfiguration.roundedCornerRadius
                         }
                         // ENH006 - End
                         // make sure it's visible but transparent so it fades in when we transition to spread
@@ -4152,6 +4210,12 @@ FocusScope {
                             scaleToPreviewSize: spreadItem.stackHeight
                             scaleToPreviewProgress: windowedRightEdgeMaths.scaleToPreviewProgress
                             shadowOpacity: .3
+                            // ENH187 - Fix for app window size when entering spread
+                            // ENH225 - Clean Windowed Mode
+                            //hasDecoration: !appDelegate.fullscreen
+                            hasDecoration: !appDelegate.fullscreen && !decoratedWindow.cleanMode
+                            // ENH225 - End
+                            // ENH187 - End
                         }
                         PropertyChanges {
                             target: opacityEffect;
@@ -4305,10 +4369,7 @@ FocusScope {
                             requestedHeight: appContainer.height
                             restoreEntryValues: false
                         }
-                        // ENH187 - Fix for app window size when entering spread
-                        // PropertyChanges { target: decoratedWindow; hasDecoration: false }
-                        PropertyChanges { target: decoratedWindow; hasDecoration: false; restoreEntryValues: false }
-                        // ENH187 - ENd
+                        PropertyChanges { target: decoratedWindow; hasDecoration: false }
                     },
                     State {
                         name: "normal";
@@ -4733,6 +4794,25 @@ FocusScope {
                     active: model.window.focused
                     focus: true
                     interactive: root.interactive
+                    // ENH161 - Bigger window buttons when resize UI displayed
+                    enlargeButtonTopOffset: {
+                        if (
+                            (appDelegate.maximized && workspaceContainer.showTitleBarOfMaximized)
+                            || (appDelegate.maximizedLeft && workspaceContainer.showTitleBarOfLeftMaximized)
+                            || (appDelegate.maximizedRight && workspaceContainer.showTitleBarOfRightMaximized)
+                            || (appDelegate.maximizedTopLeft && workspaceContainer.showTitleBarOfTopLeftMaximized)
+                            || (appDelegate.maximizedTopRight && workspaceContainer.showTitleBarOfTopRightMaximized)
+                            || (appDelegate.maximizedBottomLeft && workspaceContainer.showTitleBarOfBottomLeftMaximized)
+                            || (appDelegate.maximizedBottomRight && workspaceContainer.showTitleBarOfBottomRightMaximized)
+                            || (appDelegate.maximizedHorizontally && workspaceContainer.showTitleBarOfTopHalfMaximized)
+                            || (appDelegate.maximizedVertically && workspaceContainer.showTitleBarOfBottomHalfMaximized)
+                        ) {
+                            return priv.windowDecorationHeight ? priv.windowDecorationHeight : 0
+                        } else {
+                            return 0
+                        }
+                    }
+                    // ENH161 - End
                     // ENH257 - Workspace redesign
                     opacity: appDelegate.isMoving ? 0 : 1
                     // ENH257 - End
@@ -4777,14 +4857,10 @@ FocusScope {
                     overlayShown: touchControls.overlayShown
                     width: implicitWidth
                     height: implicitHeight
-                    // ENH256 - Improve spread highlights
-                    // highlightSize: windowInfoItem.iconMargin / 2
-                    highlightSize: root.enableRedesignedSpread ? windowInfoItem.iconMargin : windowInfoItem.iconMargin / 2
-                    // ENH256 - End
+                    highlightSize: windowInfoItem.iconMargin
                     boundsItem: root.availableDesktopArea
                     panelState: root.panelState
                     altDragEnabled: root.mode == "windowed"
-                    lightMode: root.lightMode
 
                     // ENH006 - Rounded app spread
                     highlightRadius: shell.settings.roundedAppPreview ? shell.deviceConfiguration.roundedCornerRadius - 100 : 0
@@ -4812,6 +4888,13 @@ FocusScope {
                     onMinimizeClicked: { appDelegate.requestMinimize(); }
                     onDecorationPressed: { appDelegate.activate(); }
                     onDecorationReleased: fakeRectangle.visible ? fakeRectangle.commit() : appDelegate.updateRestoredGeometry()
+
+                    onDragResizePressed: {
+                        appDelegate.activate();
+                        resizeArea.pressedChangedEx(true, mouse);
+                    }
+                    onDragResizeReleased: resizeArea.pressedChangedEx(false, mouse);
+                    onDragResizePositionChanged: resizeArea.positionChangedEx(mouse);
 
                     property real angle: 0
                     Behavior on angle { enabled: priv.closingIndex >= 0; LomiriNumberAnimation {} }
@@ -5246,9 +5329,7 @@ FocusScope {
         // ENH154 - End
         background: root.background
         availableDesktopArea: root.availableDesktopArea
-        // ENH244 - Workspace switch spread fix #150
         onWorkspaceSelected: screensAndWorkspaces.activeWorkspace = selectedWorkspace;
-        // ENH244 - End
         onActiveChanged: {
             if (!active) {
                 appContainer.focus = true;
@@ -5480,17 +5561,7 @@ FocusScope {
         }
 
         onClicked: {
-            // ENH015 - Add shortcuts for side stage
-            /*
-            if (sideStage.shown) {
-                sideStage.hide();
-            } else  {
-                sideStage.show();
-                priv.updateMainAndSideStageIndexes()
-            }
-            */
             priv.toggleSideStage()
-            // ENH015 - End
         }
 
         onDragStarted: {

@@ -93,7 +93,6 @@ QtObject {
 
     // ENH243 - Virtual Touchpad Enhancements
     property bool enableAdvancedGestures: false
-    property bool enableVirtualTouchpadLowerClickThreshold: false
     property real virtualTouchpadScrollSensitivity: 1
     property real virtualTouchpadHorizontalScrollSensitivity: 1
     property real virtualTouchpadMouseSensitivity: 1

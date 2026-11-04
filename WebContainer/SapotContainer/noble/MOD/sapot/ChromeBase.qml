@@ -17,7 +17,7 @@
  */
 
 import QtQuick 2.12
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtWebEngine 1.10
 import "../.."
 import "." as Sapot

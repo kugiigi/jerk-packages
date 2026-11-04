@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.2 as QQC2
 import QtQuick.Layouts 1.12
 import "." as Common
@@ -49,7 +49,8 @@ Common.BaseToolbar {
 
         Common.ToolbarButton {
             Layout.preferredHeight: Layout.preferredWidth
-            Layout.preferredWidth: units.gu(4)
+//~             Layout.preferredWidth: units.gu(4)
+            Layout.preferredWidth: units.gu(5)
 
             tooltipText: i18n.tr("Close")
             icon.name: "close"
@@ -62,6 +63,7 @@ Common.BaseToolbar {
             
             Layout.fillWidth: true
             Layout.maximumWidth: units.gu(50)
+            Layout.preferredHeight: units.gu(5)
 
             leftIcon.name: "find"
             placeholderText: i18n.tr("Find in page")
@@ -91,7 +93,8 @@ Common.BaseToolbar {
 
         Common.ToolbarButton {
             Layout.preferredHeight: Layout.preferredWidth
-            Layout.preferredWidth: units.gu(4)
+//~             Layout.preferredWidth: units.gu(4)
+            Layout.preferredWidth: units.gu(5)
 
             tooltipText: i18n.tr("%1 (%2)").arg(i18n.tr("Find the previous result")).arg(findInPageBar.shortcutFindPreviousText)
             icon.name: "go-up"
@@ -102,7 +105,8 @@ Common.BaseToolbar {
 
         Common.ToolbarButton {
             Layout.preferredHeight: Layout.preferredWidth
-            Layout.preferredWidth: units.gu(4)
+//~             Layout.preferredWidth: units.gu(4)
+            Layout.preferredWidth: units.gu(5)
 
             tooltipText: i18n.tr("%1 (%2)").arg(i18n.tr("Find the next result")).arg(findInPageBar.shortcutFindNextText)
             icon.name: "go-down"
@@ -115,7 +119,8 @@ Common.BaseToolbar {
             id: moreOptionsButton
 
             Layout.preferredHeight: Layout.preferredWidth
-            Layout.preferredWidth: units.gu(4)
+//~             Layout.preferredWidth: units.gu(4)
+            Layout.preferredWidth: units.gu(5)
 
             visible: !findInPageBar.wide
             tooltipText: i18n.tr("More options")

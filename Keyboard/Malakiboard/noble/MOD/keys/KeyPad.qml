@@ -37,13 +37,11 @@ Item {
 
     onWidthChanged: calculateKeyWidth()
     onHeightChanged: calculateKeyHeight();
-    // ENH230 - Layout loading fix
-    // onVisibleChanged: calculateKeyWidth();
-    onVisibleChanged: {
+    onVisibleChanged:
+    {
         calculateKeyWidth();
         calculateKeyHeight();
     }
-    // ENH230 - End
 
     function numberOfRows() {
         if (typeof(content.numberOfRows) != 'undefined') {
@@ -84,12 +82,10 @@ Item {
     }
 
     function calculateKeyHeight() {
-        // ENH230 - Layout loading fix
         // If the parent doesn't exist we don't have accurate visibility, bail too
         if (!keyPadRoot.visible || !keyPadRoot.parent) {
             return;
         }
-        // ENH230 - End
         panel.keyHeight = panel.height / numberOfRows();
     }
 }

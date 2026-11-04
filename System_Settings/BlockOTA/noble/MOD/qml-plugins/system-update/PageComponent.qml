@@ -49,7 +49,7 @@ ItemPage {
             },
             Action {
                 iconName: "delete"
-                text: i18n.tr("Clear updates")
+                text: I18nd.tr("Clear updates")
                 onTriggered: {
                     var dialog = PopupUtils.open(clearDialog, root, {})
                     dialog.canceled.connect(function() {
@@ -64,7 +64,7 @@ ItemPage {
             },
             Action {
                 iconName: "reload"
-                text: i18n.tr("Check for updates")
+                text: I18nd.tr("Check for updates")
                 onTriggered: {
                     check(true)
                 }
@@ -111,8 +111,8 @@ ItemPage {
         Dialog {
             id: dialog
 
-            title: i18n.tr("Clear updates")
-            text: i18n.tr("Clear the update list?")
+            title: I18nd.tr("Clear updates")
+            text: I18nd.tr("Clear the update list?")
 
             signal accepted()
             signal canceled()
@@ -125,11 +125,11 @@ ItemPage {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: units.gu(4)
                     Button {
-                        text: i18n.tr("Cancel")
+                        text: I18nd.tr("Cancel")
                         onClicked: dialog.canceled()
                     }
                     Button {
-                        text: i18n.tr("Clear")
+                        text: I18nd.tr("Clear")
                         color: theme.palette.normal.negative
                         onClicked: dialog.accepted()
                     }

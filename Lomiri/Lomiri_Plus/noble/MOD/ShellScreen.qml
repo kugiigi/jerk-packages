@@ -144,6 +144,7 @@ ScreenWindow {
             implicitHeight: screenWindow.height
             screen: screenWindow.screen
             visible: true
+            screenIndex: screenWindow.screenIndex
             // ENH157 - Bottom swipe workaround for some devices
             onPhysicalOrientationChanged: {
                 loader.useBottomSwipeFix = settingsObj ? settingsObj.value("enableBottomSwipeDeviceFix", 0) == "true"

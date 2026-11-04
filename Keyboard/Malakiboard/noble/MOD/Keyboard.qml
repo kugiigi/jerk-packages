@@ -60,11 +60,11 @@ Item {
     objectName: "fullScreenItem"
 
     property bool landscape: width > height
-    // ENH005 - Fix keyboard on landscape
-    // readonly property bool tablet: landscape ? width >= units.gu(90) : height >= units.gu(90)
     readonly property bool tablet: landscape ? width / height <= 1.8 && width >= units.gu(90)
-										: height / width <= 1.8 && height >= units.gu(90)
-    // ENH005 - End
+                                        : height / width <= 1.8 && height >= units.gu(90)
+    readonly property bool tall: landscape ? width >= units.gu(90) : height >= units.gu(90)
+    readonly property bool tallPhone: !tablet && tall
+
     readonly property bool keyboardFloating: keyboardSurface.state == "FLOATING"
     readonly property bool oneHanded: keyboardSurface.state == "ONE-HANDED-LEFT" || keyboardSurface.state == "ONE-HANDED-RIGHT" || keyboardSurface.state == "FLOATING"
     readonly property bool keyboardLandscape: landscape && !oneHanded
@@ -2672,7 +2672,9 @@ Item {
                     multiplier = fullScreenItem.settings.customLandscapeHeight
                 } else {
                     if (fullScreenItem.tablet) {
-                        multiplier = UI.tabletKeyboardHeightLandscape 
+                        multiplier = UI.tabletKeyboardHeightLandscape
+                    } else if (fullScreenItem.tallPhone) {
+                        multiplier = UI.tallPhoneKeyboardHeightLandscape
                     } else {
                         multiplier = UI.phoneKeyboardHeightLandscape
                     }
@@ -2682,7 +2684,9 @@ Item {
                     multiplier = fullScreenItem.settings.customPortraitHeight
                 } else {
                     if (fullScreenItem.tablet) {
-                        multiplier = UI.tabletKeyboardHeightPortrait 
+                        multiplier = UI.tabletKeyboardHeightPortrait
+                    } else if (fullScreenItem.tallPhone) {
+                        multiplier = UI.tallPhoneKeyboardHeightPortrait
                     } else {
                         multiplier = UI.phoneKeyboardHeightPortrait
                     }
@@ -2699,6 +2703,31 @@ Item {
         anchors.left: parent.left
 
         width: parent.width
+        /*
+        height: {
+            let multiplier = 0.5
+
+            if (fullScreenItem.landscape) {
+                if (fullScreenItem.tablet) {
+                    multiplier = UI.tabletKeyboardHeightLandscape
+                } else if (fullScreenItem.tallPhone) {
+                    multiplier = UI.tallPhoneKeyboardHeightLandscape
+                } else {
+                    multiplier = UI.phoneKeyboardHeightLandscape
+                }
+            } else {
+                if (fullScreenItem.tablet) {
+                    multiplier = UI.tabletKeyboardHeightPortrait
+                } else if (fullScreenItem.tallPhone) {
+                    multiplier = UI.tallPhoneKeyboardHeightPortrait
+                } else {
+                    multiplier = UI.phoneKeyboardHeightPortrait
+                }
+            }
+
+            return fullScreenItem.height * multiplier + wordRibbon.height + borderTop.height
+        }
+        */
         height: keyboardHeight
 
         visible: true

@@ -35,6 +35,8 @@ Item {
     // ENH185 - End
 
     readonly property alias active: d.active
+
+    signal workspaceSelected(var selectedWorkspace)
     // ENH257 - Workspace redesign
     readonly property alias currentSurface: d.currentAppSurface
     // For debugging why sometimes it won't hide
@@ -93,9 +95,7 @@ Item {
             showRight();
         }
     }
-    // ENH244 - Workspace switch spread fix #150
-    signal workspaceSelected(var selectedWorkspace)
-    // ENH244 - End
+
     function actuallySelect() {
         d.active = false;
         d.altPressed = false;
@@ -386,18 +386,14 @@ Item {
             // hideTimer.start();
             hideTimer.restart();
             // focus = false;
-            // ENH259 - End
-            // ENH244 - Workspace switch spread fix #150
-            // screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex).activate();
-            // ENH259 - Option to disable workspace switcher UI
-            //const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
-            //selectedWorkspace.activate();
-            //workspaceSelected(selectedWorkspace)
+            // const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
+            // selectedWorkspace.activate();
+            // root.workspaceSelected(selectedWorkspace)
             if (!d.switchImmediately) {
                 d.commitSwitchToWorkspace()
             }
             d.switchImmediately = false;
-            // ENH244 - End
+            // ENH259 - End
         }
     }
 
