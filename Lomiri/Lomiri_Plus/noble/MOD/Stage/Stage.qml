@@ -1531,9 +1531,12 @@ FocusScope {
             //       resume all those apps at once. We might want to avoid that.
             // ENH267 - Battery saver mode in Windowed mode
             // For debugging
-            //onRequestedStateChanged: console.log(model.application.appId + ": " + (requestedState === ApplicationInfoInterface.RequestedRunning ? "RUNNING" : "SUSPENDED"))
+            /*
+            onRequestedStateChanged: console.log(model.application.appId + ": " + (requestedState === ApplicationInfoInterface.RequestedRunning ? "RUNNING" : "SUSPENDED"))
+            */
             // property var requestedState: root.mode === "windowed"
             property var requestedState: (root.mode === "windowed" && !shell.settings.batterySaverMode)
+                || (root.mode === "windowed" && shell.settings.batterySaverMode && appIsForeground)
             // ENH267 - End
             // ENH178 - Option to delay app suspension
                 || (temporaryLifeCycleExemption && !root.screenIsOff)

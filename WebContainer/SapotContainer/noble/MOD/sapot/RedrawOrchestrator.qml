@@ -25,6 +25,7 @@
 import QtQml
 import QtQuick
 import QtWebEngine
+import QtQuick.Window
 
 Item {
     // required property BrowserWindow browserWindow
@@ -33,6 +34,9 @@ Item {
     property bool prevVisible : true;
     property bool grabbing : false;
     property bool grabInterrupted : false;
+
+    // Workaround when staged mode and portrait and there's suspend delay
+    readonly property bool stagedModeNoSideStage: Screen.desktopAvailableWidth === webview.width
 
     // Show a snapshot of the window, created when suspending
     Image {
@@ -58,7 +62,9 @@ Item {
         target: Application
         function onStateChanged() {
             if (Application.state === Qt.ApplicatonHidden ||
-                Application.state === Qt.ApplicationSuspended)
+                // Application.state === Qt.ApplicationSuspended)
+                Application.state === Qt.ApplicationSuspended
+                || (Application.state === Qt.ApplicationInactive && stagedModeNoSideStage))
             {
                 orchestrateRedraw(false);
             }
@@ -73,7 +79,7 @@ Item {
             }
 
             // Workaround when windowed mode and inactive then switch to another workspace
-            if (Application.state === Qt.ApplicationInactive && webview.visible)
+            if (Application.state === Qt.ApplicationInactive && webview.visible && !stagedModeNoSideStage)
             {
                 redrawLoopTimer.restart();
             }
@@ -86,9 +92,9 @@ Item {
 
     Timer {
         id: redrawLoopTimer
-        interval: 1000
+        interval: 300
         onTriggered: {
-            if (Application.state === Qt.ApplicationInactive && webview.visible) {
+            if (Application.state === Qt.ApplicationInactive && webview.visible && !stagedModeNoSideStage) {
                 webview.visible = false;
                 webview.visible = true;
                 redrawLoopTimer.restart();
