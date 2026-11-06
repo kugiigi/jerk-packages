@@ -64,6 +64,7 @@ ScreenWindow {
             implicitHeight: screenWindow.height
             screen: screenWindow.screen
             visible: true
+            screenIndex: screenWindow.screenIndex
 
             deviceConfiguration {
                 overrideName: Screens.count > 1 ? "desktop" : false

@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import QtWebEngine 1.7
 import Morph.Web 0.1
 import webbrowsercommon.private 0.1
@@ -87,13 +87,13 @@ WebappWebview {
 
         //popupBlockerEnabled: webview.popupBlockerEnabled
 
-        userScripts: [
-            WebEngineScript {
-                name: "oxide://webapp-specific-page-metadata-collector/"
-                sourceUrl: Qt.resolvedUrl("webapp-specific-page-metadata-collector.js")
-                runOnSubframes: true
-            }
-        ]
+        Component.onCompleted: {
+            var metadatCollectorScript = WebEngine.script();
+            metadatCollectorScript.name = "oxide://webapp-specific-page-metadata-collector/";
+            metadatCollectorScript.sourceUrl = Qt.resolvedUrl("assets/webapp-specific-page-metadata-collector.js");
+            metadatCollectorScript.runsOnSubframes = true;
+            userScripts.insert(metadatCollectorScript);
+        }
     }
 
 /*    Component.onCompleted: webappSpecificMessageHandler.createObject(
@@ -118,7 +118,7 @@ WebappWebview {
     //preferences.localStorageEnabled: true
     //preferences.appCacheEnabled: true
 
-    onNewViewRequested: {
+    onNewWindowRequested: {
       
       if(request.userInitiated && shouldAllowNavigationTo(request.requestedUrl.toString()))
       {

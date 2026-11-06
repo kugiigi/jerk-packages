@@ -1,7 +1,8 @@
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.5 as QQC2
 import QtQuick.Layouts 1.12
+import QtQuick.Controls.Material
 
 QQC2.ToolBar {
     id: toolbar
@@ -17,6 +18,11 @@ QQC2.ToolBar {
         color: toolbar.backgroundColor
         radius: toolbar.radius
     }
+
+    readonly property bool isDarkMode: Theme.name == "Lomiri.Components.Themes.SuruDark"
+    Material.theme: isDarkMode ? Material.Dark : Material.Light
+    Material.background: theme.palette.normal.background
+    Material.accent: theme.palette.normal.activity
 
     Image {
         id: tabShadow

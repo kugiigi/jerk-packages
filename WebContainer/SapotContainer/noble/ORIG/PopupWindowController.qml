@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import Morph.Web 0.1
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import Qt.labs.settings 1.0
 
 Item {
@@ -71,7 +71,7 @@ Item {
 
     Connections {
         target: Qt.application
-        onAboutToQuit: {
+        function onAboutToQuit() {
             webviewOverlayUrlsSettings.overlayUrls = "[]"
         }
     }

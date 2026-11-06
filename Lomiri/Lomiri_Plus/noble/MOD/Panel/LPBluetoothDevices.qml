@@ -19,6 +19,7 @@ Item {
     implicitHeight: visible ? columnLayout.height : 0
 
     function addToRecentList(_addressName) {
+        console.log("ADD to recent: " + _addressName)
         let _arr = shell.settings.recentBlutoothDevicesList.slice()
         let _foundIndex = _arr.findIndex((element) => element == _addressName)
         let _isMaxed = _arr.length >= recentMaxCount
@@ -28,7 +29,7 @@ Item {
             _arr.splice(_foundIndex, 1)
         } else if (_isMaxed) {
             // Delete last if already maxed out
-            _arr.splice(recentMaxCount - 1)
+            _arr.splice(recentMaxCount)
         }
 
         _arr.unshift(_addressName)
@@ -247,6 +248,7 @@ Item {
             model: backend.connectedDevices
             isExpandable: count > 5
             onConnectionRequested: root.connectToDevice(addressName)
+            onDeviceConnected: root.addToRecentList(addressName)
         }
 
         LPDevicesList {

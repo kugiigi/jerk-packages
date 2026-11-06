@@ -20,8 +20,8 @@ import QtQuick 2.12
 import QtQuick.Window 2.2
 import Morph.Web 0.1
 import QtWebEngine 1.7
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import ".."
 import "sapot" as Sapot
 import QtQuick.Layouts 1.12
@@ -86,6 +86,11 @@ FocusScope {
 
             context: webContext
 
+            function openOverlayForUrl(overlayUrl, _incognito = false) {
+                let _context = _incognito ? SharedWebContext.sharedIncognitoContext : context
+                popupWindowController.createPopupViewForUrl(popup.parent, overlayUrl, false, _context)
+            }
+
             onUrlChanged: webviewUrlChanged(popupWebview.url)
 
             focus: true
@@ -104,7 +109,7 @@ FocusScope {
             }
 
 
-            onOpenUrlExternallyRequested: {
+            onOpenUrlExternallyRequested: (url) => {
                 if (popupWindowController) {
                    popupWindowController.openUrlExternally(url)
                 }
@@ -128,7 +133,7 @@ FocusScope {
                 RotationAnimation { direction: RotationAnimation.Shortest }
             }
 
-            onNewViewRequested: {
+            onNewWindowRequested: (request) => {
 
                 if (!request.userInitiated) {
                     return
@@ -144,16 +149,16 @@ FocusScope {
                         disposition === WebEngineView.NewViewInTab;
             }
 
-            onNavigationRequested: {
+            onNavigationRequested: (request) => {
                 var url = request.url.toString()
-                request.action = WebEngineNavigationRequest.AcceptRequest
                 if (isNewForegroundWebViewDisposition(request.disposition)) {
                     var shouldAcceptRequest =
                             popupWindowController.handleNewForegroundNavigationRequest(url, request, false);
                     if (!shouldAcceptRequest) {
-                        request.action = WebEngineNavigationRequest.IgnoreRequest
+                        request.reject();
                     }
                 }
+                request.accept();
             }
     /*
             onCloseRequested: {
@@ -176,6 +181,15 @@ FocusScope {
                     webview: popupWebview
                 }
                 asynchronous: true
+            }
+        }
+
+        // Workaround for QtWebEngine 6.10 with libhybris ANGLE & Ozone buffer sharing
+        Loader {
+            anchors.fill: parent
+            active: __onHybris && !__disableWindowSnapshots
+            sourceComponent: Component {
+                Sapot.RedrawOrchestrator { webview: popupWebview }
             }
         }
     }
@@ -213,6 +227,8 @@ FocusScope {
         }
 
         SwipeArea {
+            id: dismissSwipeArea
+
             anchors.fill: parent
             direction: SwipeArea.Downwards
             
@@ -449,7 +465,7 @@ FocusScope {
                 onLeftSwipe:  shortcutWebviewForward.activated()
                 onLeftSwipeHeld: menubar.showForwardNavHistory(true, navHistoryMargin)
                 onRightSwipeHeld: menubar.showBackNavHistory(true, navHistoryMargin)
-                onPressedChanged: if (pressed) Sapot.Haptics.playSubtle()
+                onPressedChanged: (pressed) => { if (pressed) Sapot.Haptics.playSubtle() }
 
                 Item {
                     id: navHistoryMargin
@@ -532,7 +548,7 @@ FocusScope {
     // Alt+← or Backspace: Goes to the previous page
     Shortcut {
         id: shortcutWebviewBack
-        sequence: StandardKey.Back
+        sequences: [StandardKey.Back]
         enabled: currentWebview && currentWebview.canGoBack
         onActivated: currentWebview.goBack()
     }
@@ -540,7 +556,7 @@ FocusScope {
     // Alt+→ or Shift+Backspace: Goes to the next page
     Shortcut {
         id: shortcutWebviewForward
-        sequence: StandardKey.Forward
+        sequences: [StandardKey.Forward]
         enabled: currentWebview && currentWebview.canGoForward
         onActivated: currentWebview.goForward()
     }
@@ -566,7 +582,7 @@ FocusScope {
     // Ctrl+F: Find in Page
     Shortcut {
         id: shortcutFind
-        sequence: StandardKey.Find
+        sequences: [StandardKey.Find]
         enabled: popup.currentWebview
         onActivated: {
             if (popup.currentWebview) {
@@ -599,14 +615,14 @@ FocusScope {
 
     // F3: Find next
     Shortcut {
-        sequence: StandardKey.FindNext
+        sequences: [StandardKey.FindNext]
         enabled: popup.currentWebview && popup.findInPageMode
         onActivated: shortcutFindNext.activated()
     }
 
     // Shift+F3: Find previous
     Shortcut {
-        sequence: StandardKey.FindPrevious
+        sequences: [StandardKey.FindPrevious]
         enabled: popup.currentWebview && popup.findInPageMode
         onActivated: shortcutFindPrevious.activated()
     }

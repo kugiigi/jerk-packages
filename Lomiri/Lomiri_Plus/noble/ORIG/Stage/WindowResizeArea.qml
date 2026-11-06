@@ -39,6 +39,9 @@ MouseArea {
     property bool readyToAssesBounds: false
     onReadyToAssesBoundsChanged: d.reassesBounds()
 
+    signal pressedChangedEx(bool pressed, point mouse)
+    signal positionChangedEx(point mouse)
+
     QtObject {
         id: d
 
@@ -138,6 +141,7 @@ MouseArea {
         property bool moveTopBorder: false
 
         property bool dragging: false
+        property bool externalDragging: false
         property real startMousePosX
         property real startMousePosY
         property real startX
@@ -148,7 +152,7 @@ MouseArea {
         property real currentHeight
 
         readonly property string cursorName: {
-            if (root.containsMouse || root.pressed) {
+            if (root.containsMouse || root.pressed || d.externalDragging) {
                 if (leftBorder && !topBorder && !bottomBorder) {
                     return "left_side";
                 } else if (rightBorder && !topBorder && !bottomBorder) {
@@ -188,11 +192,120 @@ MouseArea {
             Mir.cursorName = "";
         }
 
-        function updateBorders() {
-            leftBorder = mouseX <= borderThickness;
-            rightBorder = mouseX >= width - borderThickness;
-            topBorder = mouseY <= borderThickness;
-            bottomBorder = mouseY >= height - borderThickness;
+        function updateBorders(externalMousePos) {
+            if (externalMousePos) {
+                // Zoning to determine where and how the window will be resized
+                const halfWidth = root.width / 2;
+                const halfHeight = root.height / 2;
+
+                leftBorder = externalMousePos.x <= halfWidth;
+                rightBorder = externalMousePos.x > halfWidth;
+                topBorder = externalMousePos.y <= halfHeight;
+                bottomBorder = externalMousePos.y > halfHeight;
+            } else {
+                leftBorder = mouseX <= borderThickness;
+                rightBorder = mouseX >= width - borderThickness;
+                topBorder = mouseY <= borderThickness;
+                bottomBorder = mouseY >= height - borderThickness;
+            }
+        }
+
+        function startResize(isExternal, mousePos) {
+            if (isExternal) {
+                d.externalDragging = true;
+                d.updateBorders(mousePos);
+            } else {
+                d.updateBorders();
+            }
+            resetBordersToMoveTimer.stop();
+            d.moveLeftBorder = d.leftBorder;
+            d.moveTopBorder = d.topBorder;
+
+            var pos = mapToItem(root.target.parent, mousePos.x, mousePos.y);
+            d.startMousePosX = pos.x;
+            d.startMousePosY = pos.y;
+            d.startX = target.windowedX;
+            d.startY = target.windowedY;
+            d.startWidth = target.width;
+            d.startHeight = target.height;
+            d.currentWidth = target.width;
+            d.currentHeight = target.height;
+            d.dragging = true;
+        }
+
+        function endResize(isExternal) {
+            resetBordersToMoveTimer.start();
+            d.dragging = false;
+
+            if (isExternal) {
+                d.externalDragging = false;
+            } else if (containsMouse) {
+                d.updateBorders();
+            }
+        }
+
+        function updateResize(mouse) {
+            if (!d.dragging) {
+                return;
+            }
+
+            var pos = mapToItem(target.parent, mouse.x, mouse.y);
+
+            var deltaX = Math.floor((pos.x - d.startMousePosX) / d.widthIncrement) * d.widthIncrement;
+            var deltaY = Math.floor((pos.y - d.startMousePosY) / d.heightIncrement) * d.heightIncrement;
+
+            if (d.leftBorder) {
+                var newTargetX = d.startX + deltaX;
+                var rightBorderX = target.windowedX + target.width;
+                if (rightBorderX > newTargetX + d.minimumWidth) {
+                    if (rightBorderX  < newTargetX + d.maximumWidth) {
+                        target.windowedWidth = rightBorderX - newTargetX;
+                    } else {
+                        target.windowedWidth = d.maximumWidth;
+                    }
+                } else {
+                    target.windowedWidth = d.minimumWidth;
+                }
+
+            } else if (d.rightBorder) {
+                var newWidth = d.startWidth + deltaX;
+                if (newWidth > d.minimumWidth) {
+                    if (newWidth < d.maximumWidth) {
+                        target.windowedWidth = newWidth;
+                    } else {
+                        target.windowedWidth = d.maximumWidth;
+                    }
+                } else {
+                    target.windowedWidth = d.minimumWidth;
+                }
+            }
+
+            if (d.topBorder) {
+                var bounds = boundsItem.mapToItem(target.parent, 0, 0, boundsItem.width, boundsItem.height);
+                var newTargetY = Math.max(d.startY + deltaY, bounds.y);
+                var bottomBorderY = target.windowedY + target.height;
+                if (bottomBorderY > newTargetY + d.minimumHeight) {
+                    if (bottomBorderY < newTargetY + d.maximumHeight) {
+                        target.windowedHeight = bottomBorderY - newTargetY;
+                    } else {
+                        target.windowedHeight = d.maximumHeight;
+                    }
+                } else {
+                    target.windowedHeight = d.minimumHeight;
+                }
+
+            } else if (d.bottomBorder) {
+                var newHeight = d.startHeight + deltaY;
+                if (newHeight > d.minimumHeight) {
+                    if (newHeight < d.maximumHeight) {
+                        target.windowedHeight = newHeight;
+                    } else {
+                        target.windowedHeight = d.maximumHeight;
+                    }
+                } else {
+                    target.windowedHeight = d.minimumHeight;
+                }
+            }
         }
     }
 
@@ -205,104 +318,35 @@ MouseArea {
         }
     }
 
-    onPressedChanged: {
+    onPressedChangedEx: {
         if (pressed) {
-            d.updateBorders();
-            resetBordersToMoveTimer.stop();
-            d.moveLeftBorder = d.leftBorder;
-            d.moveTopBorder = d.topBorder;
-
-            var pos = mapToItem(root.target.parent, mouseX, mouseY);
-            d.startMousePosX = pos.x;
-            d.startMousePosY = pos.y;
-            d.startX = target.windowedX;
-            d.startY = target.windowedY;
-            d.startWidth = target.width;
-            d.startHeight = target.height;
-            d.currentWidth = target.width;
-            d.currentHeight = target.height;
-            d.dragging = true;
+            d.startResize(true, mouse);
         } else {
-            resetBordersToMoveTimer.start();
-            d.dragging = false;
-            if (containsMouse) {
-                d.updateBorders();
-            }
+            d.endResize(true, mouse);
+        }
+    }
+    onPressedChanged: {
+        const mousePos = Qt.point(mouseX, mouseY);
+        if (pressed) {
+            d.startResize(false, mousePos);
+        } else {
+            d.endResize(false, mousePos);
         }
     }
 
     onEntered: {
-        if (!pressed) {
+        if (!pressed && !d.externalDragging) {
             d.updateBorders();
         }
     }
 
+    onPositionChangedEx: d.updateResize(mouse);
     onPositionChanged: {
         if (!pressed) {
             d.updateBorders();
         }
 
-        if (!d.dragging) {
-            return;
-        }
-
-        var pos = mapToItem(target.parent, mouse.x, mouse.y);
-
-        var deltaX = Math.floor((pos.x - d.startMousePosX) / d.widthIncrement) * d.widthIncrement;
-        var deltaY = Math.floor((pos.y - d.startMousePosY) / d.heightIncrement) * d.heightIncrement;
-
-        if (d.leftBorder) {
-            var newTargetX = d.startX + deltaX;
-            var rightBorderX = target.windowedX + target.width;
-            if (rightBorderX > newTargetX + d.minimumWidth) {
-                if (rightBorderX  < newTargetX + d.maximumWidth) {
-                    target.windowedWidth = rightBorderX - newTargetX;
-                } else {
-                    target.windowedWidth = d.maximumWidth;
-                }
-            } else {
-                target.windowedWidth = d.minimumWidth;
-            }
-
-        } else if (d.rightBorder) {
-            var newWidth = d.startWidth + deltaX;
-            if (newWidth > d.minimumWidth) {
-                if (newWidth < d.maximumWidth) {
-                    target.windowedWidth = newWidth;
-                } else {
-                    target.windowedWidth = d.maximumWidth;
-                }
-            } else {
-                target.windowedWidth = d.minimumWidth;
-            }
-        }
-
-        if (d.topBorder) {
-            var bounds = boundsItem.mapToItem(target.parent, 0, 0, boundsItem.width, boundsItem.height);
-            var newTargetY = Math.max(d.startY + deltaY, bounds.y);
-            var bottomBorderY = target.windowedY + target.height;
-            if (bottomBorderY > newTargetY + d.minimumHeight) {
-                if (bottomBorderY < newTargetY + d.maximumHeight) {
-                    target.windowedHeight = bottomBorderY - newTargetY;
-                } else {
-                    target.windowedHeight = d.maximumHeight;
-                }
-            } else {
-                target.windowedHeight = d.minimumHeight;
-            }
-
-        } else if (d.bottomBorder) {
-            var newHeight = d.startHeight + deltaY;
-            if (newHeight > d.minimumHeight) {
-                if (newHeight < d.maximumHeight) {
-                    target.windowedHeight = newHeight;
-                } else {
-                    target.windowedHeight = d.maximumHeight;
-                }
-            } else {
-                target.windowedHeight = d.minimumHeight;
-            }
-        }
+        d.updateResize(mouse);
     }
 
     Connections {

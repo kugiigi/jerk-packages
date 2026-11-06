@@ -44,8 +44,6 @@ Rectangle {
     height: width
     anchors {
         centerIn: bodyToOrbit
-//~         horizontalCenter: bodyToOrbit.horizontalCenter
-//~         verticalCenter: bodyToOrbit.verticalCenter
         horizontalCenterOffset: horizontalOrbitOffset
         verticalCenterOffset: verticalOrbitOffset
     }
@@ -99,7 +97,6 @@ Rectangle {
         
         anchors {
             bottom: orbit.top
-//~             verticalCenter: orbit.bottom
         }
         
         RotationAnimation {

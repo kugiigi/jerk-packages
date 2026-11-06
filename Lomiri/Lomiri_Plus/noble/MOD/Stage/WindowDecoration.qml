@@ -39,14 +39,13 @@ MouseArea {
     property bool windowMoving: false
     property alias windowControlButtonsVisible: buttons.visible
     property PanelState panelState
-    property bool lightMode : false
     // ENH180 - Match window titlebar with app
     property var blurSource: null
     property alias blurUpdates: bgBlur.surfaceUpdates
     // ENH180 - End
-    // ENH245 - Double click restore fix #151
-    property bool wasDoubleClicked: false
-    // ENH245 - End
+    // ENH161 - Bigger window buttons when resize UI displayed
+    property real enlargeButtonTopOffset: 0
+    // ENH161 - End
 
     readonly property real buttonsWidth: buttons.width + row.spacing
 
@@ -65,9 +64,6 @@ MouseArea {
         if (mouse.button == Qt.LeftButton) {
             root.maximizeClicked();
         }
-        // ENH245 - Double click restore fix #151
-        wasDoubleClicked = true
-        // ENH245 - End
     }
 
     // do not let unhandled wheel event pass thru the decoration
@@ -88,7 +84,7 @@ MouseArea {
         id: background
         anchors.fill: parent
         radius: units.gu(.5)
-        color: root.lightMode ? "#FFFFFF" : "#000000"
+        color: theme.palette.normal.background.hslLightness >= 0.5 ? "#FFFFFF" : "#000000"
     }
 
     Rectangle {
@@ -139,7 +135,7 @@ MouseArea {
             anchors.fill: parent
             // No rounded corners when matching since we can't clip the background blur
             radius: bgBlur.visible ? 0 : units.gu(.5)
-            color: root.lightMode ? "#FFFFFF" : "#000000"
+            color: theme.palette.normal.background.hslLightness >= 0.5 ? "#FFFFFF" : "#000000"
         }
 
         Rectangle {
@@ -181,13 +177,7 @@ MouseArea {
             }
             // ENH161 - End
             Layout.fillWidth: false
-            // ENH161 - Bigger window buttons when resize UI displayed
-            // Layout.topMargin: units.gu(0.5)
-            Layout.topMargin: enlargeButtons ? -units.gu(11) - units.gu(0.5) : units.gu(0.5)
-            Behavior on Layout.topMargin {
-                LomiriNumberAnimation {}
-            }
-            // ENH161 - End
+            Layout.topMargin: enlargeButtonEnabled && overlayShown ? root.enlargeButtonTopOffset + units.gu(1) : units.gu(0.5)
             Layout.bottomMargin: units.gu(0.5)
 
             id: buttons

@@ -1,9 +1,9 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12 as QQC2
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Window 2.2
 import QtQuick.Layouts 1.12
-import QtGraphicalEffects 1.12
+//~ import QtGraphicalEffects 1.12
 import "." as Common
 
 SwipeArea {
@@ -57,7 +57,7 @@ SwipeArea {
     immediateRecognition: true
     implicitHeight: units.gu(2)
 
-    onDraggingCustomChanged: {
+    onDraggingCustomChanged: (draggingCustom) => {
         if (dragging
                 && ((fineControl && quickActionsLoader.visibleCount > 0)
                         || triggerSignalOnQuickSwipe
@@ -69,7 +69,7 @@ SwipeArea {
         }
     }
 
-    onDraggingChanged: {
+    onDraggingChanged: (dragging) => {
         if (!dragging && draggingCustom) {
             if (fineControl) {
                 if (highlightedItem && internal.triggerDirectAccess) {

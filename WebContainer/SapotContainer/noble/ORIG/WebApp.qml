@@ -21,8 +21,8 @@ import QtWebEngine 1.10
 import Qt.labs.settings 1.0
 import webbrowsercommon.private 0.1
 import Morph.Web 0.1
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import Lomiri.Action 1.1 as LomiriActions
 import "../actions" as Actions
 import ".." as Common
@@ -178,7 +178,7 @@ Common.BrowserView {
 
         console.log("adding download with id " + downloadIdDataBase)
         Common.ActiveDownloadsSingleton.currentDownloads[downloadIdDataBase] = download
-        DownloadsModel.add(downloadIdDataBase, download.url, download.path, download.mimeType, false)
+        DownloadsModel.add(downloadIdDataBase, download.url, `${download.downloadDirectory}/${download.downloadFileName}`, download.mimeType, false)
 
         addNewDownload(download)
 
@@ -203,7 +203,7 @@ Common.BrowserView {
 
         DownloadsModel.setComplete(downloadIdDataBase, true)
 
-        if ((download.state === WebEngineDownloadItem.DownloadCancelled) || (download.state === WebEngineDownloadItem.DownloadInterrupted))
+        if ((download.state === WebEngineDownloadRequest.DownloadCancelled) || (download.state === WebEngineDownloadRequest.DownloadInterrupted))
         {
           DownloadsModel.setError(downloadIdDataBase, download.interruptReasonString)
         }
@@ -247,7 +247,7 @@ Common.BrowserView {
 
     Connections {
         target: currentDownloadsDialog
-        onShowDownloadsPage: showDownloadsPage()
+        function onShowDownloadsPage() { showDownloadsPage() }
     }
 
     /* Only used for anchoring the downloads dialog to the top when chromeless */
@@ -420,7 +420,7 @@ Common.BrowserView {
 
             Connections {
                 target: downloadsViewLoader.item
-                onDone: downloadsViewLoader.active = false
+                function onDone() { downloadsViewLoader.active = false }
             }
         }
 
@@ -433,7 +433,7 @@ Common.BrowserView {
         Connections {
             target: contentExportLoader.item
 
-            onPreview: {
+            function onPreview(url) {
                 downloadsViewLoader.active = false
                 webapp.currentWebview.url = url;
             }
@@ -454,7 +454,7 @@ Common.BrowserView {
 
             Connections {
                 target: webappSettingsViewLoader.item
-                onClearCache: {
+                function onClearCache() {
 
                     // clear http cache
                     webapp.currentWebview.profile.clearHttpCache();
@@ -495,7 +495,7 @@ Common.BrowserView {
             target: webapp.currentWebview
             enabled: !webapp.chromeless
 
-            onIsFullScreenChanged: {
+            function onIsFullScreenChanged() {
                 if (webapp.currentWebview.isFullScreen) {
                     chromeLoader.item.state = "hidden";
                 } else {
@@ -508,25 +508,25 @@ Common.BrowserView {
 
            target: webapp.currentWebview ? webapp.currentWebview.context : null
 
-           onDownloadRequested: {
+           function onDownloadRequested(download) {
 
-               console.log("a download was requested with path %1".arg(download.path))
+               console.log(`a download was requested with path ${download.downloadDirectory}/${download.downloadFileName}`)
 
                download.accept();
                webapp.startDownload(download);
            }
 
-           onDownloadFinished: {
+           function onDownloadFinished(download) {
 
-               console.log("a download was finished with path %1.".arg(download.path))
+               console.log(`a download was finished with path ${download.downloadDirectory}/${download.downloadFileName}`)
                webapp.setDownloadComplete(download)
            }
        }
 
        Connections {
            target: settings
-           onZoomFactorChanged: DomainSettingsModel.defaultZoomFactor = settings.zoomFactor
-           onDomainWhiteListModeChanged: DomainPermissionsModel.whiteListMode = settings.domainWhiteListMode
+           function onZoomFactorChanged() { DomainSettingsModel.defaultZoomFactor = settings.zoomFactor }
+           function onDomainWhiteListModeChanged() { DomainPermissionsModel.whiteListMode = settings.domainWhiteListMode }
        }
 
         Common.ChromeController {

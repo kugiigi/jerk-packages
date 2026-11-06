@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Layouts 1.12
 import QtQuick.Window 2.2
 
@@ -23,8 +23,8 @@ Item {
     Loader {
         id: loader
 
-        readonly property real scrollPositionY: root.target.scrollPosition.y / Screen.devicePixelRatio
-        readonly property real contentHeight: root.target.contentsSize.height / Screen.devicePixelRatio
+        readonly property real scrollPositionY: root.target.scrollPosition.y
+        readonly property real contentHeight: root.target.contentsSize.height
         readonly property real yFromWebview: (scrollPositionY / (contentHeight - root.target.height)) * (root.height - height - (root.verticalMargin * 2)) + root.verticalMargin
 
         // Do this otherwise, it will jump around when dragging with touch

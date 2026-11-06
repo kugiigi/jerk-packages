@@ -1,5 +1,5 @@
 import QtQuick 2.9
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Window 2.2
 import "." as Local
 
@@ -107,7 +107,7 @@ Local.SwipeGestureHandler {
         }
     }
 
-    onDraggingChanged: {
+    onDraggingChanged: (dragging) => {
         if (!dragging) {
             if (!internal.swipeHeld) {
                 assessAction(false)

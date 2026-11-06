@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import Morph.Web 0.1
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import QtWebEngine 1.5
 import webbrowsercommon.private 0.1
 import "../actions" as Actions
@@ -95,6 +95,35 @@ Sapot.WebViewImpl {
         // handle user agents
         if (isMainFrame)
         {
+            let _newUserAgentId = 0
+
+            // Newer version of QWE crashes when trying to change user agent from this handler.
+            // So defer this handling after we leave this handler as a workaround.
+            // https://qt-project.atlassian.net/browse/QTBUG-148069
+            // https://gitlab.com/ubports/development/core/morph-browser/-/work_items/633
+            _newUserAgentId = (UserAgentsModel.count > 0) ? DomainSettingsModel.getUserAgentId(requestDomain) : 0;
+            Qt.callLater(delayedUserAgentHandling, _newUserAgentId, url);
+
+            if (_newUserAgentId !== webappWebview.context.userAgentId) {
+                // for some reason when letting through the request, another navigation request will take us back to the
+                // to the previous page. Therefore we block it first and navigate to the new url with the correct user agent.
+                request.reject();
+            }
+        }
+    }
+
+    function delayedUserAgentHandling(newUserAgentId, url) {
+        // change of the custom user agent
+        if (newUserAgentId !== webappWebview.context.userAgentId)
+        {
+            webappWebview.context.userAgentId = newUserAgentId;
+            webappWebview.context.userAgent = (newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(newUserAgentId)
+                                                             : localUserAgentOverride ? localUserAgentOverride : webappWebview.context.defaultUserAgent;
+
+            webappWebview.url = url;
+        }
+        else
+        {
             let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
             let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
             let _tabForceDesktop = webappWebview.forceDesktopSite
@@ -102,8 +131,6 @@ Sapot.WebViewImpl {
             let _forceDesktopUA = false
             let _forceMobileUA = false
             let _screenSize = webappWebview.context.__ua.calcScreenSize()
-            let _newUserAgentId = 0
-            let _newCustomUserAgent = ""
 
             if ( _screenSize == "small") {
                 // Small screeens use mobile UA by default so only check when desktop UA is forced
@@ -119,49 +146,33 @@ Sapot.WebViewImpl {
                 }
             }
 
-            _newUserAgentId = (UserAgentsModel.count > 0) ? DomainSettingsModel.getUserAgentId(requestDomain) : 0;
-
-            // change of the custom user agent
-            if (_newUserAgentId !== webappWebview.context.userAgentId) {
-                webappWebview.context.userAgentId = _newUserAgentId;
-                webappWebview.context.userAgent = (_newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(_newUserAgentId)
-                                                                 : localUserAgentOverride ? localUserAgentOverride : webappWebview.context.defaultUserAgent;
-
-                // for some reason when letting through the request, another navigation request will take us back to the
-                // to the previous page. Therefore we block it first and navigate to the new url with the correct user agent.
-                request.action = WebEngineNavigationRequest.IgnoreRequest;
-                webappWebview.url = url;
-                return;
+            if ( _screenSize == "small") {
+                webappWebview.context.__ua.setDesktopMode(_forceDesktopUA);
             } else {
-                if ( _screenSize == "small") {
-                    webappWebview.context.__ua.setDesktopMode(_forceDesktopUA);
-                } else {
-                    webappWebview.context.__ua.forceMobileSite(_forceMobileUA);
-                }
-                console.log("user agent: " + webappWebview.context.httpUserAgent);
+                webappWebview.context.__ua.forceMobileSite(_forceMobileUA);
             }
+            console.log("user agent: " + webappWebview.context.httpUserAgent);
         }
     }
 
-    userScripts: [
-        WebEngineScript {
-            name: "readability"
-            injectionPoint: WebEngineScript.DocumentReady
-            sourceUrl: Qt.resolvedUrl("../webbrowser/readability.js")
-            runOnSubframes: true
-            worldId: WebEngineScript.MainWorld
-        },
-        WebEngineScript {
-            name: "readability-readerable"
-            injectionPoint: WebEngineScript.DocumentReady
-            sourceUrl: Qt.resolvedUrl("../webbrowser/readability-readerable.js")
-            runOnSubframes: true
-            worldId: WebEngineScript.MainWorld
-        }
-    ]
+    Component.onCompleted: {
+        var readabilityScript = WebEngine.script();
+        readabilityScript.name = "readability";
+        readabilityScript.sourceUrl = Qt.resolvedUrl("../webbrowser/assets/readability.js");
+        readabilityScript.runsOnSubframes = true;
+        readabilityScript.worldId = WebEngineScript.MainWorld;
+        userScripts.insert(readabilityScript);
 
-    onLoadingChanged: {
-        if (loadRequest.status === WebEngineLoadRequest.LoadSucceededStatus) {
+        var readabilityReadableScript = WebEngine.script();
+        readabilityReadableScript.name = "readability-readerable";
+        readabilityReadableScript.sourceUrl = Qt.resolvedUrl("../webbrowser/assets/readability-readerable.js");
+        readabilityReadableScript.runsOnSubframes = true;
+        readabilityReadableScript.worldId = WebEngineScript.MainWorld;
+        userScripts.insert(readabilityReadableScript);
+    }
+
+    onLoadingChanged: (loadingInfo) => {
+        if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
             readerMode = false
 
             webappWebview.runJavaScript("isProbablyReaderable(document)", function(res) {

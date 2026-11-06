@@ -51,7 +51,6 @@ FocusScope {
     property int highlightSize: units.gu(1)
     property real shadowOpacity: 0
     property bool darkening: false
-    property bool lightMode: false
 
     property real requestedWidth
     property real requestedHeight
@@ -96,6 +95,9 @@ FocusScope {
     // ENH268 - Tabbed snapped windows
     property alias titleBar: decoration
     // ENH268 - End
+    // ENH161 - Bigger window buttons when resize UI displayed
+    property alias enlargeButtonTopOffset: decoration.enlargeButtonTopOffset
+    // ENH161 - End
     // ENH225 - Clean Windowed Mode
     readonly property alias topIsHovered: topHoverHandler.hovered
     readonly property alias decorIsHovered: decorHoverHandler.hovered
@@ -148,6 +150,9 @@ FocusScope {
     signal minimizeClicked()
     signal decorationPressed()
     signal decorationReleased()
+    signal dragResizePressed(point mouse)
+    signal dragResizeReleased(point mouse)
+    signal dragResizePositionChanged(point mouse)
 
     function cancelDrag() {
         moveHandler.cancelDrag();
@@ -200,22 +205,15 @@ FocusScope {
         ]
     }
 
-    // ENH256 - Improve spread highlights
-    property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
-    // ENH256 - End
     Rectangle {
         id: selectionHighlight
         objectName: "selectionHighlight"
         anchors.fill: parent
         anchors.margins: -root.highlightSize
-        color: "white"
-        // ENH256 - Improve spread highlights
-        // opacity: showHighlight ? 0.55 : 0
-        opacity: showHighlight ? root.enableRedesignedSpread ? 0.3 : 0.55
-                               : 0
-        antialiasing: true
-        // ENH256 - End
+        color: LomiriColors.porcelain
+        opacity: showHighlight ? 0.3 : 0
         visible: opacity > 0
+        antialiasing: true
     }
 
     BorderImage {
@@ -287,13 +285,14 @@ FocusScope {
         closeButtonVisible: true
         objectName: "appWindowDecoration"
 
+        property bool wasDoubleClicked: false
+
         anchors { left: parent.left; top: parent.top; right: parent.right }
         height: units.gu(3) // a default value. overwritten by root.decorationHeight
 
         title: applicationWindow.title
         windowMoving: moveHandler.moving && !altDragHandler.dragging
         panelState: root.panelState
-        lightMode: root.lightMode
 
         // ENH179 - Hide window title bar when maximized
         // opacity: root.hasDecoration ? Math.min(1, root.showDecoration) : 0
@@ -340,16 +339,13 @@ FocusScope {
         onPressedChangedEx: moveHandler.handlePressedChanged(pressed, pressedButtons, mouseX, mouseY)
         onPositionChanged: moveHandler.handlePositionChanged(mouse)
         onReleased: {
-            // ENH245 - Double click restore fix #151
-            // root.decorationReleased();
-            // moveHandler.handleReleased();
             if (!wasDoubleClicked) {
                 root.decorationReleased();
                 moveHandler.handleReleased();
             }
-            wasDoubleClicked = false
-            // ENH245 - End
+            wasDoubleClicked = false;
         }
+        onDoubleClicked: wasDoubleClicked = true;
 
         onCloseClicked: root.closeClicked();
         onMaximizeClicked: { root.decorationPressed(); root.maximizeClicked(); }
@@ -395,12 +391,9 @@ FocusScope {
     MouseArea {
         id: altDragHandler
         anchors.fill: applicationWindow
-        // ENH253 - Keyboard + Mouse shortcut for resizing windows
-        // acceptedButtons: Qt.LeftButton
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        property bool draggingForResize: false
-        // ENH253 - End
         property bool dragging: false
+        property bool draggingForResize: false
         cursorShape: undefined // don't interfere with the cursor shape set by the underlying MirSurfaceItem
         visible: enabled
         // ENH180 - Match window titlebar with app
@@ -412,12 +405,17 @@ FocusScope {
                 moveHandler.handlePressedChanged(true, Qt.LeftButton, mouse.x, mouse.y);
                 dragging = true;
                 mouse.accepted = true;
-            // ENH253 - Keyboard + Mouse shortcut for resizing windows
             } else if (mouse.button == Qt.RightButton && mouse.modifiers & Qt.AltModifier) {
-                root.target.toggleAppResize(true, mouse)
+                // ENH253 - Keyboard + Mouse shortcut for resizing windows
+                // root.dragResizePressed(Qt.point(mouse.x, mouse.y))
+                if (shell.settings.windowResizeShortcutSimpleMode) {
+                    root.target.toggleAppResize(true, mouse);
+                } else {
+                    root.dragResizePressed(Qt.point(mouse.x, mouse.y))
+                }
+                // ENH253 - End
                 draggingForResize = true;
                 mouse.accepted = true;
-            // ENH253 - End
             } else {
                 mouse.accepted = false;
             }
@@ -425,12 +423,9 @@ FocusScope {
         onPositionChanged: {
             if (dragging) {
                 moveHandler.handlePositionChanged(mouse);
+            } else if (draggingForResize) {
+                root.dragResizePositionChanged(Qt.point(mouse.x, mouse.y))
             }
-            // ENH253 - Keyboard + Mouse shortcut for resizing windows
-            if (draggingForResize) {
-                root.target.updateAppResize(mouse)
-            }
-            // ENH253 - End
         }
         onReleased: {
             if (dragging) {
@@ -438,13 +433,10 @@ FocusScope {
                 root.decorationReleased();  // commits the fake preview max rectangle
                 moveHandler.handleReleased();
                 dragging = false;
-            }
-            // ENH253 - Keyboard + Mouse shortcut for resizing windows
-            if (draggingForResize) {
-                root.target.toggleAppResize(false, mouse)
+            } else if (draggingForResize) {
+                root.dragResizeReleased(Qt.point(mouse.x, mouse.y))
                 draggingForResize = false;
             }
-            // ENH253 - End
         }
     }
 
@@ -457,14 +449,12 @@ FocusScope {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: LomiriColors.jet
+        opacity: root.darkening && !root.showHighlight ? 0.5 : 0
         // ENH256 - Improve spread highlights
-        // opacity: root.darkening && !root.showHighlight ? 0.05 : 0
-        opacity: root.darkening && !root.showHighlight ? root.enableRedesignedSpread ? 0.5 : 0.05
-                                                       : 0
         z: 100 // Only needed in Lomiri Plus
-        antialiasing: true
         // ENH256 - End
+        antialiasing: true
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
     }
 }

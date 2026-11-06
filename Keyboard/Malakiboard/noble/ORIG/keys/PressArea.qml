@@ -61,6 +61,11 @@ MultiPointTouchArea {
             // mouse area to avoid conflict with swipe selection
             // of extended keys
             onYChanged: {
+                // For some reason, touch point movement is detected
+                // when switching between layouts with different row numbers
+                // Bail out if not visible to disregard them
+                if (!visible) return;
+
                 if (point.y > root.y + root.height) {
                     if (!swipedOut) {
                         // We've swiped out of the key
@@ -144,7 +149,7 @@ MultiPointTouchArea {
         // the bottom of the screen.
         if (point.y > panel.height) {
             console.warn("Touch point released past height of keyboard. Ignoring.");
-        } else if (!(point.y <= startY)) {
+        } else if (!(point.y <= startY) && visible) {
             // Handles swiping away the keyboard
             // Hide if the end point is more than 8 grid units from the start
             if (!held && point.y > startY + units.gu(8)) {

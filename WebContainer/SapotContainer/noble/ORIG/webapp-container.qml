@@ -17,7 +17,7 @@
  */
 
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import Qt.labs.settings 1.0
 import QtWebEngine 1.10
 import Morph.Web 0.1
@@ -205,20 +205,15 @@ BrowserWindow {
             var i;
             for (i = 0; i < customScripts.length; i++)
             {
-              var script = Qt.createQmlObject('import QtWebEngine 1.10; WebEngineScript {}', webappViewLoader);
+              var script = WebEngine.script();
               script.sourceUrl = customScripts[i];
               script.injectionPoint = WebEngineScript.DocumentCreation;
               script.worldId = WebEngineScript.MainWorld;
-              script.runOnSubframes = true;
+              script.runsOnSubframes = true;
               scripts.push(script);
             }
 
-            // global user scripts
-            for (i = 0; i < item.currentWebview.profile.userScripts.length; i++) {
-              scripts.push(item.currentWebview.profile.userScripts[i]);
-            }
-
-            item.currentWebview.profile.userScripts = scripts;
+            item.currentWebview.profile.userScripts.insert(scripts);
         }
     }
 
@@ -401,6 +396,15 @@ BrowserWindow {
 
     property var openUrlsHandler: Connections {
         target: UriHandler
-        onOpened: root.openUrls(uris)
+        function onOpened(uris) { root.openUrls(uris) }
+    }
+
+    // Workaround for QtWebEngine 6.10 with libhybris ANGLE & Ozone buffer sharing
+    Loader {
+        anchors.fill: parent
+        active: __onHybris && !__disableWindowSnapshots
+        sourceComponent: Component {
+            RedrawOrchestrator { browserWindow: root }
+        }
     }
 }

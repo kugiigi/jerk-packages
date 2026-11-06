@@ -21,14 +21,14 @@ import QtWebEngine 1.10
 import Qt.labs.settings 1.0
 import webbrowsercommon.private 0.1
 import Morph.Web 0.1
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import Lomiri.Action 1.1 as LomiriActions
 import "../actions" as Actions
 import ".." as Common
 import "ColorUtils.js" as ColorUtils
 import QtQuick.Window 2.2
-import QtSensors 5.2
+//~ import QtSensors 5.2
 import "sapot" as Sapot
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12 as QQC2
@@ -73,29 +73,32 @@ Common.BrowserView {
     property var recentDownloads: []
     property var currentDownloadsDialog: null
 
-    readonly property bool sensorExists: orientationSensor.connectedToBackend
-    readonly property int sensorOrientation: orientationSensor.reading ? orientationSensor.reading.orientation : 0
-    readonly property int rotationAngle: {
-        if (orientationSensor.reading && Screen.angleBetween(Screen.orientation, orientationSensor.orientation) !== 0) {
-            switch (orientationSensor.reading.orientation) {
-                case 1: /* OrientationReading.TopUp */
-                case 3: /* OrientationReading.LeftUp */
-                    return 270
-                    break
-                case 4: /* OrientationReading.RightUp */
-                case 2: /* OrientationReading.TopDown */
-                    return 90
-                    break
+//~     readonly property bool sensorExists: orientationSensor.connectedToBackend
+//~     readonly property int sensorOrientation: orientationSensor.reading ? orientationSensor.reading.orientation : 0
+//~     readonly property int rotationAngle: {
+//~         if (orientationSensor.reading && Screen.angleBetween(Screen.orientation, orientationSensor.orientation) !== 0) {
+//~             switch (orientationSensor.reading.orientation) {
+//~                 case 1: /* OrientationReading.TopUp */
+//~                 case 3: /* OrientationReading.LeftUp */
+//~                     return 270
+//~                     break
+//~                 case 4: /* OrientationReading.RightUp */
+//~                 case 2: /* OrientationReading.TopDown */
+//~                     return 90
+//~                     break
                 
-                case 5: /* OrientationReading.FaceUp */
-                case 6: /* OrientationReading.FaceDown */
-                default:
-                    return 0
-            }
-        }
+//~                 case 5: /* OrientationReading.FaceUp */
+//~                 case 6: /* OrientationReading.FaceDown */
+//~                 default:
+//~                     return 0
+//~             }
+//~         }
 
-        return 0
-    }
+//~         return 0
+//~     }
+    readonly property bool sensorExists: false
+    readonly property int sensorOrientation: 5
+    readonly property int rotationAngle: 0
     property alias allQuickActions: actionsFactory.allActions
     property alias actionsFactory: actionsFactory
     property alias customURLActions: customURLActionsItem
@@ -169,40 +172,40 @@ Common.BrowserView {
 
     focus: true
 
-    OrientationSensor {
-        id: orientationSensor
+//~     OrientationSensor {
+//~         id: orientationSensor
 
-        readonly property int orientation: {
-            if (reading) {
-                switch (reading.orientation) {
-                    case 1:
-                    case 2:
-                        if (Screen.nativeOrientation == Qt.LandscapeOrientation
-                            || Screen.nativeOrientation == Qt.InvertedLandscapeOrientation) {
-                            return Qt.LandscapeOrientation
-                        } else {
-                            return Qt.PortraitOrientation
-                        }
-                        break
-                    case 3:
-                    case 4:
-                        if (Screen.nativeOrientation == Qt.LandscapeOrientation
-                            || Screen.nativeOrientation == Qt.InvertedLandscapeOrientation) {
-                            return Qt.PortraitOrientation
-                        } else {
-                            return Qt.LandscapeOrientation
-                        }
-                        break
-                    default:
-                        return orientation
-                }
-            } else {
-                return Qt.PortraitOrientation
-            }
-        }
+//~         readonly property int orientation: {
+//~             if (reading) {
+//~                 switch (reading.orientation) {
+//~                     case 1:
+//~                     case 2:
+//~                         if (Screen.nativeOrientation == Qt.LandscapeOrientation
+//~                             || Screen.nativeOrientation == Qt.InvertedLandscapeOrientation) {
+//~                             return Qt.LandscapeOrientation
+//~                         } else {
+//~                             return Qt.PortraitOrientation
+//~                         }
+//~                         break
+//~                     case 3:
+//~                     case 4:
+//~                         if (Screen.nativeOrientation == Qt.LandscapeOrientation
+//~                             || Screen.nativeOrientation == Qt.InvertedLandscapeOrientation) {
+//~                             return Qt.PortraitOrientation
+//~                         } else {
+//~                             return Qt.LandscapeOrientation
+//~                         }
+//~                         break
+//~                     default:
+//~                         return orientation
+//~                 }
+//~             } else {
+//~                 return Qt.PortraitOrientation
+//~             }
+//~         }
 
-        active: window.visibility == Window.FullScreen
-    }
+//~         active: window.visibility == Window.FullScreen
+//~     }
 
     Settings {
         id: urlPatternSettings
@@ -278,7 +281,7 @@ Common.BrowserView {
 
         console.log("adding download with id " + downloadIdDataBase)
         Common.ActiveDownloadsSingleton.currentDownloads[downloadIdDataBase] = download
-        DownloadsModel.add(downloadIdDataBase, download.url, download.path, download.mimeType, false)
+        DownloadsModel.add(downloadIdDataBase, download.url, `${download.downloadDirectory}/${download.downloadFileName}`, download.mimeType, false)
 
         addNewDownload(download)
 
@@ -303,7 +306,7 @@ Common.BrowserView {
 
         DownloadsModel.setComplete(downloadIdDataBase, true)
 
-        if ((download.state === WebEngineDownloadItem.DownloadCancelled) || (download.state === WebEngineDownloadItem.DownloadInterrupted))
+        if ((download.state === WebEngineDownloadRequest.DownloadCancelled) || (download.state === WebEngineDownloadRequest.DownloadInterrupted))
         {
           DownloadsModel.setError(downloadIdDataBase, download.interruptReasonString)
         }
@@ -418,7 +421,7 @@ Common.BrowserView {
 
     Connections {
         target: currentDownloadsDialog
-        onShowDownloadsPage: showDownloadsPage()
+        function onShowDownloadsPage() { showDownloadsPage() }
     }
 
     /* Only used for anchoring the downloads dialog to the top when chromeless */
@@ -667,7 +670,7 @@ Common.BrowserView {
         Connections {
             target: contentExportLoader.item
 
-            onPreview: {
+            function onPreview(url) {
                 downloadsViewLoader.active = false
                 webapp.currentWebview.url = url;
             }
@@ -677,7 +680,7 @@ Common.BrowserView {
             target: webapp.currentWebview
             enabled: !webapp.chromeless
 
-            onIsFullScreenChanged: {
+            function onIsFullScreenChanged() {
                 if (webapp.currentWebview.isFullScreen) {
                     chrome.state = "hidden";
                 } else {
@@ -695,25 +698,25 @@ Common.BrowserView {
 
            target: webapp.currentWebview ? webapp.currentWebview.context : null
 
-           onDownloadRequested: {
+           function onDownloadRequested(download) {
 
-               console.log("a download was requested with path %1".arg(download.path))
+               console.log(`a download was requested with path ${download.downloadDirectory}/${download.downloadFileName}`)
 
                download.accept();
                webapp.startDownload(download);
            }
 
-           onDownloadFinished: {
+          function onDownloadFinished(download) {
 
-               console.log("a download was finished with path %1.".arg(download.path))
+               console.log(`a download was finished with path ${download.downloadDirectory}/${download.downloadFileName}`)
                webapp.setDownloadComplete(download)
            }
        }
 
        Connections {
            target: settings
-           onZoomFactorChanged: DomainSettingsModel.defaultZoomFactor = settings.zoomFactor
-           onDomainWhiteListModeChanged: DomainPermissionsModel.whiteListMode = settings.domainWhiteListMode
+           function onZoomFactorChanged() { DomainSettingsModel.defaultZoomFactor = settings.zoomFactor }
+           function onDomainWhiteListModeChanged() { DomainPermissionsModel.whiteListMode = settings.domainWhiteListMode }
        }
 
         Common.ChromeController {
@@ -787,7 +790,7 @@ Common.BrowserView {
 
         Connections {
             target: webappSettingsViewLoader.item
-            onClearCache: {
+            function onClearCache() {
 
                 // clear http cache
                 webapp.currentWebview.profile.clearHttpCache();
@@ -817,12 +820,12 @@ Common.BrowserView {
                 // visited Links
                 FileOperations.remove(dataLocationUrl + "/Visited Links");
             }
-            onClearAllCookies: {
+            function onClearAllCookies() {
                 BrowserUtils.deleteAllCookiesOfProfile(webapp.currentWebview.profile);
                 BrowserUtils.deleteAllCookiesOfProfile(SharedWebContext.sharedIncognitoContext);
             }
-            onDone: webappSettingsViewLoader.active = false
-            onShowDownloadsPage: webapp.showDownloadsPage()
+            function onDone() { webappSettingsViewLoader.active = false }
+            function onShowDownloadsPage() { webapp.showDownloadsPage() }
         }
     }
 
@@ -849,7 +852,7 @@ Common.BrowserView {
 
         Connections {
             target: downloadsViewLoader.item
-            onDone: downloadsViewLoader.active = false
+            function onDone() { downloadsViewLoader.active = false }
         }
     }
     // Used for quick actions
@@ -1034,7 +1037,7 @@ Common.BrowserView {
                 onLeftSwipe:  shortcutWebviewForward.activated()
                 onLeftSwipeHeld: chrome.showForwardNavHistory(true, navHistoryMargin)
                 onRightSwipeHeld: chrome.showBackNavHistory(true, navHistoryMargin)
-                onPressedChanged: if (pressed) Sapot.Haptics.playSubtle()
+                onPressedChanged: (pressed) => { if (pressed) Sapot.Haptics.playSubtle() }
 
                 Item {
                     id: navHistoryMargin
@@ -1199,7 +1202,7 @@ Common.BrowserView {
     // Alt+← or Backspace: Goes to the previous page
     Shortcut {
         id: shortcutWebviewBack
-        sequence: StandardKey.Back
+        sequences: [StandardKey.Back]
         enabled: currentWebview && currentWebview.canGoBack
         onActivated: currentWebview.goBack()
     }
@@ -1207,7 +1210,7 @@ Common.BrowserView {
     // Alt+→ or Shift+Backspace: Goes to the next page
     Shortcut {
         id: shortcutWebviewForward
-        sequence: StandardKey.Forward
+        sequences: [StandardKey.Forward]
         enabled: currentWebview && currentWebview.canGoForward
         onActivated: currentWebview.goForward()
     }
@@ -1233,7 +1236,7 @@ Common.BrowserView {
     // Ctrl+F: Find in Page
     Shortcut {
         id: shortcutFind
-        sequence: StandardKey.Find
+        sequences: [StandardKey.Find]
         enabled: webapp.currentWebview
         onActivated: {
             if (webapp.currentWebview) {
@@ -1266,14 +1269,14 @@ Common.BrowserView {
 
     // F3: Find next
     Shortcut {
-        sequence: StandardKey.FindNext
+        sequences: [StandardKey.FindNext]
         enabled: webapp.currentWebview && webapp.findInPageMode
         onActivated: shortcutFindNext.activated()
     }
 
     // Shift+F3: Find previous
     Shortcut {
-        sequence: StandardKey.FindPrevious
+        sequences: [StandardKey.FindPrevious]
         enabled: webapp.currentWebview && webapp.findInPageMode
         onActivated: shortcutFindPrevious.activated()
     }

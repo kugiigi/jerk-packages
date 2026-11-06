@@ -17,7 +17,7 @@
 
 import QtQuick 2.15
 import Lomiri.Components 1.3
-import "../Components"
+import "../../../Components"
 
 Item {
     id: root
@@ -30,18 +30,10 @@ Item {
     readonly property alias currentItemIndex: row.currentItemIndex
     property real lateralPosition: -1
     property int alignment: Qt.AlignRight
-    property bool lightMode: false
     readonly property int rowContentX: row.contentX
 
     property alias hideRow: row.hideRow
     property alias rowItemDelegate: row.delegate
-    // ENH002 - Notch/Punch hole fix
-    property real contentRightMargin: 0
-    property real contentLeftMargin: 0
-    // ENH002 - End
-    // ENH095 - Middle notch support
-    property real contentTopMargin: shell.adjustForMiddleNotch && expanded ? shell.deviceConfiguration.notchHeightMargin : 0
-    // ENH095 - End
 
     implicitWidth: flickable.contentWidth
 
@@ -180,14 +172,6 @@ Item {
     Item {
         id: rowContainer
         anchors.fill: parent
-        // ENH002 - Notch/Punch hole fix
-        /* right margin of the indicator icons */
-        anchors.rightMargin: root.contentRightMargin    
-        anchors.leftMargin: root.contentLeftMargin    
-        // ENH002 - End
-        // ENH095 - Middle notch support
-        anchors.topMargin: root.contentTopMargin
-        // ENH095 - End
         clip: expanded || row.width > rowContainer.width
 
         Flickable {
@@ -220,7 +204,6 @@ Item {
             PanelItemRow {
                 id: row
                 objectName: "panelItemRow"
-                lightMode: root.lightMode
                 anchors {
                     top: parent.top
                     bottom: parent.bottom

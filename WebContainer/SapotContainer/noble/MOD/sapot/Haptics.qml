@@ -1,7 +1,8 @@
 pragma Singleton
 
 import QtQuick 2.12
-import QtFeedback 5.0
+//~ import QtFeedback 5.0
+import org.kde.tactilefeedback
 
 Item {
     id: haptics

@@ -1,8 +1,8 @@
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.5 as QQC2
-import QtQuick.Controls.Suru 2.2
-import Lomiri.Content 1.3
+//~ import QtQuick.Controls.Suru 2.2
+import Lomiri.Content
 import "MimeTypeMapper.js" as MimeTypeMapper
 import "."
 
@@ -34,8 +34,10 @@ QQC2.Dialog {
     modal: true
 
     QQC2.Overlay.modal: Rectangle {
-        color: Suru.overlayColor
-        Behavior on opacity { NumberAnimation { duration: Suru.animations.FastDuration } }
+//~         color: Suru.overlayColor
+        color: theme.palette.normal.overlay
+//~         Behavior on opacity { NumberAnimation { duration: Suru.animations.FastDuration } }
+        Behavior on opacity { NumberAnimation { duration: LomiriAnimation.FastDuration } }
     }
 
     onAboutToShow: y = Qt.binding(function(){return parent.width >= units.gu(90) ? (parent.height - height) / 2 : (parent.height - height)})

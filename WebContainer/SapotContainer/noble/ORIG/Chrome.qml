@@ -17,7 +17,7 @@
  */
 
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import ".."
 
 ChromeBase {
@@ -200,7 +200,7 @@ ChromeBase {
             Connections {
                 target: root
 
-                onDownloadNotifyChanged: {
+                function onDownloadNotifyChanged() {
                     if (downloadNotify) {
                         shakeAnimation.start()
                     }

@@ -43,9 +43,6 @@ Item {
     scale: isSelected ? 1.1 : 1
     Behavior on scale { LomiriNumberAnimation {} }
     // ENH154 - End
-    // ENH256 - Improve spread highlights
-    property bool enableRedesignedSpread: shell.settings.enableRedesignedSpread
-    // ENH256 - End
     // ENH185 - Workspace spread UI fixes
     property bool sideStageEnabled: false
     // ENH185 - End
@@ -270,40 +267,32 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        // ENH256 - Improve spread highlights
-        // border.color: LomiriColors.ash
-        border.color: previewSpace.enableRedesignedSpread ? "white" : LomiriColors.ash
-        opacity: previewSpace.enableRedesignedSpread ? 0.7 : 1
-        antialiasing: true
-        // ENH256 - End
+        border.color: LomiriColors.porcelain
         border.width: units.gu(.5)
         color: "transparent"
+        opacity: 0.3
+        antialiasing: true
         visible: previewSpace.isActive
     }
 
     Rectangle {
         anchors.fill: parent
-        // ENH256 - Improve spread highlights
-        // border.color: LomiriColors.blue
-        // border.width: units.gu(.5)
-        border.color: previewSpace.enableRedesignedSpread ? "white" : LomiriColors.blue
-        border.width: previewSpace.enableRedesignedSpread ? units.gu(.3) : units.gu(.5)
-        opacity: previewSpace.enableRedesignedSpread ? 0.7 : 1
-        antialiasing: true
-        // ENH256 - End
+        border.color: LomiriColors.porcelain
+        border.width: units.gu(.3)
         color: "transparent"
+        opacity: 0.3
+        antialiasing: true
         visible: previewSpace.isSelected
     }
-    // ENH256 - Improve spread highlights
+
     Rectangle {
-        visible: previewSpace.enableRedesignedSpread
         anchors.fill: parent
-        color: "black"
-        opacity: previewSpace.isSelected || previewSpace.isActive || previewSpace.containsDragLeft || previewSpace.containsDragRight ? 0 : 0.5
+        color: LomiriColors.jet
+        opacity: previewSpace.isSelected || previewSpace.isActive
+                    || previewSpace.containsDragLeft || previewSpace.containsDragRight ? 0 : 0.5
         antialiasing: true
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
     }
-    // ENH256 - End
 
     Rectangle {
         anchors.fill: parent

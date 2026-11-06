@@ -36,7 +36,6 @@ MouseArea {
     property bool windowMoving: false
     property alias windowControlButtonsVisible: buttons.visible
     property PanelState panelState
-    property bool lightMode : false
 
     readonly property real buttonsWidth: buttons.width + row.spacing
 
@@ -74,7 +73,7 @@ MouseArea {
         id: background
         anchors.fill: parent
         radius: units.gu(.5)
-        color: root.lightMode ? "#FFFFFF" : "#000000"
+        color: theme.palette.normal.background.hslLightness >= 0.5 ? "#FFFFFF" : "#000000"
     }
 
     Rectangle {

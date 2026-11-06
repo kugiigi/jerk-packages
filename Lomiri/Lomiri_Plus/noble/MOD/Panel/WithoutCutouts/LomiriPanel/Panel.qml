@@ -30,11 +30,12 @@ import QtQuick.Window 2.2
 import QtQuick.Layouts 1.12
 // ENH056 - End
 
-import "../ApplicationMenus"
-import "../Components"
-import "../Components/PanelState"
-import ".."
-import "Indicators"
+import "../../../ApplicationMenus"
+import "../../../Components"
+import "../../../Components/PanelState"
+import "../../.."
+import "../../Indicators"
+import "../.."
 
 Item {
     id: root
@@ -52,7 +53,11 @@ Item {
                                           : shell.settings.forceLockLauncher ? width - applicationMenuContentX : width
                                           // ENH239 - End
     // ENH069 - End
+    // ENH056 - Quick toggles
+    property alias mobileDataToggle: __indicators.mobileDataToggle
+    // ENH056 - End
     property alias applicationMenuContentX: __applicationMenus.menuContentX
+    property int screenIndex: -1
 
     property alias applicationMenus: __applicationMenus
     property alias indicators: __indicators
@@ -97,7 +102,6 @@ Item {
     property color drawerColor: "black"
     // ENH170 - End
     property var blurSource : null
-    property bool lightMode : false
 
     // Whether our expanded menus should take up the full width of the panel
     // ENH066 - Option to always full width the top panel menu
@@ -242,7 +246,10 @@ Item {
                 margins: -units.gu(1)
             }
             visible: !__indicators.fullyClosed
-            source: "graphics/rectangular_dropshadow.sci"
+            // ENH272 - Fix for Panel graphics path
+            // source: "graphics/rectangular_dropshadow.sci"
+            source: "../../graphics/rectangular_dropshadow.sci"
+            // ENH272 - End
         }
 
         BorderImage {
@@ -252,7 +259,10 @@ Item {
                 margins: -units.gu(1)
             }
             visible: !__applicationMenus.fullyClosed
-            source: "graphics/rectangular_dropshadow.sci"
+            // ENH272 - Fix for Panel graphics path
+            // source: "graphics/rectangular_dropshadow.sci"
+            source: "../../graphics/rectangular_dropshadow.sci"
+            // ENH272 - End
         }
 
         BorderImage {
@@ -266,7 +276,10 @@ Item {
                 // ENH171 - End
             }
             visible: panelState.dropShadow
-            source: "graphics/rectangular_dropshadow.sci"
+            // ENH272 - Fix for Panel graphics path
+            // source: "graphics/rectangular_dropshadow.sci"
+            source: "../../graphics/rectangular_dropshadow.sci"
+            // ENH272 - End
         }
 
         // ENH171 - Add blur to Top Panel and Drawer
@@ -294,10 +307,10 @@ Item {
             id: panelAreaBackground
             // ENH046 - Lomiri Plus Settings
             // color: callHint.visible ? theme.palette.normal.activity :
-            //            (root.lightMode ? "#FFFFFF" : "#000000")
+            //            Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
             // ENH170 - Adjust top panel based on Drawer and Indicator panels
             //color: callHint.visible ? theme.palette.normal.activity
-            //                : shell.settings.useCustomPanelColor ? shell.settings.customPanelColor : (root.lightMode ? "#FFFFFF" : "#000000")
+            //                : shell.settings.useCustomPanelColor ? shell.settings.customPanelColor : Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
             color: {
                 if (callHint.visible) {
                     return theme.palette.normal.activity
@@ -313,7 +326,7 @@ Item {
                     }
                 }
 
-                return shell.settings.useCustomPanelColor ? shell.settings.customPanelColor : (root.lightMode ? "#FFFFFF" : "#000000")
+                return shell.settings.useCustomPanelColor ? shell.settings.customPanelColor : Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
             }
             // ENH170 - End
             // ENH046 - End
@@ -442,7 +455,7 @@ Item {
 
             active: shell.settings.workspaceSwitcherTopBarIndicator && model.count > 1
                         && !shell.showingGreeter && shell.stage.workspaceEnabled
-                        && root.width >= units.gu(120)
+                        && root.width >= units.gu(100)
             z: 99
             asynchronous: true
             height: item ? item.height : 0 // Since height doesn't reset when inactive
@@ -486,7 +499,7 @@ Item {
         LPNavigationButton {
             visible: shell.settings.workspaceSwitcherTopBarIndicator
                         && !shell.showingGreeter && shell.stage.workspaceEnabled
-                        && root.width >= units.gu(120)
+                        && root.width >= units.gu(100)
             anchors {
                 bottom: indicatorSelectorLoader.bottom
                 bottomMargin: units.gu(0.5)
@@ -648,7 +661,6 @@ Item {
                               0,
                               root.width,
                               root.height)
-            lightMode: root.lightMode
 
             onShowTapped: {
                 if (callHint.active) {
@@ -805,7 +817,7 @@ Item {
             RowLayout {
                 id: customIndicators
 
-                opacity: !__applicationMenus.expanded && !callHint.visible ? 1 : 0
+                opacity: !__applicationMenus.expanded && !callHint.visible && !d.showWindowDecorationControls ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: LomiriAnimation.SnapDuration } }
                 visible: opacity !== 0
                 anchors {
@@ -844,7 +856,7 @@ Item {
                     Layout.preferredHeight: implicitHeight
                     Layout.alignment: Qt.AlignVCenter
                     color: theme.palette.normal.foregroundText
-                    visible: shell.focusedAppIsExemptFromLifecycle && !shell.isWindowedMode && shell.settings.showAppSuspensionIconIndicator
+                    visible: shell.focusedAppIsExemptFromLifecycle && (!shell.isWindowedMode || shell.settings.batterySaverMode) && shell.settings.showAppSuspensionIconIndicator
                                 && !root.greeterShown
                 }
                 // ENH102 - End
@@ -878,10 +890,6 @@ Item {
             overFlowWidth: width - appMenuClear
             enableHint: !callHint.active && !fullscreenMode
             showOnClick: !callHint.visible
-            // ENH240 - Light mode fix in Indicator Panel
-            // For some reason, it works in vanilla Lomiri without this WTF?
-            lightMode: root.lightMode
-            // ENH240 - End
             // ENH111 - Blurred expanded top panel
             // panelColor: panelAreaBackground.color
             // ENH111 - End

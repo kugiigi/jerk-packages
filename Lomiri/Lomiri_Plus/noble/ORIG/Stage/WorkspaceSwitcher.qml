@@ -33,6 +33,8 @@ Item {
 
     readonly property alias active: d.active
 
+    signal workspaceSelected(var selectedWorkspace)
+
     function showLeft() {
         show();
         d.previousWorkspace();
@@ -163,7 +165,10 @@ Item {
             d.active = false;
             hideTimer.start();
             focus = false;
-            screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex).activate();
+
+            const selectedWorkspace = screensProxy.get(d.highlightedScreenIndex).workspaces.get(d.highlightedWorkspaceIndex);
+            selectedWorkspace.activate();
+            root.workspaceSelected(selectedWorkspace)
         }
     }
 

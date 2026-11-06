@@ -17,9 +17,9 @@
  */
 
 import QtQuick 2.4
-import QtQuick.Controls 2.2
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import QtQuick.Controls 2.2 as QQC2
+import Lomiri.Components
+import Lomiri.Components.Popups
 import QtWebEngine 1.5
 import Morph.Web 0.1
 import ".." as Common
@@ -306,8 +306,9 @@ FocusScope {
 
                     ListItemLayout {
                         title.text: i18n.tr("Default Zoom")
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: defaultZoomFactorSelector
+                          height: units.gu(5)
                           value: Math.round(settingsObject.zoomFactor * 100 * stepSize) / stepSize
                           from: 25
                           to: 500
@@ -502,8 +503,9 @@ FocusScope {
                         title.text: i18n.tr("Button size")
                         padding.leading: units.gu(2)
 
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: scrollPositionerSize
+                          height: units.gu(5)
                           value: settingsObject.scrollPositionerSize
                           from: 2
                           to: 10
@@ -585,8 +587,9 @@ FocusScope {
                         title.text: i18n.tr("Button size")
                         padding.leading: units.gu(2)
 
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: floatingScrollButtonSize
+                          height: units.gu(5)
                           value: settingsObject.floatingScrollButtonSize
                           from: 2
                           to: 10
@@ -624,8 +627,9 @@ FocusScope {
                         title.text: i18n.tr("Side margin")
                         padding.leading: units.gu(2)
 
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: floatingScrollButtonSideMargin
+                          height: units.gu(5)
                           value: settingsObject.floatingScrollButtonSideMargin
                           from: 0
                           to: 6
@@ -664,8 +668,9 @@ FocusScope {
                         title.text: i18n.tr("Vertical margin")
                         padding.leading: units.gu(2)
 
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: floatingScrollButtonVerticalMargin
+                          height: units.gu(5)
                           value: settingsObject.floatingScrollButtonVerticalMargin
                           from: 0
                           to: 20
@@ -841,8 +846,9 @@ FocusScope {
 
                     ListItemLayout {
                         title.text: i18n.tr("Gestures Area Height")
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: bottomGesturesAreaHeight
+                          height: units.gu(5)
                           value: settingsObject.bottomGesturesAreaHeight
                           from: 1
                           to: 10
@@ -924,8 +930,9 @@ FocusScope {
                         title.text: i18n.tr("Height (inch)")
                         padding.leading: units.gu(2)
 
-                        SpinBox {
+                        QQC2.SpinBox {
                           id: webviewQuickActionsHeight
+                          height: units.gu(5)
                           value: settingsObject.webviewQuickActionsHeight * 4
                           from: 4
                           to: 20
@@ -1247,8 +1254,8 @@ FocusScope {
 
         Connections {
             target: domainSettingsViewLoader.item
-            onDone: domainSettingsViewLoader.active = false
-            onReload: {
+            function onDone() { domainSettingsViewLoader.active = false }
+            function onReload() {
                 domainSettingsViewLoader.active = false
                 domainSettingsViewLoader.active = true
 
@@ -1271,8 +1278,8 @@ FocusScope {
 
         Connections {
             target: domainPermissionsViewLoader.item
-            onDone: domainPermissionsViewLoader.active = false
-            onReload: {
+            function onDone() { domainPermissionsViewLoader.active = false }
+            function onReload() {
                 domainPermissionsViewLoader.active = false
                 domainPermissionsViewLoader.active = true
 

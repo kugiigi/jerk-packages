@@ -167,7 +167,10 @@ Item {
         ResizeGrip { // top left
             anchors.horizontalCenter: parent.left
             anchors.verticalCenter: parent.top
-            visible: root.enabled || target.maximizedBottomRight
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedBottomRight
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
@@ -175,7 +178,10 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.top
             rotation: 45
-            visible: root.enabled || target.maximizedHorizontally || target.maximizedBottomLeft || target.maximizedBottomRight
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedHorizontally || target.maximizedBottomLeft || target.maximizedBottomRight
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
@@ -183,7 +189,10 @@ Item {
             anchors.horizontalCenter: parent.right
             anchors.verticalCenter: parent.top
             rotation: 90
-            visible: root.enabled || target.maximizedBottomLeft
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedBottomLeft
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
@@ -191,15 +200,21 @@ Item {
             anchors.horizontalCenter: parent.right
             anchors.verticalCenter: parent.verticalCenter
             rotation: 135
-            visible: root.enabled || target.maximizedVertically || target.maximizedLeft ||
-                     target.maximizedTopLeft || target.maximizedBottomLeft
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedVertically || target.maximizedLeft ||
+            //          target.maximizedTopLeft || target.maximizedBottomLeft
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
         ResizeGrip { // bottom right
             anchors.horizontalCenter: parent.right
             anchors.verticalCenter: parent.bottom
-            visible: root.enabled || target.maximizedTopLeft
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedTopLeft
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
@@ -207,7 +222,10 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.bottom
             rotation: 45
-            visible: root.enabled || target.maximizedHorizontally || target.maximizedTopLeft || target.maximizedTopRight
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedHorizontally || target.maximizedTopLeft || target.maximizedTopRight
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
@@ -215,7 +233,10 @@ Item {
             anchors.horizontalCenter: parent.left
             anchors.verticalCenter: parent.bottom
             rotation: 90
-            visible: root.enabled || target.maximizedTopRight
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedTopRight
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
 
@@ -223,8 +244,11 @@ Item {
             anchors.horizontalCenter: parent.left
             anchors.verticalCenter: parent.verticalCenter
             rotation: 135
-            visible: root.enabled || target.maximizedVertically || target.maximizedRight ||
-                     target.maximizedTopRight || target.maximizedBottomRight
+            // ENH275 - Window touch overlay improvements
+            // visible: root.enabled || target.maximizedVertically || target.maximizedRight ||
+            //          target.maximizedTopRight || target.maximizedBottomRight
+            visible: root.enabled && !target.anyMaximized
+            // ENH275 - End
             resizeTarget: root.resizeArea
         }
     }
