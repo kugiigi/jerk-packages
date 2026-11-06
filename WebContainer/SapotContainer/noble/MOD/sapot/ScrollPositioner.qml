@@ -2,6 +2,7 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2 as QQC2
 import Lomiri.Components
 import QtWebEngine 1.10
+import QtQuick.Controls.Material
 import "." as Sapot
 
 QQC2.RoundButton {
@@ -15,6 +16,11 @@ QQC2.RoundButton {
     property bool scrollerMode: false
     property bool positionerMode: true
     property bool enableHover: true
+
+    readonly property bool isDarkMode: Theme.name == "Lomiri.Components.Themes.SuruDark"
+    Material.theme: isDarkMode ? Material.Dark : Material.Light
+    Material.background: theme.palette.normal.background
+    Material.accent: theme.palette.normal.activity
 
     width: units.gu(8)
     height: width

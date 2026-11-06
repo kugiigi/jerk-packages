@@ -46,7 +46,7 @@ Item {
         repeat: false
         running: false
         // interval: 750
-        interval: 200
+        interval: 100
         onTriggered: {
             windowSnapshot.visible = false;
         }
@@ -66,16 +66,21 @@ Item {
             {
                 orchestrateRedraw(true);
             }
+            else if (Application.state === Qt.ApplicationInactive && windowSnapshot.visible)
+            {
+                orchestrateRedraw(true);
+            }
         }
     }
 
+    /*
     Connections {
-        // target: browserWindow
+        target: browserWindow
         target: webview
 
-        // function onActiveChanged() {
-        //     orchestrateRedraw(browserWindow.active);
-        // }
+        function onActiveChanged() {
+            orchestrateRedraw(browserWindow.active);
+        }
 
         function onWidthChanged() {
             orchestrateRedraw(true);
@@ -84,6 +89,7 @@ Item {
             orchestrateRedraw(true);
         }
     }
+    */
 
     function orchestrateRedraw(finalize) {
         if (!finalize)
@@ -96,6 +102,10 @@ Item {
                 // prevVisible = currentWebview.visible;
                 prevVisible = webview.visible;
                 grabInterrupted = false;
+
+                webview.visible = false
+                webview.visible = true
+
                 // grabbing = browserWindow.contentItem.grabToImage(function(result) {
                 grabbing = webview.grabToImage(function(result) {
                     if (grabInterrupted) {
@@ -106,7 +116,7 @@ Item {
                     windowSnapshot.visible = true;
                     grabbing = false;
                     // currentWebview.visible = false;
-                    webview.visible = false;
+                    // webview.visible = false;
                 }, Qt.size(
                     // browserWindow.contentItem.width,
                     // browserWindow.contentItem.height
@@ -117,7 +127,9 @@ Item {
         } else {
             hideSnapshotTimer.restart();
             // currentWebview.visible = prevVisible;
-            webview.visible = prevVisible;
+            // webview.visible = prevVisible;
+            webview.visible = false;
+            webview.visible = true;
             grabInterrupted = true;
         }
     }
