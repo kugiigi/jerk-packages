@@ -66,9 +66,32 @@ Item {
             {
                 orchestrateRedraw(true);
             }
+            // Workaround when windowed mode and inactive then screen locked
             else if (Application.state === Qt.ApplicationInactive && windowSnapshot.visible)
             {
                 orchestrateRedraw(true);
+            }
+
+            // Workaround when windowed mode and inactive then switch to another workspace
+            if (Application.state === Qt.ApplicationInactive && webview.visible)
+            {
+                redrawLoopTimer.restart();
+            }
+            else
+            {
+                redrawLoopTimer.stop();
+            }
+        }
+    }
+
+    Timer {
+        id: redrawLoopTimer
+        interval: 1000
+        onTriggered: {
+            if (Application.state === Qt.ApplicationInactive && webview.visible) {
+                webview.visible = false;
+                webview.visible = true;
+                redrawLoopTimer.restart();
             }
         }
     }
@@ -103,8 +126,8 @@ Item {
                 prevVisible = webview.visible;
                 grabInterrupted = false;
 
-                webview.visible = false
-                webview.visible = true
+                webview.visible = false;
+                webview.visible = true;
 
                 // grabbing = browserWindow.contentItem.grabToImage(function(result) {
                 grabbing = webview.grabToImage(function(result) {
