@@ -136,7 +136,20 @@ FocusScope {
         focus: true
         property QtObject rotateButtonObj
         readonly property bool rotateAvailable: item && item.isFullScreen
-                                    && webapp.rotationAngle !== rotation
+//~                                     && webapp.rotationAngle !== rotation
+                                        && forceShowRotate
+        // Workaround while sensor isn't available
+        property bool forceShowRotate: false
+        Connections {
+            target: item
+            function onIsFullScreenChanged() {
+                if (target.isFullScreen) {
+                    webappContainerWebViewLoader.forceShowRotate = true;
+                } else {
+                    webappContainerWebViewLoader.forceShowRotate = false;
+                }
+            }
+        }
 
         anchors.centerIn: parent
         anchors.verticalCenterOffset: item && item.webviewPulledDown ? item.height / 3 : 0
@@ -279,7 +292,13 @@ FocusScope {
             onClicked: {
                 delayHide()
 
-                webappContainerWebViewLoader.rotation = webapp.rotationAngle
+//~                 webappContainerWebViewLoader.rotation = webapp.rotationAngle
+                // Hardcode rotation while sensors are not available
+                if (webappContainerWebViewLoader.rotation === 0) {
+                    webappContainerWebViewLoader.rotation = 90;
+                } else {
+                    webappContainerWebViewLoader.rotation = 0;
+                }
             }
 
             function delayHide() {
@@ -317,6 +336,8 @@ FocusScope {
                 interval: 2000
                 onTriggered: rotateButton.opacity = 0
             }
+            
+            Component.onDestruction: webappContainerWebViewLoader.forceShowRotate = false;
 
             Connections {
                 target: webappContainerWebViewLoader.item

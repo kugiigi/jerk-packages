@@ -36,7 +36,7 @@ Item {
     property bool grabInterrupted : false;
 
     // Workaround when staged mode and portrait and there's suspend delay
-    readonly property bool stagedModeNoSideStage: Screen.desktopAvailableWidth === webview.width
+    readonly property bool stagedModeNoSideStage: webview.width >= Screen.desktopAvailableWidth - units.gu(10)
 
     // Show a snapshot of the window, created when suspending
     Image {
@@ -50,7 +50,7 @@ Item {
         repeat: false
         running: false
         // interval: 750
-        interval: 100
+        interval: 200
         onTriggered: {
             windowSnapshot.visible = false;
         }
@@ -92,7 +92,7 @@ Item {
 
     Timer {
         id: redrawLoopTimer
-        interval: 300
+        interval: 400
         onTriggered: {
             if (Application.state === Qt.ApplicationInactive && webview.visible && !stagedModeNoSideStage) {
                 webview.visible = false;
