@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import Lomiri.Components 1.3
+import Lomiri.Components
 
 Loader {
     id: findLoader
@@ -15,7 +15,8 @@ Loader {
     z: 1
     active: false
     asynchronous: true
-    height: units.gu(6)
+//~     height: units.gu(6)
+    height: units.gu(8)
     visible: item && item.shown
     anchors {
         left: parent.left

@@ -49,7 +49,7 @@ Item {
         asynchronous: false
         visible: panel.state !== "CHARACTERS"
         source: internal.symbolKeypadSource
-        onLoaded: internal.afterKeypadLoaded(symbolKeypadLoader)
+        onVisibleChanged: internal.afterKeypadLoaded(symbolKeypadLoader)
     }
 
     Loader {
@@ -59,7 +59,7 @@ Item {
         asynchronous: false
         visible: panel.state === "CHARACTERS"
         source: internal.characterKeypadSource
-        onLoaded: internal.afterKeypadLoaded(characterKeypadLoader)
+        onVisibleChanged: internal.afterKeypadLoaded(characterKeypadLoader)
     }
 
     ExtendedKeysSelector {

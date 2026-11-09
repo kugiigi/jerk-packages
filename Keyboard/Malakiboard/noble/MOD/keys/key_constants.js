@@ -75,12 +75,15 @@ var emailLayoutUrlKeyPadding = 1.5; // gu
 var languageMenuListViewPadding = 2.22; // gu
 
 var tabletWordribbonHeight = 6; // gu
-var phoneWordribbonHeight = 4; // gu
+var phoneWordribbonHeight = 5; // gu
 var tabletWordRibbonFontSize = 17 // dp
-var phoneWordRibbonFontSize = 14 // dp
+var phoneWordRibbonFontSize = 15 // dp
 
 var phoneKeyboardHeightPortrait = 0.40; // percent of screen
 var phoneKeyboardHeightLandscape = 0.57; // percent of screen
+
+var tallPhoneKeyboardHeightPortrait = 0.35; // percent of screen
+var tallPhoneKeyboardHeightLandscape = 0.50; // percent of screen
 
 var tabletKeyboardHeightPortrait = 0.31; // percent of screen
 var tabletKeyboardHeightLandscape = 0.47; // percent of screen

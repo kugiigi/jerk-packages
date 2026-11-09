@@ -26,11 +26,12 @@ import Lomiri.ApplicationMenu 0.1
 
 import QtQuick.Window 2.2
 
-import "../ApplicationMenus"
-import "../Components"
-import "../Components/PanelState"
-import ".."
-import "Indicators"
+import "../../../ApplicationMenus"
+import "../../../Components"
+import "../../../Components/PanelState"
+import "../../.."
+import "../../Indicators"
+import "../.."
 
 Item {
     id: root
@@ -42,6 +43,7 @@ Item {
     property real expandedPanelHeight: units.gu(7)
     property real menuWidth: partialWidth ? units.gu(40) : width
     property alias applicationMenuContentX: __applicationMenus.menuContentX
+    property int screenIndex: -1
 
     property alias applicationMenus: __applicationMenus
     property alias indicators: __indicators
@@ -50,8 +52,15 @@ Item {
     property bool greeterShown: false
     property bool hasKeyboard: false
     property bool supportsMultiColorLed: true
+    // ENH002 - Notch/Punch hole fix
+    property real leftMarginBlur
+    property real topMarginBlur
+    // ENH002 - End
+    // ENH046 - Lomiri Plus Settings
+    property real topPanelMargin: 0
+    // ENH046 - End
+
     property var blurSource : null
-    property bool lightMode : false
 
     // Whether our expanded menus should take up the full width of the panel
     property bool partialWidth: width >= units.gu(60)
@@ -172,7 +181,7 @@ Item {
         Rectangle {
             id: panelAreaBackground
             color: callHint.visible ? theme.palette.normal.activity :
-                       (root.lightMode ? "#FFFFFF" : "#000000")
+                       Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
             anchors {
                 top: parent.top
                 left: parent.left
@@ -297,12 +306,19 @@ Item {
             enableHint: !callHint.active && !fullscreenMode
             showOnClick: false
             panelColor: panelAreaBackground.color
+            // ENH002 - Notch/Punch hole fix
+            contentLeftMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen 
+                                    ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "left" && !shell.deviceConfiguration.fullyHideNotchInPortrait 
+                                                ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
+                                    : 0
+            leftMarginBlur: root.leftMarginBlur
+            topMarginBlur: root.topMarginBlur
+            // ENH002 - End
             blurSource: root.blurSource
             blurRect: Qt.rect(x,
                               0,
                               root.width,
                               root.height)
-            lightMode: root.lightMode
 
             onShowTapped: {
                 if (callHint.active) {
@@ -340,6 +356,9 @@ Item {
                         menuModel.aboutToShow(modelIndex);
                     }
                 }
+                // ENH046 - Lomiri Plus Settings
+                topPanelMargin: root.topPanelMargin
+                // ENH046 - End
 
                 menuModel: __applicationMenus.model
                 submenuIndex: modelIndex
@@ -364,7 +383,24 @@ Item {
             id: panelTitleHolder
             anchors {
                 left: parent.left
-                leftMargin: units.gu(1)
+                // ENH002 - Notch/Punch hole fix
+                // leftMargin: units.gu(1)
+
+                leftMargin: {
+                    var returnValue = units.gu(1)
+
+                    if (shell.useCustomNotchSolution && shell.isBuiltInScreen) {
+                        if (shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "left"
+                                && !shell.deviceConfiguration.fullyHideNotchInPortrait) {
+                            returnValue = shell.deviceConfiguration.notchWidthMargin
+                        } else if (shell.deviceConfiguration.withRoundedCorners) {
+                            returnValue = shell.deviceConfiguration.roundedCornerMargin
+                        }
+                    }
+
+                    return returnValue
+                }
+                // ENH002 - End
                 right: __indicators.left
                 rightMargin: units.gu(1)
             }
@@ -426,6 +462,18 @@ Item {
             enableHint: !callHint.active && !fullscreenMode
             showOnClick: !callHint.visible
             panelColor: panelAreaBackground.color
+            // ENH002 - Notch/Punch hole fix
+            contentRightMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen
+                                    ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "right" && !shell.deviceConfiguration.fullyHideNotchInPortrait
+                                                ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
+                                    : 0
+            contentLeftMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen
+                                    ? shell.orientation == 1 && shell.deviceConfiguration.notchPosition == "left" && !shell.deviceConfiguration.fullyHideNotchInPortrait 
+                                                ? shell.deviceConfiguration.notchWidthMargin : shell.deviceConfiguration.roundedCornerMargin
+                                    : 0
+            leftMarginBlur: root.leftMarginBlur
+            topMarginBlur: root.topMarginBlur
+            // ENH002 - End
             blurSource: root.blurSource
             blurRect: Qt.rect(x,
                               0,
@@ -449,11 +497,26 @@ Item {
 
                 property int ownIndex: index
                 readonly property bool overflow: parent.width - (x - __indicators.rowContentX) > __indicators.overFlowWidth
-                readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator)
+                // ENH060 - Show/Hide Indicators Settings
+                readonly property bool alwaysHidden: shell.settings.alwaysHiddenIndicatorIcons.includes(identifier)
+                readonly property bool alwaysShown: shell.settings.alwaysShownIndicatorIcons.includes(identifier)
+                // readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator)
+                readonly property bool hidden: !expanded && (alwaysHidden || overflow || !indicatorVisible || hideSessionIndicator
+                                                                        || hideKeyboardIndicator || hideMessagesIndicator || hideSoundIndicator)
+                                                    && !alwaysShown
+                // ENH060 - End
                 // HACK for indicator-session
                 readonly property bool hideSessionIndicator: identifier == "ayatana-indicator-session" && Math.min(Screen.width, Screen.height) <= units.gu(60)
                 // HACK for indicator-keyboard
                 readonly property bool hideKeyboardIndicator: identifier == "ayatana-indicator-keyboard" && !hasKeyboard
+                // ENH060 - Show/Hide Indicators Settings
+                readonly property bool hideMessagesIndicator: identifier == "ayatana-indicator-messages" && shell.settings.onlyShowNotificationsIndicatorWhenGreen
+                                                                    && messagesEmpty
+                readonly property bool hideSoundIndicator: identifier == "ayatana-indicator-sound" && shell.settings.onlyShowSoundIndicatorWhenSilent
+                                                                    && !soundIsSilent
+                property bool messagesEmpty: true
+                property bool soundIsSilent: false
+                // ENH060 - End
 
                 height: parent.height
                 expanded: indicators.expanded
@@ -467,15 +530,107 @@ Item {
                 opacity: hidden ? 0.0 : 1.0
                 Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
 
-                width: ((expanded || indicatorVisible) && !hideSessionIndicator && !hideKeyboardIndicator) ? implicitWidth : 0
+                // ENH060 - Show/Hide Indicators Settings
+                // width: ((expanded || indicatorVisible) && !hideSessionIndicator && !hideKeyboardIndicator) ? implicitWidth : 0
+                width: !alwaysHidden && ((expanded || indicatorVisible)
+                                                                && !hideSessionIndicator && !hideKeyboardIndicator
+                                                                && !hideMessagesIndicator && !hideSoundIndicator)
+                                    || alwaysShown ? implicitWidth : 0
+                // ENH060 - End
 
                 Behavior on width { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
+                // ENH060 - Show/Hide Indicators Settings
+                onIconsChanged: {
+                    if (identifier == "ayatana-indicator-messages") {
+                        if (icons) {
+                            if (icons[0].search("messages-new") > -1) {
+                                messagesEmpty = false
+                            } else {
+                                messagesEmpty = true
+                            }
+                        }
+                    }
+                    if (identifier == "ayatana-indicator-sound") {
+                        if (icons) {
+                            if (icons[0].search("muted") > -1) {
+                                soundIsSilent = true
+                            } else {
+                                soundIsSilent = false
+                            }
+                        }
+                    }
+                }
+                // ENH036 - End
+                // ENH095 - Middle notch support
+                readonly property bool actuallyHidden: width == 0
+
+                expandForNotch: !expanded && shell.adjustForMiddleNotch
+
+                function setNotchMargin() {
+                    let newMargin = 0
+
+                    if (!actuallyHidden) {
+                        let mappedPos = ListView.view.mapToItem(shell, 0, 0)
+                        let notchWidth = shell.deviceConfiguration.notchWidthMargin
+
+                        if (mappedPos.x < ListView.view.notchGlobalEndX) {
+                            let notchEndX = ListView.view.notchGlobalEndX - mappedPos.x
+                            let itemToExpandForNotch = ListView.view.itemAt(notchEndX, ListView.view.height / 2)
+
+                            if (this == itemToExpandForNotch) {
+                                ListView.view.resetExpandForNotch()
+                                let itemWidthUnderNotch = notchEndX - itemToExpandForNotch.x // Item width under the notch
+
+                                newMargin = notchWidth
+                                                // + itemWidthUnderNotch
+                                                // + (width - itemWidthUnderNotch) // Item width not under the notch
+                                                + ((width - itemWidthUnderNotch) * 2 ) // Item width not under the notch
+                            } else {
+                                ListView.view.delayedNotchAdjustment()
+                            }
+                        }
+                    }
+
+                    notchMargin = newMargin
+                }
+
+                /* Disabled for now since it sometimes causes continuous binding loop error
+                onImplicitWidthChanged: {
+                    if (!actuallyHidden && !expanded) {
+                        ListView.view.delayedNotchAdjustment()
+                    }
+                }
+                */
+
+                onActuallyHiddenChanged: {
+                    if (!actuallyHidden && !expanded) {
+                        notchExpandDelay.restart()
+                    } else {
+                        notchMargin = 0
+                        if (!expanded) {
+                            ListView.view.delayedNotchAdjustment()
+                        }
+                    }
+                }
+
+                Timer {
+                    id: notchExpandDelay
+
+                    running: false
+                    interval: 200
+                    onTriggered: setNotchMargin()
+                }
+                // ENH095 - End
             }
 
             pageDelegate: PanelMenuPage {
                 objectName: modelData.identifier + "-page"
                 submenuIndex: 0
 
+                // ENH046 - Lomiri Plus Settings
+                topPanelMargin: root.topPanelMargin
+                identifier: modelData.identifier
+                // ENH046 - End
                 menuModel: delegate.menuModel
 
                 factory: IndicatorMenuItemFactory {

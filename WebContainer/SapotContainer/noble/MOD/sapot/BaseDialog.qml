@@ -1,6 +1,6 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.12 as QQC2
-import QtQuick.Controls.Suru 2.2
+//~ import QtQuick.Controls.Suru 2.2
 
 QQC2.Dialog {
     id: baseDialog
@@ -42,10 +42,12 @@ QQC2.Dialog {
         horizontalAlignment: Text.AlignHCenter
         topPadding: units.gu(3)
         leftPadding: units.gu(2)
-        rightPadding: Suru.units.gu(2)
+        rightPadding: units.gu(2)
 
-        Suru.textLevel: Suru.HeadingThree
-        Suru.textStyle: Suru.PrimaryText
+//~         Suru.textLevel: Suru.HeadingThree
+        font.pixelSize: 0.875 * units.dp(22)
+        font.weight: Font.Light
+//~         Suru.textStyle: Suru.PrimaryText
     }
 
     KeyboardRectangle {

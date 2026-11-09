@@ -129,15 +129,16 @@ Item {
             property var clickedWorkspace: null
 
             orientation: ListView.Horizontal
-            spacing: units.gu(1)
+            spacing: units.gu(2)
             leftMargin: itemWidth
             rightMargin: itemWidth
+            contentX: anchors.leftMargin
 
             // FIXME: Screen orientation changed event does not trigger properly
-            // so we rely on height getting changed when rotating hence updating the value as needed
+            // so we rely on width/height getting changed when rotating hence updating the value as needed
             readonly property bool screenIsLandscape: screen.orientation == Qt.LandscapeOrientation
-                                                            || screen.orientation == Qt.InvertedLandscapeOrientation ? height > 0
-                                                                                                                     : height < 0
+                                                            || screen.orientation == Qt.InvertedLandscapeOrientation ? width > 0 || height > 0
+                                                                                                                     : width < 0 || height < 0
 
             // Get the screen size based on screen's current orientation
             readonly property var screenSize: screen.availableModes[screen.currentModeIndex].size

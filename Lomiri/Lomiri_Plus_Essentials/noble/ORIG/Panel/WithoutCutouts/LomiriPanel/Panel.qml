@@ -26,11 +26,12 @@ import Lomiri.ApplicationMenu 0.1
 
 import QtQuick.Window 2.2
 
-import "../ApplicationMenus"
-import "../Components"
-import "../Components/PanelState"
-import ".."
-import "Indicators"
+import "../../../ApplicationMenus"
+import "../../../Components"
+import "../../../Components/PanelState"
+import "../../.."
+import "../../Indicators"
+import "../.."
 
 Item {
     id: root
@@ -42,6 +43,7 @@ Item {
     property real expandedPanelHeight: units.gu(7)
     property real menuWidth: partialWidth ? units.gu(40) : width
     property alias applicationMenuContentX: __applicationMenus.menuContentX
+    property int screenIndex: -1
 
     property alias applicationMenus: __applicationMenus
     property alias indicators: __indicators
@@ -51,7 +53,6 @@ Item {
     property bool hasKeyboard: false
     property bool supportsMultiColorLed: true
     property var blurSource : null
-    property bool lightMode : false
 
     // Whether our expanded menus should take up the full width of the panel
     property bool partialWidth: width >= units.gu(60)
@@ -172,7 +173,7 @@ Item {
         Rectangle {
             id: panelAreaBackground
             color: callHint.visible ? theme.palette.normal.activity :
-                       (root.lightMode ? "#FFFFFF" : "#000000")
+                       Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
             anchors {
                 top: parent.top
                 left: parent.left
@@ -302,7 +303,6 @@ Item {
                               0,
                               root.width,
                               root.height)
-            lightMode: root.lightMode
 
             onShowTapped: {
                 if (callHint.active) {

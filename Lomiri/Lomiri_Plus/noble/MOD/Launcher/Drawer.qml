@@ -52,7 +52,6 @@ FocusScope {
     visible: x > -width
     property var fullyOpen: x === 0
     property var fullyClosed: x === -width
-    property bool lightMode : false
     // ENH007 - Bottom search in drawer
     property bool inverted
     // ENH007 - End
@@ -319,12 +318,13 @@ FocusScope {
         // ENH170 - End
         anchors.fill: parent
         // ENH165 - Drawer appearance settings
-        // color: root.lightMode ? "#CAFEFEFE" : "#BF000000"
-        readonly property color panelColor: shell.settings.useCustomDrawerColor ? shell.settings.customDrawerColor : root.lightMode ? "#CAFEFEFE" : "#BF000000"
+        // color: theme.palette.normal.background.hslLightness >= 0.5 ? "#CAFEFEFE" : "#BF000000"
+        readonly property color panelColor: shell.settings.useCustomDrawerColor ? shell.settings.customDrawerColor
+                                                    : theme.palette.normal.background.hslLightness >= 0.5 ? "#CAFEFEFE" : "#BF000000"
         readonly property real colorOpacity: shell.settings.useCustomDrawerOpacity ? shell.settings.customDrawerOpacity : 1
         color: shell.settings.useCustomDrawerColor || shell.settings.useCustomDrawerOpacity
                     ? Qt.hsla(panelColor.hslHue, panelColor.hslSaturation, panelColor.hslLightness, colorOpacity)
-                    : root.lightMode ? "#CAFEFEFE" : "#BF000000"
+                    : theme.palette.normal.background.hslLightness >= 0.5 ? "#CAFEFEFE" : "#BF000000"
         // ENH165 - End
 
         MouseArea {
@@ -1240,7 +1240,7 @@ FocusScope {
                             y: -units.gu(0.5)
                             active: label.truncated && (drawerDelegate.hovered || drawerDelegate.focused)
                             sourceComponent: Rectangle {
-                                color: root.lightMode ? LomiriColors.porcelain : LomiriColors.jet
+                                color: theme.palette.normal.background.hslLightness >= 0.5 ? LomiriColors.porcelain : LomiriColors.jet
                                 width: fullLabel.contentWidth + units.gu(1)
                                 height: fullLabel.height + units.gu(1)
                                 radius: units.dp(4)

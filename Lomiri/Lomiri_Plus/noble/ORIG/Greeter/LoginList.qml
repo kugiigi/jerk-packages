@@ -40,7 +40,7 @@ StyledItem {
     readonly property int highlightedHeight: highlightItem.height
     readonly property int moveDuration: LomiriAnimation.FastDuration
     property string currentSession // Initially set by LightDM
-    readonly property string currentUser: userList.currentItem.username
+    readonly property string currentUser: userList.currentItem && userList.currentItem.username
 
     readonly property alias currentUserIndex: userList.currentIndex
 

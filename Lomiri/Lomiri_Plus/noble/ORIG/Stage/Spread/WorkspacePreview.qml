@@ -154,18 +154,31 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        border.color: LomiriColors.ash
+        border.color: LomiriColors.porcelain
         border.width: units.gu(.5)
         color: "transparent"
+        opacity: 0.3
+        antialiasing: true
         visible: previewSpace.isActive
     }
 
     Rectangle {
         anchors.fill: parent
-        border.color: LomiriColors.blue
-        border.width: units.gu(.5)
+        border.color: LomiriColors.porcelain
+        border.width: units.gu(.3)
         color: "transparent"
+        opacity: 0.3
+        antialiasing: true
         visible: previewSpace.isSelected
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: LomiriColors.jet
+        opacity: previewSpace.isSelected || previewSpace.isActive
+                    || previewSpace.containsDragLeft || previewSpace.containsDragRight ? 0 : 0.5
+        antialiasing: true
+        Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
     }
 
     Rectangle {

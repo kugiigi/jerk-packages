@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import QtQuick.Controls 2.2
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import QtWebEngine 1.5
 import Morph.Web 0.1
 import ".." as Common
@@ -316,8 +316,8 @@ FocusScope {
 
         Connections {
             target: domainSettingsViewLoader.item
-            onDone: domainSettingsViewLoader.active = false
-            onReload: {
+            function onDone() { domainSettingsViewLoader.active = false }
+            function onReload() {
                 domainSettingsViewLoader.active = false
                 domainSettingsViewLoader.active = true
 
@@ -340,8 +340,8 @@ FocusScope {
 
         Connections {
             target: domainPermissionsViewLoader.item
-            onDone: domainPermissionsViewLoader.active = false
-            onReload: {
+            function onDone() { domainPermissionsViewLoader.active = false }
+            function onReload() {
                 domainPermissionsViewLoader.active = false
                 domainPermissionsViewLoader.active = true
 

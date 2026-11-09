@@ -17,7 +17,7 @@
 
 import QtQuick 2.15
 import Lomiri.Components 1.3
-import "../Components"
+import "../../../Components"
 
 Item {
     id: root
@@ -30,7 +30,6 @@ Item {
     readonly property alias currentItemIndex: row.currentItemIndex
     property real lateralPosition: -1
     property int alignment: Qt.AlignRight
-    property bool lightMode: false
     readonly property int rowContentX: row.contentX
 
     property alias hideRow: row.hideRow
@@ -40,11 +39,8 @@ Item {
     property real contentLeftMargin: 0
     // ENH002 - End
     // ENH095 - Middle notch support
-    property real contentTopMargin: shell.adjustForMiddleNotch && expanded && !inverted ? shell.deviceConfiguration.notchHeightMargin : 0
+    property real contentTopMargin: shell.adjustForMiddleNotch && expanded ? shell.deviceConfiguration.notchHeightMargin : 0
     // ENH095 - End
-    // ENH028 - Open indicators via gesture
-    property bool inverted: false
-    // ENH028 - End
 
     implicitWidth: flickable.contentWidth
 
@@ -180,36 +176,6 @@ Item {
         }
     }
 
-    // ENH028 - Open indicators via gesture
-    Rectangle {
-        id: grayLine
-        height: units.dp(2)
-        width: parent.width
-        // anchors.bottom: parent.bottom
-        states: [
-            State {
-                when: root.inverted
-                AnchorChanges {
-                    target: grayLine
-                    anchors.top: parent.top
-                    anchors.bottom: undefined
-                }
-            }
-            , State {
-                when: !root.inverted
-                AnchorChanges {
-                    target: grayLine
-                    anchors.top: undefined
-                    anchors.bottom: parent.bottom
-                }
-            }
-        ]
-        color: "#888888"
-        opacity: expanded ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: LomiriAnimation.SnapDuration } }
-    }
-    // ENH028 - End
-
     Item {
         id: rowContainer
         anchors.fill: parent
@@ -253,14 +219,10 @@ Item {
             PanelItemRow {
                 id: row
                 objectName: "panelItemRow"
-                lightMode: root.lightMode
                 anchors {
                     top: parent.top
                     bottom: parent.bottom
                 }
-                // ENH028 - Open indicators via gesture
-                inverted: root.inverted
-                // ENH028 - End
 
                 // Compensate for the Flickable rotation (ie, counter-rotate)
                 rotation: root.alignment != Qt.AlignRight ? 0 : 180

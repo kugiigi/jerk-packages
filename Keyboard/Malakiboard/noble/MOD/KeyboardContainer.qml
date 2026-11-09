@@ -69,10 +69,7 @@ Item {
         visible: panel.state === "SYMBOLS"
         // ENH214 - End
         source: internal.symbolKeypadSource
-        // ENH231 - Fix caps lock when 2nd layer symbols
-        // onLoaded: internal.afterKeypadLoaded(symbolKeypadLoader)
         onVisibleChanged: internal.afterKeypadLoaded(symbolKeypadLoader)
-        // ENH231 - End
     }
     // ENH214 - Emoji mode
     Loader {
@@ -81,10 +78,7 @@ Item {
         asynchronous: false
         visible: panel.state === "EMOJI"
         source: internal.emojiKeypadSource
-        // ENH231 - Fix caps lock when 2nd layer symbols
-        //onLoaded: internal.afterKeypadLoaded(emojiLoader)
         onVisibleChanged: internal.afterKeypadLoaded(emojiLoader)
-        // ENH231 - End
     }
     // ENH214 - End
 
@@ -102,10 +96,7 @@ Item {
         asynchronous: false
         visible: panel.state === "CHARACTERS"
         source: internal.characterKeypadSource
-        // ENH231 - Fix caps lock when 2nd layer symbols
-        // onLoaded: internal.afterKeypadLoaded(characterKeypadLoader)
         onVisibleChanged: internal.afterKeypadLoaded(characterKeypadLoader)
-        // ENH231 - End
     }
 
     // ENH081 - Number row

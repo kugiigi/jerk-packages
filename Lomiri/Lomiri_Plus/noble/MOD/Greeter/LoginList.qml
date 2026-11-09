@@ -43,7 +43,7 @@ StyledItem {
     readonly property int highlightedHeight: highlightItem.height
     readonly property int moveDuration: LomiriAnimation.FastDuration
     property string currentSession // Initially set by LightDM
-    readonly property string currentUser: userList.currentItem.username
+    readonly property string currentUser: userList.currentItem && userList.currentItem.username
 
     readonly property alias currentUserIndex: userList.currentIndex
 
@@ -218,7 +218,10 @@ StyledItem {
                         color: userList.currentIndex !== index ? theme.palette.normal.raised
                                                                : theme.palette.normal.raisedSecondaryText
                         font.weight: userList.currentIndex === index ? Font.Normal : Font.Light
-                        font.pointSize: units.gu(2)
+                        // ENH271 - Workarounds for External Display Plug/Unplug
+                        // font.pointSize: units.gu(2)
+                        font.pixelSize: units.gu(3)
+                        // ENH271 - End
 
                         width: highlightItem.width
                                 && contentWidth > highlightItem.width - userIcon.width - units.gu(4)

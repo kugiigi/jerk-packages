@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import Morph.Web 0.1
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import Qt.labs.settings 1.0
 
 Item {
@@ -72,7 +72,7 @@ Item {
 
     Connections {
         target: Qt.application
-        onAboutToQuit: {
+        function onAboutToQuit() {
             webviewOverlayUrlsSettings.overlayUrls = "[]"
         }
     }
@@ -105,9 +105,13 @@ Item {
     }
     function handleNewViewAdded(view) {
         if (views.length !== 0) {
+            // Hide the view below the new one
             var topView = views[views.length-1]
+            topView.visible = false
         }
         views.push(view)
+        mainWebappView.visible = false
+        
 
         view.webviewUrlChanged.connect(function(webviewUrl) {
             onUrlUpdatedForOverlay(view, webviewUrl)
@@ -140,8 +144,10 @@ Item {
 
         var topMostView = views[views.length-1]
         if (topMostView !== view) {
+            mainWebappView.visible = true
             return
         }
+
         views.pop()
         if (internal.urlPerOverlayView) {
             delete internal.urlPerOverlayView[topMostView]
@@ -184,6 +190,7 @@ Item {
             var parentHeight = view.parent.height
 
             if (view.y <= 10) {
+                handleNewViewAdded(view)
                 view.yChanged.disconnect(onViewSlidingIn)
 
                 updateViewVisibility(topMostView, false)
@@ -192,7 +199,7 @@ Item {
         view.yChanged.connect(onViewSlidingIn)
 
         view.y = 0
-        handleNewViewAdded(view)
+        // handleNewViewAdded(view)
         newViewCreated(view.url)
     }
     function createPopupViewForRequest(parentView, request, isRequestFromMainWebappWebview, context) {

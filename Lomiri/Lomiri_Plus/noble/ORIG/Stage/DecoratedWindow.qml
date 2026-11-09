@@ -51,7 +51,6 @@ FocusScope {
     property int highlightSize: units.gu(1)
     property real shadowOpacity: 0
     property bool darkening: false
-    property bool lightMode: false
 
     property real requestedWidth
     property real requestedHeight
@@ -91,6 +90,9 @@ FocusScope {
     signal minimizeClicked()
     signal decorationPressed()
     signal decorationReleased()
+    signal dragResizePressed(point mouse)
+    signal dragResizeReleased(point mouse)
+    signal dragResizePositionChanged(point mouse)
 
     function cancelDrag() {
         moveHandler.cancelDrag();
@@ -148,9 +150,10 @@ FocusScope {
         objectName: "selectionHighlight"
         anchors.fill: parent
         anchors.margins: -root.highlightSize
-        color: "white"
-        opacity: showHighlight ? 0.55 : 0
+        color: LomiriColors.porcelain
+        opacity: showHighlight ? 0.3 : 0
         visible: opacity > 0
+        antialiasing: true
     }
 
     BorderImage {
@@ -216,13 +219,14 @@ FocusScope {
         closeButtonVisible: true
         objectName: "appWindowDecoration"
 
+        property bool wasDoubleClicked: false
+
         anchors { left: parent.left; top: parent.top; right: parent.right }
         height: units.gu(3) // a default value. overwritten by root.decorationHeight
 
         title: applicationWindow.title
         windowMoving: moveHandler.moving && !altDragHandler.dragging
         panelState: root.panelState
-        lightMode: root.lightMode
 
         opacity: root.hasDecoration ? Math.min(1, root.showDecoration) : 0
         Behavior on opacity { LomiriNumberAnimation { } }
@@ -233,9 +237,13 @@ FocusScope {
         onPressedChangedEx: moveHandler.handlePressedChanged(pressed, pressedButtons, mouseX, mouseY)
         onPositionChanged: moveHandler.handlePositionChanged(mouse)
         onReleased: {
-            root.decorationReleased();
-            moveHandler.handleReleased();
+            if (!wasDoubleClicked) {
+                root.decorationReleased();
+                moveHandler.handleReleased();
+            }
+            wasDoubleClicked = false;
         }
+        onDoubleClicked: wasDoubleClicked = true;
 
         onCloseClicked: root.closeClicked();
         onMaximizeClicked: { root.decorationPressed(); root.maximizeClicked(); }
@@ -278,8 +286,9 @@ FocusScope {
     MouseArea {
         id: altDragHandler
         anchors.fill: applicationWindow
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         property bool dragging: false
+        property bool draggingForResize: false
         cursorShape: undefined // don't interfere with the cursor shape set by the underlying MirSurfaceItem
         visible: enabled
         onPressed: {
@@ -288,6 +297,10 @@ FocusScope {
                 moveHandler.handlePressedChanged(true, Qt.LeftButton, mouse.x, mouse.y);
                 dragging = true;
                 mouse.accepted = true;
+            } else if (mouse.button == Qt.RightButton && mouse.modifiers & Qt.AltModifier) {
+                root.dragResizePressed(Qt.point(mouse.x, mouse.y))
+                draggingForResize = true;
+                mouse.accepted = true;
             } else {
                 mouse.accepted = false;
             }
@@ -295,6 +308,8 @@ FocusScope {
         onPositionChanged: {
             if (dragging) {
                 moveHandler.handlePositionChanged(mouse);
+            } else if (draggingForResize) {
+                root.dragResizePositionChanged(Qt.point(mouse.x, mouse.y))
             }
         }
         onReleased: {
@@ -303,6 +318,9 @@ FocusScope {
                 root.decorationReleased();  // commits the fake preview max rectangle
                 moveHandler.handleReleased();
                 dragging = false;
+            } else if (draggingForResize) {
+                root.dragResizeReleased(Qt.point(mouse.x, mouse.y))
+                draggingForResize = false;
             }
         }
     }
@@ -316,8 +334,9 @@ FocusScope {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
-        opacity: root.darkening && !root.showHighlight ? 0.05 : 0
+        color: LomiriColors.jet
+        antialiasing: true
+        opacity: root.darkening && !root.showHighlight ? 0.5 : 0
         Behavior on opacity { LomiriNumberAnimation { duration: LomiriAnimation.SnapDuration } }
     }
 }

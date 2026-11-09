@@ -32,6 +32,7 @@ IndicatorDelegate {
     // ENH097 - End
     property var icons: undefined
     property bool expanded: false
+    property bool finishedExpanding: false
     property bool selected: false
     property real iconHeight: units.gu(2)
     readonly property color color: {
@@ -58,6 +59,11 @@ IndicatorDelegate {
     property bool lowBattery: false
     property bool batteryCharging: false
     // ENH097 - End
+
+    Behavior on x {
+        enabled: expanded && finishedExpanding && !stateTransition.running
+        NumberAnimation { duration: LomiriAnimation.SnapDuration }
+    }
 
     implicitWidth: mainItems.width
 

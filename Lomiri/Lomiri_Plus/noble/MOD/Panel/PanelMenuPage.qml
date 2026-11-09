@@ -368,7 +368,6 @@ PageStack {
                                 Layout.fillWidth: true
 
                                 visible: shell.focusedAppName !== ""  && shell.settings.enableAppSuspensionToggleIndicator
-                                                && !shell.isWindowedMode
                                 text: "Do not suspend"
                                 iconSource: shell.focusedAppIcon
                                 highlightWhenPressed: false
@@ -531,23 +530,20 @@ PageStack {
                                     value: shell.settings.batterySaverMode
                                 }
                             }
-                            Menus.SwitchMenu {
-                                id: extremeBatterySaverModeSwitch
-
+                            OptionSelector {
                                 Layout.fillWidth: true
-
-                                visible: shell.isWindowedMode && shell.settings.batterySaverMode
-                                text: "Extreme Battery Saver"
-                                iconSource: "image://theme/gpm-battery-missing"
-                                highlightWhenPressed: false
-
-                                onCheckedChanged: shell.settings.extremeBatterySaverMode = checked
-
-                                Binding {
-                                    target: extremeBatterySaverModeSwitch
-                                    property: "checked"
-                                    value: shell.settings.extremeBatterySaverMode
-                                }
+                                Layout.margins: units.gu(2)
+                                Layout.leftMargin: units.gu(4)
+                                visible: shell.settings.batterySaverMode
+                                text: i18n.tr("Level")
+                                model: [
+                                    "Standard"
+                                    , "High"
+                                    , "Extreme"
+                                ]
+                                containerHeight: itemHeight * 6
+                                selectedIndex: shell.settings.batterySaverModeLevel
+                                onSelectedIndexChanged: shell.settings.batterySaverModeLevel = selectedIndex
                             }
                             // ENH267 - End
                             Menus.BaseLayoutMenu {

@@ -17,7 +17,8 @@
 
 import QtQuick 2.15
 import Lomiri.Components 1.3
-import "../Components"
+import "../../.."
+import "../../../Components"
 
 Item {
     id: root
@@ -34,7 +35,6 @@ Item {
     property real unitProgress: 0.0
     property real selectionChangeBuffer: units.gu(2)
     property bool enableLateralChanges: false
-    property bool lightMode: false
 
     property alias delegate: row.delegate
     property alias contentX: row.contentX

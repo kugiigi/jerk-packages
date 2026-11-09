@@ -74,16 +74,15 @@ Rectangle {
     }
     property color drawerBGColor: "white"
     // ENH167 - End
-    property bool lightMode : false
-    // color: lightMode ? "#F2FEFEFE" : "#F2111111"
+    // color: theme.palette.normal.background.hslLightness >= 0.5 ? "#F2FEFEFE" : "#F2111111"
     // ENH167 - Behavior changes for custom opacity/color of components
     //color: shell.settings.useCustomLauncherColor || shell.settings.useCustomLauncherOpacity ? Qt.hsla(panelColor.hslHue, panelColor.hslSaturation, panelColor.hslLightness, colorOpacity)
-    //            : lightMode ? "#F2FEFEFE" : "#F2111111"
+    //            : theme.palette.normal.background.hslLightness >= 0.5 ? "#F2FEFEFE" : "#F2111111"
     color: shell.settings.customLauncherOpacityBehavior && drawerProgress >= progressThreshold
                     ? Qt.hsla(drawerBGColor.hslHue, drawerBGColor.hslSaturation, drawerBGColor.hslLightness, colorOpacity)
                     : shell.settings.useCustomLauncherColor
                         || shell.settings.useCustomLauncherOpacity ? Qt.hsla(panelColor.hslHue, panelColor.hslSaturation, panelColor.hslLightness, colorOpacity)
-                                                                   : lightMode ? "#F2FEFEFE" : "#F2111111"
+                                                                   : theme.palette.normal.background.hslLightness >= 0.5 ? "#F2FEFEFE" : "#F2111111"
     // ENH167 - End
     // ENH164 - End
     // ENH167 - Behavior changes for custom opacity/color of components
@@ -105,6 +104,7 @@ Rectangle {
                                  || dndArea.containsMouse || dashItem.hovered
     property int highlightIndex: -2
     property bool shortcutHintsShown: false
+    readonly property bool hasPeekingIcon: launcherListView.peekingIndex !== -1
     readonly property bool quickListOpen: quickList.state === "open"
     readonly property bool dragging: launcherListView.dragging || dndArea.dragging
 
@@ -486,13 +486,25 @@ Rectangle {
                         count: model.count
                         countVisible: model.countVisible
                         progress: model.progress
+                        // ENH271 - Workarounds for External Display Plug/Unplug
+                        // Workaround since "running" value is not correct after plugging/unplugging
+                        // Disable for now since it's not perfect
+                        // Open pinned apps are not detected as pinned when plugging
                         itemRunning: model.running
+                        //itemRunning: model.running ? model.running : LauncherModel.applicationManager.findApplication(model.appId) !== null
+                        // ENH271 - End
                         itemFocused: model.focused
                         inverted: root.inverted
                         alerting: model.alerting
                         highlighted: root.highlightIndex == index
                         shortcutHintShown: root.shortcutHintsShown && index <= 9
+                        // ENH271 - Workarounds for External Display Plug/Unplug
+                        // Workaround since "surfaceCount" value is not correct after plugging/unplugging
+                        // Disable for now since it's not perfect
+                        // Open pinned apps are not detected as pinned when plugging
                         surfaceCount: model.surfaceCount
+                        //surfaceCount: model.surfaceCount ? model.surfaceCount : LauncherModel.applicationManager.findApplication(model.appId) !== null ? 1 : 0
+                        // ENH271 - End
                         z: -Math.abs(offset)
                         maxAngle: 55
                         property bool dragging: false
@@ -508,7 +520,6 @@ Rectangle {
                             objectName: "peekingAnimation" + index
 
                             // revealing
-                            PropertyAction { target: root; property: "visible"; value: (launcher.visibleWidth === 0) ? 1 : 0 }
                             PropertyAction { target: launcherListViewItem; property: "clip"; value: 0 }
 
                             LomiriNumberAnimation {
@@ -531,7 +542,6 @@ Rectangle {
                             }
 
                             PropertyAction { target: launcherListViewItem; property: "clip"; value: 1 }
-                            PropertyAction { target: root; property: "visible"; value: (launcher.visibleWidth === 0) ? 1 : 0 }
                             PropertyAction { target: launcherListView; property: "peekingIndex"; value: -1 }
                         }
 

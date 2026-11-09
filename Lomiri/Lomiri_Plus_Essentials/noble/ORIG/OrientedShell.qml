@@ -38,6 +38,7 @@ Item {
     property bool lightIndicators: false
 
     property var screen: null
+    property alias screenIndex: shell.screenIndex
     Connections {
         target: screen
         function onFormFactorChanged() { calculateUsageMode(); }

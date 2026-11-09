@@ -18,8 +18,9 @@
 import QtQuick 2.15
 import Lomiri.Components 1.3
 import Lomiri.Gestures 0.1
-import "../Components"
-import "Indicators"
+import "../../../Components"
+import "../../Indicators"
+import "../.."
 
 Showable {
     id: root
@@ -33,23 +34,16 @@ Showable {
     property real openedHeight: units.gu(71)
     property bool enableHint: true
     property bool showOnClick: true
-    property color panelColor: lightMode ? "#FFFFFF" : "#000000"
+    property color panelColor: Qt.hsla(0, 0, Math.round(theme.palette.normal.background.hslLightness), 1)
     property real menuContentX: 0
 
     property alias alignment: bar.alignment
     property alias hideRow: bar.hideRow
     property alias rowItemDelegate: bar.rowItemDelegate
     property alias pageDelegate: content.pageDelegate
-    // ENH002 - Notch/Punch hole fix
-    property alias contentRightMargin: bar.contentRightMargin
-    property alias contentLeftMargin: bar.contentLeftMargin
-    property real leftMarginBlur
-    property real topMarginBlur
-    // ENH002 - End
 
     property var blurSource : null
     property rect blurRect : Qt.rect(0, 0, 0, 0)
-    property bool lightMode : false
 
     readonly property real unitProgress: Math.max(0, (height - minimizedPanelHeight) / (openedHeight - minimizedPanelHeight))
     readonly property bool fullyOpened: unitProgress >= 1
@@ -197,13 +191,9 @@ Showable {
         expanded: false
         enableLateralChanges: false
         lateralPosition: -1
-        lightMode: root.lightMode
         unitProgress: root.unitProgress
 
-        // ENH095 - Middle notch support
-        // height: expanded ? expandedPanelHeight : minimizedPanelHeight
-        height: (expanded ? expandedPanelHeight : minimizedPanelHeight) + contentTopMargin
-        // ENH095 - End
+        height: expanded ? expandedPanelHeight : minimizedPanelHeight
         Behavior on height { NumberAnimation { duration: LomiriAnimation.SnapDuration; easing: LomiriAnimation.StandardEasing } }
     }
 
@@ -277,12 +267,7 @@ Showable {
         // using hint regulates minimum to hint displacement, but in fullscreen mode, we need to do it manually.
         overrideStartValue: enableHint ? minimizedPanelHeight : expandedPanelHeight + handle.height
         maxTotalDragDistance: openedHeight - (enableHint ? minimizedPanelHeight : expandedPanelHeight + handle.height)
-        // ENH095 - Middle notch support
-        // hintDisplacement: enableHint ? expandedPanelHeight - minimizedPanelHeight + handle.height : 0
-        hintDisplacement: enableHint ? shell.adjustForMiddleNotch ? expandedPanelHeight + handle.height
-                                                                : expandedPanelHeight - minimizedPanelHeight + handle.height
-                                     : 0
-        // ENH095 - End
+        hintDisplacement: enableHint ? expandedPanelHeight - minimizedPanelHeight + handle.height : 0
     }
 
     MouseArea {

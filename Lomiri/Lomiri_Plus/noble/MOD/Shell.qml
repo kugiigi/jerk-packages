@@ -34,6 +34,9 @@ import SessionBroadcast 0.1
 import "Greeter"
 import "Launcher"
 import "Panel"
+// ENH002 - Notch/Punch hole fix
+import "Panel/WithoutCutouts/LomiriPanel" as WihtouCutouts
+// ENH002 - End
 import "Components"
 import "Notifications"
 import "Stage"
@@ -45,6 +48,7 @@ import Lomiri.Session 0.1
 import Lomiri.Indicators 0.1 as Indicators
 import Cursor 1.1
 import WindowManager 1.0
+import LomiriPanel 1.0
 // ENH046 - Lomiri Plus Settings
 import Qt.labs.settings 1.0
 import QtQuick.Controls 2.12 as QQC2
@@ -74,6 +78,12 @@ import QtSensors 5.12
 StyledItem {
     id: shell
 
+    DeviceConfiguration {
+        id: deviceConfig
+         // ENH046 - Lomiri Plus Settings
+        shell: shell
+        // ENH046 - End
+    }
     // ENH133 - Hot corners
     enum HotCorner {
         Drawer
@@ -105,11 +115,12 @@ StyledItem {
                             "Lomiri.Components.Themes.SuruDark"
 
     // ENH002 - Notch/Punch hole fix
-    property alias deviceConfiguration: deviceConfiguration
+    property alias deviceConfiguration: deviceConfig
+    property bool useCustomNotchSolution: shell.settings.useCustomNotchSolution
     // ENH036 - Use punchole as battery indicator
-    //property real shellMargin: shell.isBuiltInScreen ? deviceConfiguration.notchHeightMargin : 0
-    property real shellMargin: shell.isBuiltInScreen && shell.deviceConfiguration.withNotch
-                            ? deviceConfiguration.notchHeightMargin + (orientation == 1 && panel.batteryCircleEnabled ? panel.batteryCircleBorder : 0)
+    //property real shellMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen ? deviceConfiguration.notchHeightMargin : 0
+    property real shellMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen && shell.deviceConfiguration.withNotch
+                            ? shell.deviceConfiguration.notchHeightMargin + (orientation == 1 && panel.batteryCircleEnabled ? panel.batteryCircleBorder : 0)
                                 : 0
     readonly property bool isRightNotch: deviceConfiguration.notchPosition == "right"
     readonly property bool isMiddleNotch: deviceConfiguration.notchPosition == "middle"
@@ -134,7 +145,7 @@ StyledItem {
         return 0
     }
     property real shellBottomMargin: {
-        if (orientation == 4) return shellMargin
+        if (orientation == 4) return shellMargin + navigationButtonsHeight
         if (orientation == 1) return navigationButtonsHeight
 
         return 0
@@ -165,6 +176,14 @@ StyledItem {
     property alias lpsettingsLoader: settingsLoader
     readonly property bool settingsShown: settingsLoader.active
     Suru.theme: shell.lightMode ? Suru.Light : Suru.Dark
+    // Workaround where the system changes the value when changing app theme
+    // Without this, Settings dialog breaks when moving to light mode
+    Suru.onThemeChanged: suruThemeDelay.restart()
+    Timer {
+        id: suruThemeDelay
+        interval: 1
+        onTriggered: shell.Suru.theme = Qt.binding( function() { return shell.lightMode ? Suru.Light : Suru.Dark } )
+    }
     // ENH046 - End
     // ENH216 - Right Edge gesture for Waydroid
     readonly property bool foregroundAppIsWaydroid: stage.focusedAppId === "Waydroid"
@@ -194,7 +213,7 @@ StyledItem {
     property alias popupParent: popupSurface
     // ENH114 - End
     // ENH095 - Middle notch support
-    readonly property bool adjustForMiddleNotch: shell.isBuiltInScreen && shell.orientation == 1
+    readonly property bool adjustForMiddleNotch: shell.useCustomNotchSolution && shell.isBuiltInScreen && shell.orientation == 1
                                                     && shell.deviceConfiguration.notchPosition == "middle" && !shell.deviceConfiguration.fullyHideNotchInPortrait
                                                         && shell.deviceConfiguration.notchHeightMargin > 0 && shell.deviceConfiguration.notchWidthMargin > 0
     // ENH095 - End
@@ -208,7 +227,7 @@ StyledItem {
                                                         )
                                                         || !shell.settings.onlyHideTopPanelonLandscape
                                                     )
-                                                && !isWindowedMode
+                                                //&& !isWindowedMode
     // ENH048 - End
     // ENH100 - Camera button to toggle rotation and OSK
     signal toggleRotation
@@ -540,6 +559,7 @@ StyledItem {
     property alias panelAreaShowProgress: panel.panelAreaShowProgress
     property string usageScenario: "phone" // supported values: "phone", "tablet" or "desktop"
     property string mode: "full-greeter"
+    property int screenIndex: -1
     property alias oskEnabled: inputMethod.enabled
     function updateFocusedAppOrientation() {
         stage.updateFocusedAppOrientation();
@@ -644,7 +664,7 @@ Notable features are the following:\n\
                 text: "Donate"
                 color: theme.palette.normal.negative
                 onClicked: {
-                    Qt.openUrlExternally("https://youtu.be/dQw4w9WgXcQ?si=flAd1M0i9Rvj-TFL")
+                    Qt.openUrlExternally("https://www.youtube.com/watch?v=UQSFIAnulXI")
                     dialog.close()
                 }
             }
@@ -898,7 +918,16 @@ Notable features are the following:\n\
     Timer {
         id: delayScreenshot
         interval: 100
-        onTriggered: itemGrabber.capture(shell);
+        // ENH273 - Option to screenshot OrientedShell
+        // onTriggered: itemGrabber.capture(shell);
+        onTriggered: {
+            let _item = shell;
+            if (shell.settings.screenshotOrientedShell) {
+                _item = shell.parent
+            }
+            itemGrabber.capture(_item);
+        }
+        // ENH273 - End
     }
     Action {
         id: closeAppAction
@@ -1764,6 +1793,7 @@ Notable features are the following:\n\
         property alias pauseMediaOnBluetoothAudioDisconnect: settingsObj.pauseMediaOnBluetoothAudioDisconnect
         property alias showNotificationBubblesAtTheBottom: settingsObj.showNotificationBubblesAtTheBottom
         property alias enableAdvancedScreenshot: settingsObj.enableAdvancedScreenshot
+        property alias screenshotOrientedShell: settingsObj.screenshotOrientedShell
         property alias enableSilentScreenshot: settingsObj.enableSilentScreenshot
         property alias tryToStabilizeAutoBrightness: settingsObj.tryToStabilizeAutoBrightness
         property alias disableVolumeWhenCamera: settingsObj.disableVolumeWhenCamera
@@ -1796,6 +1826,9 @@ Notable features are the following:\n\
         property alias autoBatterySaverModeInWindowedMode: settingsObj.autoBatterySaverModeInWindowedMode
         property alias windowSnapVisualHintAnimationSpeed: settingsObj.windowSnapVisualHintAnimationSpeed
         property alias enableHorizontalScrollLauncherDrawer: settingsObj.enableHorizontalScrollLauncherDrawer
+        property alias rotateActionAlternateOrientation: settingsObj.rotateActionAlternateOrientation
+        property alias rotateActionBasedOnPhysical: settingsObj.rotateActionBasedOnPhysical
+        property alias supportAllOrientations: settingsObj.supportAllOrientations
 
         // Privacy/ & Security
         property alias hideNotificationBodyWhenLocked: settingsObj.hideNotificationBodyWhenLocked
@@ -1815,6 +1848,7 @@ Notable features are the following:\n\
         property alias disableFingerprintWhileTypingBehavior: settingsObj.disableFingerprintWhileTypingBehavior
 
         // Device Config
+        property alias useCustomNotchSolution: settingsObj.useCustomNotchSolution
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
         property alias notchHeightMargin: settingsObj.notchHeightMargin
         property alias notchPosition: settingsObj.notchPosition
@@ -2153,6 +2187,7 @@ Notable features are the following:\n\
         property alias enableEyeFP: settingsObj.lp_enableEyeFP
         property alias ow_showSolarSystemOnDesktop: settingsObj.ow_showSolarSystemOnDesktop
         property alias ow_showSolarSystemOnDesktopRunAllTime: settingsObj.ow_showSolarSystemOnDesktopRunAllTime
+        property alias ow_showSolarSystemOnDesktopScale: settingsObj.ow_showSolarSystemOnDesktopScale
 
         // Dynamic Cove
         property alias enableDynamicCove: settingsObj.enableDynamicCove
@@ -2277,6 +2312,7 @@ Notable features are the following:\n\
         property alias detoxModePeriod: settingsObj.detoxModePeriod
         property alias detoxModeDuration: settingsObj.detoxModeDuration
         property alias customImagesList: settingsObj.customImagesList
+        property alias detoxModeExceptMobileData: settingsObj.detoxModeExceptMobileData
 
         // Extras
         property alias blueScreenNotYetShown: settingsObj.blueScreenNotYetShown
@@ -2288,7 +2324,16 @@ Notable features are the following:\n\
         property bool immersiveMode: false
         property bool showTouchVisuals: false
         property bool batterySaverMode: false
-        property bool extremeBatterySaverMode: false
+        property bool extremeBatterySaverMode: false // Obsolete
+        property int batterySaverModeLevel: 0
+        readonly property bool isStandardBatterySaver: batterySaverModeLevel === 0
+        readonly property bool isHighBatterySaver: batterySaverModeLevel === 1
+        readonly property bool isExtremeBatterySaver: batterySaverModeLevel === 2
+        /*
+         * 0 - Standard: Foreground apps in all workspaces are not suspeded
+         * 1 - High: Foreground apps in current workspaces are not suspended
+         * 2 - Extreme: Only the active app is not suspended
+         */
 
         // For Charging Alarm
         property bool temporaryEnableChargingAlarm: false
@@ -2390,7 +2435,6 @@ Notable features are the following:\n\
                 ShellNotifier.invertSideMouseScroll = Qt.binding( function() { return invertSideMouseScroll } )
                 ShellNotifier.sideMouseScrollSensitivity = Qt.binding( function() { return sideMouseScrollSensitivity } )
                 ShellNotifier.enableVirtualTouchpadScrollWorkaround = Qt.binding( function() { return enableVirtualTouchpadScrollWorkaround } )
-                ShellNotifier.enableVirtualTouchpadLowerClickThreshold = Qt.binding( function() { return enableVirtualTouchpadLowerClickThreshold } )
                 ShellNotifier.enableCustomClickBehavior = Qt.binding( function() { return airMouseEnableCustomClickBehavior } )
                 ShellNotifier.enableCustomOneTwoGestureBehavior = Qt.binding( function() { return enableCustomOneTwoGestureTouchpadBehavior } )
                 ShellNotifier.quickActionsHeight = Qt.binding( function() { return directActionsSwipeAreaHeight } )
@@ -3136,6 +3180,13 @@ Notable features are the following:\n\
             property bool includeOthersInStackedSnappedWindows: false
             property bool enableDynamicWorkspaces: false
             property bool enableHorizontalScrollLauncherDrawer: false
+            property bool useCustomNotchSolution: false
+            property bool screenshotOrientedShell: false
+            property real ow_showSolarSystemOnDesktopScale: 1
+            property bool detoxModeExceptMobileData: false
+            property int rotateActionAlternateOrientation: Qt.InvertedLandscapeOrientation
+            property bool rotateActionBasedOnPhysical: false
+            property bool supportAllOrientations: false
         }
     }
 
@@ -3732,6 +3783,11 @@ Notable features are the following:\n\
 
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Device Configuration"
+                onClicked: settingsLoader.item.stack.push(devicePage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Security & Privacy"
                 onClicked: settingsLoader.item.stack.push(privacyPage, {"title": text})
             }
@@ -3739,11 +3795,6 @@ Notable features are the following:\n\
                 Layout.fillWidth: true
                 text: "Features"
                 onClicked: settingsLoader.item.stack.push(featuresPage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
-                text: "Outer Wilds"
-                onClicked: settingsLoader.item.stack.push(outerWildsPage, {"title": text})
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
@@ -3767,11 +3818,6 @@ Notable features are the following:\n\
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
-                text: "Device Configuration"
-                onClicked: settingsLoader.item.stack.push(devicePage, {"title": text})
-            }
-            LPSettingsNavItem {
-                Layout.fillWidth: true
                 text: "Device Specific Hacks"
                 onClicked: settingsLoader.item.stack.push(deviceSpecificPage, {"title": text})
             }
@@ -3784,6 +3830,11 @@ Notable features are the following:\n\
                 Layout.fillWidth: true
                 text: "Extras"
                 onClicked: settingsLoader.item.stack.push(extrasPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
+                text: "Outer Wilds"
+                onClicked: settingsLoader.item.stack.push(outerWildsPage, {"title": text})
             }
         }
     }
@@ -4436,6 +4487,7 @@ Notable features are the following:\n\
                 Layout.fillWidth: true
                 Layout.margins: units.gu(2)
                 text: "This will show a prompt at the bottom whenever you take a screenshot. The prompt will allow you to do actions such as edit and share."
+                + "\n\nNOTE: This disables the built-in screenshot editor"
                 wrapMode: Text.WordWrap
                 font.italic: true
                 textSize: Label.Small
@@ -4450,6 +4502,29 @@ Notable features are the following:\n\
                     property: "checked"
                     value: shell.settings.enableAdvancedScreenshot
                 }
+            }
+            LPSettingsCheckBox {
+                id: screenshotOrientedShell
+                Layout.fillWidth: true
+                text: "Increase scope of screenshot to capture more elements"
+                onCheckedChanged: shell.settings.screenshotOrientedShell = checked
+                Binding {
+                    target: screenshotOrientedShell
+                    property: "checked"
+                    value: shell.settings.screenshotOrientedShell
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "This will allow screenshots to include elements that are usually not shown such as floating rotate button and Navigation Buttons. \
+However, this might also show unintended or supposedly hidden elements \
+\n\nNOTE: Screenshots won't rotate with the device so you'll have to rotate them manually."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
         }
     }
@@ -4578,6 +4653,17 @@ Notable features are the following:\n\
                     target: detoxModeEnabled
                     property: "checked"
                     value: shell.settings.detoxModeEnabled
+                }
+            }
+            LPSettingsCheckBox {
+                id: detoxModeExceptMobileData
+                Layout.fillWidth: true
+                text: "Disable when using Mobile Data"
+                onCheckedChanged: shell.settings.detoxModeExceptMobileData = checked
+                Binding {
+                    target: detoxModeExceptMobileData
+                    property: "checked"
+                    value: shell.settings.detoxModeExceptMobileData
                 }
             }
             OptionSelector {
@@ -5526,6 +5612,11 @@ Notable features are the following:\n\
             }
             LPSettingsNavItem {
                 Layout.fillWidth: true
+                text: "Rotate Screen Action"
+                onClicked: settingsLoader.item.stack.push(rotateScreenActionPage, {"title": text})
+            }
+            LPSettingsNavItem {
+                Layout.fillWidth: true
                 text: "Sensor Gestures"
                 onClicked: settingsLoader.item.stack.push(sensorGesturesPage, {"title": text})
             }
@@ -5664,6 +5755,78 @@ Notable features are the following:\n\
                     property: "text"
                     value: shell.settings.touchVisualColor
                 }
+            }
+        }
+    }
+    Component {
+        id: rotateScreenActionPage
+        
+        LPSettingsPage {
+            Label {
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                text: "A rotate action is available in various features such as Quick Actions and Navigation Buttons."
+                + "\nOn external displays, it toggles between all orientations."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
+            LPSettingsCheckBox {
+                id: rotateActionBasedOnPhysical
+                Layout.fillWidth: true
+                text: "Rotate based on device's physical orientation"
+                onCheckedChanged: shell.settings.rotateActionBasedOnPhysical = checked
+                Binding {
+                    target: rotateActionBasedOnPhysical
+                    property: "checked"
+                    value: shell.settings.rotateActionBasedOnPhysical
+                }
+            }
+            OptionSelector {
+                 id: orientationSelector
+
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                visible: !shell.settings.rotateActionBasedOnPhysical
+                text: i18n.tr("Alternate Orientation")
+                model: [
+                    { "name": "Portrait", "value": Qt.PortraitOrientation },
+                    { "name": "Landscape", "value": Qt.LandscapeOrientation },
+                    { "name": "Inverted Portrait", "value": Qt.InvertedPortraitOrientation },
+                    { "name": "Inverted Lanscape", "value": Qt.InvertedLandscapeOrientation },
+                ]
+                containerHeight: itemHeight * 6
+                selectedIndex: {
+                    const _index = model.findIndex((element) => (element.value == shell.settings.rotateActionAlternateOrientation));
+                    return _index > -1 ? _index : 0
+                }
+                onSelectedIndexChanged: shell.settings.rotateActionAlternateOrientation = model[selectedIndex].value
+                delegate: selectorDelegate
+            }
+            Component {
+                id: selectorDelegate
+                OptionSelectorDelegate { text: modelData.name }
+            }
+            LPSettingsCheckBox {
+                id: supportAllOrientations
+                Layout.fillWidth: true
+                text: "Support all orientations"
+                onCheckedChanged: shell.settings.supportAllOrientations = checked
+                Binding {
+                    target: supportAllOrientations
+                    property: "checked"
+                    value: shell.settings.supportAllOrientations
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "Some devices don't support all orientaions especially inverted portrait."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
             }
         }
     }
@@ -6317,6 +6480,30 @@ Notable features are the following:\n\
                     value: shell.settings.delayedAppSuspensionDuration
                 }
             }
+            LPSettingsCheckBox {
+                id: autoBatterySaverModeInWindowedMode
+                Layout.fillWidth: true
+                text: "Automatically enter Battery Saver mode when entering Windowed mode"
+                onCheckedChanged: shell.settings.autoBatterySaverModeInWindowedMode = checked
+                Binding {
+                    target: autoBatterySaverModeInWindowedMode
+                    property: "checked"
+                    value: shell.settings.autoBatterySaverModeInWindowedMode
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: units.gu(4)
+                Layout.rightMargin: units.gu(2)
+                Layout.bottomMargin: units.gu(2)
+                text: "In Battery Saver mode, the system smartly detects apps that are visually in the background and suspend them depending on the set level."
+                + "\n\nStandard: Foreground apps in all workspaces won't get suspended."
+                + "\nHigh: Foreground apps in current workspace won't get suspended."
+                + "\nExtreme: Only the active app won't get suspended."
+                wrapMode: Text.WordWrap
+                font.italic: true
+                textSize: Label.Small
+            }
         }
     }
     Component {
@@ -6874,17 +7061,6 @@ This way you can switch to them even if they are visually behind or hidden."
                     target: virtualTouchpadHorizontalScrollSensitivity
                     property: "value"
                     value: shell.settings.virtualTouchpadHorizontalScrollSensitivity
-                }
-            }
-            LPSettingsCheckBox {
-                id: enableVirtualTouchpadLowerClickThreshold
-                Layout.fillWidth: true
-                text: "Avoid triggering click with small movements (Reduce swipe threshold)"
-                onCheckedChanged: shell.settings.enableVirtualTouchpadLowerClickThreshold = checked
-                Binding {
-                    target: enableVirtualTouchpadLowerClickThreshold
-                    property: "checked"
-                    value: shell.settings.enableVirtualTouchpadLowerClickThreshold
                 }
             }
             LPSettingsCheckBox {
@@ -7483,6 +7659,30 @@ This way you can switch to them even if they are visually behind or hidden."
                     target: ow_showSolarSystemOnDesktopRunAllTime
                     property: "checked"
                     value: shell.settings.ow_showSolarSystemOnDesktopRunAllTime
+                }
+            }
+            LPSettingsSlider {
+                id: ow_showSolarSystemOnDesktopScale
+                Layout.fillWidth: true
+                Layout.margins: units.gu(2)
+                Layout.leftMargin: units.gu(4)
+                visible: shell.settings.ow_showSolarSystemOnDesktop
+                title: "Scale"
+                minimumValue: 0.1
+                maximumValue: 5
+                stepSize: 0.1
+                resetValue: 1
+                live: false
+                percentageValue: false
+                valueIsPercentage: false
+                roundValue: true
+                roundingDecimal: 1
+                enableFineControls: true
+                onValueChanged: shell.settings.ow_showSolarSystemOnDesktopScale = value
+                Binding {
+                    target: ow_showSolarSystemOnDesktopScale
+                    property: "value"
+                    value: shell.settings.ow_showSolarSystemOnDesktopScale
                 }
             }
             Label {
@@ -8542,6 +8742,7 @@ This way you can switch to them even if they are visually behind or hidden."
                     LPSettingsCheckBox {
                         id: onlyHideTopPanelonLandscape
                         Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
                         text: "Only hide when in landscape"
                         visible: shell.settings.alwaysHideTopPanel
                         onCheckedChanged: shell.settings.onlyHideTopPanelonLandscape = checked
@@ -9681,17 +9882,6 @@ This way you can switch to them even if they are visually behind or hidden."
                 id: spreadPage
                 
                 LPSettingsPage {
-                    LPSettingsCheckBox {
-                        id: enableRedesignedSpread
-                        Layout.fillWidth: true
-                        text: "Redesigned UI"
-                        onCheckedChanged: shell.settings.enableRedesignedSpread = checked
-                        Binding {
-                            target: enableRedesignedSpread
-                            property: "checked"
-                            value: shell.settings.enableRedesignedSpread
-                        }
-                    }
                     LPSettingsCheckBox {
                         id: roundedAppPreview
                         Layout.fillWidth: true
@@ -13340,44 +13530,133 @@ This way you can switch to them even if they are visually behind or hidden."
                 id: notchpage
                 
                 LPSettingsPage {
-                    OptionSelector {
-                        id: notchPositionItem
-                        readonly property bool notchEnabled: shell.settings.notchPosition > 0
+                    LPSettingsSwitch {
+                        id: useCustomNotchSolution
                         Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: i18n.tr("Notch Position")
-                        model: [
-                            i18n.tr("None")
-                            ,i18n.tr("Middle")
-                            ,i18n.tr("Left")
-                            ,i18n.tr("Right")
-                        ]
-                        containerHeight: itemHeight * 6
-                        selectedIndex: shell.settings.notchPosition
-                        onSelectedIndexChanged: shell.settings.notchPosition = selectedIndex
+                        text: "Enable custom solution"
+                        onCheckedChanged: shell.settings.useCustomNotchSolution = checked
+                        Binding {
+                            target: useCustomNotchSolution
+                            property: "checked"
+                            value: shell.settings.useCustomNotchSolution
+                        }
                     }
+                    ColumnLayout {
+                        visible: shell.useCustomNotchSolution
+                        spacing: 0
+
+                        LPSettingsNavItem {
+                            Layout.fillWidth: true
+                            text: "Behavior"
+                            onClicked: settingsLoader.item.stack.push(notchBehaviorPage, {"title": text})
+                        }
+                        OptionSelector {
+                            id: notchPositionItem
+                            readonly property bool notchEnabled: shell.settings.notchPosition > 0
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            text: i18n.tr("Notch Position")
+                            model: [
+                                i18n.tr("None")
+                                ,i18n.tr("Middle")
+                                ,i18n.tr("Left")
+                                ,i18n.tr("Right")
+                            ]
+                            containerHeight: itemHeight * 6
+                            selectedIndex: shell.settings.notchPosition
+                            onSelectedIndexChanged: shell.settings.notchPosition = selectedIndex
+                        }
+                        LPSettingsCheckBox {
+                            id: showMiddleNotchHint
+                            Layout.fillWidth: true
+                            visible: shell.settings.notchPosition == 1
+                            text: "Show middle notch hint"
+                            onCheckedChanged: shell.settings.showMiddleNotchHint = checked
+                            Binding {
+                                target: showMiddleNotchHint
+                                property: "checked"
+                                value: shell.settings.showMiddleNotchHint
+                            }
+                        }
+                        LPSettingsSlider {
+                            id: notchHeightMargin
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            visible: notchPositionItem.notchEnabled
+                            title: "Notch Height"
+                            enableFineControls: true
+                            minimumValue: 0
+                            maximumValue: 400
+                            stepSize: 1
+                            resetValue: 0
+                            live: true
+                            roundValue: true
+                            unitsLabel: "px"
+                            onValueChanged: shell.settings.notchHeightMargin = value
+                            Binding {
+                                target: notchHeightMargin
+                                property: "value"
+                                value: shell.settings.notchHeightMargin
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: units.gu(4)
+                            Layout.rightMargin: units.gu(2)
+                            Layout.bottomMargin: units.gu(2)
+                            text: "Affects the vertical space that the top bar will occupy in native orientation and the width/height of the blank space in other orientations"
+                            wrapMode: Text.WordWrap
+                            font.italic: true
+                            textSize: Label.Small
+                        }
+                        LPSettingsSlider {
+                            id: notchWidthMargin
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            visible: notchPositionItem.notchEnabled
+                            title: "Notch Width"
+                            enableFineControls: true
+                            minimumValue: 0
+                            maximumValue: 400
+                            stepSize: 1
+                            resetValue: 0
+                            live: true
+                            roundValue: true
+                            unitsLabel: "px"
+                            onValueChanged: shell.settings.notchWidthMargin = value
+                            Binding {
+                                target: notchWidthMargin
+                                property: "value"
+                                value: shell.settings.notchWidthMargin
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: units.gu(4)
+                            Layout.rightMargin: units.gu(2)
+                            Layout.bottomMargin: units.gu(2)
+                            text: "Affects horizontal space that the top bar icons will try to avoid"
+                            wrapMode: Text.WordWrap
+                            font.italic: true
+                            textSize: Label.Small
+                        }
+                    }
+                }
+            }
+            Component {
+                id: notchBehaviorPage
+                
+                LPSettingsPage {
                     LPSettingsCheckBox {
                         id: balanceMiddleNotchMargin
                         Layout.fillWidth: true
                         visible: shell.settings.notchPosition == 1
-                        text: "Balanced icon spacing for the middle notch"
+                        text: "Balanced top bar icon spacing for the middle notch"
                         onCheckedChanged: shell.settings.balanceMiddleNotchMargin = checked
                         Binding {
                             target: balanceMiddleNotchMargin
                             property: "checked"
                             value: shell.settings.balanceMiddleNotchMargin
-                        }
-                    }
-                    LPSettingsCheckBox {
-                        id: showMiddleNotchHint
-                        Layout.fillWidth: true
-                        visible: shell.settings.notchPosition == 1
-                        text: "Show middle notch hint"
-                        onCheckedChanged: shell.settings.showMiddleNotchHint = checked
-                        Binding {
-                            target: showMiddleNotchHint
-                            property: "checked"
-                            value: shell.settings.showMiddleNotchHint
                         }
                     }
                     LPSettingsCheckBox {
@@ -13390,48 +13669,6 @@ This way you can switch to them even if they are visually behind or hidden."
                             target: fullyHideNotchInNative
                             property: "checked"
                             value: shell.settings.fullyHideNotchInNative
-                        }
-                    }
-                    LPSettingsSlider {
-                        id: notchHeightMargin
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        visible: notchPositionItem.notchEnabled
-                        title: "Notch Top Margin"
-                        enableFineControls: true
-                        minimumValue: 0
-                        maximumValue: 400
-                        stepSize: 1
-                        resetValue: 0
-                        live: true
-                        roundValue: true
-                        unitsLabel: "px"
-                        onValueChanged: shell.settings.notchHeightMargin = value
-                        Binding {
-                            target: notchHeightMargin
-                            property: "value"
-                            value: shell.settings.notchHeightMargin
-                        }
-                    }
-                    LPSettingsSlider {
-                        id: notchWidthMargin
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        visible: notchPositionItem.notchEnabled
-                        title: "Notch Width Margin"
-                        enableFineControls: true
-                        minimumValue: 0
-                        maximumValue: 400
-                        stepSize: 1
-                        resetValue: 0
-                        live: true
-                        roundValue: true
-                        unitsLabel: "px"
-                        onValueChanged: shell.settings.notchWidthMargin = value
-                        Binding {
-                            target: notchWidthMargin
-                            property: "value"
-                            value: shell.settings.notchWidthMargin
                         }
                     }
                 }
@@ -13506,6 +13743,16 @@ This way you can switch to them even if they are visually behind or hidden."
                             value: shell.settings.roundedCornerMargin
                         }
                     }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Affects the edge margin in which UI elements will try to avoid like for example the top bar icons"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
+                    }
                     LPSettingsSlider {
                         id: roundedCornerRadius
                         Layout.fillWidth: true
@@ -13531,7 +13778,9 @@ This way you can switch to them even if they are visually behind or hidden."
                         Layout.leftMargin: units.gu(4)
                         Layout.rightMargin: units.gu(2)
                         Layout.bottomMargin: units.gu(2)
-                        text: "Only necessary or has effects when a notch/punchhole is configured"
+                        text: "Affects the corner radius of the black border displayed for hiding the notch/punchhole when in non-native orientations.\
+ Also affects the rounded App Preview in the App Spread.\
+\nOnly necessary or has effects when a notch/punchhole is configured"
                         wrapMode: Text.WordWrap
                         font.italic: true
                         textSize: Label.Small
@@ -13753,15 +14002,6 @@ This way you can switch to them even if they are visually behind or hidden."
         }
     }
     // ENH064 - End
-    
-    // ENH002 - Notch/Punch hole fix
-    DeviceConfiguration {
-        id: deviceConfiguration
-        //name: applicationArguments.deviceName // Removed in focal since it causes an error
-        // ENH046 - Lomiri Plus Settings
-        shell: shell
-        // ENH046 - End
-    }
 
     // ENH032 - Infographics Outer Wilds
     Loader {
@@ -13863,9 +14103,10 @@ This way you can switch to them even if they are visually behind or hidden."
     }
     // ENH032 - End
 
+    // ENH002 - Notch/Punch hole fix
     Loader {
         id: shellBorderLoader
-        active: shell.isBuiltInScreen && deviceConfiguration.withNotch
+        active: shell.useCustomNotchSolution && shell.isBuiltInScreen && shell.deviceConfiguration.withNotch
         asynchronous: true
         z: 1000
         anchors {
@@ -13878,7 +14119,7 @@ This way you can switch to them even if they are visually behind or hidden."
 
                 PropertyChanges {
                     target: shellBorderLoader
-                    visible: deviceConfiguration.fullyHideNotchInPortrait
+                    visible: shell.deviceConfiguration.fullyHideNotchInPortrait
                     anchors.bottomMargin: -shell.shellMargin
                     anchors.rightMargin: -shell.shellMargin
                     anchors.leftMargin: -shell.shellMargin
@@ -13925,7 +14166,7 @@ This way you can switch to them even if they are visually behind or hidden."
                 id: shellBorder
 
                 color: "transparent"
-                radius: deviceConfiguration.roundedCornerRadius
+                radius: shell.deviceConfiguration.roundedCornerRadius
 
                 
                 border {
@@ -14112,6 +14353,19 @@ This way you can switch to them even if they are visually behind or hidden."
 
     readonly property alias greeter: greeterLoader.item
 
+    readonly property var blurSource: {
+        if (!settings.enableBlur)
+            return null;
+
+        if (screenshotEditorContainer.visible)
+            return screenshotEditorContainer;
+
+        if (greeter.shown)
+            return greeter;
+
+        return stages;
+    }
+
     function activateApplication(appId) {
         topLevelSurfaceList.pendingActivation();
 
@@ -14163,6 +14417,13 @@ This way you can switch to them even if they are visually behind or hidden."
 
     VolumeControl {
         id: volumeControl
+    }
+
+    UDFPSDimmer {
+        visible: Powerd.highBrightnessModeEnabled
+        anchors.fill: parent
+        /* Dimmer overlay must cover everything. */
+        z: 100
     }
 
     // ENH202 - Caller Alarm
@@ -14239,7 +14500,16 @@ This way you can switch to them even if they are visually behind or hidden."
             }
         }
         // ENH151 - End
-        onScreenshotTriggered: itemGrabber.capture(shell);
+        // ENH273 - Option to screenshot OrientedShell
+        // onScreenshotTriggered: itemGrabber.capture(shell);
+        onScreenshotTriggered: {
+            let _item = shell;
+            if (shell.settings.screenshotOrientedShell) {
+                _item = shell.parent
+            }
+            itemGrabber.capture(_item);
+        }
+        // ENH273 - End
         // ENH100 - Camera button to toggle rotation and OSK
         onCameraTriggered: {
             if (shell.settings.reversedCameraKeyDoubePress) {
@@ -14305,7 +14575,7 @@ This way you can switch to them even if they are visually behind or hidden."
         //anchors.topMargin: panel.fullscreenMode || panel.forceHidePanel ? shell.shellTopMargin 
         anchors.topMargin: panel.fullscreenMode || shell.hideTopPanel ? shell.shellTopMargin 
         // ENH048 - End
-                                    : deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin + panel.minimizedPanelHeight
+                                    : shell.deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin + panel.minimizedPanelHeight
                                                     : panel.minimizedPanelHeight// in portrait, there's a top margin even in fullscreen mode
         // `x` (= anchors.leftMargin) property is used for the left margin
         // and `width` for the available width in Stage
@@ -14358,7 +14628,6 @@ This way you can switch to them even if they are visually behind or hidden."
             blinkComplete: eyeBlinkLoader.item ? eyeBlinkLoader.item.blinkComplete : false
             // ENH032 - End
             focus: true
-            lightMode: shell.lightMode
 
             dragAreaWidth: shell.edgeSize
             background: wallpaperResolver.resolvedImage
@@ -14408,11 +14677,7 @@ This way you can switch to them even if they are visually behind or hidden."
             onSpreadShownChanged: {
                 panel.indicators.hide();
                 panel.applicationMenus.hide();
-                // ENH247 - Hide Drawer when opening Spread
-                if (launcher.drawerShown) {
-                    launcher.hide()
-                }
-                // ENH247 - End
+                launcher.hide()
             }
         }
 
@@ -14943,7 +15208,7 @@ This way you can switch to them even if they are visually behind or hidden."
         objectName: "greeterLoader"
         anchors.fill: parent
         // ENH002 - Notch/Punch hole fix
-        anchors.topMargin: deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
+        anchors.topMargin: shell.deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
         anchors.leftMargin: shell.shellLeftMargin
         anchors.rightMargin: shell.shellRightMargin
         anchors.bottomMargin: shell.shellBottomMargin
@@ -15135,7 +15400,7 @@ This way you can switch to them even if they are visually behind or hidden."
 
         anchors.fill: parent
         // ENH002 - Notch/Punch hole fix
-        anchors.topMargin: deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
+        anchors.topMargin: shell.deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
         anchors.leftMargin: shell.shellLeftMargin
         anchors.rightMargin: shell.shellRightMargin
         anchors.bottomMargin: shell.shellBottomMargin
@@ -15171,20 +15436,32 @@ This way you can switch to them even if they are visually behind or hidden."
             }
         }
 
-        Panel {
+        // TODO: remove when we no longer have With/WithoutCutouts split, this just prevents warnings
+        // about assigning to a property that doesn't exist if the WithoutCutouts variant is loaded
+        // FIXME: use attached properties instead of huge blocks of passthrough properties
+        Binding {
+            target: panel
+            property: "orientation"
+            value: shell.orientation
+            when: panel.hasOwnProperty("orientation")
+        }
+
+        // ENH002 - Notch/Punch hole fix
+        // Panel {
+        WihtouCutouts.Panel {
+        // ENH002 - End
             id: panel
             objectName: "panel"
             anchors.fill: parent //because this draws indicator menus
             // ENH030 - Blurred indicator panel
-            // blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
+            // blurSource: shell.blurSource
             // ENH168 - Settings to use wallpaper as blur source
-            //blurSource: settings.enableBlur && shell.settings.indicatorBlur ? (greeter.shown ? greeter : stages) : null
+            //blurSource: settings.enableBlur && shell.settings.indicatorBlur ? shell.blurSource : null
             blurSource: settings.enableBlur && shell.settings.indicatorBlur ? shell.settings.useWallpaperForBlur ? stage.wallpaperSurface
-                                                                                                                 : (greeter.shown ? greeter : stages)
+                                                                                                                 : shell.blurSource
                                                                             : null
             // ENH168 - End
             // ENH030 - End
-            lightMode: shell.lightMode
             // ENH171 - Add blur to Top Panel and Drawer
             // Only for greeter for somne reason?
             topPanelBlurSource: {
@@ -15198,19 +15475,39 @@ This way you can switch to them even if they are visually behind or hidden."
             }
             // ENH171 - End
 
+            z: screenshotEditor.visible ? screenshotEditorContainer.z + 1 : 0
             mode: shell.usageScenario == "desktop" ? "windowed" : "staged"
             // ENH002 - Notch/Punch hole fix
             /* Height of the panel bar */
-            // minimizedPanelHeight: units.gu(3)
+            // minimizedPanelHeight: shell.screenIndex === 0
+            //                    && shell.orientation === Qt.PortraitOrientation
+            //                    && deviceConfig.collapsedPanelHeight
+            //                    || units.gu(3)
             // expandedPanelHeight: units.gu(7)
-            minimizedPanelHeight: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
+            minimizedPanelHeight: {
+                if (shell.useCustomNotchSolution) {
+                    return shell.isBuiltInScreen && shell.deviceConfiguration.withNotch && shell.orientation == 1 && ! shell.deviceConfiguration.fullyHideNotchInPortrait
                                         ? shell.shellMargin : units.gu(3)
-            expandedPanelHeight: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
+                } else {
+                    return shell.screenIndex === 0
+                               && shell.orientation === Qt.PortraitOrientation
+                               && deviceConfig.collapsedPanelHeight
+                               || units.gu(3)
+                }
+            }
+            expandedPanelHeight: {
+                if (shell.useCustomNotchSolution) {
+                    return shell.isBuiltInScreen && shell.deviceConfiguration.withNotch && shell.orientation == 1 && ! shell.deviceConfiguration.fullyHideNotchInPortrait
                                         ? shell.shellMargin * 1.5 : units.gu(7)
+                } else {
+                    return units.gu(7)
+                }
+            }
             leftMarginBlur: !greeter.shown ? overlay.anchors.leftMargin : 0
             topMarginBlur: !greeter.shown ? overlay.anchors.topMargin : 0
             // ENH002 - End
             applicationMenuContentX: launcher.lockedVisible ? launcher.panelWidth : 0
+            screenIndex: shell.screenIndex
             // ENH036 - Use punchole as battery indicator
             batteryCircleEnabled : batteryCircleLoader.active
             batteryCircleBorder: batteryCircleLoader.borderWidth
@@ -15225,7 +15522,7 @@ This way you can switch to them even if they are visually behind or hidden."
             // ENH170 - End
             // ENH122 - End
             // ENH046 - Lomiri Plus Settings
-            topPanelMargin: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
+            topPanelMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen && shell.deviceConfiguration.withNotch && shell.orientation == 1 && ! shell.deviceConfiguration.fullyHideNotchInPortrait
                                         ? shell.shellMargin : 0
             // ENH046 - End
             // ENH170 - Adjust top panel based on Drawer and Indicator panels
@@ -15241,6 +15538,7 @@ This way you can switch to them even if they are visually behind or hidden."
                         && (!greeter || !greeter.hasLockedApp)
                         && !shell.waitingOnGreeter
                         && settings.enableIndicatorMenu
+                        && !screenshotEditor.visible
 
                 model: Indicators.IndicatorsModel {
                     id: indicatorsModel
@@ -15250,7 +15548,13 @@ This way you can switch to them even if they are visually behind or hidden."
                     // greeter or tell the session to load the app.  This will
                     // involve taking the url-dispatcher dbus name and using
                     // SessionBroadcast to tell the session.
-                    profile: shell.mode === "greeter" ? "desktop_greeter" : "phone"
+                    // For now indicators will just hide their buttons that
+                    // usually spawn lomiri-system-settings, based on the
+                    // active username being 'lightdm'.
+                    profile: shell.mode === "greeter"
+                                 ? ((shell.usageScenario === "phone" || shell.usageScenario === "tablet")
+                                     ? "phone_greeter" : "desktop_greeter")
+                                 : "phone"
                     Component.onCompleted: {
                         load();
                     }
@@ -15262,6 +15566,7 @@ This way you can switch to them even if they are visually behind or hidden."
                 available: (!greeter || !greeter.shown)
                         && !shell.waitingOnGreeter
                         && !stage.spreadShown
+                        && !screenshotEditor.visible
             }
 
             readonly property bool focusedSurfaceIsFullscreen: shell.topLevelSurfaceList.focusedWindow
@@ -15286,7 +15591,10 @@ This way you can switch to them even if they are visually behind or hidden."
             // z: panel.z - 1
             // ENH033 - End
             anchors.top: parent.top
-            anchors.topMargin: inverted ? 0 : panel.panelHeight
+            // ENH131 - Extend drawer to behind top panel
+            // anchors.topMargin: panel.panelHeight
+            anchors.topMargin: shell.settings.extendDrawerOverTopBar ? (inverted ? 0 : panel.panelHeight) : panel.panelHeight
+            // ENH131 - End
             anchors.bottom: parent.bottom
             width: parent.width
             dragAreaWidth: shell.edgeSize
@@ -15295,6 +15603,7 @@ This way you can switch to them even if they are visually behind or hidden."
                     && !greeter.hasLockedApp
                     && !shell.waitingOnGreeter
                     && shell.mode !== "greeter"
+                    && !screenshotEditor.visible
             visible: shell.mode !== "greeter"
             inverted: shell.usageScenario !== "desktop"
             superPressed: physicalKeysMapper.superPressed
@@ -15318,15 +15627,15 @@ This way you can switch to them even if they are visually behind or hidden."
             // ENH002 - End
             // ENH106 - Separate drawer blur settings
             // blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
+            // blurSource: shell.blurSource
             // ENH168 - Settings to use wallpaper as blur source
-            //blurSource: settings.enableBlur && shell.settings.drawerBlur ? (greeter.shown ? greeter : stages) : null
+            //blurSource: settings.enableBlur && shell.settings.drawerBlur ? shell.blurSource : null
             blurSource: settings.enableBlur && shell.settings.drawerBlur ? shell.settings.useWallpaperForBlur ? stage.wallpaperSurface
-                                                                                                              : (greeter.shown ? greeter : stages)
+                                                                                                              : shell.blurSource
                                                                          : null
             // ENH168 - End
             // ENH106 - End
             topPanelHeight: panel.panelHeight
-            lightMode: shell.lightMode
             drawerEnabled: !greeter.active && tutorial.launcherLongSwipeEnabled
             privateMode: greeter.active
             background: wallpaperResolver.resolvedImage
@@ -15348,7 +15657,7 @@ This way you can switch to them even if they are visually behind or hidden."
             readonly property bool lockAllowed: (!collidingWithPanel && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher
             // ENH239 - End
             // ENH146 - Hide launcher when narrow
-                                                        && ((shell.settings.hideLauncherWhenNarrow && stages.width >= units.gu(60))
+                                                        && ((shell.settings.hideLauncherWhenNarrow && stages.width >= units.gu(120))
                                                                 || !shell.settings.hideLauncherWhenNarrow)
                                                         // ENH239 - Force show Launcher
                                                         ) || (shell.settings.forceLockLauncher && !panel.fullscreenMode && !wizard.active && !tutorial.demonstrateLauncher)
@@ -15559,6 +15868,7 @@ This way you can switch to them even if they are visually behind or hidden."
             privacyMode: greeter.locked && AccountsService.hideNotificationContentWhileLocked
 
             y: topmostIsFullscreen ? 0 : panel.panelHeight
+            z: screenshotEditor.visible ? screenshotEditorContainer.z + 1 : 0
             // ENH209 - Notifications at the bottom
             readonly property real defaultBottomMargin: units.gu(5)
             // height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
@@ -15635,6 +15945,48 @@ This way you can switch to them even if they are visually behind or hidden."
                             GradientStop { position: 0.0; color: Qt.rgba(0.16,0.16,0.16,0.5)}
                             GradientStop { position: 1.0; color: Qt.rgba(0.16,0.16,0.16,0)}
                         }
+                    }
+                }
+            }
+        }
+
+        Item {
+            id: screenshotEditorContainer
+            anchors.fill: parent
+            z: itemGrabber.z - 2
+            visible: false
+
+            ScreenshotEditor {
+                id: screenshotEditor
+                anchors.fill: parent
+                anchors.topMargin: panel.panelHeight
+                enabled: !wizard.active
+
+                // Always hide the Launcher and Panel
+                onShown: {
+                    console.log("Showing screenshot editor.");
+
+                    launcher.hide();
+                    panel.indicators.hide();
+                    panel.applicationMenus.hide();
+
+                    screenshotEditorContainer.visible = true;
+                }
+
+                onHidden: {
+                    screenshotEditorContainer.visible = false;
+                }
+
+                // Make locking the screen abort the editing session, otherwise we
+                // would show the editor above the lockscreen.
+                Connections {
+                    target: greeter
+                    function onLockedChanged() {
+                        if (!screenshotEditor.visible)
+                            return;
+
+                        if (greeter.locked)
+                            screenshotEditor.hide()
                     }
                 }
             }
@@ -15914,11 +16266,30 @@ This way you can switch to them even if they are visually behind or hidden."
         id: itemGrabber
         anchors.fill: parent
         z: dialogs.z + 10
-        GlobalShortcut { shortcut: Qt.Key_Print; onTriggered: itemGrabber.capture(shell) }
+        enabled: shell.mode !== "greeter"
+        // ENH273 - Option to screenshot OrientedShell
+        // GlobalShortcut { shortcut: Qt.Key_Print; onTriggered: itemGrabber.capture(shell) }
+        GlobalShortcut {
+            shortcut: Qt.Key_Print
+            onTriggered: {
+                let _item = shell;
+                if (shell.settings.screenshotOrientedShell) {
+                    _item = shell.parent
+                }
+                itemGrabber.capture(_item)
+            }
+        }
+        // ENH273 - End
         Connections {
             target: stage
             ignoreUnknownSignals: true
             function onItemSnapshotRequested(item) { itemGrabber.capture(item) }
+        }
+        onSnapshotTaken: {
+            if (!settings.enableScreenshotEditor)
+                return;
+
+            screenshotEditor.show(path)
         }
     }
 
@@ -16130,66 +16501,6 @@ This way you can switch to them even if they are visually behind or hidden."
         }
     }
 
-    // ENH152 - Touch visuals
-    MouseArea {
-        id: touchMouseArea
-
-        enabled: shell.settings.showTouchVisuals
-        visible: enabled
-        z: Number.MAX_VALUE
-        anchors.fill: parent
-        hoverEnabled: true
-        propagateComposedEvents: true
-        onPressed: {
-            touchRec.show()
-            mouse.accepted = false
-        }
-        onReleased: mouse.accepted = false
-        onClicked: mouse.accepted = false
-        onDoubleClicked: mouse.accepted = false
-        onPressAndHold: mouse.accepted = false
-        onWheel: wheel.accepted = false
-        onPositionChanged: {
-            touchRec.show()
-        }
-    }
-
-    Timer {
-        id: touchRecTimer
-        interval: 200
-        onTriggered: touchRec.opacity = 0
-    }
-
-    Loader {
-        id: touchRec
-
-        readonly property real visibleOpacity: 0.8
-        readonly property real centerX: width / 2
-        readonly property real centerY: height / 2
-
-        z: touchMouseArea.z
-        asynchronous: true
-        active: touchMouseArea.enabled
-        opacity: 0
-        width: units.gu(5)
-        height: width
-        x: touchMouseArea.mouseX - centerX
-        y: touchMouseArea.mouseY - centerY
-
-        function show() {
-            touchRecTimer.stop()
-            opacity = visibleOpacity
-            touchRecTimer.restart()
-        }
-
-        Behavior on opacity { LomiriNumberAnimation {} }
-
-        sourceComponent: Rectangle {
-            color: shell.settings.touchVisualColor !== "" ? shell.settings.touchVisualColor : "white"
-            radius: width / 2
-        }
-    }
-    // ENH152 - End
     // ENH186 - BSOD prank
     Connections {
         target: shell
@@ -16212,6 +16523,13 @@ This way you can switch to them even if they are visually behind or hidden."
         //readonly property int detoxModeDuration: 3000 // For testing
         readonly property int defaultTo100Duration: 30000
         readonly property int detoxModeTo100Duration: shell.settings.detoxModeDuration >= 4000 ? shell.settings.detoxModeDuration - 2000 : 1000
+
+        readonly property bool mobileDataEnabled: panel.mobileDataToggle ? panel.mobileDataToggle.checked : false
+        onMobileDataEnabledChanged: {
+            if (shell.settings.detoxModeExceptMobileData) {
+                pauseOrResumeShowTimer(!mobileDataEnabled, true)
+            }
+        }
 
         readonly property Timer delayShow: Timer {
             interval: 5000
@@ -16274,12 +16592,14 @@ This way you can switch to them even if they are visually behind or hidden."
         }
 
         function showDetoxMode() {
-            let _interval = shell.settings.detoxModeInterval
-            if (shell.settings.detoxModeBehavior === 1) {
-                _interval = shell.randomNumber(shell.settings.detoxModeIntervalStart, shell.settings.detoxModeIntervalEnd)
+            if (! (mobileDataEnabled && shell.settings.detoxModeExceptMobileData)) {
+                let _interval = shell.settings.detoxModeInterval
+                if (shell.settings.detoxModeBehavior === 1) {
+                    _interval = shell.randomNumber(shell.settings.detoxModeIntervalStart, shell.settings.detoxModeIntervalEnd)
+                }
+                console.log("Detox Timer: %1 mins".arg(_interval / 60000))
+                buruIskunuru.delayedShow(_interval, true)
             }
-            console.log("Detox Timer: %1 mins".arg(_interval / 60000))
-            buruIskunuru.delayedShow(_interval, true)
         }
 
         function pauseShowTimer() {

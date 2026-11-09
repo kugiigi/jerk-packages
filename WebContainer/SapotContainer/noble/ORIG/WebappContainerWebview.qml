@@ -18,7 +18,7 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import Lomiri.Components 1.3
+import Lomiri.Components
 import Lomiri.Action 1.1 as LomiriActions
 import webbrowsercommon.private 0.1
 import "../actions" as Actions
@@ -86,15 +86,15 @@ FocusScope {
 
     Connections {
         target: webappContainerWebViewLoader.item
-        onSamlRequestUrlPatternReceived: {
+        function onSamlRequestUrlPatternReceived(urlPattern) {
             samlRequestUrlPatternReceived(urlPattern)
         }
 
-        onThemeColorMetaInformationDetected: {
+        function onThemeColorMetaInformationDetected(theme_color) {
             themeColorMetaInformationDetected(theme_color)
         }
 
-        onLastLoadSucceededChanged: {
+        function onLastLoadSucceededChanged() {
           if (! initialUrlLoaded && webappContainerWebViewLoader.item.lastLoadSucceeded) {
              if (UrlUtils.extractScheme(containerWebView.url) !== 'file') {
                webappContainerWebViewLoader.item.runJavaScript("window.location.replace('%1')".arg(containerWebView.url))

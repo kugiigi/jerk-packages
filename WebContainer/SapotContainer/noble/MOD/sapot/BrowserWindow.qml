@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import QtSystemInfo 5.0
-import Lomiri.Components 1.3
+import Lomiri.SystemInfo
+import Lomiri.Components
 import QtQuick.Controls 2.2 as QQC2
 
 QQC2.ApplicationWindow {
@@ -51,7 +51,7 @@ QQC2.ApplicationWindow {
 
     Connections {
         target: window.currentWebview
-        onIsFullScreenChanged: window.setFullscreen(window.currentWebview.isFullScreen)
+        function onIsFullScreenChanged() { window.setFullscreen(window.currentWebview.isFullScreen) }
     }
 
     function setFullscreen(fullscreen) {

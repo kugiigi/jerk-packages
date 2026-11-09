@@ -29,12 +29,18 @@ IndicatorDelegate {
     property alias rightLabel: rightLabelItem.text
     property var icons: undefined
     property bool expanded: false
+    property bool finishedExpanding: false
     property bool selected: false
     property real iconHeight: units.gu(2)
     readonly property color color: {
         if (!expanded) return theme.palette.normal.backgroundText;
         if (!selected) return theme.palette.disabled.backgroundText;
         return theme.palette.normal.backgroundText;
+    }
+
+    Behavior on x {
+        enabled: expanded && finishedExpanding && !stateTransition.running
+        NumberAnimation { duration: LomiriAnimation.SnapDuration }
     }
 
     implicitWidth: mainItems.width

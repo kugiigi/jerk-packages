@@ -1,6 +1,6 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.5 as QQC2
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Layouts 1.12
 
 BaseDialog {

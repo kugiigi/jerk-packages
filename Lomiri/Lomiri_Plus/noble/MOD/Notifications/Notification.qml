@@ -277,15 +277,11 @@ StyledItem {
             anchors.fill: parent
             objectName: "interactiveArea"
 
-            drag.target: !fullscreen ? notification : undefined
+            drag.target: !fullscreen && !notifySwipeButtonLoader.active ? notification : undefined
             drag.axis: Drag.XAxis
             drag.minimumX: -notification.width
             drag.maximumX: notification.width
             hoverEnabled: true
-            // ENH209 - Notifications at the bottom
-            // Disable swipe to dismiss for calls
-            enabled: !notifySwipeButtonLoader.active
-            // ENH209 - End
 
             onClicked: {
                 if (notification.type === Notification.Interactive) {

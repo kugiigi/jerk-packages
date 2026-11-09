@@ -17,7 +17,7 @@
  */
 
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import Qt.labs.settings 1.0
 import QtWebEngine 1.10
 import Morph.Web 0.1
@@ -26,7 +26,8 @@ import webbrowsercommon.private 0.1
 import ".."
 import "sapot" as Sapot
 import QtQuick.Window 2.2
-import QtQuick.Controls.Suru 2.2
+//~ import QtQuick.Controls.Suru 2.2
+import QtQuick.Controls.Material
 
 Sapot.BrowserWindow {
     id: root
@@ -226,20 +227,15 @@ Sapot.BrowserWindow {
             var i;
             for (i = 0; i < customScripts.length; i++)
             {
-              var script = Qt.createQmlObject('import QtWebEngine 1.10; WebEngineScript {}', webappViewLoader);
+              var script = WebEngine.script();
               script.sourceUrl = customScripts[i];
               script.injectionPoint = WebEngineScript.DocumentCreation;
               script.worldId = WebEngineScript.MainWorld;
-              script.runOnSubframes = true;
+              script.runsOnSubframes = true;
               scripts.push(script);
             }
 
-            // global user scripts
-            for (i = 0; i < item.currentWebview.profile.userScripts.length; i++) {
-              scripts.push(item.currentWebview.profile.userScripts[i]);
-            }
-
-            item.currentWebview.profile.userScripts = scripts;
+            item.currentWebview.profile.userScripts.insert(scripts);
         }
     }
 
@@ -416,7 +412,7 @@ Sapot.BrowserWindow {
         webappName: getWebappName()
         webappIcon: root.webappIcon
 
-        onAccountSelected: {
+        onAccountSelected: (accountDataLocation, willMoveCookies) => {
             var newWebappDataLocation = dataLocation + accountDataLocation
             console.log("Loading webview on " + newWebappDataLocation)
             if (newWebappDataLocation === webappViewLoader.webappDataLocation) {
@@ -566,22 +562,37 @@ Sapot.BrowserWindow {
 
     property var openUrlsHandler: Connections {
         target: UriHandler
-        onOpened: root.openUrls(uris)
+        function onOpened(uris) { root.openUrls(uris) }
     }
+
+    /* Moved to each webview container
+    // Workaround for QtWebEngine 6.10 with libhybris ANGLE & Ozone buffer sharing
+    Loader {
+        anchors.fill: parent
+        active: __onHybris && !__disableWindowSnapshots
+        sourceComponent: Component {
+            Sapot.RedrawOrchestrator { browserWindow: root }
+        }
+    }
+    */
 
     // Change theme in real time when set to follow system theme
     // Only works when the app gets unfocused then focused
     // Possibly ideal so the change won't happen while the user is using the app
-    property string previousTheme: Theme.name
-    Connections {
-        target: Qt.application
-        onStateChanged: {
-            if (previousTheme !== theme.name) {
-                root.Suru.theme = Theme.name == "Lomiri.Components.Themes.SuruDark" ? Suru.Dark : Suru.Light
-                theme.name = Theme.name
-                theme.name = ""
-            }
-            previousTheme = Theme.name
-        }
-    }
+//~     property string previousTheme: Theme.name
+//~     Connections {
+//~         target: Qt.application
+//~         onStateChanged: {
+//~             if (previousTheme !== theme.name) {
+//~                 root.Suru.theme = Theme.name == "Lomiri.Components.Themes.SuruDark" ? Suru.Dark : Suru.Light
+//~                 theme.name = Theme.name
+//~                 theme.name = ""
+//~             }
+//~             previousTheme = Theme.name
+//~         }
+//~     }
+    readonly property bool isDarkMode: Theme.name == "Lomiri.Components.Themes.SuruDark"
+    Material.theme: isDarkMode ? Material.Dark : Material.Light
+    Material.background: theme.palette.normal.background
+    Material.accent: theme.palette.normal.activity
 }

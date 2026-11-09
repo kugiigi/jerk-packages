@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import Lomiri.Components 1.3
-import Lomiri.Components.Popups 1.3
+import Lomiri.Components
+import Lomiri.Components.Popups
 import QtWebEngine 1.7
 import Morph.Web 0.1
 import webbrowsercommon.private 0.1
@@ -92,13 +92,13 @@ WebappWebview {
 
         //popupBlockerEnabled: webview.popupBlockerEnabled
 
-        userScripts: [
-            WebEngineScript {
-                name: "oxide://webapp-specific-page-metadata-collector/"
-                sourceUrl: Qt.resolvedUrl("webapp-specific-page-metadata-collector.js")
-                runOnSubframes: true
-            }
-        ]
+        Component.onCompleted: {
+            var metadatCollectorScript = WebEngine.script();
+            metadatCollectorScript.name = "oxide://webapp-specific-page-metadata-collector/";
+            metadatCollectorScript.sourceUrl = Qt.resolvedUrl("assets/webapp-specific-page-metadata-collector.js");
+            metadatCollectorScript.runsOnSubframes = true;
+            userScripts.insert(metadatCollectorScript);
+        }
         // User our custom one
         __ua: Sapot.UserAgent02 {}
     }
@@ -146,14 +146,14 @@ WebappWebview {
         }  
     }
 
-    onOpenUrlExternallyRequested: openUrlExternally(url, false)
+    onOpenUrlExternallyRequested: (url) => { openUrlExternally(url, false) }
 
     //preferences.allowFileAccessFromFileUrls: runningLocalApplication
     //preferences.allowUniversalAccessFromFileUrls: runningLocalApplication
     //preferences.localStorageEnabled: true
     //preferences.appCacheEnabled: true
 
-    onNewViewRequested: {
+    onNewWindowRequested: (request) => {
       
       if(request.userInitiated && shouldAllowNavigationTo(request.requestedUrl.toString()))
       {
@@ -413,54 +413,19 @@ WebappWebview {
         // handle user agents
         if (isMainFrame)
         {
-            let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
-            let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
-            let _tabForceDesktop = webview.forceDesktopSite
-            let _tabForceMobile = webview.forceMobileSite
-            let _forceDesktopUA = false
-            let _forceMobileUA = false
-            let _screenSize = webview.context.__ua.calcScreenSize()
             let _newUserAgentId = 0
-            let _newCustomUserAgent = ""
 
-            if ( _screenSize == "small") {
-                // Small screeens use mobile UA by default so only check when desktop UA is forced
-                _forceDesktopUA = ((_appForceDesktop && !_tabForceMobile) || (!_appForceDesktop && _tabForceDesktop))
-            } else {
-                // Large screeens use desktop UA by default so only check when mobile UA is forced
-                if (webapp.settings.autoDeskMobSwitch) {
-                    _forceMobileUA = ((webapp.wide && _appForceMobile && !_tabForceDesktop)
-                                            || (webapp.wide && !_appForceMobile && _tabForceMobile)
-                                            || (!webapp.wide && !_tabForceDesktop))
-                } else {
-                    _forceMobileUA = ((_appForceMobile && !_tabForceDesktop) || (!_appForceMobile && _tabForceMobile))
-                }
-            }
-
+            // Newer version of QWE crashes when trying to change user agent from this handler.
+            // So defer this handling after we leave this handler as a workaround.
+            // https://qt-project.atlassian.net/browse/QTBUG-148069
+            // https://gitlab.com/ubports/development/core/morph-browser/-/work_items/633
             _newUserAgentId = (UserAgentsModel.count > 0) ? DomainSettingsModel.getUserAgentId(requestDomain) : 0;
+            Qt.callLater(delayedUserAgentHandling, _newUserAgentId, url);
 
-            // change of the custom user agent
             if (_newUserAgentId !== webview.context.userAgentId) {
-                webview.context.userAgentId = _newUserAgentId;
-                webview.context.userAgent = (_newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(_newUserAgentId)
-                                                                 : localUserAgentOverride ? localUserAgentOverride : webview.context.defaultUserAgent;
-
                 // for some reason when letting through the request, another navigation request will take us back to the
                 // to the previous page. Therefore we block it first and navigate to the new url with the correct user agent.
-                request.action = WebEngineNavigationRequest.IgnoreRequest;
-                webview.url = url;
-                return;
-            } else {
-                if ( _screenSize == "small") {
-                    webview.context.__ua.setDesktopMode(_forceDesktopUA);
-                } else {
-                    webview.context.__ua.forceMobileSite(_forceMobileUA);
-                    // TODO: Fixes blank loading when forcing mobile site on big screens but loads twice
-                    if (webview.url == "about:blank") {
-						webview.url = url
-                    }
-                }
-                console.log("user agent: " + webview.context.httpUserAgent);
+                request.reject();
             }
         }
 
@@ -524,6 +489,53 @@ WebappWebview {
                 console.debug('ignored request of type %1 of current page to %2.'.arg(request.navigationType).arg(url));
             }
       }
+    }
+
+    function delayedUserAgentHandling(newUserAgentId, url) {
+        // change of the custom user agent
+        if (newUserAgentId !== webview.context.userAgentId)
+        {
+            webview.context.userAgentId = newUserAgentId;
+            webview.context.userAgent = (newUserAgentId > 0) ? UserAgentsModel.getUserAgentString(newUserAgentId)
+                                                             : localUserAgentOverride ? localUserAgentOverride : webview.context.defaultUserAgent;
+
+            webview.url = url;
+        }
+        else
+        {
+            let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
+            let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
+            let _tabForceDesktop = webview.forceDesktopSite
+            let _tabForceMobile = webview.forceMobileSite
+            let _forceDesktopUA = false
+            let _forceMobileUA = false
+            let _screenSize = webview.context.__ua.calcScreenSize()
+
+            if ( _screenSize == "small") {
+                // Small screeens use mobile UA by default so only check when desktop UA is forced
+                _forceDesktopUA = ((_appForceDesktop && !_tabForceMobile) || (!_appForceDesktop && _tabForceDesktop))
+            } else {
+                // Large screeens use desktop UA by default so only check when mobile UA is forced
+                if (webapp.settings.autoDeskMobSwitch) {
+                    _forceMobileUA = ((webapp.wide && _appForceMobile && !_tabForceDesktop)
+                                            || (webapp.wide && !_appForceMobile && _tabForceMobile)
+                                            || (!webapp.wide && !_tabForceDesktop))
+                } else {
+                    _forceMobileUA = ((_appForceMobile && !_tabForceDesktop) || (!_appForceMobile && _tabForceMobile))
+                }
+            }
+
+            if ( _screenSize == "small") {
+                webview.context.__ua.setDesktopMode(_forceDesktopUA);
+            } else {
+                webview.context.__ua.forceMobileSite(_forceMobileUA);
+                // TODO: Fixes blank loading when forcing mobile site on big screens but loads twice
+                if (webview.url == "about:blank") {
+                    webview.url = url
+                }
+            }
+            console.log("user agent: " + webview.context.httpUserAgent);
+        }
     }
 
     function handlePageMetadata(metadata) {

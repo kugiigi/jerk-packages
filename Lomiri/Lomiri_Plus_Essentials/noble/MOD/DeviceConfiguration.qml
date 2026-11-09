@@ -37,6 +37,8 @@ QtObject {
     readonly property alias invertedPortraitOrientation: priv.invertedPortraitOrientation
 
     readonly property alias category: priv.category
+
+    readonly property alias collapsedPanelHeight: priv.collapsedPanelHeight
     // ENH046 - Lomiri Plus Settings
     property var shell
     // ENH046 - End
@@ -79,6 +81,8 @@ QtObject {
         property string category: deviceConfig.category
         property string name: deviceConfig.name
         property bool supportsMultiColorLed: deviceConfig.supportsMultiColorLed
+
+        property int collapsedPanelHeight: deviceConfig.collapsedPanelHeight
         // ENH002 - Notch/Punch hole fix
         // Notch/Punchhole/Rounded corner Configuration values
         readonly property bool withNotch: notchPosition !== "none" && notchHeightMargin > 0 && notchWidthMargin > 0
@@ -330,5 +334,13 @@ QtObject {
                 }
             }
         ]
+    }
+
+    readonly property var debugConnections: Connections {
+        target: DebuggingController
+
+        function onDeviceInfoReloadRequested() {
+            deviceConfig.reload();
+        }
     }
 }

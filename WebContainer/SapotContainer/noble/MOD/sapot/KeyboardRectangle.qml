@@ -21,7 +21,7 @@
 // until the shell/WM takes care of that on behalf of the applications.
 
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Window 2.2
 
 Item {

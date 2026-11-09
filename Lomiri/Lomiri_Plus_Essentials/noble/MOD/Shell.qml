@@ -34,6 +34,9 @@ import SessionBroadcast 0.1
 import "Greeter"
 import "Launcher"
 import "Panel"
+// ENH002 - Notch/Punch hole fix
+import "Panel/WithoutCutouts/LomiriPanel"
+// ENH002 - End
 import "Components"
 import "Notifications"
 import "Stage"
@@ -57,14 +60,22 @@ import Lomiri.Components.Pickers 1.3
 StyledItem {
     id: shell
 
+    DeviceConfiguration {
+        id: deviceConfig
+        // ENH046 - Lomiri Plus Settings
+        shell: shell
+        // ENH046 - End
+    }
+
     readonly property bool lightMode: settings.lightMode
     theme.name: lightMode ? "Lomiri.Components.Themes.Ambiance" :
                             "Lomiri.Components.Themes.SuruDark"
 
     // ENH002 - Notch/Punch hole fix
-    property alias deviceConfiguration: deviceConfiguration
-    property real shellMargin: shell.isBuiltInScreen && shell.deviceConfiguration.withNotch
-                            ? deviceConfiguration.notchHeightMargin : 0
+    property alias deviceConfiguration: deviceConfig
+    property bool useCustomNotchSolution: shell.settings.useCustomNotchSolution
+    property real shellMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen && shell.deviceConfiguration.withNotch
+                            ? shell.deviceConfiguration.notchHeightMargin : 0
     property real shellLeftMargin: orientation == 8 ? shellMargin : 0
     property real shellRightMargin: orientation == 2 ? shellMargin : 0
     property real shellBottomMargin: orientation == 4 ? shellMargin : 0
@@ -78,7 +89,7 @@ StyledItem {
     Suru.theme: Suru.Dark
     // ENH046 - End
     // ENH095 - Middle notch support
-    readonly property bool adjustForMiddleNotch: shell.isBuiltInScreen && shell.orientation == 1
+    readonly property bool adjustForMiddleNotch: shell.useCustomNotchSolution && shell.isBuiltInScreen && shell.orientation == 1
                                                     && shell.deviceConfiguration.notchPosition == "middle" && !shell.deviceConfiguration.fullyHideNotchInPortrait
                                                         && shell.deviceConfiguration.notchHeightMargin > 0 && shell.deviceConfiguration.notchWidthMargin > 0
     // ENH095 - End
@@ -95,6 +106,7 @@ StyledItem {
     property alias panelAreaShowProgress: panel.panelAreaShowProgress
     property string usageScenario: "phone" // supported values: "phone", "tablet" or "desktop"
     property string mode: "full-greeter"
+    property int screenIndex: -1
     property alias oskEnabled: inputMethod.enabled
     function updateFocusedAppOrientation() {
         stage.updateFocusedAppOrientation();
@@ -188,7 +200,7 @@ at least until we get official and proper support for these things.\n\
                 text: "Donate"
                 color: theme.palette.normal.negative
                 onClicked: {
-                    Qt.openUrlExternally("https://youtu.be/dQw4w9WgXcQ?si=flAd1M0i9Rvj-TFL")
+                    Qt.openUrlExternally("https://www.youtube.com/watch?v=UQSFIAnulXI")
                     dialog.close()
                 }
             }
@@ -370,6 +382,7 @@ at least until we get official and proper support for these things.\n\
         property alias welcomeDialogShown: settingsObj.welcomeDialogShown
 
         // Device Config
+        property alias useCustomNotchSolution: settingsObj.useCustomNotchSolution
         property alias fullyHideNotchInNative: settingsObj.fullyHideNotchInNative
         property alias notchHeightMargin: settingsObj.notchHeightMargin
         property alias notchPosition: settingsObj.notchPosition
@@ -416,6 +429,7 @@ at least until we get official and proper support for these things.\n\
             property bool hideBatteryIndicatorPercentage: false
             property bool hideBatteryIndicatorIcon: false
             property bool welcomeDialogShown: false
+            property bool useCustomNotchSolution: false
         }
     }
 
@@ -800,88 +814,103 @@ at least until we get official and proper support for these things.\n\
 
             Component {
                 id: notchpage
-                
+
                 LPSettingsPage {
-                    OptionSelector {
-                        id: notchPositionItem
-                        readonly property bool notchEnabled: shell.settings.notchPosition > 0
+                    LPSettingsSwitch {
+                        id: useCustomNotchSolution
                         Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        text: i18n.tr("Notch Position")
-                        model: [
-                            i18n.tr("None")
-                            ,i18n.tr("Middle")
-                            ,i18n.tr("Left")
-                            ,i18n.tr("Right")
-                        ]
-                        containerHeight: itemHeight * 6
-                        selectedIndex: shell.settings.notchPosition
-                        onSelectedIndexChanged: shell.settings.notchPosition = selectedIndex
-                    }
-                    LPSettingsCheckBox {
-                        id: showMiddleNotchHint
-                        Layout.fillWidth: true
-                        visible: shell.settings.notchPosition == 1
-                        text: "Show middle notch hint"
-                        onCheckedChanged: shell.settings.showMiddleNotchHint = checked
+                        text: "Enable custom solution"
+                        onCheckedChanged: shell.settings.useCustomNotchSolution = checked
                         Binding {
-                            target: showMiddleNotchHint
+                            target: useCustomNotchSolution
                             property: "checked"
-                            value: shell.settings.showMiddleNotchHint
+                            value: shell.settings.useCustomNotchSolution
                         }
                     }
-                    LPSettingsCheckBox {
-                        id: fullyHideNotchInNative
-                        Layout.fillWidth: true
-                        visible: notchPositionItem.notchEnabled
-                        text: "Fully hide notch in native orientation"
-                        onCheckedChanged: shell.settings.fullyHideNotchInNative = checked
-                        Binding {
-                            target: fullyHideNotchInNative
-                            property: "checked"
-                            value: shell.settings.fullyHideNotchInNative
+                    ColumnLayout {
+                        visible: shell.useCustomNotchSolution
+
+                        OptionSelector {
+                            id: notchPositionItem
+                            readonly property bool notchEnabled: shell.settings.notchPosition > 0
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            text: i18n.tr("Notch Position")
+                            model: [
+                                i18n.tr("None")
+                                ,i18n.tr("Middle")
+                                ,i18n.tr("Left")
+                                ,i18n.tr("Right")
+                            ]
+                            containerHeight: itemHeight * 6
+                            selectedIndex: shell.settings.notchPosition
+                            onSelectedIndexChanged: shell.settings.notchPosition = selectedIndex
                         }
-                    }
-                    LPSettingsSlider {
-                        id: notchHeightMargin
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        visible: notchPositionItem.notchEnabled
-                        title: "Notch Top Margin"
-                        enableFineControls: true
-                        minimumValue: 0
-                        maximumValue: 400
-                        stepSize: 1
-                        resetValue: 0
-                        live: true
-                        roundValue: true
-                        unitsLabel: "px"
-                        onValueChanged: shell.settings.notchHeightMargin = value
-                        Binding {
-                            target: notchHeightMargin
-                            property: "value"
-                            value: shell.settings.notchHeightMargin
+                        LPSettingsCheckBox {
+                            id: showMiddleNotchHint
+                            Layout.fillWidth: true
+                            visible: shell.settings.notchPosition == 1
+                            text: "Show middle notch hint"
+                            onCheckedChanged: shell.settings.showMiddleNotchHint = checked
+                            Binding {
+                                target: showMiddleNotchHint
+                                property: "checked"
+                                value: shell.settings.showMiddleNotchHint
+                            }
                         }
-                    }
-                    LPSettingsSlider {
-                        id: notchWidthMargin
-                        Layout.fillWidth: true
-                        Layout.margins: units.gu(2)
-                        visible: notchPositionItem.notchEnabled
-                        title: "Notch Width Margin"
-                        enableFineControls: true
-                        minimumValue: 0
-                        maximumValue: 400
-                        stepSize: 1
-                        resetValue: 0
-                        live: true
-                        roundValue: true
-                        unitsLabel: "px"
-                        onValueChanged: shell.settings.notchWidthMargin = value
-                        Binding {
-                            target: notchWidthMargin
-                            property: "value"
-                            value: shell.settings.notchWidthMargin
+                        LPSettingsCheckBox {
+                            id: fullyHideNotchInNative
+                            Layout.fillWidth: true
+                            visible: notchPositionItem.notchEnabled
+                            text: "Fully hide notch in native orientation"
+                            onCheckedChanged: shell.settings.fullyHideNotchInNative = checked
+                            Binding {
+                                target: fullyHideNotchInNative
+                                property: "checked"
+                                value: shell.settings.fullyHideNotchInNative
+                            }
+                        }
+                        LPSettingsSlider {
+                            id: notchHeightMargin
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            visible: notchPositionItem.notchEnabled
+                            title: "Notch Height"
+                            enableFineControls: true
+                            minimumValue: 0
+                            maximumValue: 400
+                            stepSize: 1
+                            resetValue: 0
+                            live: true
+                            roundValue: true
+                            unitsLabel: "px"
+                            onValueChanged: shell.settings.notchHeightMargin = value
+                            Binding {
+                                target: notchHeightMargin
+                                property: "value"
+                                value: shell.settings.notchHeightMargin
+                            }
+                        }
+                        LPSettingsSlider {
+                            id: notchWidthMargin
+                            Layout.fillWidth: true
+                            Layout.margins: units.gu(2)
+                            visible: notchPositionItem.notchEnabled
+                            title: "Notch Width"
+                            enableFineControls: true
+                            minimumValue: 0
+                            maximumValue: 400
+                            stepSize: 1
+                            resetValue: 0
+                            live: true
+                            roundValue: true
+                            unitsLabel: "px"
+                            onValueChanged: shell.settings.notchWidthMargin = value
+                            Binding {
+                                target: notchWidthMargin
+                                property: "value"
+                                value: shell.settings.notchWidthMargin
+                            }
                         }
                     }
                 }
@@ -992,17 +1021,9 @@ at least until we get official and proper support for these things.\n\
     }
     // ENH046 - End
     // ENH002 - Notch/Punch hole fix
-    DeviceConfiguration {
-        id: deviceConfiguration
-        //name: applicationArguments.deviceName // Removed in focal since it causes an error
-        // ENH046 - Lomiri Plus Settings
-        shell: shell
-        // ENH046 - End
-    }
-
     Loader {
         id: shellBorderLoader
-        active: shell.isBuiltInScreen && deviceConfiguration.withNotch
+        active: shell.useCustomNotchSolution && shell.isBuiltInScreen && deviceConfig.withNotch
         asynchronous: true
         z: 1000
         anchors {
@@ -1015,7 +1036,7 @@ at least until we get official and proper support for these things.\n\
 
                 PropertyChanges {
                     target: shellBorderLoader
-                    visible: deviceConfiguration.fullyHideNotchInPortrait
+                    visible: deviceConfig.fullyHideNotchInPortrait
                     anchors.bottomMargin: -shell.shellMargin
                     anchors.rightMargin: -shell.shellMargin
                     anchors.leftMargin: -shell.shellMargin
@@ -1062,7 +1083,7 @@ at least until we get official and proper support for these things.\n\
                 id: shellBorder
 
                 color: "transparent"
-                radius: deviceConfiguration.roundedCornerRadius
+                radius: deviceConfig.roundedCornerRadius
 
                 
                 border {
@@ -1134,6 +1155,19 @@ at least until we get official and proper support for these things.\n\
 
     readonly property alias greeter: greeterLoader.item
 
+    readonly property var blurSource: {
+        if (!settings.enableBlur)
+            return null;
+
+        if (screenshotEditorContainer.visible)
+            return screenshotEditorContainer;
+
+        if (greeter.shown)
+            return greeter;
+
+        return stages;
+    }
+
     function activateApplication(appId) {
         topLevelSurfaceList.pendingActivation();
 
@@ -1184,6 +1218,13 @@ at least until we get official and proper support for these things.\n\
         id: volumeControl
     }
 
+    UDFPSDimmer {
+        visible: Powerd.highBrightnessModeEnabled
+        anchors.fill: parent
+        /* Dimmer overlay must cover everything. */
+        z: 100
+    }
+
     PhysicalKeysMapper {
         id: physicalKeysMapper
         objectName: "physicalKeysMapper"
@@ -1231,7 +1272,7 @@ at least until we get official and proper support for these things.\n\
         // anchors.topMargin: panel.fullscreenMode ? 0 : panel.minimizedPanelHeight
         // anchors.leftMargin: (launcher.lockedByUser && launcher.lockAllowed) ? launcher.panelWidth : 0
         anchors.topMargin: panel.fullscreenMode ? shell.shellTopMargin 
-                                    : deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin + panel.minimizedPanelHeight
+                                    : deviceConfig.fullyHideNotchInPortrait ? shell.shellTopMargin + panel.minimizedPanelHeight
                                                     : panel.minimizedPanelHeight// in portrait, there's a top margin even in fullscreen mode
         // `x` (= anchors.leftMargin) property is used for the left margin
         // and `width` for the available width in Stage
@@ -1274,7 +1315,6 @@ at least until we get official and proper support for these things.\n\
             objectName: "stage"
             anchors.fill: parent
             focus: true
-            lightMode: shell.lightMode
 
             dragAreaWidth: shell.edgeSize
             background: wallpaperResolver.resolvedImage
@@ -1322,6 +1362,7 @@ at least until we get official and proper support for these things.\n\
             onSpreadShownChanged: {
                 panel.indicators.hide();
                 panel.applicationMenus.hide();
+                launcher.hide()
             }
         }
 
@@ -1376,7 +1417,7 @@ at least until we get official and proper support for these things.\n\
         objectName: "greeterLoader"
         anchors.fill: parent
         // ENH002 - Notch/Punch hole fix
-        anchors.topMargin: deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
+        anchors.topMargin: deviceConfig.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
         anchors.leftMargin: shell.shellLeftMargin
         anchors.rightMargin: shell.shellRightMargin
         anchors.bottomMargin: shell.shellBottomMargin
@@ -1547,7 +1588,7 @@ at least until we get official and proper support for these things.\n\
             }
         }
         // ENH002 - Notch/Punch hole fix
-        anchors.topMargin: deviceConfiguration.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
+        anchors.topMargin: deviceConfig.fullyHideNotchInPortrait ? shell.shellTopMargin : 0
         anchors.leftMargin: shell.shellLeftMargin
         anchors.rightMargin: shell.shellRightMargin
         anchors.bottomMargin: shell.shellBottomMargin
@@ -1566,28 +1607,56 @@ at least until we get official and proper support for these things.\n\
         }
         // ENH002 - End
 
+        // TODO: remove when we no longer have With/WithoutCutouts split, this just prevents warnings
+        // about assigning to a property that doesn't exist if the WithoutCutouts variant is loaded
+        // FIXME: use attached properties instead of huge blocks of passthrough properties
+        Binding {
+            target: panel
+            property: "orientation"
+            value: shell.orientation
+            when: panel.hasOwnProperty("orientation")
+        }
+
         Panel {
             id: panel
             objectName: "panel"
             anchors.fill: parent //because this draws indicator menus
-            blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
-            lightMode: shell.lightMode
-
+            blurSource: shell.blurSource
+            z: screenshotEditor.visible ? screenshotEditorContainer.z + 1 : 0
             mode: shell.usageScenario == "desktop" ? "windowed" : "staged"
             // ENH002 - Notch/Punch hole fix
             /* Height of the panel bar */
-            // minimizedPanelHeight: units.gu(3)
+            // minimizedPanelHeight: shell.screenIndex === 0
+            //                    && shell.orientation === Qt.PortraitOrientation
+            //                    && deviceConfig.collapsedPanelHeight
+            //                    || units.gu(3)
             // expandedPanelHeight: units.gu(7)
-            minimizedPanelHeight: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
-                                        ? shell.shellMargin : units.gu(3)
-            expandedPanelHeight: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
+            minimizedPanelHeight: {
+                if (shell.useCustomNotchSolution) {
+                    return shell.isBuiltInScreen && deviceConfig.withNotch && shell.orientation == 1 && ! deviceConfig.fullyHideNotchInPortrait
+                                            ? shell.shellMargin : units.gu(3)
+                } else {
+                    return shell.screenIndex === 0
+                               && shell.orientation === Qt.PortraitOrientation
+                               && deviceConfig.collapsedPanelHeight
+                               || units.gu(3)
+                }
+            }
+            expandedPanelHeight: {
+                if (shell.useCustomNotchSolution) {
+                    return shell.isBuiltInScreen && deviceConfig.withNotch && shell.orientation == 1 && ! deviceConfig.fullyHideNotchInPortrait
                                         ? shell.shellMargin * 1.5 : units.gu(7)
+                } else {
+                    return units.gu(7)
+                }
+            }
             leftMarginBlur: !greeter.shown ? overlay.anchors.leftMargin : 0
             topMarginBlur: !greeter.shown ? overlay.anchors.topMargin : 0
             // ENH002 - End
             applicationMenuContentX: launcher.lockedVisible ? launcher.panelWidth : 0
+            screenIndex: shell.screenIndex
             // ENH002 - Notch/Punch hole fix
-            topPanelMargin: shell.isBuiltInScreen && deviceConfiguration.withNotch && shell.orientation == 1 && ! deviceConfiguration.fullyHideNotchInPortrait
+            topPanelMargin: shell.useCustomNotchSolution && shell.isBuiltInScreen && deviceConfig.withNotch && shell.orientation == 1 && ! deviceConfig.fullyHideNotchInPortrait
                                         ? shell.shellMargin : 0
             // ENH002 - End
 
@@ -1598,6 +1667,7 @@ at least until we get official and proper support for these things.\n\
                         && (!greeter || !greeter.hasLockedApp)
                         && !shell.waitingOnGreeter
                         && settings.enableIndicatorMenu
+                        && !screenshotEditor.visible
 
                 model: Indicators.IndicatorsModel {
                     id: indicatorsModel
@@ -1607,7 +1677,13 @@ at least until we get official and proper support for these things.\n\
                     // greeter or tell the session to load the app.  This will
                     // involve taking the url-dispatcher dbus name and using
                     // SessionBroadcast to tell the session.
-                    profile: shell.mode === "greeter" ? "desktop_greeter" : "phone"
+                    // For now indicators will just hide their buttons that
+                    // usually spawn lomiri-system-settings, based on the
+                    // active username being 'lightdm'.
+                    profile: shell.mode === "greeter"
+                                 ? ((shell.usageScenario === "phone" || shell.usageScenario === "tablet")
+                                     ? "phone_greeter" : "desktop_greeter")
+                                 : "phone"
                     Component.onCompleted: {
                         load();
                     }
@@ -1619,6 +1695,7 @@ at least until we get official and proper support for these things.\n\
                 available: (!greeter || !greeter.shown)
                         && !shell.waitingOnGreeter
                         && !stage.spreadShown
+                        && !screenshotEditor.visible
             }
 
             readonly property bool focusedSurfaceIsFullscreen: shell.topLevelSurfaceList.focusedWindow
@@ -1637,7 +1714,7 @@ at least until we get official and proper support for these things.\n\
             objectName: "launcher"
 
             anchors.top: parent.top
-            anchors.topMargin: inverted ? 0 : panel.panelHeight
+            anchors.topMargin: panel.panelHeight
             anchors.bottom: parent.bottom
             width: parent.width
             dragAreaWidth: shell.edgeSize
@@ -1646,6 +1723,7 @@ at least until we get official and proper support for these things.\n\
                     && !greeter.hasLockedApp
                     && !shell.waitingOnGreeter
                     && shell.mode !== "greeter"
+                    && !screenshotEditor.visible
             visible: shell.mode !== "greeter"
             inverted: shell.usageScenario !== "desktop"
             superPressed: physicalKeysMapper.superPressed
@@ -1656,9 +1734,8 @@ at least until we get official and proper support for these things.\n\
             leftMarginBlur: overlay.anchors.leftMargin
             topMarginBlur: overlay.anchors.topMargin
             // ENH002 - End
-            blurSource: settings.enableBlur ? (greeter.shown ? greeter : stages) : null
+            blurSource: shell.blurSource
             topPanelHeight: panel.panelHeight
-            lightMode: shell.lightMode
             drawerEnabled: !greeter.active && tutorial.launcherLongSwipeEnabled
             privateMode: greeter.active
             background: wallpaperResolver.resolvedImage
@@ -1795,6 +1872,7 @@ at least until we get official and proper support for these things.\n\
             privacyMode: greeter.locked && AccountsService.hideNotificationContentWhileLocked
 
             y: topmostIsFullscreen ? 0 : panel.panelHeight
+            z: screenshotEditor.visible ? screenshotEditorContainer.z + 1 : 0
             height: parent.height - (topmostIsFullscreen ? 0 : panel.panelHeight)
 
             states: [
@@ -1846,6 +1924,48 @@ at least until we get official and proper support for these things.\n\
                 }
             }
         }
+
+        Item {
+            id: screenshotEditorContainer
+            anchors.fill: parent
+            z: itemGrabber.z - 2
+            visible: false
+
+            ScreenshotEditor {
+                id: screenshotEditor
+                anchors.fill: parent
+                anchors.topMargin: panel.panelHeight
+                enabled: !wizard.active
+
+                // Always hide the Launcher and Panel
+                onShown: {
+                    console.log("Showing screenshot editor.");
+
+                    launcher.hide();
+                    panel.indicators.hide();
+                    panel.applicationMenus.hide();
+
+                    screenshotEditorContainer.visible = true;
+                }
+
+                onHidden: {
+                    screenshotEditorContainer.visible = false;
+                }
+
+                // Make locking the screen abort the editing session, otherwise we
+                // would show the editor above the lockscreen.
+                Connections {
+                    target: greeter
+                    function onLockedChanged() {
+                        if (!screenshotEditor.visible)
+                            return;
+
+                        if (greeter.locked)
+                            screenshotEditor.hide()
+                    }
+                }
+            }
+        }
     }
 
     Dialogs {
@@ -1879,11 +1999,18 @@ at least until we get official and proper support for these things.\n\
         id: itemGrabber
         anchors.fill: parent
         z: dialogs.z + 10
+        enabled: shell.mode !== "greeter"
         GlobalShortcut { shortcut: Qt.Key_Print; onTriggered: itemGrabber.capture(shell) }
         Connections {
             target: stage
             ignoreUnknownSignals: true
             function onItemSnapshotRequested(item) { itemGrabber.capture(item) }
+        }
+        onSnapshotTaken: {
+            if (!settings.enableScreenshotEditor)
+                return;
+
+            screenshotEditor.show(path)
         }
     }
 

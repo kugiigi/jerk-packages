@@ -37,7 +37,11 @@ Item {
 
     onWidthChanged: calculateKeyWidth()
     onHeightChanged: calculateKeyHeight();
-    onVisibleChanged: calculateKeyWidth();
+    onVisibleChanged:
+    {
+        calculateKeyWidth();
+        calculateKeyHeight();
+    }
 
     function numberOfRows() {
         if (typeof(content.numberOfRows) != 'undefined') {
@@ -76,6 +80,10 @@ Item {
     }
 
     function calculateKeyHeight() {
+        // If the parent doesn't exist we don't have accurate visibility, bail too
+        if (!keyPadRoot.visible || !keyPadRoot.parent) {
+            return;
+        }
         panel.keyHeight = panel.height / numberOfRows();
     }
 }

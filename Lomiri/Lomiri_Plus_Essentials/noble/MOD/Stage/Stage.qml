@@ -49,7 +49,6 @@ FocusScope {
     property bool spreadEnabled: true // If false, animations and right edge will be disabled
     property bool suspended
     property bool oskEnabled: false
-    property bool lightMode: false
     property rect inputMethodRect
     property real rightEdgePushProgress: 0
     property Item availableDesktopArea
@@ -229,6 +228,15 @@ FocusScope {
     }
 
     GlobalShortcut {
+        id: toggleSideStageShortcut
+        shortcut: Qt.MetaModifier|Qt.Key_S
+        active: priv.sideStageEnabled
+        onTriggered: {
+           priv.toggleSideStage()
+        }
+    }
+
+    GlobalShortcut {
         id: minimizeAllShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_D
         onTriggered: priv.minimizeAllWindows()
@@ -245,15 +253,73 @@ FocusScope {
     GlobalShortcut {
         id: maximizeWindowLeftShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Left
-        onTriggered: priv.focusedAppDelegate.requestMaximizeLeft()
-        active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        onTriggered: {
+            switch (root.mode) {
+                case "stagedWithSideStage":
+                    if (    priv.focusedAppDelegate
+                         && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage
+                    ) {
+                        priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.MainStage);
+                        priv.focusedAppDelegate.focus = true;
+                    }
+                    break;
+                case "windowed":
+                    if (priv.focusedAppDelegate) {
+                        priv.focusedAppDelegate.requestMaximizeLeft();
+                    }
+                    break;
+            }
+        }
+        active: {
+            switch (root.state) {
+                case "stagedWithSideStage":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.stage == ApplicationInfoInterface.SideStage
+                           && priv.sideStageEnabled;
+                case "windowed":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.canBeMaximizedLeftRight;
+                default:
+                    return false;
+            }
+        }
     }
 
     GlobalShortcut {
         id: maximizeWindowRightShortcut
         shortcut: Qt.MetaModifier|Qt.ControlModifier|Qt.Key_Right
-        onTriggered: priv.focusedAppDelegate.requestMaximizeRight()
-        active: root.state == "windowed" && priv.focusedAppDelegate && priv.focusedAppDelegate.canBeMaximizedLeftRight
+        onTriggered: {
+            switch (root.mode) {
+                case "stagedWithSideStage":
+                    if (    priv.focusedAppDelegate
+                         && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage
+                    ) {
+                        priv.focusedAppDelegate.saveStage(ApplicationInfoInterface.SideStage);
+                        priv.focusedAppDelegate.focus = true;
+                        sideStage.show();
+                        priv.updateMainAndSideStageIndexes();
+                    }
+                    break;
+                case "windowed":
+                    if (priv.focusedAppDelegate) {
+                        priv.focusedAppDelegate.requestMaximizeRight();
+                    }
+                    break;
+            }
+        }
+        active: {
+            switch (root.state) {
+                case "stagedWithSideStage":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.stage == ApplicationInfoInterface.MainStage
+                           && priv.sideStageEnabled;
+                case "windowed":
+                    return    priv.focusedAppDelegate
+                           && priv.focusedAppDelegate.canBeMaximizedLeftRight;
+                default:
+                    return false;
+            }
+        }
     }
 
     GlobalShortcut {
@@ -327,37 +393,37 @@ FocusScope {
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutLeft
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Left
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showLeftMoveApp(root.focusedAppDelegate.surface)
+            workspaceSwitcher.showLeftMoveApp(priv.focusedAppDelegate.surface)
         }
     }
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutRight
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Right
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showRightMoveApp(root.focusedAppDelegate.surface)
+            workspaceSwitcher.showRightMoveApp(priv.focusedAppDelegate.surface)
         }
     }
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutUp
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Up
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showUpMoveApp(root.focusedAppDelegate.surface)
+            workspaceSwitcher.showUpMoveApp(priv.focusedAppDelegate.surface)
         }
     }
     GlobalShortcut {
         id: moveAppShowWorkspaceSwitcherShortcutDown
         shortcut: Qt.AltModifier|Qt.ControlModifier|Qt.ShiftModifier|Qt.Key_Down
-        active: !workspaceSwitcher.active && root.workspaceEnabled && root.focusedAppDelegate
+        active: !workspaceSwitcher.active && root.workspaceEnabled && priv.focusedAppDelegate !== null
         onTriggered: {
             root.focus = true;
-            workspaceSwitcher.showDownMoveApp(root.focusedAppDelegate.surface)
+            workspaceSwitcher.showDownMoveApp(priv.focusedAppDelegate.surface)
         }
     }
 
@@ -423,6 +489,15 @@ FocusScope {
         onSideStageDelegateChanged: {
             if (!sideStageDelegate) {
                 sideStage.hide();
+            }
+        }
+
+        function toggleSideStage() {
+            if (sideStage.shown) {
+                sideStage.hide();
+            } else  {
+                sideStage.show();
+                updateMainAndSideStageIndexes()
             }
         }
 
@@ -632,7 +707,7 @@ FocusScope {
             PropertyChanges { target: rightEdgeDragArea; enabled: false }
             PropertyChanges { target: cancelSpreadMouseArea; enabled: true }
             PropertyChanges { target: noAppsRunningHint; visible: (root.topLevelSurfaceList.count < 1) }
-            PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .65; opacity: 1 }
+            PropertyChanges { target: blurLayer; visible: true; blurRadius: 32; brightness: .50; opacity: 1 }
             PropertyChanges { target: wallpaper; visible: false }
             PropertyChanges { target: screensAndWorkspaces.showTimer; running: true }
         },
@@ -1406,7 +1481,9 @@ FocusScope {
                     // Now load any saved state. This needs to happen *after* the cascading!
                     windowStateSaver.load();
 
-                    updateQmlFocusFromMirSurfaceFocus();
+                    if (!root.spreadShown) {
+                        updateQmlFocusFromMirSurfaceFocus();
+                    }
 
                     refreshStage();
                     _constructing = false;
@@ -2087,11 +2164,10 @@ FocusScope {
                     overlayShown: touchControls.overlayShown
                     width: implicitWidth
                     height: implicitHeight
-                    highlightSize: windowInfoItem.iconMargin / 2
+                    highlightSize: windowInfoItem.iconMargin
                     boundsItem: root.availableDesktopArea
                     panelState: root.panelState
                     altDragEnabled: root.mode == "windowed"
-                    lightMode: root.lightMode
 
                     requestedWidth: appDelegate.requestedWidth
                     requestedHeight: appDelegate.requestedHeight
@@ -2115,6 +2191,13 @@ FocusScope {
                     onMinimizeClicked: { appDelegate.requestMinimize(); }
                     onDecorationPressed: { appDelegate.activate(); }
                     onDecorationReleased: fakeRectangle.visible ? fakeRectangle.commit() : appDelegate.updateRestoredGeometry()
+
+                    onDragResizePressed: {
+                        appDelegate.activate();
+                        resizeArea.pressedChangedEx(true, mouse);
+                    }
+                    onDragResizeReleased: resizeArea.pressedChangedEx(false, mouse);
+                    onDragResizePositionChanged: resizeArea.positionChangedEx(mouse);
 
                     property real angle: 0
                     Behavior on angle { enabled: priv.closingIndex >= 0; LomiriNumberAnimation {} }
@@ -2310,6 +2393,7 @@ FocusScope {
         width: root.width - units.gu(8)
         background: root.background
         availableDesktopArea: root.availableDesktopArea
+        onWorkspaceSelected: screensAndWorkspaces.activeWorkspace = selectedWorkspace;
         onActiveChanged: {
             if (!active) {
                 appContainer.focus = true;
@@ -2445,12 +2529,7 @@ FocusScope {
         }
 
         onClicked: {
-            if (sideStage.shown) {
-                sideStage.hide();
-            } else  {
-                sideStage.show();
-                priv.updateMainAndSideStageIndexes()
-            }
+            priv.toggleSideStage()
         }
 
         onDragStarted: {

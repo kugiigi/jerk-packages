@@ -1,13 +1,14 @@
 import QtQuick 2.9
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Controls 2.5 as QQC2
-import QtQuick.Controls.Suru 2.2
+//~ import QtQuick.Controls.Suru 2.2
 
 QQC2.ToolButton {
     id: menuToolButton
 
     property string iconName
-    property color iconColor: Suru.foregroundColor
+//~     property color iconColor: Suru.foregroundColor
+    property color iconColor: enabled ? theme.palette.normal.backgroundText : theme.palette.disabled.backgroundText
     property real iconWidth: units.gu(2)
     property real iconHeight: units.gu(2)
     property string tooltipText

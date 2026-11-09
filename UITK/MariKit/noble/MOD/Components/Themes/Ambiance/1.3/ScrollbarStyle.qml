@@ -606,6 +606,7 @@ Item {
                         property: "width"
                         value: (isVertical) ? flowContainer.thumbThickness
                                             : scrollbarUtils.sliderSize(styledItem, visuals.minimumSliderSize, trough.width - 2 * thumbsExtremesMargin)
+                        restoreMode: Binding.RestoreNone
                     }
                     Binding {
                         when: !visuals.draggingThumb
@@ -613,6 +614,7 @@ Item {
                         property: "height"
                         value: (!isVertical) ? flowContainer.thumbThickness
                                              : scrollbarUtils.sliderSize(styledItem, visuals.minimumSliderSize, trough.height - 2 * thumbsExtremesMargin)
+                        restoreMode: Binding.RestoreNone
                     }
                 }
 

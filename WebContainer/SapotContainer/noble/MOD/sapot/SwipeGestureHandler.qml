@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Lomiri.Components 1.3
+import Lomiri.Components
 import QtQuick.Window 2.2
 
 SwipeArea {
@@ -34,7 +34,7 @@ SwipeArea {
 
     immediateRecognition: true
 
-    onDistanceChanged: {
+    onDistanceChanged: (distance) => {
         if (Math.abs(internal.prevDistance - distance) >= internal.distanceThreshold) {
             if (internal.prevDistance < distance) {
                 internal.towardsDirection = true
@@ -45,11 +45,13 @@ SwipeArea {
         }
     }
 
-    onStageChanged: {
+    onStageChanged: (stage) => {
         swipeHoldTimer.restart()
     }
 
-    onDraggingChanged: if (!dragging) swipeHoldTimer.stop()
+    onDraggingChanged: (dragging) => {
+        if (!dragging) swipeHoldTimer.stop()
+    }
 
     Timer {
         id: swipeHoldTimer
