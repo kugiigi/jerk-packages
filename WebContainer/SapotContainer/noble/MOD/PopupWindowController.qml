@@ -21,6 +21,7 @@ import Morph.Web 0.1
 import Lomiri.Components
 import Lomiri.Components.Popups
 import Qt.labs.settings 1.0
+import QtWebEngine
 
 Item {
     id: controller
@@ -28,6 +29,9 @@ Item {
     property var webappUrlPatterns
     property var mainWebappView
     property var views: []
+    readonly property bool hasViews: views.length > 0
+    readonly property FocusScope topView: hasViews ? views[views.length - 1] : null
+    readonly property WebEngineView topWebview: topView ? topView.currentWebview : null
     property bool blockOpenExternalUrls: false
     property var mediaAccessDialogComponent
     property bool wide: false
@@ -107,10 +111,13 @@ Item {
         if (views.length !== 0) {
             // Hide the view below the new one
             var topView = views[views.length-1]
-            topView.visible = false
+            topView.visible = Qt.binding( function() { return controller.topView.y > 0 && controller.isDragging } )
         }
-        views.push(view)
-        mainWebappView.visible = false
+
+        const _tempArr = views.slice()
+        _tempArr.push(view)
+        views = _tempArr.slice()
+        mainWebappView.visible = Qt.binding( function() { return controller.views.length === 1 && controller.topView.y > 0 && controller.isDragging } )
         
 
         view.webviewUrlChanged.connect(function(webviewUrl) {
@@ -137,6 +144,12 @@ Item {
         }
         return mainWebappView
     }
+    function closeAll() {
+        for( let i = views.length - 1; i >= 0; i-- ) {
+            let _view = views[i]
+            handleViewRemoved(_view)
+        }
+    }
     function handleViewRemoved(view) {
         if (views.length === 0) {
             return
@@ -148,7 +161,9 @@ Item {
             return
         }
 
-        views.pop()
+        const _tempArr = views.slice()
+        _tempArr.pop()
+        views = _tempArr.slice()
         if (internal.urlPerOverlayView) {
             delete internal.urlPerOverlayView[topMostView]
             updateOverlayUrlsSettings()
@@ -198,7 +213,10 @@ Item {
         }
         view.yChanged.connect(onViewSlidingIn)
 
-        view.y = 0
+        // Fixes overlays going down when resizing window's height
+        // Possibly initial binding gets restored?
+        // view.y = 0
+        view.y = Qt.binding( function() { return 0 } )
         // handleNewViewAdded(view)
         newViewCreated(view.url)
     }
@@ -261,7 +279,7 @@ Item {
     function handleNewForegroundNavigationRequest(url, request, isRequestFromMainWebappWebview) {
 
         if (views.length >= maxSimultaneousViews) {
-            request.action = WebEngineNavigationRequest.IgnoreRequest
+            request.reject();
             // Default to open externally, maybe should present a dialog
             openUrlExternally(url.toString())
             console.log("Maximum number of popup overlay opened, opening: %1 in the browser".arg(url))

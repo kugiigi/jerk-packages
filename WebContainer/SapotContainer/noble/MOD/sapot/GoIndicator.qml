@@ -1,7 +1,5 @@
 import QtQuick 2.9
 import Lomiri.Components
-//~ import QtGraphicalEffects 1.12
-//~ import Qt5Compat.GraphicalEffects
 
 Item {
     id: goIndicator

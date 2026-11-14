@@ -45,7 +45,7 @@ SwipeArea {
         }
     }
 
-    onStageChanged: (stage) => {
+    onStageChanged: {
         swipeHoldTimer.restart()
     }
 

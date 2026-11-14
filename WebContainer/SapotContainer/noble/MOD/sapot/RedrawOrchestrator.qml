@@ -41,7 +41,12 @@ Item {
     // Show a snapshot of the window, created when suspending
     Image {
         id: windowSnapshot
-        anchors.fill: parent
+
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
         visible: false
     }
 
@@ -142,6 +147,9 @@ Item {
                         return;
                     }
                     windowSnapshot.source = result.url;
+                    // Set height here so it matches to the screenshot
+                    // and won't stretch out when for example the OSK was displayed
+                    windowSnapshot.height = webview.height
                     windowSnapshot.visible = true;
                     grabbing = false;
                     // currentWebview.visible = false;

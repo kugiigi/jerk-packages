@@ -64,6 +64,12 @@ FocusScope {
         }
     }
 
+    function close() {
+        if (popupWindowController) {
+            popupWindowController.handleViewRemoved(popup)
+        }
+    }
+
     Rectangle {
         color: theme.palette.normal.background
         anchors.fill: parent
@@ -332,6 +338,7 @@ FocusScope {
         color: theme.palette.normal.background
         visible: !webapp.settings.bottomGestureAreaOverlapsWebView
 
+        /* Disabled since it's not working LOL
         Connections {
             target: webapp.currentWebview
 
@@ -347,6 +354,7 @@ FocusScope {
                 }
             }
         }
+        */
     }
 
     RowLayout {
@@ -530,100 +538,5 @@ FocusScope {
                 implicitHeight: units.gu(webapp.settings.bottomGesturesAreaHeight)
             }
         }
-    }
-
-    // F5 or Ctrl+R: Reload current Tab
-    Shortcut {
-        sequence: "Ctrl+r"
-        enabled: currentWebview && currentWebview.visible
-        onActivated: currentWebview.reload()
-    }
-    Shortcut {
-        id: shortcutWebviewReload
-        sequence: "F5"
-        enabled: currentWebview && currentWebview.visible
-        onActivated: currentWebview.reload()
-    }
-
-    // Alt+← or Backspace: Goes to the previous page
-    Shortcut {
-        id: shortcutWebviewBack
-        sequences: [StandardKey.Back]
-        enabled: currentWebview && currentWebview.canGoBack
-        onActivated: currentWebview.goBack()
-    }
-
-    // Alt+→ or Shift+Backspace: Goes to the next page
-    Shortcut {
-        id: shortcutWebviewForward
-        sequences: [StandardKey.Forward]
-        enabled: currentWebview && currentWebview.canGoForward
-        onActivated: currentWebview.goForward()
-    }
-
-    Shortcut {
-        id: shortcutFullscreen
-        sequence: "F11"
-        onActivated: webapp.window.toggleApplicationLevelFullscreen()
-    }
-
-    // Escape: Exit webview fullscreen
-    Shortcut {
-        id: shortcutExitFullScreen
-        sequence: "Esc"
-        enabled: currentWebview && currentWebview.isFullScreen
-        onActivated: {
-            if (currentWebview.isFullScreen) {
-                currentWebview.fullScreenCancelled()
-            }
-        }
-    }
-
-    // Ctrl+F: Find in Page
-    Shortcut {
-        id: shortcutFind
-        sequences: [StandardKey.Find]
-        enabled: popup.currentWebview
-        onActivated: {
-            if (popup.currentWebview) {
-                if (popup.findInPageMode) {
-                    popup.focusFindField()
-                } else {
-                    popup.findInPageMode = true
-                }
-            }
-        }
-    }
-
-    // Ctrl+G: Find next
-    Shortcut {
-        id: shortcutFindNext
-
-        sequence: "Ctrl+G"
-        enabled: popup.currentWebview && popup.findInPageMode
-        onActivated: currentWebview.findController.next()
-    }
-
-    // Ctrl+Shift+G: Find previous
-    Shortcut {
-        id: shortcutFindPrevious
-
-        sequence: "Ctrl+Shift+G"
-        enabled: popup.currentWebview && popup.findInPageMode
-        onActivated: currentWebview.findController.previous()
-    }
-
-    // F3: Find next
-    Shortcut {
-        sequences: [StandardKey.FindNext]
-        enabled: popup.currentWebview && popup.findInPageMode
-        onActivated: shortcutFindNext.activated()
-    }
-
-    // Shift+F3: Find previous
-    Shortcut {
-        sequences: [StandardKey.FindPrevious]
-        enabled: popup.currentWebview && popup.findInPageMode
-        onActivated: shortcutFindPrevious.activated()
     }
 }

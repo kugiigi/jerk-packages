@@ -39,6 +39,10 @@ import ".." 0.1
 // ENH178 - Option to delay app suspension
 import Powerd 0.1
 // ENH178 - End
+// ENH276 - Add window titlebar menu
+import QtQuick.Layouts 1.12
+import Lomiri.Components.Popups 1.3
+// ENH276 - End
 
 FocusScope {
     id: root
@@ -2959,6 +2963,9 @@ FocusScope {
                 function removeFromBottomHalfMaximized(_appDelegate) {
                     bottomHalfMaximizedWindows.removeItem(_appDelegate);
                 }
+                // ENH276 - Add window titlebar menu
+                property ActionSelectionPopover contextMenuItem
+                // ENH276 - End
 
                 Loader {
                     id: snappedWindowsTabsBarLoader
@@ -2994,9 +3001,261 @@ FocusScope {
                                 model: modelData
                                 enableHover: modelData.currentAppDelegate && modelData.currentAppDelegate.decoration.cleanMode
                                 appDelegate: modelData.currentAppDelegate
+
+                                // ENH276 - Add window titlebar menu
+                                onContextMenu: (tabDelegate, index) => {
+                                    const _item = modelData.get(index);
+                                    let _appDelegate
+                                    if (_item) {
+                                        if (_item.itemdata.isWindowsModel) {
+                                            _appDelegate = _item.itemdata.appDelegate.currentAppDelegate
+                                        } else {
+                                            _appDelegate = _item.itemdata.appDelegate
+                                        }
+                                    }
+
+                                    workspaceContainer.contextMenuItem = contextMenuComponent.createObject(shell.popupParent
+                                                        , { "caller": tabDelegate
+                                                            , "appDelegate": _appDelegate });
+                                    workspaceContainer.contextMenuItem.z = Number.MAX_VALUE
+                                    workspaceContainer.contextMenuItem.close.connect(function() { workspaceContainer.contextMenuItem = null; } )
+                                    workspaceContainer.contextMenuItem.show()
+                                    shell.haptics.playSubtle()
+                                }
+                                // ENH276 - End
                             }
                         }
                     }
+                }
+                // ENH276 - Add window titlebar menu
+                Component {
+                    id: contextMenuComponent
+
+                    ActionSelectionPopover {
+                        id: contextMenu
+
+                        property Item appDelegate
+
+                        signal close
+
+                        contentWidth: units.gu(35)
+                        grabDismissAreaEvents: true
+                        automaticOrientation: false
+                        actions: [ restoreAction, maximizeAction
+                                    , leftMaximizeAction, rightMaximizeAction
+                                    , topLeftMaximizeAction, topRightMaximizeAction
+                                    , bottomLeftMaximizeAction, bottomRightMaximizeAction
+                                    , topMaximizeAction, bottomMaximizeAction
+                                    , minimizedAction, closeAction ]
+                        callerMargin: units.gu(2)
+
+                        function closePopup() {
+                            close()
+                            hide()
+                            destroy()
+                        }
+
+                        onVisibleChanged: {
+                            if (!visible) {
+                                contextMenu.closePopup()
+                            }
+                        }
+
+                        // Use request functions because the direct ones are incomplete and breaks window states
+                        Action {
+                            id: maximizeAction
+
+                            text: "Maximize"
+                            iconSource: "../Components/graphics/window-maximize.svg"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximized
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximize();
+                                }
+                            }
+                        }
+                        Action {
+                            id: restoreAction
+
+                            text: "Restore"
+                            iconSource: "../Components/graphics/window-window.svg"
+                            enabled: contextMenu.appDelegate && contextMenu.appDelegate.anyMaximized
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestRestore();
+                                }
+                            }
+                        }
+                        Action {
+                            id: minimizedAction
+
+                            text: "Minimize"
+                            iconSource: "../Components/graphics/window-minimize.svg"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.minimized
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMinimize();
+                                }
+                            }
+                        }
+                        Action {
+                            id: leftMaximizeAction
+
+                            text: "Snap left"
+                            iconName: "go-first"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedLeft
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeLeft();
+                                }
+                            }
+                        }
+                        Action {
+                            id: rightMaximizeAction
+
+                            text: "Snap right"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedRight
+                            iconName: "go-last"
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeRight();
+                                }
+                            }
+                        }
+                        Action {
+                            id: topLeftMaximizeAction
+
+                            text: "Snap top left"
+                            iconName: "go-previous"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedTopLeft
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeTopLeft();
+                                }
+                            }
+                        }
+                        Action {
+                            id: topRightMaximizeAction
+
+                            text: "Snap top right"
+                            iconName: "go-next"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedTopRight
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeTopRight();
+                                }
+                            }
+                        }
+                        Action {
+                            id: bottomLeftMaximizeAction
+
+                            text: "Snap bottom left"
+                            iconName: "go-previous"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedBottomLeft
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeBottomLeft();
+                                }
+                            }
+                        }
+                        Action {
+                            id: bottomRightMaximizeAction
+
+                            text: "Snap bottom right"
+                            iconName: "go-next"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedBottomRight
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeBottomRight();
+                                }
+                            }
+                        }
+                        Action {
+                            id: topMaximizeAction
+
+                            text: "Snap top"
+                            iconName: "go-up"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedHorizontally
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeHorizontally();
+                                }
+                            }
+                        }
+                        Action {
+                            id: bottomMaximizeAction
+
+                            text: "Snap bottom"
+                            iconName: "go-down"
+                            enabled: contextMenu.appDelegate && !contextMenu.appDelegate.maximizedVertically
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.requestMaximizeVertically();
+                                }
+                            }
+                        }
+                        Action {
+                            id: closeAction
+
+                            text: "Close"
+                            iconName: "close"
+                            visible: enabled
+                            onTriggered: {
+                                if (contextMenu.appDelegate) {
+                                    contextMenu.appDelegate.close();
+                                }
+                            }
+                        }
+
+                        delegate: ListItem {
+                            visible: action.visible && action.enabled
+                            height: visible ? implicitHeight : 0
+                            color: hoverMouseArea.containsMouse ? theme.palette.highlighted.background : "transparent"
+
+                            MouseArea {
+                                id: hoverMouseArea
+
+                                anchors.fill: parent
+                                acceptedButtons: Qt.NoButton
+                                hoverEnabled: true
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                spacing: units.gu(2)
+                                Icon {
+                                    id: iconItem2
+                                    Layout.leftMargin: units.gu(2)
+                                    implicitWidth: units.gu(2)
+                                    implicitHeight: implicitWidth
+                                    visible: name !== "" || source.toString() !== ""
+                                    name: action.iconName
+                                    source: action.iconSource
+                                    color: theme.palette.normal.foregroundText
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    Layout.rightMargin: units.gu(2)
+                                    text: action.text
+                                    horizontalAlignment: iconItem2.visible ? Text.AlignLeft : Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                            onClicked: contextMenu.closePopup()
+                        }
+                    }
+                    // ENH276 - End
                 }
                 // ENH268 - End
 
@@ -4898,6 +5157,18 @@ FocusScope {
                     }
                     onDragResizeReleased: resizeArea.pressedChangedEx(false, mouse);
                     onDragResizePositionChanged: resizeArea.positionChangedEx(mouse);
+
+                    // ENH276 - Add window titlebar menu
+                    onContextMenu: (caller) => {
+                        workspaceContainer.contextMenuItem = contextMenuComponent.createObject(shell.popupParent
+                                            , { "caller": caller
+                                                , "appDelegate": appDelegate });
+                        workspaceContainer.contextMenuItem.z = Number.MAX_VALUE
+                        workspaceContainer.contextMenuItem.close.connect(function() { workspaceContainer.contextMenuItem = null; } )
+                        workspaceContainer.contextMenuItem.show()
+                        shell.haptics.playSubtle()
+                    }
+                    // ENH276 - End
 
                     property real angle: 0
                     Behavior on angle { enabled: priv.closingIndex >= 0; LomiriNumberAnimation {} }

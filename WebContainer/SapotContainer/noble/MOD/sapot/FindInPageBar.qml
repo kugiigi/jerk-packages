@@ -82,7 +82,7 @@ Common.BaseToolbar {
                 }
             }
 
-            Keys.onReturnPressed: {
+            Keys.onReturnPressed: (event) => {
                 if (event.modifiers & Qt.ShiftModifier) {
                     findInPageBar.findController.previous()
                 } else {

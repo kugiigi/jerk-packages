@@ -25,6 +25,7 @@ QQC2.ItemDelegate {
     property color highlightedBorderColor: theme.palette.highlighted.background
     property string tooltipText
     property int alignment: Qt.AlignCenter
+    property url imageSource
 
     property alias label: mainLabel // Main label
     
@@ -52,6 +53,17 @@ QQC2.ItemDelegate {
             anchors.fill: parent
             name: customizedButton.icon.name
             color: customizedButton.icon.color
+        }
+    }
+
+    Component {
+        id: imageComponent
+
+        Image {
+            asynchronous: true
+            anchors.fill: parent
+            source: customizedButton.imageSource
+            fillMode: Image.PreserveAspectFit
         }
     }
 
@@ -93,13 +105,40 @@ QQC2.ItemDelegate {
                 visible: item ? true : false
                 asynchronous: true
                 sourceComponent: {
-                    switch (customizedButton.display) {
-                        case QQC2.AbstractButton.IconOnly:
-                        case QQC2.AbstractButton.TextBesideIcon:
-                            return iconComponent
-                        default:
-                            return null
+                    if (customizedButton.icon.name) {
+                        switch (customizedButton.display) {
+                            case QQC2.AbstractButton.IconOnly:
+                            case QQC2.AbstractButton.TextBesideIcon:
+                                return iconComponent
+                            default:
+                                return null
+                        }
                     }
+
+                    return null
+                }
+            }
+            Loader {
+                id: leftImageLoader
+
+                Layout.preferredWidth: customizedButton.icon.width
+                Layout.preferredHeight: customizedButton.icon.height
+                Layout.alignment: internal.centerContents ? Qt.AlignCenter : Qt.AlignVCenter
+
+                visible: item ? true : false
+                asynchronous: true
+                sourceComponent: {
+                    if (customizedButton.imageSource.toString() != "" ) {
+                        switch (customizedButton.display) {
+                            case QQC2.AbstractButton.IconOnly:
+                            case QQC2.AbstractButton.TextBesideIcon:
+                                return imageComponent
+                            default:
+                                return null
+                        }
+                    }
+
+                    return null
                 }
             }
 
@@ -189,8 +228,8 @@ QQC2.ItemDelegate {
             Loader {
                 id: rightIconLoader
 
-                Layout.preferredWidth: customizedButton.icon.width
-                Layout.preferredHeight: customizedButton.icon.height
+                Layout.preferredWidth: customizedButton.secondaryIcon.width
+                Layout.preferredHeight: customizedButton.secondaryIcon.height
                 Layout.alignment: Qt.AlignVCenter
 
                 asynchronous: true

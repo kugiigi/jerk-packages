@@ -97,7 +97,7 @@ BaseContentDialog {
     Connections {
         id: stateChangeConnection
         target: null
-        onStateChanged: {
+        function onStateChanged() {
             if (contentPickerDialog.activeTransfer.state === ContentTransfer.Charged) {
                 var selectedItems = []
                 for(var i in contentPickerDialog.activeTransfer.items) {

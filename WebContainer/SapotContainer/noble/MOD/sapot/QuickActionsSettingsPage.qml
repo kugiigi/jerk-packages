@@ -149,6 +149,7 @@ Common.BrowserPage {
                 id: comboBox
 
                 Layout.fillWidth: true
+                Layout.preferredHeight: units.gu(5)
                 textRole: "title"
             }
 
@@ -157,6 +158,7 @@ Common.BrowserPage {
 
                 visible: comboBox.model ? comboBox.model[comboBox.currentIndex].id === "customUrl" : false
                 Layout.fillWidth: true
+                Layout.preferredHeight: units.gu(5)
                 textRole: "name"
                 model: webapp.settings.customURLActions
             }
@@ -200,7 +202,7 @@ Common.BrowserPage {
 
             ViewItems.selectMode: quickActionsSettingsPage.selectMode
             ViewItems.dragMode: quickActionsSettingsPage.dragMode
-            ViewItems.onDragUpdated: {
+            ViewItems.onDragUpdated: (event) => {
                 if (event.status == ListItemDrag.Started) {
                     if (model[event.from] == "Immutable")
                         event.accept = false;

@@ -58,12 +58,12 @@ QQC2.RoundButton {
 
         ignoreUnknownSignals: true
         
-        onScrollPositionChanged: {
+        function onScrollPositionChanged() {
             root.hidden = false
             timer.restart()
         }
-        
-        onVerticalVelocityChanged: {
+
+        function onVerticalVelocityChanged() {
             if (target.verticalVelocity === 0) {
                 timer.start()
             } else {

@@ -306,37 +306,20 @@ FocusScope {
 
                     ListItemLayout {
                         title.text: i18n.tr("Default Zoom")
-                        QQC2.SpinBox {
-                          id: defaultZoomFactorSelector
-                          height: units.gu(5)
-                          value: Math.round(settingsObject.zoomFactor * 100 * stepSize) / stepSize
-                          from: 25
-                          to: 500
-                          stepSize: 5
-                          textFromValue: function(value, locale) {
-                            return value + "%";
-                          }
-                          onValueModified: {
-                            settingsObject.zoomFactor = (Math.round(value / stepSize) * stepSize) / 100
-                          }
-                        }
-                        Icon {
-                            id: resetZoom
-                            name: "reset"
-
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.zoomFactor === 1.0) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.zoomFactor = 1.0
+                        Sapot.SpinBoxItem {
+                            currentValue: settingsObject.zoomFactor
+                            resetValue: 1
+                            value:  Math.round(settingsObject.zoomFactor * 100 * stepSize) / stepSize
+                            from: 25
+                            to: 500
+                            stepSize: 5
+                            textFromValue: function(value, locale) {
+                                return value + "%";
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
+                            onValueModified: (value) => {
+                                settingsObject.zoomFactor = (Math.round(value / stepSize) * stepSize) / 100
                             }
+                            onReset: settingsObject.zoomFactor = resetValue
                         }
                     }
                 }
@@ -503,34 +486,19 @@ FocusScope {
                         title.text: i18n.tr("Button size")
                         padding.leading: units.gu(2)
 
-                        QQC2.SpinBox {
-                          id: scrollPositionerSize
-                          height: units.gu(5)
-                          value: settingsObject.scrollPositionerSize
-                          from: 2
-                          to: 10
-                          stepSize: 1
-                          onValueModified: {
-                            settingsObject.scrollPositionerSize = value
-                          }
-                        }
-                        Icon {
-                            id: resetScrollPositionerSize
-                            name: "reset"
+                        Sapot.SpinBoxItem {
+                            id: scrollPositionerSize
 
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.scrollPositionerSize === 8) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.scrollPositionerSize = 8
+                            currentValue: settingsObject.scrollPositionerSize
+                            resetValue: 8
+                            value: settingsObject.scrollPositionerSize
+                            from: 2
+                            to: 10
+                            stepSize: 1
+                            onValueModified: (value) => {
+                                settingsObject.scrollPositionerSize = value
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
-                            }
+                            onReset: settingsObject.scrollPositionerSize = resetValue
                         }
                     }
                 }
@@ -587,34 +555,19 @@ FocusScope {
                         title.text: i18n.tr("Button size")
                         padding.leading: units.gu(2)
 
-                        QQC2.SpinBox {
-                          id: floatingScrollButtonSize
-                          height: units.gu(5)
-                          value: settingsObject.floatingScrollButtonSize
-                          from: 2
-                          to: 10
-                          stepSize: 1
-                          onValueModified: {
-                            settingsObject.floatingScrollButtonSize = value
-                          }
-                        }
-                        Icon {
-                            id: resetFloatingScrollButtonSize
-                            name: "reset"
+                        Sapot.SpinBoxItem {
+                            id: floatingScrollButtonSize
 
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.floatingScrollButtonSize === 6) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.floatingScrollButtonSize = 6
+                            currentValue: settingsObject.floatingScrollButtonSize
+                            resetValue: 6
+                            value: settingsObject.floatingScrollButtonSize
+                            from: 2
+                            to: 10
+                            stepSize: 1
+                            onValueModified: (value) => {
+                                settingsObject.floatingScrollButtonSize = value
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
-                            }
+                            onReset: settingsObject.floatingScrollButtonSize = resetValue
                         }
                     }
                 }
@@ -627,34 +580,19 @@ FocusScope {
                         title.text: i18n.tr("Side margin")
                         padding.leading: units.gu(2)
 
-                        QQC2.SpinBox {
-                          id: floatingScrollButtonSideMargin
-                          height: units.gu(5)
-                          value: settingsObject.floatingScrollButtonSideMargin
-                          from: 0
-                          to: 6
-                          stepSize: 1
-                          onValueModified: {
-                            settingsObject.floatingScrollButtonSideMargin = value
-                          }
-                        }
-                        Icon {
-                            id: resetFloatingScrollButtonSideMargin
-                            name: "reset"
+                        Sapot.SpinBoxItem {
+                            id: floatingScrollButtonSideMargin
 
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.floatingScrollButtonSideMargin === 2) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.floatingScrollButtonSideMargin = 2
+                            currentValue: settingsObject.floatingScrollButtonSideMargin
+                            resetValue: 2
+                            value: settingsObject.floatingScrollButtonSideMargin
+                            from: 0
+                            to: 6
+                            stepSize: 1
+                            onValueModified: (value) => {
+                                settingsObject.floatingScrollButtonSideMargin = value
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
-                            }
+                            onReset: settingsObject.floatingScrollButtonSideMargin = resetValue
                         }
                     }
                 }
@@ -668,34 +606,19 @@ FocusScope {
                         title.text: i18n.tr("Vertical margin")
                         padding.leading: units.gu(2)
 
-                        QQC2.SpinBox {
-                          id: floatingScrollButtonVerticalMargin
-                          height: units.gu(5)
-                          value: settingsObject.floatingScrollButtonVerticalMargin
-                          from: 0
-                          to: 20
-                          stepSize: 1
-                          onValueModified: {
-                            settingsObject.floatingScrollButtonVerticalMargin = value
-                          }
-                        }
-                        Icon {
-                            id: resetfloatingScrollButtonVerticalMargin
-                            name: "reset"
+                        Sapot.SpinBoxItem {
+                            id: floatingScrollButtonVerticalMargin
 
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.floatingScrollButtonVerticalMargin === 2) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.floatingScrollButtonVerticalMargin = 2
+                            currentValue: settingsObject.floatingScrollButtonVerticalMargin
+                            resetValue: 2
+                            value: settingsObject.floatingScrollButtonVerticalMargin
+                            from: 0
+                            to: 20
+                            stepSize: 1
+                            onValueModified: (value) => {
+                                settingsObject.floatingScrollButtonVerticalMargin = value
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
-                            }
+                            onReset: settingsObject.floatingScrollButtonVerticalMargin = resetValue
                         }
                     }
                 }
@@ -846,33 +769,19 @@ FocusScope {
 
                     ListItemLayout {
                         title.text: i18n.tr("Gestures Area Height")
-                        QQC2.SpinBox {
-                          id: bottomGesturesAreaHeight
-                          height: units.gu(5)
-                          value: settingsObject.bottomGesturesAreaHeight
-                          from: 1
-                          to: 10
-                          stepSize: 1
-                          onValueModified: {
-                            settingsObject.bottomGesturesAreaHeight = value
-                          }
-                        }
-                        Icon {
-                            name: "reset"
+                        Sapot.SpinBoxItem {
+                            id: bottomGesturesAreaHeight
 
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.bottomGesturesAreaHeight === 2) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.bottomGesturesAreaHeight = 2
+                            currentValue: settingsObject.bottomGesturesAreaHeight
+                            resetValue: 2
+                            value: settingsObject.bottomGesturesAreaHeight
+                            from: 1
+                            to: 10
+                            stepSize: 1
+                            onValueModified: (value) => {
+                                settingsObject.bottomGesturesAreaHeight = value
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
-                            }
+                            onReset: settingsObject.bottomGesturesAreaHeight = resetValue
                         }
                     }
                 }
@@ -930,36 +839,22 @@ FocusScope {
                         title.text: i18n.tr("Height (inch)")
                         padding.leading: units.gu(2)
 
-                        QQC2.SpinBox {
-                          id: webviewQuickActionsHeight
-                          height: units.gu(5)
-                          value: settingsObject.webviewQuickActionsHeight * 4
-                          from: 4
-                          to: 20
-                          stepSize: 1
-                          textFromValue: function(value, locale) {
-                            return value / 4;
-                          }
-                          onValueModified: {
-                            settingsObject.webviewQuickActionsHeight = value / 4
-                          }
-                        }
-                        Icon {
-                            name: "reset"
+                        Sapot.SpinBoxItem {
+                            id: webviewQuickActionsHeight
 
-                            height: units.gu(2)
-                            width: height
-                            opacity: (settingsObject.webviewQuickActionsHeight === 3) ? 0.5 : 1
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: settingsObject.webviewQuickActionsHeight = 3
+                            currentValue: settingsObject.webviewQuickActionsHeight
+                            resetValue: 3
+                            value:  settingsObject.webviewQuickActionsHeight * 4
+                            from: 4
+                            to: 20
+                            stepSize: 1
+                            textFromValue: function(value, locale) {
+                                return value / 4;
                             }
-
-                            anchors {
-                                leftMargin: units.gu(1)
-                                topMargin: units.gu(2)
+                            onValueModified: (value) => {
+                                settingsObject.webviewQuickActionsHeight = value / 4
                             }
+                            onReset: settingsObject.webviewQuickActionsHeight = resetValue
                         }
                     }
                 }
@@ -1078,7 +973,7 @@ FocusScope {
                 title: i18n.tr("Quick actions (Left)")
                 model: settingsObject.webviewQuickActions[0]
                 anchors.fill: parent
-                onModelDataChanged: {
+                onModelDataChanged: (newModelData) => {
                     settingsObject.webviewQuickActions = [ newModelData, settingsObject.webviewQuickActions[1] ]
                 }
             }
@@ -1091,7 +986,7 @@ FocusScope {
                 title: i18n.tr("Quick actions (Right)")
                 model: settingsObject.webviewQuickActions[1]
                 anchors.fill: parent
-                onModelDataChanged: {
+                onModelDataChanged: (newModelData) => {
                     settingsObject.webviewQuickActions = [ settingsObject.webviewQuickActions[0], newModelData ]
                 }
             }
@@ -1255,7 +1150,7 @@ FocusScope {
         Connections {
             target: domainSettingsViewLoader.item
             function onDone() { domainSettingsViewLoader.active = false }
-            function onReload() {
+            function onReload(selectedDomain) {
                 domainSettingsViewLoader.active = false
                 domainSettingsViewLoader.active = true
 
@@ -1279,7 +1174,7 @@ FocusScope {
         Connections {
             target: domainPermissionsViewLoader.item
             function onDone() { domainPermissionsViewLoader.active = false }
-            function onReload() {
+            function onReload(selectedDomain) {
                 domainPermissionsViewLoader.active = false
                 domainPermissionsViewLoader.active = true
 

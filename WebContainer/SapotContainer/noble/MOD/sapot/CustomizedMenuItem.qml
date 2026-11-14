@@ -14,6 +14,7 @@ QQC2.MenuItem {
     property string iconName
     property string favicon: "undefined"
     property string tooltipText
+    property real faviconSize: units.gu(2)
 
     QQC2.ToolTip.delay: 1000
     QQC2.ToolTip.visible: tooltipText ? hovered : false
@@ -21,8 +22,6 @@ QQC2.MenuItem {
 
     height: visible ? implicitHeight : 0
 
-//~     topPadding: Suru.units.gu(1) - Suru.units.dp(1)
-//~     bottomPadding: Suru.units.gu(1) + Suru.units.dp(1)
     topPadding: units.gu(1) - units.dp(1)
     bottomPadding: units.gu(1) + units.dp(1)
 
@@ -39,7 +38,7 @@ QQC2.MenuItem {
 
     Connections {
         target: menu
-        onVisibleChanged: {
+        function onVisibleChanged() {
             if (!target.visible && internal.visibleWasPostponed) {
                 customMenuItem.visible = customMenuItem.enabled
             }
@@ -49,7 +48,7 @@ QQC2.MenuItem {
 
     Connections {
         target: subMenu
-        onVisibleChanged: {
+        function onVisibleChanged() {
             if (!target.visible && internal.visibleWasPostponed) {
                 customMenuItem.visible = customMenuItem.enabled
             }
@@ -85,7 +84,7 @@ QQC2.MenuItem {
             visible: customMenuItem.favicon == "undefined" ? false : true
 
             implicitHeight: implicitWidth
-            implicitWidth: units.gu(2)
+            implicitWidth: customMenuItem.faviconSize
         }
 
         QQC2.Label {

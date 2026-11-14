@@ -52,7 +52,7 @@ Item {
 
     Connections {
         target: scrollTracker.active ? scrollTracker.webview : null
-        onScrollPositionChanged: {
+        function onScrollPositionChanged() {
             if (header.moving) {
                 return;
             }

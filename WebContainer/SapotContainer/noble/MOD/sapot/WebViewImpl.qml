@@ -158,7 +158,7 @@ WebView {
         anchors.fill: parent
         acceptedButtons: Qt.BackButton | Qt.ForwardButton
 
-        onClicked: {
+        onClicked: (mouse) => {
             if (mouse.button == Qt.BackButton) {
                 if (webview.canGoBack) {
                     webview.goBack()
@@ -177,7 +177,7 @@ WebView {
         asynchronous: true
     }
 
-    onFindTextFinished: {
+    onFindTextFinished: (result) => {
         findController.numberOfMatches = result.numberOfMatches
         findController.activeMatch = result.activeMatch
     }
@@ -266,7 +266,8 @@ WebView {
             var authDialog = PopupUtils.open(Qt.resolvedUrl("../../HttpAuthenticationDialog.qml"), this);
             authDialog.host = UrlUtils.extractHost(request.url);
             authDialog.realm = request.realm;
-            authDialog.accept.connect(request.dialogAccept);
+            // for webapps the page did not load after entering the credentials when we directly connect to request.dialogAccept
+            authDialog.accept.connect(function(username, password) {request.dialogAccept(username, password);});
             authDialog.reject.connect(request.dialogReject);
 
             break;
@@ -810,7 +811,6 @@ WebView {
         runJavaScript("window.scrollTo(" + _newX + ", " + _newY +"); ")
     }
 
-
     function gotoUrl(urlText) {
         var query = urlText.trim()
         var requestedUrl = UrlUtils.fixUrl(query)
@@ -842,7 +842,6 @@ WebView {
             showShortcuts: !isWebApp && browser.hasKeyboard
             destroyOnClose: true
             modal: false
-//~             closePolicy: QQC2.Popup.CloseOnEscape
             minimumWidth: units.gu(40)
 
             ActionRowMenu {
@@ -1071,15 +1070,6 @@ WebView {
                             }
                         }
                     }
-                    , RowMenuAction {
-                        text: i18n.dtr('lomiri-ui-toolkit', "Settings")
-                        icon.name: "settings"
-                        enabled: isWebApp && ! domElementOfContextMenu.hasSelectMethod && ( contextMenuController.selectedTextLength === 0 || domElementOfContextMenu.isDocumentElement )
-                        closeMenuOnTrigger: true
-                        onTriggered: {
-                            webapp.showWebappSettings()
-                        }
-                    }
                 ]
             }
             CustomizedMenuItem {
@@ -1139,6 +1129,13 @@ WebView {
                 enabled: !isWebApp && webview.url.toString() !== "" && (webview.url.toString().substring(0,12) !== "view-source:")
                 onTriggered: browser.viewSourceRequested()
             }
+
+            CustomizedMenuSeparator{}
+
+            CustomizedMenuItem {
+                text: i18n.dtr('lomiri-ui-toolkit', "Settings")
+                onTriggered: webapp.showWebappSettings()
+            }
         }
     }
 
@@ -1153,7 +1150,6 @@ WebView {
             focus: false
             destroyOnClose: true
             modal: false
-//~             closePolicy: QQC2.Popup.CloseOnEscape
             minimumWidth: units.gu(40)
 
             ActionRowMenu {
