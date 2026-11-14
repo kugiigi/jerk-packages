@@ -1,5 +1,5 @@
 import QtQuick 2.9
-import Lomiri.Components
+import Lomiri.Components 2.0
 import QtQuick.Window 2.2
 import "." as Local
 

@@ -17,7 +17,7 @@
  */
 
 import QtQuick 2.9
-import Lomiri.Components
+import Lomiri.Components 2.0
 import QtQuick.Controls 2.2 as QQC2
 import QtQuick.Layouts 1.12
 import "../.." as Common

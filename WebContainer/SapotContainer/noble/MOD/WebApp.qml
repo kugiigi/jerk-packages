@@ -21,8 +21,8 @@ import QtWebEngine 1.10
 import Qt.labs.settings 1.0
 import webbrowsercommon.private 0.1
 import Morph.Web 0.1
-import Lomiri.Components
-import Lomiri.Components.Popups
+import Lomiri.Components 2.0
+import Lomiri.Components.Popups 2.0
 import Lomiri.Action 1.1 as LomiriActions
 import "../actions" as Actions
 import ".." as Common

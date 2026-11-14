@@ -17,8 +17,8 @@
  */
 
 import QtQuick 2.4
-import Lomiri.Components
-import Lomiri.Content
+import Lomiri.Components 2.0
+import Lomiri.Content 2.0
 import "MimeTypeMapper.js" as MimeTypeMapper
 import "."
 

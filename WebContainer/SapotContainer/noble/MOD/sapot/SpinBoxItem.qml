@@ -2,7 +2,7 @@ import QtQuick 2.9
 //~ import QtQuick.Controls 2.2 as QQC2
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Material as QQC2
-import Lomiri.Components
+import Lomiri.Components 2.0
 
 RowLayout {
     id: root

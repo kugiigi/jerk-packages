@@ -1,6 +1,6 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2 as QQC2
-import Lomiri.Components
+import Lomiri.Components 2.0
 
 QQC2.Menu {
     id: menuActions
