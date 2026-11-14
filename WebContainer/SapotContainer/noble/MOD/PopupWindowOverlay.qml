@@ -20,8 +20,8 @@ import QtQuick 2.12
 import QtQuick.Window 2.2
 import Morph.Web 0.1
 import QtWebEngine 1.7
-import Lomiri.Components
-import Lomiri.Components.Popups
+import Lomiri.Components 2.0
+import Lomiri.Components.Popups 2.0
 import ".."
 import "sapot" as Sapot
 import QtQuick.Layouts 1.12
@@ -241,7 +241,7 @@ FocusScope {
             property int initMouseY: 0
             property int prevMouseY: 0
 
-            onDistanceChanged: {
+            onDistanceChanged: (distance) => {
                 if (dragging) {
                     if (popupWindowController) {
                         popup.y = distance
@@ -249,7 +249,7 @@ FocusScope {
                 }
             }
 
-            onDraggingChanged: {
+            onDraggingChanged: (dragging) => {
                  if (!dragging) {
                      popupWindowController.isDragging = false
                     if (distance > (popup.height / 8) ||

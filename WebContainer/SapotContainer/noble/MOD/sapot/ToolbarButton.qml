@@ -1,6 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12 as QQC2
-import Lomiri.Components
+import Lomiri.Components 2.0
 import "." as Common
 
 QQC2.ToolButton {

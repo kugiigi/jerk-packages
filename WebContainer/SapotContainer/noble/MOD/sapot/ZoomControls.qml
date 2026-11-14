@@ -1,5 +1,5 @@
 import QtQuick 2.5
-import Lomiri.Components                  // For LomiriShape.
+import Lomiri.Components 2.0                  // For LomiriShape.
 import QtWebEngine 1.7
 import webbrowsercommon.private 0.1           // For DomainSettingsModel singleton.
 import QtQuick.Controls 2.5 as QQC2

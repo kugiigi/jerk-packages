@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import Lomiri.Components
+import Lomiri.Components 2.0
 import "." as Sapot
 
 Item {

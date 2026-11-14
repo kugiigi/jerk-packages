@@ -18,8 +18,8 @@
 
 import QtQuick 2.4
 import QtQuick.Window 2.2
-import Lomiri.Components
-import Lomiri.Components.Popups
+import Lomiri.Components 2.0
+import Lomiri.Components.Popups 2.0
 import QtQuick.Controls 2.5 as QQC2
 import QtWebEngine
 import Morph.Web 0.1
