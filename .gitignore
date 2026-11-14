@@ -1,0 +1,4 @@
+.clickable
+build
+*.qmlc
+node_modules/

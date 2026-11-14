@@ -1,0 +1,82 @@
+
+name: Build and Release Jerk Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect available Ubuntu releases
+        id: releases
+        shell: bash
+        run: |
+          mapfile -t RELEASES < <(
+            find . -type f -name config -print0 |
+            while IFS= read -r -d '' config; do
+              dir="$(dirname "$config")"
+
+              if [[ -d "$dir/MOD" && -d "$dir/ORIG" ]]; then
+                basename "$dir"
+              fi
+            done | sort -u
+          )
+
+          if [[ ${#RELEASES[@]} -eq 0 ]]; then
+            echo "No valid Ubuntu package releases found!"
+            exit 1
+          fi
+
+          printf 'Available releases: %s\n' "${RELEASES[*]}"
+          echo "releases=${RELEASES[*]}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and archive all releases
+        shell: bash
+        run: |
+          mkdir -p dist
+
+          for RELEASE in ${{ steps.releases.outputs.releases }}; do
+            echo "Building packages for $RELEASE"
+
+            cmake -S . -B "build/$RELEASE" \
+              -DJERK_PACKAGE_RELEASE="$RELEASE" \
+              -DJERK_PACKAGES_OUTPUT_DIR="$PWD/build/$RELEASE/packages"
+
+            cmake --build "build/$RELEASE" \
+              --target jerk-packages
+
+            PACKAGE_DIR="build/$RELEASE/packages"
+
+            if ! compgen -G "$PACKAGE_DIR/*.jerk" > /dev/null; then
+              echo "No packages generated for $RELEASE"
+              exit 1
+            fi
+
+            (
+              cd "$PACKAGE_DIR"
+              tar -cJf \
+                "$GITHUB_WORKSPACE/dist/jerk-packages-$RELEASE.tar.xz" \
+                ./*.jerk
+            )
+          done
+
+      - name: List release archives
+        run: ls -lh dist/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.tar.xz
