@@ -170,6 +170,10 @@ StyledItem {
     property bool isDesktopMode: false
     readonly property bool isFullScreen: panel.focusedSurfaceIsFullscreen
     // ENH136 - End
+    // ENH060 - Show/Hide Indicators Settings
+    readonly property bool isLargeAndWide: width >= units.gu(200)
+    readonly property bool doNotHideIndicatorIcons: shell.settings.doNotHideIndicatorIconsInLargeScreens && isLargeAndWide
+    // ENH060 - End
     
     // ENH046 - Lomiri Plus Settings
     property alias settings: lp_settings
@@ -1951,6 +1955,7 @@ Notable features are the following:\n\
         property alias alwaysHideTopPanel: settingsObj.alwaysHideTopPanel
         property alias onlyHideTopPanelonLandscape: settingsObj.onlyHideTopPanelonLandscape
         property alias alwaysHiddenIndicatorIcons: settingsObj.alwaysHiddenIndicatorIcons
+        property alias doNotHideIndicatorIconsInLargeScreens: settingsObj.doNotHideIndicatorIconsInLargeScreens
         property alias alwaysShownIndicatorIcons: settingsObj.alwaysShownIndicatorIcons
         property alias alwaysFullWidthTopPanel: settingsObj.alwaysFullWidthTopPanel
         property alias widerLandscapeTopPanel: settingsObj.widerLandscapeTopPanel
@@ -3187,6 +3192,7 @@ Notable features are the following:\n\
             property int rotateActionAlternateOrientation: Qt.InvertedLandscapeOrientation
             property bool rotateActionBasedOnPhysical: false
             property bool supportAllOrientations: false
+            property bool doNotHideIndicatorIconsInLargeScreens: false
         }
     }
 
@@ -8719,6 +8725,17 @@ This way you can switch to them even if they are visually behind or hidden."
                         onClicked: settingsLoader.item.stack.push(topPanelAppearancePage, {"title": text})
                     }
                     LPSettingsCheckBox {
+                        id: doNotHideIndicatorIconsInLargeScreens
+                        Layout.fillWidth: true
+                        text: "Do not hide icons in large wide screens"
+                        onCheckedChanged: shell.settings.doNotHideIndicatorIconsInLargeScreens = checked
+                        Binding {
+                            target: doNotHideIndicatorIconsInLargeScreens
+                            property: "checked"
+                            value: shell.settings.doNotHideIndicatorIconsInLargeScreens
+                        }
+                    }
+                    LPSettingsCheckBox {
                         id: alwaysHideTopPanel
                         Layout.fillWidth: true
                         text: "Always hide"
@@ -9299,12 +9316,23 @@ This way you can switch to them even if they are visually behind or hidden."
                         id: enableBluetoothDevicesList
                         Layout.fillWidth: true
                         text: "Show devices list"
+                        enabled: shell.settings.enableBluetoothDevicesList
                         onCheckedChanged: shell.settings.enableBluetoothDevicesList = checked
                         Binding {
                             target: enableBluetoothDevicesList
                             property: "checked"
                             value: shell.settings.enableBluetoothDevicesList
                         }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: units.gu(4)
+                        Layout.rightMargin: units.gu(2)
+                        Layout.bottomMargin: units.gu(2)
+                        text: "Disabled for now because it crashes Lomiri in 24.04-2.x"
+                        wrapMode: Text.WordWrap
+                        font.italic: true
+                        textSize: Label.Small
                     }
                     Label {
                         Layout.fillWidth: true

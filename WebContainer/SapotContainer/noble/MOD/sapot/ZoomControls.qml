@@ -456,7 +456,7 @@ QQC2.Dialog {
             target: webview
 
             // Width has changed. If currentDomainScrollWidth was retrieved up until now, it no loger is valid.
-            onWidthChanged: {
+            function onWidthChanged() {
                 //console.log("[ZC] webview.onWidthChanged triggered: %1".arg(webview.width));
 
                 if (internal.anyPageLoaded === false) {
@@ -479,7 +479,7 @@ QQC2.Dialog {
             }
 
             // A page loading status has been changed. If it is our current page and the status is a LoadSucceededStatus, then now is our time to handle autofit or retrieve scroll width if oom menu is visible.
-            onLoadingChanged: (loadingInfo) => {
+            function onLoadingChanged(loadingInfo) {
                 //console.log("[ZC] webview.onLoadingChanged: %1".arg(webview.url));
                 //console.log("[ZC]   webview.loading: %1".arg(webview.loading));
 
@@ -511,7 +511,7 @@ QQC2.Dialog {
             }
 
             // Page visibility changed. If page is currently visible, check if there is a need for fit to widh updates.
-            onVisibleChanged: {
+            function onVisibleChanged() {
                 //console.log("[ZC] webview.onVisibleChanged triggered: %1 (%2)".arg(webview.visible).arg(webview.url));
                 if (internal.anyPageLoaded === false) {
                     //console.log("  no page was loaded")
@@ -527,7 +527,7 @@ QQC2.Dialog {
                 }
             }
 
-            onZoomFactorChanged: internal.currentZoomFactor = target.zoomFactor
+            function onZoomFactorChanged() { internal.currentZoomFactor = target.zoomFactor }
         }
 
         property Connections domainSettingsModelConnections: Connections {
@@ -535,14 +535,14 @@ QQC2.Dialog {
 
             // If database changed, reload zoomFactor according to new db.
             // This is a workaround. Because if browser runs with previously opened pages (session), the DomainSettingsModel is not initialized yet when onCurrentDomainChanged is trigerred first time. I couldn't figure out, how to initialize DomainSettingsModel prior signaling.
-            onDatabasePathChanged: {
+            function onDatabasePathChanged() {
                 //console.log("[ZC] DomainSettingsModel.onDatabasePathChanged triggered: %1".arg(DomainSettingsModel.databasePath));
                 internal.resetAndUpdate();
             }
 
             // This is mainly here, to handle domain ZoomFactor changes outside this zoom menu (eg. from domain specific settings in privacy settings).
             // Also this trigger on user zoom actions, so sometimes is everything up to date and zoom doesn't need any corrections.
-            onDomainZoomFactorChanged: (domainZoomFactor) => {
+            function onDomainZoomFactorChanged(domain) {
                 //console.log("[ZC] DomainSettingsModel.onDomainZoomFactorChanged triggered: %1".arg(domain));
                 if (domain != controller.currentDomain) {
                     //console.log("[ZC]   not my domain (%1) changed".arg(controller.currentDomain));
@@ -571,13 +571,13 @@ QQC2.Dialog {
             target: controller
 
             // If page uses defaultZoomFactor, refresh zoom and fit to width.
-            onDefaultZoomFactorChanged: {
+            function onDefaultZoomFactorChanged() {
                 //console.log("[ZC] controller.onDefaultZoomFactorChanged: %1 (%2)".arg(controller.defaultZoomFactor).arg(webview.url));
                 updateAfterDefaultZoomFactorChangedOrAutoFitToWidthEnabledChanged();
             }
 
             // Changed in settings.
-            onAutoFitToWidthEnabledChanged: {
+            function onAutoFitToWidthEnabledChanged() {
                 //console.log("[ZC] controller.onAutoFitToWidthEnabledChanged: %1".arg(controller.autoFitToWidthEnabled));
                 updateAfterDefaultZoomFactorChangedOrAutoFitToWidthEnabledChanged();
             }

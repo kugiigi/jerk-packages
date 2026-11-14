@@ -943,7 +943,8 @@ Item {
                 // ENH036 - Use punchole as battery indicator
                 // readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator)
                 // ENH060 - Show/Hide Indicators Settings
-                readonly property bool alwaysHidden: shell.settings.alwaysHiddenIndicatorIcons.includes(identifier)
+                readonly property bool alwaysHidden: !shell.doNotHideIndicatorIcons
+                                                        && shell.settings.alwaysHiddenIndicatorIcons.includes(identifier)
                 readonly property bool alwaysShown: shell.settings.alwaysShownIndicatorIcons.includes(identifier)
                 // readonly property bool hidden: !expanded && (overflow || !indicatorVisible || hideSessionIndicator || hideKeyboardIndicator || hideBatteryIndicator)
                 readonly property bool hidden: !expanded && (alwaysHidden || overflow || !indicatorVisible || hideSessionIndicator
@@ -962,8 +963,10 @@ Item {
                 // ENH060 - Show/Hide Indicators Settings
                 readonly property bool hideMessagesIndicator: identifier == "ayatana-indicator-messages" && shell.settings.onlyShowNotificationsIndicatorWhenGreen
                                                                     && messagesEmpty
+                                                                    && !shell.doNotHideIndicatorIcons
                 readonly property bool hideSoundIndicator: identifier == "ayatana-indicator-sound" && shell.settings.onlyShowSoundIndicatorWhenSilent
                                                                     && !soundIsSilent
+                                                                    && !shell.doNotHideIndicatorIcons
                 property bool messagesEmpty: true
                 property bool soundIsSilent: false
                 // ENH060 - End

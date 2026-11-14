@@ -31,7 +31,7 @@ QQC2.SpinBox {
     
     Connections {
         target: controller
-        onCurrentZoomFactorChanged: {
+        function onCurrentZoomFactorChanged() {
             zoomSpinBox.prevValue = Math.round(target.currentZoomFactor * 100)
         }
     }

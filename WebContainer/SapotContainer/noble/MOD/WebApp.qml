@@ -32,6 +32,7 @@ import QtQuick.Window 2.2
 import "sapot" as Sapot
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12 as QQC2
+import "sapot/TextUtils.js" as TextUtils
 
 Common.BrowserView {
     id: webapp
@@ -72,6 +73,8 @@ Common.BrowserView {
     
     property var recentDownloads: []
     property var currentDownloadsDialog: null
+    
+    property alias popupController: containerWebView.popupController
 
 //~     readonly property bool sensorExists: orientationSensor.connectedToBackend
 //~     readonly property int sensorOrientation: orientationSensor.reading ? orientationSensor.reading.orientation : 0
@@ -130,7 +133,7 @@ Common.BrowserView {
         , { "name" : "Brave", "url": "https://search.brave.com/search?q={searchTerms}", "home": "https://search.brave.com" }
         , { "name" : "Google", "url": "https://google.com/search?client=ubuntu&q={searchTerms}&ie=utf-8&oe=utf-8", "home": "https://google.com" }
         , { "name" : "StartPage", "url": "https://www.startpage.com/do/dsearch?query={searchTerms}&amp;language=auto", "home": "https://www.startpage.com" }
-        , { "name" : "Yahoo", "url": "https://search.yahoo.com/yhs/search?ei=UTF-8&amp;p={searchTerms}", "home": "https://search.yahoo.com" }
+        , { "name" : "Yahoo", "url": "https://search.yahoo.com/search?p={searchTerms}&ei=UTF-8", "home": "https://search.yahoo.com" }
     ]
 
     signal chooseAccount()
@@ -139,6 +142,10 @@ Common.BrowserView {
     // to be introspectable from AP which makes directly accessing the settings object
     // not possible https://bugs.launchpad.net/autopilot-qt/+bug/1273956
     property alias generatedUrlPatterns: urlPatternSettings.generatedUrlPatterns
+
+    readonly property string screenSize: (screenDiagonal === 0) ? "unknown" : (screenDiagonal > 0 && screenDiagonal < 190) ? "small" : "large"
+    readonly property bool appForceDesktop: webapp.settings ? webapp.settings.setDesktopMode :  false
+    readonly property bool appForceMobile: webapp.settings ? webapp.settings.forceMobileSite : false
 
     currentWebcontext: currentWebview ? currentWebview.context : null
 
@@ -546,14 +553,14 @@ Common.BrowserView {
             Connections {
                 target: chrome
 
-                onAutoHideChanged: containerWebView.changeState()
-                onStateChanged: containerWebView.changeState()
-                onFloatingChanged: containerWebView.changeState()
+                function onAutoHideChanged() { containerWebView.changeState() }
+                function onStateChanged() { containerWebView.changeState() }
+                function onFloatingChanged() { containerWebView.changeState() }
             }
 
             Connections {
                 target: webapp.currentWebview
-                onLoadingChanged: containerWebView.changeState()
+                function onLoadingChanged() { containerWebView.changeState() }
             }
 
             onThemeColorMetaInformationDetected: {
@@ -695,8 +702,13 @@ Common.BrowserView {
        }
 
        Connections {
+            target: {
+                if (popupController.topWebview) {
+                    return  popupController.topWebview.context
+                }
 
-           target: webapp.currentWebview ? webapp.currentWebview.context : null
+                return webapp.currentWebview ? webapp.currentWebview.context : null
+            }
 
            function onDownloadRequested(download) {
 
@@ -706,7 +718,7 @@ Common.BrowserView {
                webapp.startDownload(download);
            }
 
-          function onDownloadFinished(download) {
+           function onDownloadFinished(download) {
 
                console.log(`a download was finished with path ${download.downloadDirectory}/${download.downloadFileName}`)
                webapp.setDownloadComplete(download)
@@ -883,8 +895,7 @@ Common.BrowserView {
         iconName: "go-previous"
         shadowColor: LomiriColors.ash
         swipeProgress: bottomBackForwardHandle.swipeProgress
-        enabled: webapp.currentWebview ? webapp.currentWebview.canGoBack
-                                        : false
+        enabled: shortcutWebviewBack.enabled
         anchors {
             left: parent.left
             leftMargin: units.gu(3)
@@ -1188,35 +1199,72 @@ Common.BrowserView {
 
     // F5 or Ctrl+R: Reload current Tab
     Shortcut {
+        id: shortcutWebviewReload
         sequence: "Ctrl+r"
-        enabled: currentWebview && currentWebview.visible
-        onActivated: currentWebview.reload()
+        enabled: (popupController.hasViews && popupController.topWebview && popupController.topWebview.visible)
+                        || (currentWebview && currentWebview.visible)
+        onActivated: {
+            if (popupController.hasViews) {
+                popupController.topWebview.reload()
+            } else {
+                currentWebview.reload()
+            }
+        }
     }
     Shortcut {
-        id: shortcutWebviewReload
         sequence: "F5"
-        enabled: currentWebview && currentWebview.visible
-        onActivated: currentWebview.reload()
+        enabled: shortcutWebviewReload.enabled
+        onActivated: shortcutWebviewReload.activated()
     }
 
     // Alt+← or Backspace: Goes to the previous page
     Shortcut {
         id: shortcutWebviewBack
         sequences: [StandardKey.Back]
-        enabled: currentWebview && currentWebview.canGoBack
-        onActivated: currentWebview.goBack()
+        enabled: (popupController.hasViews && popupController.topWebview)
+                        || currentWebview
+
+        onActivated: {
+            let _webview = currentWebview;
+            if (popupController.hasViews && popupController.topWebview) {
+                _webview = popupController.topWebview;
+            }
+
+            if (_webview.loading) {
+                _webview.stop();
+            }
+            if (_webview.canGoBack) {
+                _webview.goBack();
+            } else if (popupController.hasViews && popupController.topView) {
+                popupController.topView.close();
+            } else {
+                webapp.startSearch();
+            }
+        }
     }
 
     // Alt+→ or Shift+Backspace: Goes to the next page
     Shortcut {
         id: shortcutWebviewForward
         sequences: [StandardKey.Forward]
-        enabled: currentWebview && currentWebview.canGoForward
-        onActivated: currentWebview.goForward()
+        enabled: (popupController.hasViews && popupController.topWebview && popupController.topWebview.canGoForward)
+                    || (currentWebview && currentWebview.canGoForward)
+        onActivated: {
+            let _webview = currentWebview;
+            if (popupController.hasViews && popupController.topWebview) {
+                _webview = popupController.topWebview;
+            }
+
+            if (_webview.loading) {
+                _webview.stop();
+            }
+            _webview.goForward();
+        }
     }
 
     Shortcut {
         id: shortcutFullscreen
+        enabled: !popupController.hasViews
         sequence: "F11"
         onActivated: webapp.window.toggleApplicationLevelFullscreen()
     }
@@ -1225,10 +1273,16 @@ Common.BrowserView {
     Shortcut {
         id: shortcutExitFullScreen
         sequence: "Esc"
-        enabled: currentWebview && currentWebview.isFullScreen
+        enabled: (popupController.hasViews && popupController.topWebview && popupController.topWebview.isFullScreen)
+                    || (currentWebview && currentWebview.isFullScreen)
         onActivated: {
-            if (currentWebview.isFullScreen) {
-                currentWebview.fullScreenCancelled()
+            let _webview = currentWebview;
+            if (popupController.hasViews && popupController.topWebview) {
+                _webview = popupController.topWebview;
+            }
+
+            if (_webview.isFullScreen) {
+                _webview.fullScreenCancelled()
             }
         }
     }
@@ -1237,9 +1291,18 @@ Common.BrowserView {
     Shortcut {
         id: shortcutFind
         sequences: [StandardKey.Find]
-        enabled: webapp.currentWebview
+        enabled: (popupController.hasViews && popupController.topWebview)
+                            || webapp.currentWebview
         onActivated: {
-            if (webapp.currentWebview) {
+            if (popupController.hasViews) {
+                if (popupController.topWebview) {
+                    if (popupController.topView.findInPageMode) {
+                        popupController.topView.focusFindField()
+                    } else {
+                        popupController.topView.findInPageMode = true
+                    }
+                }
+            } else if (webapp.currentWebview) {
                 if (webapp.findInPageMode) {
                     webapp.focusFindField()
                 } else {
@@ -1254,8 +1317,15 @@ Common.BrowserView {
         id: shortcutFindNext
 
         sequence: "Ctrl+G"
-        enabled: webapp.currentWebview && webapp.findInPageMode
-        onActivated: currentWebview.findController.next()
+        enabled: (popupController.hasViews && popupController.topWebview && popupController.topView.findInPageMode)
+                        || (webapp.currentWebview && webapp.findInPageMode)
+        onActivated: {
+            if (popupController.hasViews && popupController.topWebview) {
+                popupController.topWebview.findController.next()
+            } else if (currentWebview) {
+                currentWebview.findController.next()
+            }
+        }
     }
 
     // Ctrl+Shift+G: Find previous
@@ -1263,21 +1333,28 @@ Common.BrowserView {
         id: shortcutFindPrevious
 
         sequence: "Ctrl+Shift+G"
-        enabled: webapp.currentWebview && webapp.findInPageMode
-        onActivated: currentWebview.findController.previous()
+        enabled: (popupController.hasViews && popupController.topWebview && popupController.topView.findInPageMode)
+                        || (webapp.currentWebview && webapp.findInPageMode)
+        onActivated: {
+            if (popupController.hasViews && popupController.topWebview) {
+                popupController.topWebview.findController.previous()
+            } else if (currentWebview) {
+                currentWebview.findController.previous()
+            }
+        }
     }
 
     // F3: Find next
     Shortcut {
         sequences: [StandardKey.FindNext]
-        enabled: webapp.currentWebview && webapp.findInPageMode
+        enabled: shortcutFindNext.enabled
         onActivated: shortcutFindNext.activated()
     }
 
     // Shift+F3: Find previous
     Shortcut {
         sequences: [StandardKey.FindPrevious]
-        enabled: webapp.currentWebview && webapp.findInPageMode
+        enabled: shortcutFindPrevious.enabled
         onActivated: shortcutFindPrevious.activated()
     }
 

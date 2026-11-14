@@ -72,7 +72,7 @@ Item {
     Connections {
         target: Qt.inputMethod
 
-        onVisibleChanged: {
+        function onVisibleChanged() {
             if (!Qt.inputMethod.visible) {
                 var focusedItem = recursiveFindFocusedItem(keyboardRect.parent);
                 if (focusedItem != null) {

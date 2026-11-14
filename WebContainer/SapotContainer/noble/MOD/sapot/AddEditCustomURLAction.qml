@@ -102,7 +102,7 @@ DialogWithContents {
 
             text: "Pick Icon"
             onClicked: {
-                let _iconMenu = iconMenuComponent.createObject(QQC2.Overlay.overlay, { caller: iconButton, currentIcon: customURLIconLabel.text } );
+                let _iconMenu = iconMenuComponent.createObject(QQC2.Overlay.overlay, { currentIcon: customURLIconLabel.text } );
 
                 let _iconSelect = function (_iconName) {
                     dialogue.currentIcon = _iconName

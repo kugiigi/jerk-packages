@@ -332,7 +332,7 @@ WebappWebview {
         {
             if (! areCustomUrlSchemesAllowed(currentDomain))
             {
-              request.action = WebEngineNavigationRequest.IgnoreRequest;
+              request.reject(); 
 
               var allowCustomSchemesDialog = PopupUtils.open(Qt.resolvedUrl("../AllowCustomSchemesDialog.qml"), webview);
               allowCustomSchemesDialog.url = url;
@@ -374,7 +374,7 @@ WebappWebview {
                 alertDialog.title = i18n.tr("Blocked domain");
                 alertDialog.message = i18n.tr("Blocked navigation request to domain %1.").arg(requestDomainWithoutSubdomain);
             }
-            request.action = WebEngineNavigationRequest.IgnoreRequest;
+            request.reject(); 
             return;
         }
 
@@ -406,7 +406,7 @@ WebappWebview {
                 DomainPermissionsModel.setRequestedByDomain(requestDomainWithoutSubdomain, isMainFrame ? "" : currentDomainWithoutSubdomain, false);
                 DomainPermissionsModel.setPermission(requestDomainWithoutSubdomain, DomainPermissionsModel.Blocked, false);
               });
-            request.action = WebEngineNavigationRequest.IgnoreRequest;
+            request.reject(); 
             return;
         }
 
@@ -430,16 +430,16 @@ WebappWebview {
         }
 
         if (runningLocalApplication && !url.startsWith("file://") && !webview.haveValidUrlPatterns) {
-            request.action = WebEngineNavigationRequest.IgnoreRequest;
+            request.reject(); 
             openUrlExternally(url, true);
             return;
         }
 
-        request.action = WebEngineNavigationRequest.IgnoreRequest
+        request.reject(); 
         if (isNewForegroundWebViewDisposition(request.disposition)) {
             var shouldAcceptRequest = popupController.handleNewForegroundNavigationRequest(url, request, true);
             if (shouldAcceptRequest) {
-                request.action = WebEngineNavigationRequest.AcceptRequest;
+                request.accept(); 
             }
             return;
         }
@@ -448,7 +448,7 @@ WebappWebview {
         // or if we dont have a list of url patterns specified to filter the
         // browsing actions
         if (!webview.haveValidUrlPatterns() && !webview.isRunningAsANamedWebapp()) {
-            request.action = WebEngineNavigationRequest.AcceptRequest;
+            request.accept(); 
             return;
         }
 
@@ -457,12 +457,12 @@ WebappWebview {
         if (! isMainFrame)
         {
             console.debug('accepted resource request to %1.'.arg(url));
-            request.action = WebEngineNavigationRequest.AcceptRequest;
+            request.accept(); 
         }
 
         else if (webview.shouldAllowNavigationTo(url))
         {
-            request.action = WebEngineNavigationRequest.AcceptRequest;
+            request.accept(); 
         }
 
         // SAML requests are used for instance by Google Apps for your domain;
@@ -473,7 +473,7 @@ WebappWebview {
       //  if (request.disposition === Oxide.NavigationRequest.DispositionCurrentTab
       //          && url.indexOf("SAMLRequest") > 0) {
       //      handleSamlRequestNavigation(url)
-            //request.action = WebEngineNavigationRequest.AcceptRequest
+            //request.accept(); 
 
       //  }
 
@@ -500,41 +500,6 @@ WebappWebview {
                                                              : localUserAgentOverride ? localUserAgentOverride : webview.context.defaultUserAgent;
 
             webview.url = url;
-        }
-        else
-        {
-            let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
-            let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
-            let _tabForceDesktop = webview.forceDesktopSite
-            let _tabForceMobile = webview.forceMobileSite
-            let _forceDesktopUA = false
-            let _forceMobileUA = false
-            let _screenSize = webview.context.__ua.calcScreenSize()
-
-            if ( _screenSize == "small") {
-                // Small screeens use mobile UA by default so only check when desktop UA is forced
-                _forceDesktopUA = ((_appForceDesktop && !_tabForceMobile) || (!_appForceDesktop && _tabForceDesktop))
-            } else {
-                // Large screeens use desktop UA by default so only check when mobile UA is forced
-                if (webapp.settings.autoDeskMobSwitch) {
-                    _forceMobileUA = ((webapp.wide && _appForceMobile && !_tabForceDesktop)
-                                            || (webapp.wide && !_appForceMobile && _tabForceMobile)
-                                            || (!webapp.wide && !_tabForceDesktop))
-                } else {
-                    _forceMobileUA = ((_appForceMobile && !_tabForceDesktop) || (!_appForceMobile && _tabForceMobile))
-                }
-            }
-
-            if ( _screenSize == "small") {
-                webview.context.__ua.setDesktopMode(_forceDesktopUA);
-            } else {
-                webview.context.__ua.forceMobileSite(_forceMobileUA);
-                // TODO: Fixes blank loading when forcing mobile site on big screens but loads twice
-                if (webview.url == "about:blank") {
-                    webview.url = url
-                }
-            }
-            console.log("user agent: " + webview.context.httpUserAgent);
         }
     }
 

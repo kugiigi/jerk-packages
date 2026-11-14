@@ -21,7 +21,6 @@ import Lomiri.Components
 import Qt.labs.settings 1.0
 import QtWebEngine 1.10
 import Morph.Web 0.1
-import webcontainer.private 0.1
 import webbrowsercommon.private 0.1
 import ".."
 import "sapot" as Sapot

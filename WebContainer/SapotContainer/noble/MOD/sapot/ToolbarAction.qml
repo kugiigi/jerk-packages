@@ -21,7 +21,7 @@ import Lomiri.Components
 
 
 Action{
-	id: action
+    id: action
 
-	signal trigger(var source)
+    signal trigger(var source)
 }

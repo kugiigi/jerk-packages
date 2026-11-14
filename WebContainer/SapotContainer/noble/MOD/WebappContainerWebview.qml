@@ -30,6 +30,7 @@ FocusScope {
     id: containerWebview
 
     property Window window
+
     property bool initialUrlLoaded: false
     property string url: ""
     property bool developerExtrasEnabled: false
@@ -51,6 +52,7 @@ FocusScope {
     property Sapot.ChromeBase chromeItem
     property Sapot.ScrollTracker scrollTracker: webappContainerWebViewLoader.item ? webappContainerWebViewLoader.item.scrollTracker : null
     property var overlayViewsParent: parent
+    property var popupController: popupController
 
     signal samlRequestUrlPatternReceived(string urlPattern)
     signal themeColorMetaInformationDetected(string theme_color)
@@ -78,6 +80,7 @@ FocusScope {
     PopupWindowController {
         id: popupController
         objectName: "popupController"
+        focus: true
         webappUrlPatterns: containerWebview.webappUrlPatterns
         mainWebappView: containerWebview.currentWebview
         blockOpenExternalUrls: containerWebview.blockOpenExternalUrls
@@ -439,7 +442,7 @@ FocusScope {
                     }
                 }
 
-                onRotationChanged: {
+                function onRotationChanged() {
                     fullscreenExitHint.destroy()
                 }
             }

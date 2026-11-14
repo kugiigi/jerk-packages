@@ -967,11 +967,17 @@ FocusScope {
                     text: "View in OpenStore"
                     iconName: "ubuntu-store-symbolic"
                     visible: enabled
-                    enabled: contextMenu.appId.includes(".") // Open OpenStore page if app is a click
+                    enabled: contextMenu.appId.includes(".") || contextMenu.appId.includes("_") // Open OpenStore page if app is a click or snap?
                     onTriggered: {
                         let _appId = contextMenu.appId
-                        var splitAppId = _appId.split("_");
-                        Qt.openUrlExternally("https://open-store.io/app/" + _appId.replace("_" + splitAppId[splitAppId.length-1],"") + "/");
+                        let splitAppId = _appId.split("_");
+                        let _storeId = _appId.replace("_" + splitAppId[splitAppId.length-1],"");
+
+                        // We guess that it's a snap
+                        if (! _appId.includes(".")) {
+                            _storeId = "snap." + _storeId;
+                        }
+                        Qt.openUrlExternally("https://open-store.io/app/" + _storeId + "/");
                     }
                 }
                 Action {

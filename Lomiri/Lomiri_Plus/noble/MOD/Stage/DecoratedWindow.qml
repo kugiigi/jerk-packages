@@ -142,6 +142,9 @@ FocusScope {
         }
     }
     // ENH225 - End
+    // ENH276 - Add window titlebar menu
+    signal contextMenu(var caller)
+    // ENH276 - End
 
     signal closeClicked()
     signal maximizeClicked()
@@ -352,6 +355,21 @@ FocusScope {
         onMaximizeHorizontallyClicked: { root.decorationPressed(); root.maximizeHorizontallyClicked(); }
         onMaximizeVerticallyClicked: { root.decorationPressed(); root.maximizeVerticallyClicked(); }
         onMinimizeClicked: root.minimizeClicked();
+
+        // ENH276 - Add window titlebar menu
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.RightButton) {
+                rightClickCaller.x = mouse.x;
+                rightClickCaller.y = mouse.y;
+                root.contextMenu(rightClickCaller);
+                mouse.accepted = true;
+            }
+        }
+        Item {
+            id: rightClickCaller
+            visible: false
+        }
+        // ENH276 - End
 
         enableMenus: {
             return active &&

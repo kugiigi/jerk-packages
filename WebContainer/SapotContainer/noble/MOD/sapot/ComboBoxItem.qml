@@ -3,41 +3,36 @@ import QtQuick.Controls 2.2 as QQC2
 import QtQuick.Layouts 1.3
 
 RowLayout {
-	id: comboBoxItem
+    id: comboBoxItem
 
-	property string text
-	property alias currentIndex: comboBox.currentIndex
-	property alias model: comboBox.model
-	property alias currentText: comboBox.currentText
-	property alias textRole: comboBox.textRole
+    property string text
+    property alias currentIndex: comboBox.currentIndex
+    property alias model: comboBox.model
+    property alias currentText: comboBox.currentText
+    property alias textRole: comboBox.textRole
 
-	spacing: units.gu(5)
-
-	anchors {
-		left: parent.left
-		right: parent.right
-	}
+    spacing: units.gu(5)
 
     function find(text, flags) {
         var result = comboBox.find(text, flags)
         return result
     }
 
-	QQC2.Label {
-		id: label
+    QQC2.Label {
+        id: label
 
-		Layout.preferredWidth: units.gu(10)
-		Layout.alignment: Qt.AlignVCenter
-		text: comboBoxItem.text + ":"
-        color: theme.palette.normal.backgroundText
-	}
+        Layout.preferredWidth: units.gu(10)
+        Layout.alignment: Qt.AlignVCenter
+        text: comboBoxItem.text + ":"
+                color: theme.palette.normal.backgroundText
+    }
 
-	QQC2.ComboBox {
-		id: comboBox
+    QQC2.ComboBox {
+        id: comboBox
 
-//~ 		Layout.maximumWidth: units.gu(20)
-		Layout.preferredWidth: units.gu(20)
+        Layout.maximumWidth: units.gu(20)
+        Layout.preferredWidth: units.gu(20)
         Layout.preferredHeight: units.gu(5)
-		Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-	}
+        Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+    }
 }

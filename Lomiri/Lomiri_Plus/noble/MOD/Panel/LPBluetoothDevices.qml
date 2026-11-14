@@ -58,6 +58,7 @@ Item {
         backend.resetSelectedDevice();
     }
 
+    /* Crashes Lomiri since 2.x
     LomiriBluetoothPanel {
         id: backend
 
@@ -70,6 +71,7 @@ Item {
             finishDevicePairing()
         }
     }
+    */
 
     Connections {
         target: shell.settings

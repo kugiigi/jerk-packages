@@ -927,11 +927,13 @@ PageStack {
                                 return batteryComponent
                             // ENH195 - End
                             // ENH204 - Bluetooth device list
+                            /* Crashes Lomiri since 2.x
                             case "ayatana-indicator-bluetooth":
                                 if (shell.settings.enableBluetoothDevicesList
                                         && root.bluetoothToggle && root.bluetoothToggle.checked) {
                                     return bluetoothComponent
                                 }
+                            */
                             // ENH204 - End
                             break
                         }

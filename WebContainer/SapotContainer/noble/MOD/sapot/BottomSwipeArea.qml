@@ -3,7 +3,6 @@ import QtQuick.Controls 2.12 as QQC2
 import Lomiri.Components
 import QtQuick.Window 2.2
 import QtQuick.Layouts 1.12
-//~ import QtGraphicalEffects 1.12
 import "." as Common
 
 SwipeArea {
@@ -212,7 +211,9 @@ SwipeArea {
                     z: highlighted ? 10 : 1
 
                     function trigger(fromBottom) {
-                        modelData.trigger(fromBottom, bottomSwipeArea)
+                        if (enabled) {
+                            modelData.trigger(fromBottom, bottomSwipeArea)
+                        }
                     }
 
                     onHighlightedChanged: {

@@ -42,9 +42,34 @@ Sapot.WebViewImpl {
     property bool readerMode: false
     property bool isReaderable: false
 
+    readonly property bool forceDesktopUA: webapp.screenSize === "small" && ((webapp.appForceDesktop && !forceMobileSite) || (!webapp.appForceDesktop && forceDesktopSite))
+    readonly property bool forceMobileUA: {
+        if (webapp.screenSize === "small") return false
+
+        if (webapp.settings.autoDeskMobSwitch) {
+            return ((webapp.wide && webapp.appForceMobile && !forceDesktopSite)
+                                    || (webapp.wide && !webapp.appForceMobile && forceMobileSite)
+                                    || (!webapp.wide && !forceDesktopSite))
+        } else {
+            return ((webapp.appForceMobile && !forceDesktopSite) || (!webapp.appForceMobile && forceMobileSite))
+        }
+    }
+
+    onForceDesktopUAChanged: {
+        if (webapp.screenSize == "small") {
+            webappWebview.context.__ua.setDesktopMode(forceDesktopUA);
+        }
+    }
+    onForceMobileUAChanged: {
+        if (webapp.screenSize !== "small") {
+            webappWebview.context.__ua.forceMobileSite(forceMobileUA);
+        }
+    }
 
     signal openUrlExternallyRequested(string url)
 
+    // Freeze tabs that aren't displayed anyway
+    lifecycleState: !visible ? WebEngineView.LifecycleState.Frozen : WebEngineView.LifecycleState.Active
 
     onForceDesktopSiteChanged: if (webapp.settings.autoDeskMobSwitchReload) reload()
     onForceMobileSiteChanged: if (webapp.settings.autoDeskMobSwitchReload) reload()
@@ -56,10 +81,18 @@ Sapot.WebViewImpl {
         }
     }
 
-    onShareLinkRequested: internal.shareLink(linkUrl, title)
-    onShareTextRequested: internal.shareText(text)
+    onShareLinkRequested: (linkUrl) => { internal.shareLink(linkUrl, title) }
+    onShareTextRequested: (text) => { internal.shareText(text) }
 
     contentHandlerLoaderObj: contentHandlerLoader
+
+    function initUA() {
+        if (webapp.screenSize == "small") {
+            webappWebview.context.__ua.setDesktopMode(forceDesktopUA);
+        } else {
+            webappWebview.context.__ua.forceMobileSite(forceMobileUA);
+        }
+    }
 
     function pullDownWebview() {
         webviewPulledDown = true
@@ -122,37 +155,7 @@ Sapot.WebViewImpl {
 
             webappWebview.url = url;
         }
-        else
-        {
-            let _appForceDesktop = webapp.settings ? webapp.settings.setDesktopMode :  false
-            let _appForceMobile = webapp.settings ? webapp.settings.forceMobileSite : false
-            let _tabForceDesktop = webappWebview.forceDesktopSite
-            let _tabForceMobile = webappWebview.forceMobileSite
-            let _forceDesktopUA = false
-            let _forceMobileUA = false
-            let _screenSize = webappWebview.context.__ua.calcScreenSize()
-
-            if ( _screenSize == "small") {
-                // Small screeens use mobile UA by default so only check when desktop UA is forced
-                _forceDesktopUA = ((_appForceDesktop && !_tabForceMobile) || (!_appForceDesktop && _tabForceDesktop))
-            } else {
-                // Large screeens use desktop UA by default so only check when mobile UA is forced
-                if (webapp.settings.autoDeskMobSwitch) {
-                    _forceMobileUA = ((webapp.wide && _appForceMobile && !_tabForceDesktop)
-                                            || (webapp.wide && !_appForceMobile && _tabForceMobile)
-                                            || (!webapp.wide && !_tabForceDesktop))
-                } else {
-                    _forceMobileUA = ((_appForceMobile && !_tabForceDesktop) || (!_appForceMobile && _tabForceMobile))
-                }
-            }
-
-            if ( _screenSize == "small") {
-                webappWebview.context.__ua.setDesktopMode(_forceDesktopUA);
-            } else {
-                webappWebview.context.__ua.forceMobileSite(_forceMobileUA);
-            }
-            console.log("user agent: " + webappWebview.context.httpUserAgent);
-        }
+        console.warn("User agent: " + webappWebview.context.httpUserAgent);
     }
 
     Component.onCompleted: {
@@ -169,6 +172,8 @@ Sapot.WebViewImpl {
         readabilityReadableScript.runsOnSubframes = true;
         readabilityReadableScript.worldId = WebEngineScript.MainWorld;
         userScripts.insert(readabilityReadableScript);
+
+        initUA();
     }
 
     onLoadingChanged: (loadingInfo) => {
@@ -331,7 +336,7 @@ Sapot.WebViewImpl {
     // Pull up webview when onscreen keyboard is displayed
     Connections {
         target: webapp.osk
-        onVisibleChanged: {
+        function onVisibleChanged() {
             if (visible) {
                 webappWebview.pullUpWebview()
             }
