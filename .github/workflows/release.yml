@@ -17,66 +17,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect available Ubuntu releases
-        id: releases
+      - name: Extract Ubuntu release from tag
+        id: release
         shell: bash
         run: |
-          mapfile -t RELEASES < <(
-            find . -type f -name config -print0 |
-            while IFS= read -r -d '' config; do
-              dir="$(dirname "$config")"
+          TAG="${GITHUB_REF_NAME}"
 
-              if [[ -d "$dir/MOD" && -d "$dir/ORIG" ]]; then
-                basename "$dir"
-              fi
-            done | sort -u
-          )
-
-          if [[ ${#RELEASES[@]} -eq 0 ]]; then
-            echo "No valid Ubuntu package releases found!"
+          if [[ "$TAG" =~ ^v[0-9]{8}_([a-z0-9]+)$ ]]; then
+            RELEASE="${BASH_REMATCH[1]}"
+          else
+            echo "Invalid tag format: $TAG"
+            echo "Expected: vYYYYMMDD_RELEASE (e.g. v20261115_noble)"
             exit 1
           fi
 
-          printf 'Available releases: %s\n' "${RELEASES[*]}"
-          echo "releases=${RELEASES[*]}" >> "$GITHUB_OUTPUT"
+          echo "Ubuntu release: $RELEASE"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
 
-      - name: Build and archive all releases
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DJERK_PACKAGE_RELEASE=${{ steps.release.outputs.release }} \
+            -DJERK_PACKAGES_OUTPUT_DIR="$PWD/build/packages"
+
+      - name: Build packages
+        run: |
+          cmake --build build --target jerk-packages
+
+      - name: Verify generated packages
         shell: bash
         run: |
-          mkdir -p dist
+          if ! compgen -G "build/packages/*.jerk" > /dev/null; then
+            echo "No Jerk packages were generated!"
+            exit 1
+          fi
 
-          for RELEASE in ${{ steps.releases.outputs.releases }}; do
-            echo "Building packages for $RELEASE"
-
-            cmake -S . -B "build/$RELEASE" \
-              -DJERK_PACKAGE_RELEASE="$RELEASE" \
-              -DJERK_PACKAGES_OUTPUT_DIR="$PWD/build/$RELEASE/packages"
-
-            cmake --build "build/$RELEASE" \
-              --target jerk-packages
-
-            PACKAGE_DIR="build/$RELEASE/packages"
-
-            if ! compgen -G "$PACKAGE_DIR/*.jerk" > /dev/null; then
-              echo "No packages generated for $RELEASE"
-              exit 1
-            fi
-
-            (
-              cd "$PACKAGE_DIR"
-              tar -cJf \
-                "$GITHUB_WORKSPACE/dist/jerk-packages-$RELEASE.tar.xz" \
-                ./*.jerk
-            )
-          done
-
-      - name: List release archives
-        run: ls -lh dist/
+          ls -lh build/packages/
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ github.ref_name }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            dist/*.tar.xz
+            build/packages/*.jerk
