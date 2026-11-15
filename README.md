@@ -1,6 +1,13 @@
 # Jerk Packages
 This repo contains a collection of jerk packages for the [Jerk Installer script](https://github.com/kugiigi/jerk-installer). This collection contains the files for each package which you can manually install or compress them into tarballs and use the [Jerk Installer script](https://github.com/kugiigi/jerk-installer) to install.
 
+### Generate packages
+```cmake -S . -B build -DJERK_PACKAGE_RELEASE=<Ubuntu release>```
+```cmake --build build --target jerk-packages --verbose```
+
+Example:
+```cmake -S . -B build -DJERK_PACKAGE_RELEASE=noble``` to build for Noble (24.04), replace with `focal` to build packages for Focal (20.04)
+
 ### How to use
 #### Manual Installation
 It is possible to install these packages manually however, it also means backing up files and uninstalling is up to you. You also have to check if the package is compatible with your Ubuntu Touch system, at least by comparing the contents of the `ORIG` folder to your system files.
